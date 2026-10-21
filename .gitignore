@@ -3,7 +3,3 @@ dist
 *.tsbuildinfo
 .env*.local
 .DS_Store
-
-# Still being built in place by another agent. On integration it moves to
-# games/crocodile-dentist and this line is removed.
-/crocodile-dentist/

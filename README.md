@@ -7,8 +7,9 @@ original-games/
 ├── apps/platform/        Lobby + game shell (Vite, React, React Router)
 ├── packages/game-sdk/    The contract between platform and games, plus shared helpers
 ├── games/
-│   ├── template/         Reference game ("Arc Climb"), copied by `npm run new-game`
-│   └── <id>/             One folder per game
+│   ├── template/            Reference game ("Arc Climb"), copied by `npm run new-game`
+│   ├── crocodile-dentist/   Croc Dentist
+│   └── <id>/                One folder per game
 ├── scripts/              eval runner, new-game scaffolder
 ├── docs/IDEAS.md         Concept backlog + eval rubric
 └── render.yaml           Render Blueprint (one static site)
@@ -68,12 +69,3 @@ Then replace `math.ts`, `eval.ts` and `Game.tsx`. Every game should:
 `render.yaml` defines a single static site. In Render, choose **New → Blueprint** and select this repo. Each deploy runs typecheck and tests before building, and PR previews are on. SPA rewrites make `/play/<id>` deep links work.
 
 The demo wallet and RNG run in the browser. For real money, put a server wallet and a provably-fair RNG behind the same `Wallet` and `Rng` interfaces.
-
-## Integrating Crocodile Dentist
-
-`crocodile-dentist/` is still being built at the repo root (it's git-ignored for now). To integrate it:
-
-1. Move it to `games/crocodile-dentist/`, drop its own lockfile, `node_modules`, `render.yaml`, and its React/Vite devDependencies (they now come from the root).
-2. Add `manifest.ts`, an `index.ts` that wraps `App` with `defineReactGame`, and an `eval.ts` that drives its existing `buildLadder` maths.
-3. Replace its local balance with `useBalance()` and `wallet.placeBet()`/`settle()`, its `crypto` RNG with `host.rng`, and its `:root` CSS variables with `:host` and the `--og-*` tokens.
-4. Remove the `/crocodile-dentist/` line from `.gitignore`.
