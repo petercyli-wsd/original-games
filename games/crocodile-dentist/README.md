@@ -1,6 +1,6 @@
-# Croc Dentist
+# Croc Dentist (vs House)
 
-An "Originals"-style casino game prototype based on Crocodile Dentist. You and the House take turns pressing teeth, and whoever gets bitten loses.
+An "Originals"-style casino game prototype based on Crocodile Dentist. You and the House take turns pressing teeth, and whoever gets bitten loses. For the classic one-player version, see [Croc Dentist (Solo)](../croc-dentist-solo/README.md).
 
 ## Rules
 

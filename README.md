@@ -8,7 +8,8 @@ original-games/
 ├── packages/game-sdk/    The contract between platform and games, plus shared helpers
 ├── games/
 │   ├── template/            Reference game ("Arc Climb"), copied by `npm run new-game`
-│   ├── crocodile-dentist/   Croc Dentist
+│   ├── crocodile-dentist/   Croc Dentist (vs House)
+│   ├── croc-dentist-solo/   Croc Dentist (Solo), reuses the croc from crocodile-dentist
 │   └── <id>/                One folder per game
 ├── scripts/              eval runner, new-game scaffolder
 ├── docs/IDEAS.md         Concept backlog + eval rubric

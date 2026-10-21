@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Presser } from '../game';
 
+export type { Presser };
+
 interface Props {
   N: number;
   pressed: (Presser | null)[];

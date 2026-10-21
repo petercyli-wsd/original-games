@@ -7,7 +7,7 @@ const biteBonuses = Array.from({ length: Math.round((C.biteBonusMax - C.biteBonu
 
 export default defineManifest({
   id: 'crocodile-dentist',
-  name: 'Croc Dentist',
+  name: 'Croc Dentist (vs House)',
   tagline: 'Take turns with the House pressing teeth. Whoever gets bitten loses.',
   mechanic: 'duel',
   status: 'prototype',
