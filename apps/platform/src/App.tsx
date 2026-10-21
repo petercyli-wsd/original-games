@@ -1,10 +1,14 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
+import { loadSummaries } from './lib/ratings';
 import { GamePage } from './pages/GamePage';
 import { Lobby } from './pages/Lobby';
 import { NotFound } from './pages/NotFound';
 
 export default function App() {
+  useEffect(loadSummaries, []);
+
   return (
     <BrowserRouter>
       <div className="atmosphere" aria-hidden="true">

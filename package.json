@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @originals/platform",
+    "dev:api": "npm run dev -w @originals/api",
     "build": "npm run build -w @originals/platform",
     "preview": "npm run preview -w @originals/platform",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",

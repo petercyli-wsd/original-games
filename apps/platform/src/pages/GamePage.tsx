@@ -2,6 +2,7 @@ import { useEffect, useMemo, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BRAND } from '../brand';
 import { GameFrame } from '../components/GameFrame';
+import { RatingPanel } from '../components/RatingPanel';
 import { StatsPanel } from '../components/StatsPanel';
 import { createHost } from '../host/session';
 import { findGame } from '../registry';
@@ -37,7 +38,10 @@ export function GamePage() {
       </div>
       <div className="game-layout">
         <GameFrame entry={entry} host={host} />
-        <StatsPanel manifest={manifest} />
+        <div className="side-col">
+          <RatingPanel gameId={manifest.id} />
+          <StatsPanel manifest={manifest} />
+        </div>
       </div>
     </main>
   );

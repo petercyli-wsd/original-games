@@ -2,6 +2,7 @@ import { formatMultiplier, formatPercent, type GameManifest } from '@originals/g
 import type { CSSProperties, PointerEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Emblem } from './Emblem';
+import { RatingChip } from './RatingChip';
 
 // Moves the accent aura to follow the pointer.
 function trackPointer(e: PointerEvent<HTMLAnchorElement>) {
@@ -17,6 +18,7 @@ export function GameTile({ manifest, index }: { manifest: GameManifest; index: n
       <span className="tile-aura" />
       <span className="tile-sheen" />
       <Emblem mechanic={manifest.mechanic} />
+      <RatingChip gameId={manifest.id} />
       <div className="tile-body">
         <h3 className="tile-name">{manifest.name}</h3>
         <p className="tile-tagline">{manifest.tagline}</p>

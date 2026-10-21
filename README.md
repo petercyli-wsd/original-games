@@ -5,6 +5,7 @@ A platform for hosting casino "Originals": simple, fast, single-player games wit
 ```
 original-games/
 ├── apps/platform/        Lobby + game shell (Vite, React, React Router)
+├── apps/api/             Ratings API (Node + Postgres), deployed as its own Render service
 ├── packages/game-sdk/    The contract between platform and games, plus shared helpers
 ├── games/
 │   ├── template/            Reference game ("Arc Climb"), copied by `npm run new-game`
@@ -64,6 +65,14 @@ Then replace `math.ts`, `eval.ts` and `Game.tsx`. Every game should:
 1. Keep the payout maths in pure functions (`math.ts`) with a test showing every cash-out point is worth exactly the RTP.
 2. Ship an `eval.ts` whose simulated player samples strategies (e.g. a random cash-out step). `npm run eval` fails CI if the measured RTP is more than 4 standard errors from the manifest RTP, or a payout exceeds `maxMultiplier`.
 3. Set `status`: `prototype` games appear under **Experimental**, and `beta` and `live` under **Core**. `template` games show only in dev, or in production when `VITE_SHOW_TEMPLATES=true`.
+
+## Ratings
+
+Each game can be rated 1–5 stars. The average shows on lobby tiles, and the game page has a rating panel. Ratings are anonymous: each browser gets a random voter id and keeps one rating per game, which it can change.
+
+- `apps/api` is a small Node service: `GET /ratings`, `GET /ratings/:gameId?voter=…`, `PUT /ratings/:gameId { voterId, stars }`. It stores ratings in Postgres when `DATABASE_URL` is set, and in memory otherwise.
+- The site reads the API's address from `VITE_RATINGS_API_URL` at build time. If it's unset, ratings are hidden.
+- Locally: run `npm run dev:api` (in-memory, port 8787) alongside `npm run dev`. `apps/platform/.env.development` already points at it.
 
 ## Deploying (Render)
 
