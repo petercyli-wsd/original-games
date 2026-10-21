@@ -1,5 +1,5 @@
 import { InsufficientFundsError, formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useEffect, useRef, useState } from 'react';
 import Board, { type Blade } from './Board';
 import InfoModal from './InfoModal';
@@ -27,7 +27,15 @@ type Phase = 'idle' | 'cutting' | 'checkpoint' | 'over';
 type Tone = 'neutral' | 'win' | 'lose';
 
 /** How a finished round ended: its outcome, or the player cashing out. */
-type Ending = { kind: 'cashout' | 'covered' | 'missed' | 'hit' | 'miss'; mult: number };
+type Ending = { kind: 'cashout' | 'covered' | 'missed' | 'hit' | 'miss'; mult: number; stake: number };
+
+const ENDING_TITLE: Record<Ending['kind'], string> = {
+  cashout: 'Cashed out',
+  covered: 'Covered',
+  missed: 'Sliced away',
+  hit: 'Inside',
+  miss: 'Missed',
+};
 
 const MODE_LABEL: Record<Mode, string> = { low: 'Low', medium: 'Medium', high: 'High', extreme: 'Extreme' };
 
@@ -121,11 +129,11 @@ export default function App() {
     setRound(r);
   };
 
-  function finish(r: Round, end: Ending) {
+  function finish(r: Round, end: Omit<Ending, 'stake'>) {
     const t = ticket.current;
     ticket.current = null;
     setPhase('over');
-    setEnding(end);
+    setEnding({ ...end, stake: t?.amount ?? 0 });
     const prize = formatMultiplier(end.mult);
     const text = {
       cashout: `Cashed out at ${prize}. The dot was ${inCircle(r.circle, r.dot) ? 'inside' : 'outside'} your circle.`,
@@ -234,7 +242,11 @@ export default function App() {
   const shownChance = useTween(chance, fallMs);
   const tone: Tone = phase === 'over' && ending ? (ending.mult > 0 ? 'win' : 'lose') : 'neutral';
 
-  let main: { label: string; action: () => void; disabled: boolean } = { label: 'Bet', action: () => void start(), disabled: betInvalid };
+  let main: { label: string; action: () => void; disabled: boolean } = {
+    label: phase === 'over' ? 'Bet again' : 'Bet',
+    action: () => void start(),
+    disabled: betInvalid,
+  };
   if (phase === 'cutting') main = { label: 'Slicing…', action: () => {}, disabled: true };
   if (phase === 'checkpoint') main = { label: `Cash out ${formatAmount(stake * cashMult, 2)}`, action: cashOut, disabled: false };
 
@@ -418,13 +430,17 @@ export default function App() {
 
         <div className="outcome" aria-live="polite">
           {phase === 'over' && ending && (
-            <span className={'result ' + tone} key={round?.dot.x}>
-              <b>{ending.mult > 0 ? formatMultiplier(ending.mult) : ending.kind === 'missed' ? 'Sliced away' : 'Missed'}</b>
-              <span>
-                {ending.mult > 0 ? '+' : '−'}
-                {formatAmount(Math.abs(stake * ending.mult - stake), 2)}
-              </span>
-            </span>
+            <RoundOver
+              key={round?.dot.x}
+              placement="inline"
+              title={ENDING_TITLE[ending.kind]}
+              multiplier={ending.mult}
+              stake={ending.stake}
+              nextBet={bet}
+              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
+              onBetAgain={() => void start()}
+              onClear={reset}
+            />
           )}
           <p className={'message ' + message.tone}>{message.text}</p>
         </div>

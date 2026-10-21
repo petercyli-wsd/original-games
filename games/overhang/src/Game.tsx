@@ -1,5 +1,5 @@
 import { formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Tower, { type DropAnim, type ToppleAnim } from './Tower';
 import {
@@ -193,14 +193,18 @@ export default function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, [phase, round, start, dropNext, cashOut]);
 
+  // Clears a finished round back to an empty board.
+  const clear = () => {
+    if (phase !== 'over') return;
+    setPhase('idle');
+    setRound(null);
+    setTopple(null);
+    setResult(null);
+  };
+
   const pickMode = (m: Mode) => {
     setMode(m);
-    if (phase === 'over') {
-      setPhase('idle');
-      setRound(null);
-      setTopple(null);
-      setResult(null);
-    }
+    clear();
   };
 
   const showRail = phase === 'idle' || phase === 'dropping' || phase === 'checkpoint';
@@ -272,7 +276,7 @@ export default function Game() {
           </>
         ) : (
           <button className="primary" disabled={inRound || betInvalid} onClick={() => void start()}>
-            {phase === 'dropping' ? 'Dropping…' : phase === 'toppling' ? 'Toppling…' : 'Bet'}
+            {phase === 'dropping' ? 'Dropping…' : phase === 'toppling' ? 'Toppling…' : phase === 'over' ? 'Bet again' : 'Bet'}
           </button>
         )}
 
@@ -336,11 +340,18 @@ export default function Game() {
             glow={over ? (result.win ? 'win' : 'lose') : null}
           />
           {phase === 'toppling' && <div className="flash" />}
-          {phase === 'over' && result && (
-            <div className={`result ${result.win ? 'win' : 'lose'}`} key={history.length}>
-              <b>{result.win ? formatMultiplier(result.mult) : 'Toppled'}</b>
-              <span>{result.win ? `+${formatAmount(result.amount, 2)}` : `on block ${xs.length}`}</span>
-            </div>
+          {phase === 'over' && result && round && (
+            <RoundOver
+              key={history.length}
+              placement="top"
+              title={result.win ? `Cashed out · ${height} ${height === 1 ? 'block' : 'blocks'} high` : `Toppled on block ${height}`}
+              multiplier={result.mult}
+              stake={round.bet}
+              nextBet={bet}
+              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
+              onBetAgain={() => void start()}
+              onClear={clear}
+            />
           )}
         </div>
 

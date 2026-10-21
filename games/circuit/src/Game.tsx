@@ -1,5 +1,5 @@
 import { formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import Board, { TopologyGlyph } from './Board';
 import { initialState, reducer, type GameState } from './round';
@@ -146,15 +146,12 @@ export default function Game() {
     dispatch({ type: 'clear' });
   };
 
+  // A finished round shows the RoundOver card in place of the message.
   let message = `Every wire is a coin flip. Connect S to T to win ${formatMultiplier(M)}.`;
-  let tone: 'neutral' | 'win' | 'even' | 'lose' = 'neutral';
   if (shown) {
     const lastHeld = shown.last !== null && ((shown.live >> shown.last) & 1) === 1;
     if (phase === 'probing') message = 'Testing wire…';
     else if (phase === 'checkpoint') message = `${lastHeld ? 'Wire held.' : 'Wire snapped.'} Cash out, or test the next wire.`;
-    else if (shown.outcome === 'won') [message, tone] = [`Connected! Power reached T. Paid ${formatMultiplier(shown.mult)}`, 'win'];
-    else if (shown.outcome === 'lost') [message, tone] = ['Circuit broken. Every route to T is cut.', 'lose'];
-    else if (shown.outcome === 'cashed') [message, tone] = [`Cashed out at ${formatMultiplier(shown.mult)}`, shown.mult >= 1 ? 'win' : 'even'];
   }
 
   const tested = shown ? shown.trail.length - 1 : 0;
@@ -232,7 +229,7 @@ export default function Game() {
         ) : (
           <>
             <button className="primary" disabled={phase === 'probing' || betInvalid} onClick={() => void startBet()}>
-              {phase === 'probing' ? (auto ? 'Playing out…' : 'Testing wire…') : 'Bet'}
+              {phase === 'probing' ? (auto ? 'Playing out…' : 'Testing wire…') : phase === 'over' ? 'Bet again' : 'Bet'}
             </button>
             <div className="duo">
               <button className="secondary" disabled>
@@ -286,25 +283,32 @@ export default function Game() {
 
         <div className="board-wrap">
           <Board topo={t} round={shown} next={next} probeMs={probeMs} />
-          {shown?.outcome && (
-            <div className={'result ' + shown.outcome + (shown.mult >= 1 ? ' profit' : '')} key={state.history.length}>
-              <span className="result-title">
-                {shown.outcome === 'won' ? 'Connected' : shown.outcome === 'lost' ? 'Broken' : 'Cashed out'}
-              </span>
-              <b>{formatMultiplier(shown.mult)}</b>
-              <span>{formatAmount(shown.bet * shown.mult, 2)}</span>
-            </div>
-          )}
         </div>
 
-        <div className={'next-odds' + (next === null ? ' hidden' : '')} aria-hidden={next === null}>
-          <span className="muted">Next wire</span>
-          <span className="up">holds → {next === null ? '–' : fmtPct(a.ifHolds[next])}</span>
-          <span className="down">snaps → {next === null ? '–' : fmtPct(a.ifSnaps[next])}</span>
-        </div>
-        <p className={'message ' + tone} aria-live="polite">
-          {message}
-        </p>
+        {phase === 'over' && shown?.outcome ? (
+          <RoundOver
+            key={state.history.length}
+            placement="inline"
+            title={shown.outcome === 'won' ? 'Connected' : shown.outcome === 'lost' ? 'Broken' : 'Cashed out'}
+            multiplier={shown.mult}
+            stake={shown.bet}
+            nextBet={bet}
+            blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
+            onBetAgain={() => void startBet()}
+            onClear={() => dispatch({ type: 'clear' })}
+          />
+        ) : (
+          <>
+            <div className={'next-odds' + (next === null ? ' hidden' : '')} aria-hidden={next === null}>
+              <span className="muted">Next wire</span>
+              <span className="up">holds → {next === null ? '–' : fmtPct(a.ifHolds[next])}</span>
+              <span className="down">snaps → {next === null ? '–' : fmtPct(a.ifSnaps[next])}</span>
+            </div>
+            <p className="message" aria-live="polite">
+              {message}
+            </p>
+          </>
+        )}
 
         {state.history.length > 0 && (
           <div className="history" aria-label="Recent rounds">

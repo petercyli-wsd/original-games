@@ -1,5 +1,5 @@
 import { formatAmount, formatMultiplier, type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
 import Sparkline from './components/Sparkline';
@@ -14,6 +14,14 @@ function chance(p: number) {
   if (p > 0.999) return '>99.9%';
   return `${(p * 100).toFixed(1)}%`;
 }
+
+const OUTCOME_TITLE: Record<Outcome, string> = {
+  cashed: 'Cashed out',
+  won: 'Blue wins',
+  clinched: 'Blue clinched it',
+  lost: 'Red wins',
+  sealed: 'Red sealed it',
+};
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -322,13 +330,17 @@ export default function App() {
           <div className="urn-wrap">
             <Urn balls={view.balls} initial={total - view.history.length} capacity={finalSize} picked={picked} />
             {phase === 'over' && result && round && (
-              <div className={'result ' + tone} key={state.recent[0]?.id}>
-                <b>{result.mult > 0 ? formatMultiplier(result.mult) : 'Red wins'}</b>
-                <span>
-                  {result.mult >= 1 ? '+' : '−'}
-                  {formatAmount(Math.abs(round.bet * result.mult - round.bet), 2)}
-                </span>
-              </div>
+              <RoundOver
+                key={state.recent[0]?.id}
+                placement="top"
+                title={OUTCOME_TITLE[result.outcome]}
+                multiplier={result.mult}
+                stake={round.bet}
+                nextBet={bet}
+                blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
+                onBetAgain={() => void start()}
+                onClear={() => dispatch({ type: 'clear' })}
+              />
             )}
           </div>
 

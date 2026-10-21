@@ -1,5 +1,5 @@
 import { type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import Field from './components/Field';
 import InfoModal from './components/InfoModal';
@@ -360,14 +360,16 @@ export default function Game() {
             stepMs={stepMs}
           />
           {phase === 'over' && shown?.outcome && last && (
-            <div className={`result ${shown.mult >= 1 ? 'w' : shown.mult > 0 ? 'p' : 'l'}`} key={last.id}>
-              <span className="result-kind">{OUTCOME_TEXT[shown.outcome]}</span>
-              <span className="result-mult">{fmtMult(shown.mult)}</span>
-              <span className="result-amt">
-                {shown.mult >= 1 ? '+' : '−'}
-                {fmtAmt(Math.abs(shown.bet * shown.mult - shown.bet))}
-              </span>
-            </div>
+            <RoundOver
+              key={last.id}
+              title={OUTCOME_TEXT[shown.outcome]}
+              multiplier={shown.mult}
+              stake={shown.bet}
+              nextBet={bet}
+              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
+              onBetAgain={() => void start()}
+              onClear={() => dispatch({ type: 'clear' })}
+            />
           )}
         </div>
 

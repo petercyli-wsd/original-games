@@ -47,3 +47,5 @@ export function useStore<T>(store: ReadableStore<T>): T {
 
 export const useBalance = () => useStore(useHost().wallet.balance);
 export const useSettings = (): HostSettings => useStore(useHost().settings);
+
+export { RoundOver, type RoundOverProps } from './round-over';

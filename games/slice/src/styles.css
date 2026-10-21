@@ -552,48 +552,14 @@ button:not(:disabled):active {
 }
 
 .outcome {
+  align-self: stretch;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px;
   min-height: 38px;
 }
-.result {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 6px 14px;
-  white-space: nowrap;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid currentColor;
-  border-radius: 999px;
-  animation: slice-rise 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both;
-}
-.result.win {
-  color: var(--green);
-  box-shadow: 0 0 24px -6px var(--og-green-glow, rgba(0, 231, 1, 0.35));
-}
-.result.lose {
-  color: var(--red);
-}
-.result b {
-  font-size: 18px;
-  font-weight: 800;
-}
-.result span {
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.85;
-}
-@keyframes slice-rise {
-  from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.9);
-  }
-}
-
 .hint {
   position: absolute;
   left: 50%;
@@ -832,8 +798,7 @@ kbd {
   .piece,
   .blade,
   .dot-core,
-  .dot-ripple,
-  .result {
+  .dot-ripple {
     animation-duration: 1ms !important;
   }
 }
