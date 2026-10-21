@@ -2,12 +2,12 @@
 // fast to cold-start on Render's free tier.
 //
 //   GET  /health
-//   GET  /ratings                       -> { [gameId]: { average, count } }
+//   GET  /ratings[?voter=<uuid>]        -> { [gameId]: { average, count, mine? } }
 //   GET  /ratings/:gameId?voter=<uuid>  -> { average, count, distribution, mine }
 //   PUT  /ratings/:gameId  { voterId, stars } -> same as GET
 
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
-import { summarize, type RatingDetail } from './shared.js';
+import { summarize, type RatingDetail, type RatingRow } from './shared.js';
 import type { RatingsStore } from './store.js';
 
 const GAME_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -45,8 +45,11 @@ export function createApp(store: RatingsStore, { corsOrigins, writeLimit = { max
 
     if (!gameId) {
       if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
-      const all = await store.distributions();
-      return Object.fromEntries([...all].map(([id, d]) => [id, summarize(d)]));
+      const voter = url.searchParams.get('voter');
+      const [all, mine] = await Promise.all([store.distributions(), voter && UUID.test(voter) ? store.votesBy(voter) : null]);
+      return Object.fromEntries(
+        [...all].map(([id, d]): [string, RatingRow] => [id, mine ? { ...summarize(d), mine: mine.get(id) ?? null } : summarize(d)]),
+      );
     }
 
     if (gameId.length > 64 || !GAME_ID.test(gameId)) throw new HttpError(400, 'Invalid game id');

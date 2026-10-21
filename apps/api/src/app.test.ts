@@ -3,7 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp, type AppOptions } from './app.js';
 import { parseOrigins } from './config.js';
-import { summarize, type RatingDetail } from './shared.js';
+import { rankScore, summarize, type RatingDetail } from './shared.js';
 import { createMemoryStore } from './store.js';
 
 const A = '11111111-1111-4111-8111-111111111111';
@@ -39,6 +39,9 @@ describe('ratings API', () => {
       drift: { average: 3, count: 2 },
       slice: { average: 1, count: 1 },
     });
+    const rows = await (await fetch(`${base}/ratings?voter=${A}`)).json();
+    expect(rows).toEqual({ drift: { average: 3, count: 2, mine: 4 }, slice: { average: 1, count: 1, mine: null } });
+
     const mine = (await (await fetch(`${base}/ratings/drift?voter=${B}`)).json()) as RatingDetail;
     expect(mine.mine).toBe(2);
     const anon = await (await fetch(`${base}/ratings/unrated`)).json();
@@ -80,6 +83,11 @@ describe('helpers', () => {
   it('summarizes distributions', () => {
     expect(summarize([0, 0, 0, 0, 0])).toEqual({ average: 0, count: 0 });
     expect(summarize([1, 0, 0, 0, 3])).toEqual({ average: 4, count: 4 });
+  });
+
+  it('ranks well-supported ratings above a lone 5 star', () => {
+    expect(rankScore({ average: 4.5, count: 10 })).toBeGreaterThan(rankScore({ average: 5, count: 1 }));
+    expect(rankScore({ average: 0, count: 0 })).toBe(3);
   });
 
   it('parses CORS origins', () => {

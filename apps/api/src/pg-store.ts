@@ -39,6 +39,10 @@ export async function createPgStore(connectionString: string, { ssl = false } = 
       const { rows } = await pool.query('SELECT stars FROM ratings WHERE game_id = $1 AND voter_id = $2', [gameId, voterId]);
       return rows[0]?.stars ?? null;
     },
+    async votesBy(voterId) {
+      const { rows } = await pool.query('SELECT game_id, stars FROM ratings WHERE voter_id = $1', [voterId]);
+      return new Map(rows.map((r: { game_id: string; stars: number }) => [r.game_id, r.stars]));
+    },
     async upsert(gameId, voterId, stars) {
       await pool.query(
         `INSERT INTO ratings (game_id, voter_id, stars) VALUES ($1, $2, $3)

@@ -7,6 +7,21 @@ export interface RatingSummary {
   count: number;
 }
 
+/** A summary plus this voter's own stars, when the request names a voter. */
+export interface RatingRow extends RatingSummary {
+  mine?: number | null;
+}
+
+/**
+ * Ranking score: the average pulled toward 3 stars by two phantom votes, so a
+ * single 5-star rating doesn't outrank a game with many 4.5s.
+ */
+export function rankScore({ average, count }: RatingSummary): number {
+  const PRIOR_MEAN = 3;
+  const PRIOR_VOTES = 2;
+  return (average * count + PRIOR_MEAN * PRIOR_VOTES) / (count + PRIOR_VOTES);
+}
+
 export interface RatingDetail extends RatingSummary {
   /** Number of 1..5 star ratings; index 0 is 1 star. */
   distribution: number[];

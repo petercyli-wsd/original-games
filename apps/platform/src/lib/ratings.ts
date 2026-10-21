@@ -2,7 +2,7 @@
 // gets a random voter id and holds one star rating per game, which it can change.
 // With no VITE_RATINGS_API_URL configured, ratings are hidden entirely.
 
-import { summarize, type RatingDetail, type RatingSummary } from '@originals/api/shared';
+import { summarize, type RatingDetail, type RatingRow } from '@originals/api/shared';
 import { createStore } from '@originals/game-sdk';
 import { safeStorage } from './storage';
 
@@ -17,8 +17,11 @@ function normalizeBase(raw: string | undefined): string | null {
 const BASE = normalizeBase(import.meta.env.VITE_RATINGS_API_URL);
 export const ratingsEnabled = BASE !== null;
 
-/** Average and count per game id, shared by the lobby and game pages. */
-export const ratingSummaries = createStore<Record<string, RatingSummary>>({});
+/** Average, count and this browser's own stars per game id, shared by every page. */
+export const ratingSummaries = createStore<Record<string, RatingRow>>({});
+
+/** Whether the summaries loaded, so pages can say when ratings are unreachable. */
+export const ratingsStatus = createStore<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
 let voter: string | undefined;
 export function voterId(): string {
@@ -51,13 +54,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 let summariesRequest: Promise<void> | null = null;
 
-/** Loads every game's average once per page load. Failures are non-fatal. */
+/** Loads every game's average (and this voter's stars) once. Failures are non-fatal. */
 export function loadSummaries() {
   if (!ratingsEnabled || summariesRequest) return;
-  summariesRequest = request<Record<string, RatingSummary>>('/ratings')
-    .then((all) => ratingSummaries.set({ ...all, ...ratingSummaries.get() }))
+  ratingsStatus.set('loading');
+  summariesRequest = request<Record<string, RatingRow>>(`/ratings?voter=${encodeURIComponent(voterId())}`)
+    .then((all) => {
+      ratingSummaries.set({ ...all, ...ratingSummaries.get() });
+      ratingsStatus.set('ready');
+    })
     .catch((err: unknown) => {
       console.warn('Could not load ratings', err);
+      ratingsStatus.set('error');
       summariesRequest = null;
     });
 }
@@ -71,6 +79,7 @@ export async function rate(gameId: string, stars: number): Promise<RatingDetail>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ voterId: voterId(), stars }),
   });
-  ratingSummaries.set({ ...ratingSummaries.get(), [gameId]: summarize(detail.distribution) });
+  ratingSummaries.set({ ...ratingSummaries.get(), [gameId]: { ...summarize(detail.distribution), mine: detail.mine } });
+  ratingsStatus.set('ready');
   return detail;
 }

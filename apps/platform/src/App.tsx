@@ -5,6 +5,7 @@ import { loadSummaries } from './lib/ratings';
 import { GamePage } from './pages/GamePage';
 import { Lobby } from './pages/Lobby';
 import { NotFound } from './pages/NotFound';
+import { Rankings } from './pages/Rankings';
 
 export default function App() {
   useEffect(loadSummaries, []);
@@ -20,6 +21,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Lobby />} />
         <Route path="/play/:gameId" element={<GamePage />} />
+        <Route path="/rankings" element={<Rankings />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

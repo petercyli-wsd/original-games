@@ -1,6 +1,7 @@
 import type { RatingDetail } from '@originals/api/shared';
 import { useEffect, useState } from 'react';
 import { fetchRating, rate, ratingsEnabled } from '../lib/ratings';
+import { StarInput } from './StarInput';
 
 type Status = 'loading' | 'ready' | 'saving' | 'error';
 
@@ -11,7 +12,6 @@ export function RatingPanel({ gameId }: { gameId: string }) {
   const [detail, setDetail] = useState<RatingDetail | null>(null);
   const [status, setStatus] = useState<Status>('loading');
   const [slow, setSlow] = useState(false);
-  const [hover, setHover] = useState(0);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -53,7 +53,6 @@ export function RatingPanel({ gameId }: { gameId: string }) {
   }
 
   const mine = detail?.mine ?? 0;
-  const shown = hover || mine;
   const max = detail ? Math.max(1, ...detail.distribution) : 1;
 
   return (
@@ -68,28 +67,11 @@ export function RatingPanel({ gameId }: { gameId: string }) {
       </div>
 
       {status === 'loading' && <p className="rating-note">{slow ? 'Waking the ratings server…' : 'Loading…'}</p>}
-      {status === 'error' && <p className="rating-note">Ratings are unavailable right now.</p>}
+      {status === 'error' && <p className="rating-note rating-error">Can't reach the ratings server.</p>}
 
       {detail && (
         <>
-          <div className="star-input" role="radiogroup" aria-label="Your rating" onMouseLeave={() => setHover(0)}>
-            {STARS.map((s) => (
-              <button
-                key={s}
-                role="radio"
-                aria-checked={mine === s}
-                aria-label={`${s} star${s > 1 ? 's' : ''}`}
-                className={s <= shown ? 'on' : ''}
-                disabled={status === 'saving'}
-                onMouseEnter={() => setHover(s)}
-                onFocus={() => setHover(s)}
-                onBlur={() => setHover(0)}
-                onClick={() => void submit(s)}
-              >
-                ★
-              </button>
-            ))}
-          </div>
+          <StarInput value={mine} onRate={(s) => void submit(s)} disabled={status === 'saving'} />
           <p className="rating-note">
             {error || (status === 'saving' ? 'Saving…' : mine ? `You rated it ${mine}/5. Click to change.` : 'Tap a star to rate.')}
           </p>

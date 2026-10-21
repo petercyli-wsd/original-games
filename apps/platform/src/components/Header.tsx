@@ -1,6 +1,6 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useStore } from '@originals/game-sdk/react';
-import { Link } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { BRAND } from '../brand';
 import { settings, wallet } from '../host/session';
 
@@ -24,6 +24,9 @@ export function Header() {
         </Link>
 
         <div className="header-controls">
+          <NavLink to="/rankings" className="nav-link">
+            ★ Rankings
+          </NavLink>
           <button
             className={`toggle ${turbo ? 'on' : ''}`}
             aria-pressed={turbo}

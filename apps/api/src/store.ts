@@ -6,6 +6,8 @@ export interface RatingsStore {
   distributions(): Promise<Map<string, number[]>>;
   distribution(gameId: string): Promise<number[]>;
   stars(gameId: string, voterId: string): Promise<number | null>;
+  /** Every game this voter has rated, with their stars. */
+  votesBy(voterId: string): Promise<Map<string, number>>;
   /** One rating per voter per game; rating again replaces it. */
   upsert(gameId: string, voterId: string, stars: number): Promise<void>;
   close(): Promise<void>;
@@ -31,6 +33,11 @@ export function createMemoryStore(): RatingsStore {
     },
     async stars(gameId, voterId) {
       return games.get(gameId)?.get(voterId) ?? null;
+    },
+    async votesBy(voterId) {
+      const out = new Map<string, number>();
+      for (const [id, votes] of games) if (votes.has(voterId)) out.set(id, votes.get(voterId)!);
+      return out;
     },
     async upsert(gameId, voterId, stars) {
       if (!games.has(gameId)) games.set(gameId, new Map());
