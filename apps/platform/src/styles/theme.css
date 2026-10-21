@@ -1,0 +1,35 @@
+/* Design tokens. These custom properties are inherited through each game's
+   shadow root, so they double as the theme contract for games: use
+   var(--og-*) in game CSS and every game matches the site. */
+
+:root {
+  --og-bg: #07070b;
+  --og-bg-card: #101016;
+  --og-bg-raised: #15151c;
+  --og-bg-hover: #21212a;
+  --og-border: rgba(255, 255, 255, 0.14);
+  --og-border-strong: rgba(255, 255, 255, 0.24);
+
+  --og-text: #f6f6f6;
+  --og-text-muted: #aaa7b2;
+  --og-text-on-accent: #07070b;
+
+  --og-primary: #3b71f3;
+  --og-primary-glow: rgba(59, 113, 243, 0.32);
+  --og-green: #00e701;
+  --og-green-glow: rgba(0, 231, 1, 0.35);
+  --og-red: #e9113c;
+  --og-red-glow: rgba(233, 17, 60, 0.35);
+  --og-gold: #f5a623;
+
+  --og-font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --og-font-display: 'Anton', var(--og-font);
+
+  --og-radius-sm: 4px;
+  --og-radius: 8px;
+  --og-radius-lg: 12px;
+  --og-radius-xl: 16px;
+  --og-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  color-scheme: dark;
+}

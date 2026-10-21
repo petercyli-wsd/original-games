@@ -1,0 +1,30 @@
+{
+  "name": "original-games",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "games/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @originals/platform",
+    "build": "npm run build -w @originals/platform",
+    "preview": "npm run preview -w @originals/platform",
+    "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "eval": "tsx scripts/eval.ts",
+    "new-game": "node scripts/new-game.mjs",
+    "check": "npm run typecheck && npm test && npm run eval -- --rounds 50000"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.1",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitejs/plugin-react": "4.3.4",
+    "tsx": "4.19.2",
+    "typescript": "5.6.3",
+    "vite": "5.4.11",
+    "vitest": "2.1.8"
+  }
+}

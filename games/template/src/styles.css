@@ -1,0 +1,213 @@
+/* Lives inside the game's shadow root: use :host, not :root. The --og-* tokens
+   are inherited from the platform theme; fallbacks cover standalone dev. */
+
+:host {
+  display: block;
+  height: 100%;
+  color: var(--og-text, #f6f6f6);
+  font-family: var(--og-font, system-ui, sans-serif);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.arc {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  height: 100%;
+  min-height: 520px;
+  background: var(--og-bg-card, #101016);
+  border-radius: var(--og-radius-lg, 12px);
+  overflow: hidden;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+  background: var(--og-bg-raised, #15151c);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--og-text-muted, #aaa7b2);
+}
+
+input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--og-text, #f6f6f6);
+  background: var(--og-bg, #07070b);
+  border: 1px solid var(--og-border, rgba(255, 255, 255, 0.18));
+  border-radius: var(--og-radius, 8px);
+  padding: 10px 12px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 0;
+  border-radius: var(--og-radius, 8px);
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 4px;
+  background: var(--og-bg, #07070b);
+  border-radius: var(--og-radius, 8px);
+}
+.segmented button {
+  padding: 8px 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+  color: var(--og-text-muted, #aaa7b2);
+  background: transparent;
+}
+.segmented button.on {
+  color: var(--og-text, #f6f6f6);
+  background: var(--og-bg-hover, #21212a);
+}
+
+.primary,
+.secondary {
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+}
+.primary {
+  color: var(--og-text-on-accent, #07070b);
+  background: var(--og-green, #00e701);
+  box-shadow: 0 0 24px -6px var(--og-green-glow, rgba(0, 231, 1, 0.35));
+}
+.secondary {
+  color: var(--og-text, #f6f6f6);
+  background: var(--og-bg-hover, #21212a);
+}
+.primary:not(:disabled):hover,
+.secondary:not(:disabled):hover {
+  filter: brightness(1.1);
+}
+
+.stats {
+  margin: auto 0 0;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+.stats div {
+  display: flex;
+  justify-content: space-between;
+}
+.stats dt {
+  color: var(--og-text-muted, #aaa7b2);
+}
+.stats dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+}
+
+.dial {
+  width: min(340px, 100%);
+}
+.track {
+  fill: none;
+  stroke: var(--og-red, #e9113c);
+  stroke-opacity: 0.55;
+  stroke-width: 18;
+}
+.win-arc {
+  fill: none;
+  stroke: var(--og-green, #00e701);
+  stroke-width: 18;
+  filter: drop-shadow(0 0 6px var(--og-green-glow, rgba(0, 231, 1, 0.35)));
+}
+.needle {
+  transform-origin: 110px 110px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.needle line {
+  stroke: var(--og-text, #f6f6f6);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.needle circle {
+  fill: var(--og-text, #f6f6f6);
+}
+
+.ladder {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ladder li {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--og-text-muted, #aaa7b2);
+  background: var(--og-bg-raised, #15151c);
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+.ladder li.done {
+  color: var(--og-text-on-accent, #07070b);
+  background: var(--og-green, #00e701);
+}
+.ladder li.next {
+  color: var(--og-text, #f6f6f6);
+  border-color: var(--og-green, #00e701);
+}
+
+.message {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 15px;
+  font-weight: 600;
+}
+.message.win {
+  color: var(--og-green, #00e701);
+}
+.message.lose {
+  color: var(--og-red, #e9113c);
+}
+
+@media (max-width: 720px) {
+  .arc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .stage {
+    order: -1;
+  }
+}

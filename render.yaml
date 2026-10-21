@@ -1,0 +1,24 @@
+# Render Blueprint: the whole platform (lobby + every game) is one static site.
+# New → Blueprint in Render and pick this repo.
+services:
+  - type: web
+    name: original-games
+    runtime: static
+    buildCommand: npm ci && npm run typecheck && npm test && npm run build
+    staticPublishPath: ./apps/platform/dist
+    pullRequestPreviewsEnabled: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.12.0
+      # Set to "true" to list template games in production.
+      - key: VITE_SHOW_TEMPLATES
+        value: "false"
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      # Client-side routing: /play/<id> is served by index.html.
+      - type: rewrite
+        source: /*
+        destination: /index.html
