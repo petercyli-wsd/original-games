@@ -1,0 +1,91 @@
+/* Half Moon board. Layout, panel and readouts come from the kit. */
+
+.moon .track {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 22;
+}
+.moon .window-preview {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 22;
+  stroke-dasharray: 6 6;
+}
+.moon .span {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 22;
+  stroke-linecap: round;
+  transition: d 0.3s ease;
+}
+.moon .bust-zone {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 22;
+  filter: drop-shadow(0 0 10px var(--og-red-glow, rgba(233, 17, 60, 0.45)));
+}
+.moon .bust-guide {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 45%, transparent);
+  stroke-width: 3;
+  stroke-dasharray: 3 5;
+}
+.moon .pt {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+.moon .pt.last {
+  fill: var(--accent);
+}
+.moon .pt.busted {
+  fill: var(--red);
+  stroke: #fff;
+  animation: moon-pop 0.5s ease 2;
+}
+.moon .spinner {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.moon .spinner line {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.moon .comet {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.moon .hub {
+  fill: var(--hover);
+}
+.moon text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+}
+.moon .big {
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.moon .small {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.moon .risk {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--red);
+}
+.moon .risk.free {
+  fill: var(--green);
+}
+
+@keyframes moon-pop {
+  50% {
+    r: 15;
+  }
+}
