@@ -9,7 +9,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): Config {
   return {
     port: Number(env.PORT ?? 8787),
     databaseUrl: env.DATABASE_URL || undefined,
-    // Render's internal URL needs no TLS; set this when using an external URL.
+    // Only for hosts with self-signed certs. Neon URLs carry ?sslmode=require
+    // and verify properly without it.
     databaseSsl: env.DATABASE_SSL === 'true',
     corsOrigins: parseOrigins(env.CORS_ORIGINS ?? '*'),
   };

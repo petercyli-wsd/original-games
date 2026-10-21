@@ -70,7 +70,7 @@ Then replace `math.ts`, `eval.ts` and `Game.tsx`. Every game should:
 
 Each game can be rated 1–5 stars. The average shows on lobby tiles, and the game page has a rating panel. Ratings are anonymous: each browser gets a random voter id and keeps one rating per game, which it can change.
 
-- `apps/api` is a small Node service: `GET /ratings`, `GET /ratings/:gameId?voter=…`, `PUT /ratings/:gameId { voterId, stars }`. It stores ratings in Postgres when `DATABASE_URL` is set, and in memory otherwise.
+- `apps/api` is a small Node service: `GET /ratings`, `GET /ratings/:gameId?voter=…`, `PUT /ratings/:gameId { voterId, stars }`. It stores ratings in Postgres (we use Neon's free tier) when `DATABASE_URL` is set, and in memory otherwise. The `ratings` table is created on first start.
 - The site reads the API's address from `VITE_RATINGS_API_URL` at build time. If it's unset, ratings are hidden.
 - Locally: run `npm run dev:api` (in-memory, port 8787) alongside `npm run dev`. `apps/platform/.env.development` already points at it.
 

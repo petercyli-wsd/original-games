@@ -1,7 +1,7 @@
 # Render Blueprint. New → Blueprint in Render and pick this repo.
 #   original-games  static site: the lobby + every game
 #   originals-api   tiny Node service for game star ratings
-#   originals-db    free Postgres holding the ratings
+# Ratings live in any Postgres; we use Neon's free tier (doesn't expire).
 services:
   - type: web
     name: original-games
@@ -45,17 +45,11 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.12.0
+      # Neon connection string (includes ?sslmode=require). Render asks for it
+      # when the Blueprint is created; it's a secret, so never commit it.
       - key: DATABASE_URL
-        fromDatabase:
-          name: originals-db
-          property: connectionString
+        sync: false
       # "*" allows any site to read and post ratings. Tighten to your site's
       # URL (comma-separated list) once you know it.
       - key: CORS_ORIGINS
         value: "*"
-
-databases:
-  - name: originals-db
-    plan: free
-    databaseName: originals
-    user: originals
