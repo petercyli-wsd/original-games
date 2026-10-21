@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./react": "./src/react.tsx",
+    "./ui": "./src/ui/index.ts",
     "./dev": "./src/dev.ts"
   },
   "scripts": {

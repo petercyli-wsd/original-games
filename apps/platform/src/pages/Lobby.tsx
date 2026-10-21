@@ -17,6 +17,10 @@ const MECHANIC_LABELS: Record<Mechanic, string> = {
   graph: 'Graph',
   urn: 'Urn',
   geometry: 'Geometry',
+  combinatorics: 'Combinatorics',
+  'number-theory': 'Number theory',
+  process: 'Process',
+  inference: 'Inference',
   duel: 'Duel',
   other: 'Other',
 };

@@ -4,7 +4,19 @@
 export type Volatility = 'low' | 'medium' | 'high' | 'extreme';
 
 /** The maths family a game belongs to. Drives lobby filters and eval grouping. */
-export type Mechanic = 'mines' | 'crash' | 'random-walk' | 'graph' | 'urn' | 'geometry' | 'duel' | 'other';
+export type Mechanic =
+  | 'mines'
+  | 'crash'
+  | 'random-walk'
+  | 'graph'
+  | 'urn'
+  | 'geometry'
+  | 'combinatorics'
+  | 'number-theory'
+  | 'process'
+  | 'inference'
+  | 'duel'
+  | 'other';
 
 /** `template` games are hidden from production lobbies. */
 export type GameStatus = 'template' | 'prototype' | 'beta' | 'live';
