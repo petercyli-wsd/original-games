@@ -160,7 +160,9 @@ export default function Game() {
     const st = slots.current[s];
     if (st.value !== null) return st.value;
     const r = cur.current;
-    if (s === 'main' && r) return expectedHandReturn(r.t, r.peeked);
+    // A dealer or player blackjack is settled at deal time (value set), so an
+    // open main bet always faces a dealer known to have no blackjack.
+    if (s === 'main' && r) return expectedHandReturn(r.t, true);
     return 0;
   };
   const tk: Record<Slot, Ticket> = {
@@ -265,6 +267,9 @@ export default function Game() {
     const up = t.dealer[0];
     if (pairs > 0) slots.current.pairs.value = pairsMult(p1, p2);
     if (trips > 0) slots.current.trips.value = tripsMult(p1, p2, up);
+    // Blackjacks are known the moment the cards are out (the dealer's peek
+    // only reveals it), so leaving during the deal or the peek can't dodge one.
+    if ((dealerPeeks(t) && dealerBlackjack(t)) || isBlackjack(t.hands[0])) resolveHands(t);
     commit({
       id: ++seq.current,
       t,
@@ -539,6 +544,22 @@ export default function Game() {
     );
   };
 
+  // The decision buttons. On narrow screens the panel sits below the table, so
+  // a second copy appears right under the cards (CSS shows one or the other).
+  const deciding = auto.mode === 'manual' && !auto.running;
+  const decisions = !deciding ? null : phase === 'insurance' ? (
+    <div className="bj-actions two">
+      <ActionButton kind="secondary" disabled={!canAfford((round?.base ?? 0) / 2)} onClick={() => void insurance(true)}>
+        Insure <kbd>I</kbd>
+      </ActionButton>
+      <ActionButton className={hints ? 'hinted' : ''} onClick={() => void insurance(false)}>
+        Decline <kbd>N</kbd>
+      </ActionButton>
+    </div>
+  ) : phase === 'player' || phase === 'acting' ? (
+    <div className="bj-actions">{(['hit', 'stand', 'double', 'split'] as Action[]).map(actionBtn)}</div>
+  ) : null;
+
   return (
     <GameLayout
       name="Blackjack"
@@ -583,17 +604,8 @@ export default function Game() {
           </dl>
 
           {auto.mode === 'manual' ? (
-            phase === 'insurance' ? (
-              <div className="bj-actions two">
-                <ActionButton kind="secondary" disabled={!canAfford((round?.base ?? 0) / 2)} onClick={() => void insurance(true)}>
-                  Insure <kbd>I</kbd>
-                </ActionButton>
-                <ActionButton className={hints ? 'hinted' : ''} onClick={() => void insurance(false)}>
-                  Decline <kbd>N</kbd>
-                </ActionButton>
-              </div>
-            ) : phase === 'player' || phase === 'acting' ? (
-              <div className="bj-actions">{(['hit', 'stand', 'double', 'split'] as Action[]).map(actionBtn)}</div>
+            decisions ? (
+              decisions
             ) : (
               <ActionButton disabled={!canBet} onClick={betNow}>
                 {phase === 'dealing' || phase === 'dealer' ? 'Dealing…' : phase === 'over' ? 'Bet again' : 'Bet'}
@@ -623,6 +635,7 @@ export default function Game() {
       </Board>
 
       <div className="bj-foot">
+      {decisions && <div className="bj-stage-actions">{decisions}</div>}
       {standNow && ctx ? (
         <ChanceBar
           p={standNow.win}

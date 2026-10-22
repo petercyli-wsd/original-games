@@ -434,7 +434,7 @@
   place-items: center;
   width: 100%;
   min-height: 172px;
-  margin: 2px 0 10px;
+  margin: 2px 0 18px;
 }
 .bj-arc {
   width: min(100%, 560px);
@@ -630,7 +630,22 @@
   border-radius: 4px;
 }
 
+/* Decision buttons under the table: only on narrow screens, where the panel is below the fold. */
+.bj-stage-actions {
+  display: none;
+}
+
 @container (max-width: 760px) {
+  .bj-stage-actions {
+    display: block;
+    margin-bottom: 10px;
+  }
+  .bj-stage-actions .bj-actions:not(.two) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .og-panel .bj-actions {
+    display: none;
+  }
   .bj-table {
     padding: 12px 8px 12px;
     border-radius: 22px 22px 70px 70px / 22px 22px 44px 44px;

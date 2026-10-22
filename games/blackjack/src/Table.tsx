@@ -94,7 +94,8 @@ export default function Table({
   const style = { '--deal-ms': `${dealMs}ms`, '--flip-ms': `${flipMs}ms` } as CSSProperties;
   const t = view?.t;
   const dealerCards = t ? t.dealer.slice(0, view!.dealerShown) : [];
-  const dealerTotal = !t ? null : view!.holeUp ? totalLabel(dealerCards) : totalLabel([t.dealer[0]]);
+  // Soft totals read "7/17" while a hand can still draw; a finished hand shows its one total.
+  const dealerTotal = !t ? null : view!.results ? String(handTotal(dealerCards).total) : view!.holeUp ? totalLabel(dealerCards) : totalLabel([t.dealer[0]]);
   const dealerBJ = !!t && view!.holeUp && dealerCards.length === 2 && handTotal(dealerCards).total === 21;
   const dealerBust = !!t && view!.holeUp && handTotal(dealerCards).hard > 21;
   const stakes = view ?? preview;
@@ -162,7 +163,7 @@ export default function Table({
             t.hands.map((h, hi) => {
               const res = view!.results?.[hi];
               const active = view!.live && hi === t.active && !h.done;
-              const tot = totalLabel(h.cards);
+              const tot = h.done || res ? String(handTotal(h.cards).total) : totalLabel(h.cards);
               const bust = handTotal(h.cards).hard > 21;
               const bj = isBlackjack(h);
               const units = h.doubled ? 2 : 1;
