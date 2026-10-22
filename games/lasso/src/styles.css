@@ -1,0 +1,161 @@
+/* Lasso board. Layout, panel and readouts come from the kit. */
+
+.lasso {
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lasso text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.lasso .wall {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 3;
+}
+.lasso .cell {
+  fill: var(--hover);
+}
+.lasso .heat {
+  fill: var(--accent);
+  transition: fill-opacity 0.15s linear;
+}
+.lasso .pole-cell {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 2;
+}
+.lasso .pole {
+  fill: color-mix(in srgb, var(--text) 75%, transparent);
+}
+.lasso .seam {
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--gold) 60%, transparent));
+}
+.lasso .seam-label {
+  fill: var(--gold);
+  font-size: 16px;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  font-weight: 700;
+}
+.lasso .start {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 60%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+.lasso .rope {
+  fill: none;
+  stroke: var(--text);
+  stroke-opacity: 0.85;
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.lasso .rope.won {
+  stroke: var(--green);
+}
+.lasso .cross {
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.lasso .cross.ccw {
+  fill: var(--gold);
+}
+.lasso .cross.cw {
+  fill: color-mix(in srgb, var(--gold) 55%, var(--text));
+}
+.lasso .walker {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px var(--accent));
+  transition: cx 0.12s ease, cy 0.12s ease;
+}
+.lasso .walker.lost {
+  fill: var(--red);
+  filter: drop-shadow(0 0 8px var(--red));
+}
+
+/* Rope gauge */
+.lasso .g-title {
+  font-size: 15px;
+  fill: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+.lasso .dial {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 10;
+}
+.lasso .dial-seam {
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.lasso .dial-start {
+  stroke: color-mix(in srgb, var(--text) 60%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.lasso .sweep {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lasso .sweep-end {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.lasso .g-big {
+  font-size: 34px;
+  font-weight: 800;
+}
+.lasso .g-big.hit {
+  fill: var(--green);
+}
+.lasso .g-small {
+  font-size: 15px;
+  fill: var(--muted);
+}
+.lasso .g-mid {
+  font-size: 17px;
+  font-weight: 600;
+}
+.lasso .g-mid.strong {
+  font-size: 22px;
+  font-weight: 800;
+}
+.lasso .g-tiny {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.lasso .bar-track {
+  fill: var(--hover);
+}
+.lasso .bar-fill {
+  fill: var(--accent);
+}
+.lasso .lg0 {
+  stop-color: var(--accent);
+  stop-opacity: 0.05;
+}
+.lasso .lg1 {
+  stop-color: var(--accent);
+  stop-opacity: 0.8;
+}
