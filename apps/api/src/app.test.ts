@@ -287,7 +287,7 @@ describe('evaluator API', () => {
 describe('calibration strategy', () => {
   it('never shows a game its own reviews, and pins the scale with the top and bottom games', async () => {
     const ratings = createMemoryStore();
-    for (const [g, stars] of [['alpha', 5], ['gamma', 1], ['delta', 3]] as const) await ratings.upsert(g, A, stars, `${g} comment`);
+    for (const [g, stars] of [['alpha', 5], ['gamma', 1], ['delta', 3], ['drift', 2]] as const) await ratings.upsert(g, A, stars, `${g} comment`);
     const { post, waitJob, calls } = await start({ ratings });
     await waitJob((await (await post('/evaluations', { target: 'alpha' })).json()) as Job);
     const judge = calls.find((c) => c.user.includes('Evaluate the game "ALPHA"'))!;
@@ -311,6 +311,15 @@ describe('Claude Code path', () => {
     verdict: 'v',
     recommendation: 'iterate',
   };
+
+  it('shows no references until at least 3 other games are reviewed', async () => {
+    const ratings = createMemoryStore();
+    for (const g of ['beta', 'gamma']) await ratings.upsert(g, A, 5, 'test review');
+    const { post } = await start({ ratings });
+    const p = (await (await post('/evaluator/judge-prompt', { gameId: 'alpha', card })).json()) as { user: string; references: number };
+    expect(p.references).toBe(0);
+    expect(p.user).toContain('None yet');
+  });
 
   it('serves prompts and imports reviews made in Claude Code', async () => {
     const { post, getJson, base } = await start();

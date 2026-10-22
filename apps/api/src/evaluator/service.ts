@@ -108,6 +108,9 @@ interface Subject {
 
 const MIN_TRAIN_FOR_REFINE = 3;
 const MAX_REFERENCES = 6;
+// Below this many reviewed games there's no real team scale to calibrate
+// against (and early ratings are often tests), so the rubric judges alone.
+const MIN_REFERENCE_POOL = 3;
 const MAX_CURATED = 4;
 const MAX_GUIDANCE_CHARS = 3000;
 const RECOMMENDATIONS = ['ship', 'iterate', 'drop'] as const;
@@ -235,7 +238,7 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
   async function references(subject: { id: string; mechanic: string; card: RulesCard | null }, version: PromptVersion, pool: ReferencePool): Promise<ExemplarContext[]> {
     const [humans, reviews] = await Promise.all([humanSummaries(), ratings.allReviews()]);
     const candidates = [...humans].filter(([id]) => id !== subject.id && (pool === 'all' || !isHoldout(id)));
-    if (!candidates.length) return [];
+    if (candidates.length < MIN_REFERENCE_POOL) return [];
 
     const picked = new Map<string, string>();
     const byScore = [...candidates].sort((a, b) => a[1].average - b[1].average || b[1].count - a[1].count);
