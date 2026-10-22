@@ -1,0 +1,371 @@
+/* Line Cut board. Layout, panel and readouts come from the kit. */
+
+.lc-board {
+  --good: var(--green);
+  --bad: var(--red);
+  --next: color-mix(in srgb, var(--text) 30%, transparent);
+  user-select: none;
+}
+.lc-board text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Corner legends */
+.lc-board .legend {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  fill: var(--muted);
+}
+.lc-board .end {
+  text-anchor: end;
+}
+.lc-board .win-if {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.lc-board .pip {
+  fill: var(--hover);
+  transition: fill 0.2s ease;
+}
+.lc-board .pip.todo {
+  fill: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.lc-board .pip.missed {
+  fill: color-mix(in srgb, var(--text) 50%, transparent);
+}
+.lc-board .pip.now {
+  fill: var(--accent);
+}
+.lc-board .pip.won {
+  fill: var(--good);
+}
+.lc-board .pip.lost {
+  fill: var(--bad);
+}
+
+/* Arena */
+.lc-board .arena {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 30%, var(--line-strong));
+  stroke-width: 2;
+}
+.lc-board .rim-arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+  animation: lc-fade 0.35s ease both;
+}
+
+.lc-board .rim-tick {
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-width: 1.2;
+}
+.lc-board .shadow-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  font-variant-numeric: tabular-nums;
+  animation: lc-fade 0.2s ease both;
+}
+.lc-board .shadow-label.good {
+  fill: var(--good);
+}
+.lc-board .shadow-label.bad {
+  fill: var(--bad);
+}
+
+/* Shapes */
+.lc-board .shape {
+  fill: color-mix(in srgb, var(--text) 7%, transparent);
+  stroke: color-mix(in srgb, var(--text) 42%, transparent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.lc-board .shape.rod {
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.lc-board .shape.on {
+  fill: color-mix(in srgb, var(--accent) 26%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 55%, transparent));
+}
+.lc-board .shape.on.rod {
+  stroke-width: 5;
+}
+.lc-board .shape.on.win {
+  fill: color-mix(in srgb, var(--good) 30%, transparent);
+  stroke: var(--good);
+  animation: lc-pulse 0.5s ease 2;
+}
+.lc-board .shape.on.lose {
+  fill: color-mix(in srgb, var(--bad) 30%, transparent);
+  stroke: var(--bad);
+  animation: lc-pulse 0.5s ease 2;
+}
+.lc-board .hit-area {
+  fill: transparent;
+  stroke: none;
+  cursor: pointer;
+}
+.lc-board .hit-area.wide {
+  stroke: transparent;
+  stroke-width: 26;
+  stroke-linecap: round;
+}
+.lc-board .odds {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: color-mix(in srgb, var(--text) 62%, transparent);
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.lc-board .odds.on {
+  fill: var(--accent);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+/* The slab of cutting lines, the ruler and its shadow */
+.lc-board .slab {
+  opacity: 0.13;
+}
+.lc-board .slab.good {
+  fill: var(--good);
+}
+.lc-board .slab.bad {
+  fill: var(--bad);
+}
+.lc-board .slab-edge {
+  stroke-width: 1.2;
+  stroke-dasharray: 4 5;
+  opacity: 0.7;
+}
+.lc-board .slab-edge.good {
+  stroke: var(--good);
+}
+.lc-board .slab-edge.bad {
+  stroke: var(--bad);
+}
+.lc-board .ruler {
+  stroke-width: 6;
+  stroke-linecap: round;
+  opacity: 0.9;
+}
+.lc-board .ruler.next {
+  stroke: color-mix(in srgb, var(--text) 26%, var(--card));
+}
+.lc-board .ruler.good {
+  stroke: color-mix(in srgb, var(--good) 40%, var(--card));
+}
+.lc-board .ruler.bad {
+  stroke: color-mix(in srgb, var(--bad) 45%, var(--card));
+}
+.lc-board .tick {
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.lc-board .shadow {
+  stroke-width: 9;
+  stroke-linecap: butt;
+}
+.lc-board .shadow.good {
+  stroke: var(--good);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--good) 70%, transparent));
+}
+.lc-board .shadow.bad {
+  stroke: var(--bad);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--bad) 70%, transparent));
+}
+.lc-board .cap {
+  fill: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+/* Lines */
+.lc-board .past {
+  stroke: color-mix(in srgb, var(--text) 32%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+}
+.lc-board .chord {
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke: #fff;
+}
+.lc-board .chord.good {
+  stroke: var(--good);
+}
+.lc-board .chord.bad {
+  stroke: var(--bad);
+}
+.lc-board .chord.next {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.lc-board .chord.settled {
+  stroke-width: 3.5;
+  animation: lc-land 0.35s ease;
+}
+.lc-board .chord.settled.good,
+.lc-board .chord.settled.bad {
+  filter: drop-shadow(0 0 6px currentColor);
+}
+.lc-board .cut-dot {
+  fill: #fff;
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.lc-board .cut-dot.good {
+  fill: var(--good);
+}
+.lc-board .cut-dot.bad {
+  fill: var(--bad);
+}
+
+/* The flat ruler */
+.lc-board .flat-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.lc-board .flat-pct {
+  text-anchor: end;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lc-board .flat-pct.accent {
+  fill: var(--accent);
+}
+.lc-board .flat-pct.good {
+  fill: var(--good);
+}
+.lc-board .flat-pct.bad {
+  fill: var(--bad);
+}
+.lc-board .flat-unit {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.lc-board .bar.rim {
+  fill: color-mix(in srgb, var(--text) 12%, transparent);
+}
+.lc-board .bar.next {
+  fill: color-mix(in srgb, var(--text) 16%, transparent);
+}
+.lc-board .bar.good {
+  fill: color-mix(in srgb, var(--good) 32%, transparent);
+}
+.lc-board .bar.bad {
+  fill: color-mix(in srgb, var(--bad) 38%, transparent);
+}
+.lc-board .bar-in.accent {
+  fill: var(--accent);
+}
+.lc-board .bar-in.good {
+  fill: var(--good);
+}
+.lc-board .bar-in.bad {
+  fill: var(--bad);
+}
+.lc-board .flat-end {
+  font-size: 11px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lc-board .flat-end.mid {
+  text-anchor: middle;
+  opacity: 0.8;
+}
+.lc-board .needle line {
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.lc-board .needle circle {
+  fill: #fff;
+}
+.lc-board .needle.good line {
+  stroke: var(--good);
+}
+.lc-board .needle.good circle {
+  fill: var(--good);
+}
+.lc-board .needle.bad line {
+  stroke: var(--bad);
+}
+.lc-board .needle.bad circle {
+  fill: var(--bad);
+}
+.lc-board .needle.next line {
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+}
+.lc-board .needle.next circle {
+  fill: color-mix(in srgb, var(--text) 70%, transparent);
+}
+
+/* Panel chips */
+.lc-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  line-height: 1;
+}
+.lc-chip small {
+  font-size: 11px;
+  font-weight: 700;
+}
+.lc-glyph {
+  width: 16px;
+  height: 16px;
+  fill: color-mix(in srgb, currentColor 18%, transparent);
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.lc-glyph .g-rod {
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.lc-glyph .g-dot {
+  fill: currentColor;
+}
+.og-chip.on .lc-glyph {
+  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.og-chip.on .lc-glyph .g-dot {
+  fill: var(--accent);
+}
+
+@keyframes lc-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes lc-pulse {
+  50% {
+    stroke-width: 6;
+  }
+}
+@keyframes lc-land {
+  from {
+    stroke-width: 7;
+  }
+}
