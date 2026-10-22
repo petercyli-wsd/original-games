@@ -1,0 +1,347 @@
+/* Thales board. Layout, panel and readouts come from the kit. */
+
+.th-board {
+  width: 100%;
+  max-width: 940px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  align-items: center;
+  gap: clamp(12px, 2.4cqi, 30px);
+}
+.th-arena {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(64vh, 560px);
+}
+.th-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.th-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+}
+
+@container (max-width: 760px) {
+  .th-board {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 8px;
+  }
+  .th-arena {
+    max-width: 320px;
+    max-height: none;
+  }
+  .th-side {
+    width: 100%;
+    max-width: 340px;
+  }
+  .th-slot {
+    min-height: 0;
+  }
+  .th-slot .og-round-over.center {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    animation-name: og-ro-in-inline;
+  }
+}
+
+/* ---------- Arena ---------- */
+.th-floor {
+  fill: color-mix(in srgb, var(--accent) 7%, var(--raised));
+  transition: fill 0.25s ease;
+}
+/* Once a zone is shown the floor (off the band) is the region where C makes an obtuse angle at A or B. */
+.back-acute .th-floor.zoned {
+  fill: color-mix(in srgb, var(--red) 24%, var(--raised));
+}
+.back-obtuse .th-floor.zoned {
+  fill: color-mix(in srgb, var(--green) 24%, var(--raised));
+}
+.back-acute .th-floor.zoned.ghost {
+  fill: color-mix(in srgb, var(--red) 11%, var(--raised));
+}
+.back-obtuse .th-floor.zoned.ghost {
+  fill: color-mix(in srgb, var(--green) 11%, var(--raised));
+}
+.th-rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.th-zone {
+  animation: th-fade 0.35s ease both;
+}
+.th-zone.ghost {
+  opacity: 0.55;
+  animation: none;
+}
+.back-acute .th-band {
+  fill: color-mix(in srgb, var(--green) 42%, var(--raised));
+}
+.back-acute .th-disc {
+  fill: color-mix(in srgb, var(--red) 34%, var(--raised));
+}
+.back-obtuse .th-band {
+  fill: color-mix(in srgb, var(--red) 34%, var(--raised));
+}
+.back-obtuse .th-disc {
+  fill: color-mix(in srgb, var(--green) 42%, var(--raised));
+}
+.th-perp {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 5;
+}
+.th-circle {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+.th-ab {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.th-ab.ghost {
+  opacity: 0.45;
+  stroke-dasharray: 4 5;
+}
+.th-tri polygon {
+  fill: color-mix(in srgb, var(--text) 8%, transparent);
+  stroke: var(--text);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  animation: th-fade 0.3s ease both;
+}
+.th-tri.won polygon {
+  stroke: var(--green);
+  fill: color-mix(in srgb, var(--green) 14%, transparent);
+}
+.th-tri.lost polygon {
+  stroke: #fff;
+  fill: color-mix(in srgb, var(--red) 18%, transparent);
+}
+.th-wide {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3;
+  animation: th-fade 0.3s ease both;
+}
+.th-pt {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.th-pt.ghost {
+  fill: color-mix(in srgb, var(--text) 50%, transparent);
+  stroke: none;
+}
+.th-pt.c {
+  fill: var(--accent);
+}
+.th-pt.c.won {
+  fill: var(--green);
+}
+.th-pt.c.lost {
+  fill: var(--red);
+  stroke: #fff;
+}
+.th-pt.falling,
+.th-lbl.falling {
+  animation: th-drop var(--th-drop, 700ms) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.th-arena text {
+  text-anchor: middle;
+  font-family: inherit;
+}
+.th-lbl {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+}
+.th-note {
+  fill: var(--muted);
+  font-size: 11.5px;
+}
+.th-angle-note {
+  fill: var(--gold);
+  font-size: 13px;
+  font-weight: 700;
+}
+.th-angle-note.good {
+  fill: var(--green);
+}
+.th-angle-note.bad {
+  fill: var(--red);
+}
+
+/* ---------- Zone card ---------- */
+.th-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+.th-card-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.th-card-head b {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.th-card-head span {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.th-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 12.5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.th-sum.muted {
+  color: var(--muted);
+}
+.th-sum .op {
+  color: var(--muted);
+  font-weight: 700;
+}
+.th-sum i.sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+.th-sum i.band {
+  border: 1.5px dashed color-mix(in srgb, var(--text) 60%, transparent);
+}
+.th-sum i.disc {
+  border-radius: 50%;
+  border: 1.5px dashed var(--accent);
+}
+.th-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.th-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+.th-legend i.win {
+  background: color-mix(in srgb, var(--green) 60%, var(--raised));
+}
+.th-legend i.lose {
+  background: color-mix(in srgb, var(--red) 50%, var(--raised));
+}
+
+/* ---------- Tally ---------- */
+.th-tally {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.th-pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.th-pip svg {
+  width: 14px;
+  height: 14px;
+}
+.th-pip svg polygon {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.th-pip.current {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.th-pip.won {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+.th-pip.lost {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+/* ---------- Panel chips ---------- */
+.th-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.th-glyph {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+.th-glyph * {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+@keyframes th-drop {
+  from {
+    transform: translateY(-60px) scale(2);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+@keyframes th-fade {
+  from {
+    opacity: 0;
+  }
+}
