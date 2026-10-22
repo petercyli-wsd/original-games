@@ -237,6 +237,7 @@ export default function Game() {
             options={SEGMENTS.map((n) => ({ value: n, label: n, title: `${n} segments · top ${fmtMult(tableFor(risk, n).max)}` }))}
           />
 
+          {auto.mode === 'manual' && (
           <dl className="og-stats">
             <dt>Chance to win</dt>
             <dd>{fmtChance(table.chanceHit)}</dd>
@@ -249,15 +250,14 @@ export default function Game() {
             <dt>RTP</dt>
             <dd>{(RTP * 100).toFixed(2)}%</dd>
           </dl>
+          )}
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={locked || !!bet.blocked} onClick={manualSpin}>
               {spinning ? 'Spinning…' : 'Bet'}
             </ActionButton>
           ) : (
-            <AutoBetControls auto={auto} disabled={!!bet.blocked || spinning}>
-              <p className="wh-note">Each auto bet spins the wheel above at the current risk and segments.</p>
-            </AutoBetControls>
+            <AutoBetControls auto={auto} disabled={!!bet.blocked || spinning} />
           )}
           {bet.blocked ? <p className="wh-blocked">{bet.blocked}</p> : auto.mode === 'manual' ? <p className="wh-note center">Space spins · L / M / H risk · 1–5 segments</p> : null}
 
