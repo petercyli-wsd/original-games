@@ -1,0 +1,403 @@
+/* Penney board, plus the pattern pickers in the panel. Layout, panel and readouts come from the kit. */
+
+.pn {
+  --coin-h: #efe9d8;
+  --coin-h-ink: #17171f;
+  --coin-t: #272734;
+  --coin-t-ring: #a19eae;
+  --coin-t-ink: #f1f1f4;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.pn text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Frame: the future area, the "now" line and column guides. */
+.pn .cap {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  fill: var(--muted);
+}
+.pn .cap.accent {
+  fill: var(--accent);
+}
+.pn .future {
+  fill: color-mix(in srgb, var(--accent) 6%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 26%, transparent);
+  stroke-dasharray: 4 5;
+}
+.pn .now {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+.pn .guide {
+  stroke: var(--line);
+  stroke-dasharray: 1 6;
+}
+.pn .hint {
+  font-size: 17px;
+  font-style: italic;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+
+/* Coins: heads is a light disc, tails a dark ringed disc. */
+.pn .face.H {
+  fill: var(--coin-h);
+}
+.pn .face.T {
+  fill: var(--coin-t);
+  stroke: var(--coin-t-ring);
+  stroke-width: 1.5;
+}
+.pn .glyph {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 800;
+  pointer-events: none;
+}
+.pn .glyph.H {
+  fill: var(--coin-h-ink);
+}
+.pn .glyph.T {
+  fill: var(--coin-t-ink);
+}
+
+/* The strip slides left as each coin lands. */
+.pn .strip-coin {
+  transition:
+    transform var(--move-ms) var(--ease),
+    opacity var(--move-ms) ease;
+}
+.pn .spin {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pn-spin var(--spin-ms) linear;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.pn .cover {
+  fill: var(--accent);
+  animation: pn-cover var(--spin-ms) linear forwards;
+}
+.pn .bracket {
+  stroke-width: 2.5;
+  animation: pn-glow 0.9s ease 2;
+}
+.pn .bracket.you {
+  fill: color-mix(in srgb, var(--green) 12%, transparent);
+  stroke: var(--green);
+}
+.pn .bracket.house {
+  fill: color-mix(in srgb, var(--red) 14%, transparent);
+  stroke: var(--red);
+}
+
+/* Pattern rows: matched coins are lit, needed coins dashed, the next one pulses. */
+.pn .label {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+}
+.pn .label.you {
+  fill: var(--green);
+}
+.pn .label.house {
+  fill: var(--red);
+}
+.pn .label .count {
+  fill: var(--muted);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+}
+.pn .row {
+  transition: transform var(--move-ms) var(--ease);
+}
+.pn .row .halo {
+  fill: none;
+  stroke-width: 3;
+  opacity: 0;
+  transition: opacity var(--move-ms) ease;
+}
+.pn .row.you .halo {
+  stroke: var(--green);
+}
+.pn .row.house .halo {
+  stroke: var(--red);
+}
+.pn .row.you .meter {
+  fill: var(--green);
+}
+.pn .row.house .meter {
+  fill: var(--red);
+}
+.pn .row .hit .halo {
+  opacity: 1;
+}
+.pn .row.you .hit .halo {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.pn .row.house .hit .halo {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.pn .row .need .face {
+  fill: transparent;
+  stroke-width: 1.8;
+  stroke-dasharray: 3 4;
+}
+.pn .row.you .need .face {
+  stroke: color-mix(in srgb, var(--green) 60%, transparent);
+}
+.pn .row.house .need .face {
+  stroke: color-mix(in srgb, var(--red) 65%, transparent);
+}
+.pn .row .need .glyph {
+  fill: var(--muted);
+}
+.pn .row.you .need.next .glyph {
+  fill: var(--green);
+}
+.pn .row.house .need.next .glyph {
+  fill: var(--red);
+}
+.pn .row .need.next .halo {
+  opacity: 1;
+  stroke-width: 2;
+  animation: pn-pulse 1.3s ease-in-out infinite;
+}
+.pn .row .meter {
+  transition: opacity var(--move-ms) ease;
+}
+.pn .row.done .halo {
+  stroke-width: 4;
+}
+
+/* The odds: a tug of war. Green share = your chance to land first. */
+.pn .odds-group {
+  transition: opacity var(--move-ms) ease;
+}
+.pn.pn-over .odds-group {
+  /* The result card covers the bar on wide frames. */
+  opacity: 0.12;
+}
+.pn .bar-house {
+  fill: color-mix(in srgb, var(--red) 78%, var(--bg));
+}
+.pn .bar-you {
+  fill: var(--green);
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform var(--move-ms) var(--ease);
+}
+.pn .split {
+  transition: transform var(--move-ms) var(--ease);
+}
+.pn .split line {
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.pn .fork .stem {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+.pn .odds {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  fill: var(--muted);
+}
+.pn .odds.end {
+  text-anchor: end;
+}
+.pn .odds .pct {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.pn .odds.you .pct {
+  fill: var(--green);
+}
+.pn .odds.house .pct {
+  fill: var(--red);
+}
+.pn .note {
+  text-anchor: middle;
+  font-size: 15px;
+  font-weight: 800;
+  animation: og-fade 0.3s ease;
+}
+.pn .note.you {
+  fill: var(--green);
+}
+.pn .note.house {
+  fill: var(--red);
+}
+.pn .warn {
+  text-anchor: middle;
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--red);
+}
+
+@keyframes pn-spin {
+  0%,
+  33%,
+  66%,
+  100% {
+    transform: scaleY(1);
+  }
+  16%,
+  50%,
+  83% {
+    transform: scaleY(0.06);
+  }
+}
+@keyframes pn-cover {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes pn-pulse {
+  50% {
+    opacity: 0.2;
+  }
+}
+@keyframes pn-glow {
+  50% {
+    stroke-width: 5;
+  }
+}
+
+/* ---------- Panel: matchup chips and pattern pickers ---------- */
+.pn-presets .og-chips.wrap .og-chip {
+  flex: 1 0 calc(50% - 4px);
+}
+.pn-preset {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.pn-preset small {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.75;
+}
+.pn-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 10px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.pn-picker.you {
+  box-shadow: inset 3px 0 0 var(--green);
+}
+.pn-picker.house {
+  box-shadow: inset 3px 0 0 var(--red);
+}
+.pn-picks {
+  display: flex;
+  flex: 1;
+  gap: 4px;
+}
+.pn-picker .pn-pick {
+  display: grid;
+  place-items: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+}
+.pn-picker .pn-pick.H {
+  background: #efe9d8;
+  color: #17171f;
+}
+.pn-picker .pn-pick.T {
+  background: #272734;
+  color: #f1f1f4;
+  box-shadow: inset 0 0 0 1.5px #a19eae;
+}
+.pn-picker .pn-pick.empty {
+  border: 1.5px dashed var(--line);
+}
+.pn-picker .pn-pick:not(:disabled):not(.empty):hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+.pn-picker .pn-len {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 800;
+  background: var(--hover);
+}
+.pn-swap {
+  padding: 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  background: transparent;
+}
+.pn-swap:not(:disabled):hover {
+  color: var(--text);
+}
+.pn-warn {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--red);
+}
+
+/* ---------- Stage: result card and footer ---------- */
+.og-board.pn-board {
+  /* A fixed-width track, so the inline card wraps instead of widening the board. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.pn-result {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 4px;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.pn-result > * {
+  pointer-events: auto;
+}
+/* One height for the chance bar and the caption, so the board never jumps between states. */
+.pn-foot {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@container (max-width: 760px) {
+  .pn.pn-over .odds-group {
+    opacity: 0.5;
+  }
+  .pn-result {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 4px;
+  }
+  .pn-foot {
+    min-height: 0;
+  }
+}
