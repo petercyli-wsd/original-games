@@ -1,0 +1,330 @@
+/* Patience board. Layout, panel and readouts come from the kit. */
+
+.pat text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Headers */
+.pat .hdr {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.pat .hdr.lose,
+.pat .colno.lose {
+  fill: var(--red);
+}
+.pat .hdr.win,
+.pat .colno.win {
+  fill: var(--green);
+}
+.pat .colno {
+  font-size: 13px;
+  font-weight: 800;
+  fill: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.pat .colno.used {
+  fill: var(--accent);
+}
+
+/* Grid */
+.pat .col {
+  fill: color-mix(in srgb, var(--hover) 55%, transparent);
+  stroke: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.pat .col.goal {
+  fill: color-mix(in srgb, var(--green) 8%, transparent);
+  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.pat .col.overflow {
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+  stroke-width: 1.2;
+}
+.pat .hatch-bg {
+  fill: color-mix(in srgb, var(--red) 7%, transparent);
+}
+.pat .hatch-line {
+  stroke: color-mix(in srgb, var(--red) 26%, transparent);
+  stroke-width: 2;
+}
+.pat .rowline {
+  stroke: color-mix(in srgb, var(--text) 5%, transparent);
+  stroke-width: 1;
+}
+.pat .limit {
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* New-pile zone and the top shelf */
+.pat .zone {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 1.2;
+  transition:
+    height 0.25s ease,
+    y 0.25s ease;
+}
+.pat .zone.lose {
+  fill: color-mix(in srgb, var(--red) 20%, transparent);
+  stroke: color-mix(in srgb, var(--red) 75%, transparent);
+}
+.pat .zone.win {
+  fill: color-mix(in srgb, var(--green) 18%, transparent);
+  stroke: color-mix(in srgb, var(--green) 75%, transparent);
+}
+.pat .shelf {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  transition:
+    y1 0.25s ease,
+    y2 0.25s ease;
+}
+.pat .shelf.lose {
+  stroke: var(--red);
+}
+.pat .shelf.win {
+  stroke: var(--green);
+}
+
+/* Deck strip */
+.pat .slot rect {
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease;
+}
+.pat .slot.in rect {
+  fill: var(--raised);
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.2;
+}
+.pat .slot.in text {
+  font-weight: 700;
+  fill: var(--text);
+}
+.pat .slot.out rect {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-dasharray: 3 3;
+}
+.pat .slot.out text {
+  fill: color-mix(in srgb, var(--muted) 45%, transparent);
+  font-weight: 500;
+}
+.pat .slot.opens rect {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--raised));
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pat .slot.opens.lose rect {
+  fill: color-mix(in srgb, var(--red) 24%, var(--raised));
+  stroke: var(--red);
+}
+.pat .slot.opens.win rect {
+  fill: color-mix(in srgb, var(--green) 20%, var(--raised));
+  stroke: var(--green);
+}
+
+.pat .count .bracket {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pat .count.lose .bracket {
+  stroke: var(--red);
+}
+.pat .count.win .bracket {
+  stroke: var(--green);
+}
+.pat .count text {
+  text-anchor: end;
+}
+.pat .count-big {
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.pat .count.lose .count-big {
+  fill: var(--red);
+}
+.pat .count.win .count-big {
+  fill: var(--green);
+}
+.pat .count-small {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+/* Cards */
+.pat .card rect {
+  stroke-width: 1.5;
+}
+.pat .card text {
+  font-weight: 800;
+}
+.pat .card.covered rect {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--card));
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.pat .card.covered text {
+  fill: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  font-weight: 600;
+}
+.pat .card.top rect {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, #fff 45%, var(--accent));
+}
+.pat .card.top text {
+  fill: #0b1207;
+}
+.pat .card.last rect {
+  stroke: #fff;
+  stroke-width: 2.2;
+}
+.pat .card.final.lose rect {
+  fill: var(--red);
+  stroke: #fff;
+}
+.pat .card.final.win rect {
+  fill: var(--green);
+  stroke: #fff;
+}
+.pat .card.final:not(.moving) {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pat-pop 0.5s ease 2;
+}
+.pat .card.moving {
+  animation-name: pat-slide;
+  animation-timing-function: cubic-bezier(0.25, 0.75, 0.3, 1);
+  animation-fill-mode: both;
+}
+.pat .spine {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+/* Landing rings */
+.pat .ghost {
+  animation: pat-fade 0.25s ease both;
+}
+.pat .ghost-bg {
+  fill: color-mix(in srgb, var(--red) 62%, var(--card));
+}
+.pat .ghost-win {
+  fill: var(--green);
+}
+.pat .ghost-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 1.3;
+}
+
+/* Forecast bars */
+.pat .base {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.5;
+}
+.pat .bar-track {
+  fill: color-mix(in srgb, var(--hover) 60%, transparent);
+}
+.pat .bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.35s ease;
+}
+.pat .bar.win {
+  fill: var(--green);
+}
+.pat .bar.lose {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.pat .bar-pct {
+  font-size: 11px;
+  font-weight: 700;
+  transition: y 0.35s ease;
+}
+.pat .bar-pct.win {
+  fill: var(--green);
+}
+.pat .bar-pct.lose {
+  fill: color-mix(in srgb, var(--red) 85%, var(--text));
+}
+.pat .bar-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.pat .bar-caption {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.pat .bar-caption .win {
+  fill: var(--green);
+  font-weight: 700;
+}
+
+@keyframes pat-slide {
+  from {
+    transform: translateX(var(--dx));
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes pat-pop {
+  50% {
+    transform: scale(1.18);
+  }
+}
+@keyframes pat-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The longest rising run, drawn when the round ends. */
+.pat .run {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: pat-draw 0.9s ease 0.15s forwards;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--gold) 55%, transparent));
+}
+.pat .card.in-run rect {
+  stroke: var(--gold);
+  stroke-width: 2.5;
+}
+.pat .run-caption {
+  font-size: 12.5px;
+  font-weight: 700;
+  fill: var(--gold);
+}
+@keyframes pat-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Keep the board's single grid column at the stage width, so the inline
+   round-over card wraps instead of widening the board on narrow frames. */
+.og-board.pat-board {
+  grid-template-columns: minmax(0, 1fr);
+}
