@@ -1,0 +1,340 @@
+/* Two-Tone board. Layout, panel and readouts come from the kit. */
+
+.og-game {
+  --tone-light: var(--accent);
+  --tone-dark: #4a2f61;
+  --tone-ink: #1a1320;
+}
+
+.tt-board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2.5cqi, 28px);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.tt-ring {
+  display: block;
+  flex: 1.35 1 0;
+  min-width: 0;
+  height: auto;
+  max-height: 60vh;
+  overflow: visible;
+}
+
+/* ---------- Ring ---------- */
+.tt-ring .guide {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+}
+.tt-ring .fatal {
+  stroke: var(--red);
+  stroke-width: 1.6;
+  stroke-dasharray: 5 5;
+  opacity: 0.42;
+  animation: tt-fade 0.3s ease both;
+}
+.tt-ring .edge {
+  stroke: color-mix(in srgb, var(--text) 78%, var(--accent));
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.tt-ring.won .edge {
+  stroke: var(--green);
+  opacity: 0.8;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--green) 50%, transparent));
+}
+.tt-ring .edge.cycle {
+  stroke: var(--red);
+  stroke-width: 4.5;
+  opacity: 1;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 70%, transparent));
+}
+.tt-ring .growing {
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px var(--accent));
+  animation-name: tt-grow;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+.tt-ring .killer {
+  stroke: var(--red);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 10px var(--og-red-glow, rgba(233, 17, 60, 0.7)));
+  animation: tt-throb 0.5s ease 2;
+}
+
+.tt-ring .node circle {
+  stroke-width: 2.5;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.tt-ring .node text,
+.tt-grid .tag text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: inherit;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  transition: fill 0.25s ease;
+}
+.tt-ring .node.free circle,
+.tt-grid .tag.free circle {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--muted) 60%, transparent);
+  stroke-dasharray: 3 3;
+}
+.tt-ring .node.free text,
+.tt-grid .tag.free text {
+  fill: var(--muted);
+}
+.tt-ring .node.light circle,
+.tt-grid .tag.light circle {
+  fill: var(--tone-light);
+  stroke: var(--bg);
+}
+.tt-ring .node.light text,
+.tt-grid .tag.light text {
+  fill: var(--tone-ink);
+}
+.tt-ring .node.dark circle,
+.tt-grid .tag.dark circle {
+  fill: var(--tone-dark);
+  stroke: var(--tone-light);
+}
+.tt-ring .node.dark text,
+.tt-grid .tag.dark text {
+  fill: var(--tone-light);
+}
+.tt-ring .node.picked circle {
+  animation: tt-ping 0.35s ease forwards;
+}
+.tt-ring .node.odd circle {
+  stroke: var(--red);
+  stroke-width: 3.5;
+}
+
+/* ---------- Pairs grid ---------- */
+.tt-side {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tt-side .tt-grid {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.tt-side-head,
+.tt-sum,
+.tt-legend {
+  padding-left: calc(100% * 30 / 272);
+}
+.tt-side-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.tt-side-head span {
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.tt-side-head b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.tt-sum {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tt-sum b {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.tt-sum span {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.tt-sum.risk b,
+.tt-sum.bad b {
+  color: var(--red);
+}
+.tt-sum.good b {
+  color: var(--green);
+}
+.tt-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.tt-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tt-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.tt-legend i.edge {
+  background: color-mix(in srgb, var(--text) 78%, var(--accent));
+}
+.tt-legend i.fatal {
+  background: color-mix(in srgb, var(--red) 78%, transparent);
+}
+.tt-legend i.safe {
+  background: color-mix(in srgb, var(--green) 13%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 45%, transparent);
+}
+.tt-grid .cell {
+  stroke-width: 1;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.tt-grid .cell.edge {
+  fill: color-mix(in srgb, var(--text) 78%, var(--accent));
+  stroke: transparent;
+}
+.tt-grid .cell.fatal {
+  fill: color-mix(in srgb, var(--red) 78%, transparent);
+  stroke: var(--red);
+}
+.tt-grid .cell.safe {
+  fill: color-mix(in srgb, var(--green) 13%, transparent);
+  stroke: color-mix(in srgb, var(--green) 38%, transparent);
+}
+.tt-grid .cell.scan {
+  animation-name: tt-blink;
+  animation-timing-function: steps(1, end);
+}
+.tt-grid .cell.pick {
+  animation: tt-pick 0.3s ease forwards;
+}
+.tt-grid .cell.killer {
+  fill: var(--red);
+  stroke: #fff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px var(--red));
+}
+
+@keyframes tt-grow {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes tt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes tt-ping {
+  from {
+    stroke: #fff;
+    stroke-width: 2.5;
+  }
+  to {
+    stroke: #fff;
+    stroke-width: 5;
+  }
+}
+@keyframes tt-blink {
+  from {
+    fill: #fff;
+    stroke: #fff;
+  }
+}
+@keyframes tt-pick {
+  from,
+  to {
+    stroke: #fff;
+    stroke-width: 3;
+  }
+}
+@keyframes tt-throb {
+  50% {
+    stroke-width: 9;
+  }
+}
+
+/* Narrow frames: the ring on top, the pairs grid and its counts side by side below. */
+@container (max-width: 760px) {
+  .tt-board {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .tt-ring {
+    flex: none;
+    width: min(100%, 360px);
+    max-height: 44vh;
+  }
+  .tt-side {
+    flex: none;
+    width: 100%;
+    max-width: 460px;
+    display: grid;
+    grid-template-columns: minmax(0, 44%) minmax(0, 1fr);
+    grid-template-areas:
+      'grid head'
+      'grid sum'
+      'grid legend';
+    grid-template-rows: auto auto 1fr;
+    column-gap: 14px;
+    row-gap: 6px;
+    align-items: start;
+  }
+  .tt-side .tt-grid {
+    grid-area: grid;
+  }
+  .tt-side-head {
+    grid-area: head;
+  }
+  .tt-sum {
+    grid-area: sum;
+  }
+  .tt-legend {
+    grid-area: legend;
+  }
+  .tt-side-head,
+  .tt-sum,
+  .tt-legend {
+    padding-left: 0;
+  }
+  .tt-sum b {
+    font-size: 16px;
+  }
+  .tt-sum span,
+  .tt-legend {
+    font-size: 11.5px;
+  }
+}
+
+/* One column the board can't outgrow (the inline round-over card wraps instead). */
+.og-board.tt-stage {
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: 12px;
+}
