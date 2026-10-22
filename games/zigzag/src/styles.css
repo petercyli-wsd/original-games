@@ -1,0 +1,161 @@
+/* Zigzag board. Layout, panel and readouts come from the kit. */
+
+.zz-board {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 10px;
+}
+
+.zz text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.zz .hdr {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.zz .hdr.right {
+  text-anchor: end;
+  fill: var(--text);
+}
+.zz .hdr.right.full {
+  fill: var(--green);
+}
+.zz .hdr.right.bust {
+  fill: var(--red);
+}
+.zz .axis {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.zz .tick {
+  font-size: 11px;
+  fill: var(--muted);
+  text-anchor: end;
+}
+.zz .slot {
+  fill: color-mix(in srgb, var(--text) 4%, transparent);
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-dasharray: 3 4;
+}
+.zz .slot.used {
+  stroke: none;
+}
+
+/* The next slot */
+.zz .zone {
+  animation: zz-fade 0.25s ease both;
+}
+.zz .zone .risk {
+  fill: color-mix(in srgb, var(--red) 55%, var(--card));
+}
+.zz .zone .safe {
+  fill: var(--green);
+}
+.zz .zone .level {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+.zz .zone-pct {
+  text-anchor: middle;
+  font-size: 14px;
+  font-weight: 800;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.zz .zone-sub {
+  text-anchor: middle;
+  font-size: 10px;
+  font-weight: 700;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.55);
+  stroke-width: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Bars */
+.zz .bar {
+  fill: color-mix(in srgb, var(--accent) 55%, var(--card));
+}
+.zz .bar.last {
+  fill: var(--accent);
+}
+.zz .bar.won {
+  fill: color-mix(in srgb, var(--green) 70%, var(--card));
+}
+.zz .bar.bust {
+  fill: var(--red);
+}
+.zz .bar.dropping {
+  fill: #fff;
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation-name: zz-grow;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: both;
+}
+.zz .bar.dropping.bust {
+  fill: #fff;
+}
+.zz .zig {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.zz .zig.won {
+  stroke: var(--green);
+}
+.zz .zig.broken {
+  stroke: var(--red);
+  stroke-dasharray: 5 4;
+}
+.zz .tip {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.zz .ghost {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 2.5;
+  stroke-dasharray: 6 6;
+  stroke-linejoin: round;
+}
+
+/* Direction arrows */
+.zz .arrow path {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.zz .arrow.on path {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.zz .any {
+  text-anchor: middle;
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+@keyframes zz-grow {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes zz-fade {
+  from {
+    opacity: 0;
+  }
+}
