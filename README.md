@@ -4,29 +4,48 @@ A platform for hosting casino "Originals": simple, fast, single-player games wit
 
 ```
 original-games/
-├── apps/platform/        Lobby + game shell (Vite, React, React Router)
-├── apps/api/             Ratings API (Node + Postgres), deployed as its own Render service
-├── packages/game-sdk/    The contract between platform and games, plus shared helpers
+├── apps/platform/        The site: lobby, game pages, reviews, Rankings, Evaluator (Vite, React, React Router)
+├── apps/api/             API for ratings, reviews and the AI evaluator (Node + Postgres), its own Render service
+│   └── src/evaluator/       Rubric, anchors, prompts, evidence checks, refine/backtest logic
+├── packages/game-sdk/    The contract between platform and games, plus shared helpers and the UI kit
 ├── games/
 │   ├── template/            Reference game ("Arc Climb"), copied by `npm run new-game`
-│   ├── crocodile-dentist/   Croc Dentist (vs House)
-│   ├── croc-dentist-solo/   Croc Dentist (Solo), reuses the croc from crocodile-dentist
+│   ├── half-moon/           Reference for kit-based games (see docs/BUILDING-GAMES.md)
 │   └── <id>/                One folder per game
-├── scripts/              eval runner, new-game scaffolder, headless play driver, report
+├── scripts/              eval runner, evidence builder, evaluator CLI, new-game scaffolder, headless play driver, report
+├── .claude/skills/       Claude Code skills: /review-game, /review-games, /refine-evaluator
 ├── docs/IDEAS.md         Concept backlog + eval rubric
 ├── docs/CATALOGUE.md     Maths-first batch: theorem → game specs, uniqueness, results
 ├── docs/BUILDING-GAMES.md   The build and pricing contract for kit-based games
-└── render.yaml           Render Blueprint (one static site)
+└── render.yaml           Render Blueprint: the static site and the API service
 ```
+
+| Doc section | Read it for |
+|---|---|
+| [Quick start](#quick-start) | Running everything locally |
+| [How games plug in](#how-games-plug-in) / [Adding a game](#adding-a-game) | Building games |
+| [The site](#the-site) | What each page does |
+| [Reviews and the AI evaluator](#reviews-and-the-ai-evaluator) | Team reviews, AI reviews, calibration, the training loop |
+| [Deploying](#deploying-render) | Render + Neon setup and troubleshooting |
 
 ## Quick start
 
 ```bash
 npm install
-npm run dev          # platform at http://localhost:5173
+npm run dev          # site at http://localhost:5173
+npm run dev:api      # API at http://localhost:8787 (in-memory; reviews reset on restart)
 npm run check        # typecheck + tests + evals
 npm run build        # apps/platform/dist
 ```
+
+`apps/platform/.env.development` points the dev site at the local API. Without the API running, games work and the review panels say the server is unreachable.
+
+| Command | What it does |
+|---|---|
+| `npm run eval [-- --game <id>]` | Monte Carlo RTP check for every game (CI gate) |
+| `npm run evidence [-- --game <id>]` | Builds the evaluator's evidence packs into `apps/api/evidence/` |
+| `npm run evaluator -- <command>` | Local evaluator CLI used by the Claude Code skills ([reference](#evaluator-cli)) |
+| `npm run new-game -- <id> "<Name>"` | Scaffolds a game from the template |
 
 ## How games plug in
 
@@ -83,6 +102,17 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 `play.mjs` starts the game's standalone server, drives it in headless Chrome over the DevTools protocol (click by text or selector, keys, waits, screenshots, viewport sizes) and exits non-zero on any console error.
 
+## The site
+
+| Page | What's there |
+|---|---|
+| **Lobby** `/` | Every game as a tile with RTP, max win and its team rating; filter by maths family. `prototype` games are under Experimental. |
+| **Game** `/play/<id>` | The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (write a score with pros and cons, read others') and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
+| **Rankings** `/rankings` | Every game ranked by team rating (weighted by vote count), with the AI score alongside; rate any game inline. |
+| **Evaluator** `/evaluator` | The active prompt (weights, guidance, reference games, agreement metrics), candidate versions side by side with the active one, the team-vs-AI table, and **Promote**. Unlock with the admin passphrase. |
+
+The play balance is a demo wallet stored in the browser; **Refill** resets it.
+
 ## Reviews and the AI evaluator
 
 **Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change.
@@ -132,11 +162,58 @@ Not every reviewed game goes into the prompt. Showing all of them would bloat th
 3. `/refine-evaluator` proposes a candidate prompt and backtests it on train and holdout games plus anchors.
 4. Promote the candidate (from Claude Code or the site's Evaluator page) if holdout agreement improves and the anchors pass. Every review records the prompt version it used.
 
+### Evaluator CLI
+
+The skills call these for you; they're also handy on their own. All need `ORIGINALS_API_URL` and `ORIGINALS_ADMIN_KEY` in `.env.local`.
+
+| `npm run evaluator -- …` | What it does |
+|---|---|
+| `todo [--all]` | Games with no review under the active prompt, or whose code changed since |
+| `prepare <id...>` | Builds evidence and the rules-card prompt (`.evaluator/<id>/extract.md`), or restores a cached card |
+| `judge-prompt <id...> [--version N] [--pool train]` | Writes the judge prompt (`judge.md`). `anchor-*` ids work too. `--pool train` limits references to train games (backtests) |
+| `submit <id...> [--model name]` | Validates `review.json` and stores it with the rules card and measured checks; prints the overall score |
+| `refine-prompt` | Writes the refine prompt over train games, or lists train games to review first |
+| `submit-version` | Stores `.evaluator/_refine/proposal.json` as a candidate prompt version |
+| `calibration [--version N]` | Lists the games and anchors to review to backtest a version |
+| `score <version>` | Recomputes holdout and overall agreement plus anchor passes, for the version and the active one |
+| `promote <version>` | Makes a version active |
+
+### Where things live
+
+| File | Contents |
+|---|---|
+| `apps/api/src/evaluator/rubric.ts` | Version 1 of the rubric: the nine criteria, weights, 1/3/5 descriptions, starting guidance |
+| `apps/api/src/evaluator/anchors.ts` | Calibration anchors and their pass thresholds |
+| `apps/api/src/evaluator/prompts.ts` | The extract, judge and refine prompts and their JSON schemas |
+| `apps/api/src/evaluator/service.ts` | Reference selection, train/holdout, refine, backtest and metrics |
+| `apps/api/src/evaluator/evidence.ts` | Measured checks (RTP, volatility spread, round length, checkpoints) |
+| `scripts/evidence.ts`, `scripts/lib/game-evidence.ts` | Evidence packs (manifest, gameplay source, Monte Carlo stats, code hash) |
+| `scripts/evaluator.ts` | The CLI above |
+| `.claude/skills/*/SKILL.md` | The Claude Code skills |
+
+Later prompt versions live in the database (`prompt_versions`); edit `rubric.ts` only to change the seed for a fresh database.
+
+### API endpoints
+
+Public reads, with `*` marking routes that need the `x-admin-key` header:
+
+| Route | Purpose |
+|---|---|
+| `GET /ratings[?voter=]`, `GET /ratings/:id?voter=` | Rating summaries; one game's distribution, your review and recent reviews |
+| `PUT /ratings/:id` | `{ voterId, stars, comment?, reviewer? }` (rate-limited per IP) |
+| `GET /evaluations`, `GET /evaluations/:id` | AI score per game; one game's full AI review |
+| `GET /evaluator`, `/evaluator/versions[/:id]`, `/evaluator/agreement`, `/evaluator/calibration` | Status, prompt versions, team-vs-AI, backtest to-do |
+| `GET /evaluator/cards/:id?hash=` | Cached rules card for a code version |
+| `POST /evaluator/judge-prompt` * , `GET /evaluator/refine-prompt` * | Prompts for Claude Code |
+| `POST /evaluations/import` * , `POST /evaluator/versions` * | Store a review / a candidate version made in Claude Code |
+| `POST /evaluator/versions/:id/score` * , `POST /evaluator/versions/:id/promote` * | Recompute metrics / activate a version |
+| `POST /evaluations` * , `POST /evaluator/refine` * , `POST /evaluator/versions/:id/backtest` * | In-app runs (only with `IN_APP_AI_REVIEWS`) |
+
 ### In-app reviews (in development, off by default)
 
 The site can also run reviews through the billed Anthropic API. This is behind a feature flag: set `IN_APP_AI_REVIEWS=true` and `ANTHROPIC_API_KEY` on the API service to show the run buttons on the site. With the flag off, the site still shows every stored review, the agreement table and prompt versions, and can promote versions.
 
-### API
+### API service
 
 `apps/api` is plain Node + Postgres (Neon's free tier). `npm run build -w @originals/api` first runs `scripts/evidence.ts`, which packs each game's manifest, gameplay source and eval stats into `apps/api/evidence/`. Environment:
 
@@ -152,6 +229,25 @@ The site reads the API's address from `VITE_RATINGS_API_URL` at build time; if i
 
 ## Deploying (Render)
 
-`render.yaml` defines a single static site. In Render, choose **New → Blueprint** and select this repo. Each deploy runs typecheck and tests before building, and PR previews are on. SPA rewrites make `/play/<id>` deep links work.
+Two Render services, both deployed from `main` on every push, plus a Neon database:
+
+| Service | Type | Build | Environment |
+|---|---|---|---|
+| Site | Static site, publish `apps/platform/dist` | `npm ci && npm run typecheck && npm test && npm run build` | `VITE_RATINGS_API_URL` = the API's URL; `NODE_VERSION` = `22.12.0` |
+| API | Web service (Node, free), health check `/health` | `npm ci && npm run build -w @originals/api` · start `npm run start -w @originals/api` | `DATABASE_URL` (Neon), `ADMIN_KEY`, `CORS_ORIGINS` = the site's URL, `NODE_VERSION` = `22.12.0` |
+
+`render.yaml` describes both (**New → Blueprint**), or create them by hand with the values above. The database tables are created on the API's first start, and schema changes are additive, so existing reviews survive deploys. SPA rewrites make `/play/<id>` deep links work.
+
+**Neon:** create a project, copy the connection string from **Connect** (it ends in `?sslmode=require`) into the API's `DATABASE_URL`. It's a secret: never commit it.
+
+**Troubleshooting:**
+
+| Symptom | Cause |
+|---|---|
+| No stars or reviews anywhere, "Can't reach the ratings server" | `CORS_ORIGINS` on the API doesn't match the site's URL exactly (or the site was built without `VITE_RATINGS_API_URL`; it's baked in at build time, so redeploy after setting it) |
+| First load takes up to a minute | The free API sleeps after 15 minutes idle and is waking up |
+| Evaluator CLI says "Wrong admin key" | `ORIGINALS_ADMIN_KEY` in `.env.local` doesn't match `ADMIN_KEY` on the API |
+| An AI review is marked "code changed" | The game changed since it was reviewed; run `/review-games` |
+| New games don't appear in a running dev server | Restart `npm run dev`; games are discovered at startup |
 
 The demo wallet and RNG run in the browser. For real money, put a server wallet and a provably-fair RNG behind the same `Wallet` and `Rng` interfaces.
