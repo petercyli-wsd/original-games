@@ -106,6 +106,12 @@ const HOTS: Hot[] = (() => {
 const CENTRES: Record<string, { x: number; y: number }> = (() => {
   const m: Record<string, { x: number; y: number }> = { 'straight:0': { x: 0.55, y: 1.5 } };
   for (const c of CELLS) m[c.id] = { x: (c.x0 + c.x1) / 2, y: (c.y0 + c.y1) / 2 };
+  // Outside bets wider than one cell park their chip towards the end of the
+  // box, so the label ("2nd 12", "Even", the red / black diamond) stays readable.
+  for (const c of CELLS) {
+    if (c.cls.includes('dozen')) m[c.id] = { x: c.x1 - 0.45, y: (c.y0 + c.y1) / 2 };
+    else if (c.cls.includes('even')) m[c.id] = { x: c.x1 - 0.32, y: (c.y0 + c.y1) / 2 };
+  }
   for (const h of HOTS) m[h.id] = { x: h.cx, y: h.cy };
   return m;
 })();

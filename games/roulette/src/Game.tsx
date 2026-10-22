@@ -123,8 +123,10 @@ export default function Game() {
   const layoutRef = useRef(layout);
   const baseRef = useRef(layout);
 
+  // The drawn multiplier, set synchronously the moment a bet is accepted, so
+  // leaving mid-spin always settles the real outcome (never a stale render).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (spinning ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const total = cents(totalOf(layout));
   const stats = useMemo(() => layoutStats(layout), [layout]);
@@ -189,6 +191,7 @@ export default function Game() {
     }
     const t = cents(totalOf(lay));
     if (!(t > 0)) return null;
+    resolved.current = 0;
     if (!(await ticket.place(t))) return null;
 
     const res = spin(lay, rng.next());
@@ -256,7 +259,10 @@ export default function Game() {
   }, [infoOpen]);
 
   // ---------- Derived view ----------
-  const shownLayout = last && !busy ? last.layout : layout;
+  // The table always shows the chips the next Bet will spin. After an Auto
+  // run with on-win / on-loss scaling those differ from the last spin's, and
+  // the last result's won / lost marks still apply (scaling keeps the spots).
+  const shownLayout = layout;
   const coveredNums = useMemo(() => {
     const s = new Set<number>();
     for (const id of spotsOf(shownLayout)) for (const n of SPOT_BY_ID[id].nums) s.add(n);
