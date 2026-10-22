@@ -1,0 +1,284 @@
+/* Deep board. Layout, panel and readouts come from the kit. */
+
+.deep text {
+  font-family: inherit;
+  fill: var(--muted);
+}
+.deep .lbl {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.deep .lbl.small {
+  font-size: 13px;
+  font-weight: 500;
+}
+.deep .lbl.end {
+  text-anchor: end;
+}
+.deep .lbl.mid {
+  text-anchor: middle;
+}
+.deep .lbl.strong {
+  fill: var(--text);
+  font-weight: 700;
+}
+.deep .lbl.red {
+  fill: var(--red);
+}
+.deep .lbl.green {
+  fill: var(--green);
+}
+.deep .lbl.q {
+  font-size: 14.5px;
+  font-weight: 700;
+}
+.deep .lbl.q.safe {
+  fill: var(--green);
+}
+
+/* Header pips. */
+.deep .pip {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.deep .pip.on {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.deep .pip.next {
+  stroke: var(--accent);
+  animation: deep-blink 1.1s ease-in-out infinite;
+}
+.deep.won .pip.on {
+  fill: var(--green);
+  stroke: var(--green);
+}
+
+/* Rows, the limit and the abyss. */
+.deep .row {
+  stroke: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 6;
+}
+.deep .floor {
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-dasharray: 10 5;
+}
+.deep .abyss {
+  stroke: none;
+}
+
+/* Ledges: where a falling key comes to rest. */
+.deep .ledge {
+  fill: color-mix(in srgb, var(--accent) 55%, transparent);
+  animation: deep-fade 0.25s ease both;
+}
+.deep .ledge.red {
+  fill: var(--red);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 70%, transparent));
+}
+
+/* The tree. */
+.deep .guide {
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 1 4;
+}
+.deep .edge {
+  stroke: color-mix(in srgb, var(--accent) 70%, var(--text));
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+.deep .edge.fresh {
+  stroke-dasharray: 1;
+  animation: deep-draw 0.3s ease-out both;
+}
+.deep .edge.busted {
+  stroke: var(--red);
+  stroke-dasharray: 4 4;
+  opacity: 1;
+}
+.deep.won .edge {
+  stroke: var(--green);
+}
+.deep .node {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+  transition: r 0.2s ease;
+}
+.deep .node.newest {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.deep.won .node {
+  fill: var(--green);
+}
+.deep .node.busted {
+  fill: var(--red);
+  stroke: #fff;
+  stroke-width: 2;
+  animation: deep-pop 0.5s ease 2;
+}
+.deep .node.falling {
+  fill: #fff;
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+.deep .faller {
+  animation: deep-fall var(--ms) cubic-bezier(0.55, 0, 0.75, 0.25) forwards;
+}
+.deep .beam {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+  animation: deep-fade calc(var(--ms) * 0.4) ease both;
+}
+
+/* The odds strip. */
+.deep .arch {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 80%, transparent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.deep .arch.up {
+  fill: color-mix(in srgb, var(--green) 30%, transparent);
+  stroke: var(--green);
+}
+.deep .now {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  opacity: 0.85;
+}
+.deep .now-lbl {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.deep .now-val {
+  font-size: 13.5px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.deep .landing {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  animation: deep-fade 0.2s ease both;
+}
+.deep .landing.up {
+  stroke: var(--green);
+}
+.deep .landing.bad {
+  stroke: var(--red);
+}
+
+/* The number line. */
+.deep .seg {
+  fill: color-mix(in srgb, var(--accent) 38%, var(--hover));
+}
+.deep .seg.red {
+  fill: var(--red);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.deep .tick {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+.deep .pointer {
+  fill: var(--accent);
+  animation: deep-fade 0.15s ease both;
+}
+.deep .pointer.bad {
+  fill: var(--red);
+}
+
+/* The result card covers only the strip and line at the bottom (it flows below on narrow frames). */
+.og-board.deep-board {
+  grid-template-columns: minmax(0, 1fr);
+}
+.deep-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.deep-over > * {
+  pointer-events: auto;
+}
+.deep-foot {
+  min-height: 62px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@container (max-width: 760px) {
+  .deep-over {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 4px;
+  }
+  .deep-foot {
+    min-height: 0;
+  }
+}
+
+/* Modal table. */
+.deep-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.deep-table th,
+.deep-table td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.deep-table th:first-child,
+.deep-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+
+@keyframes deep-fall {
+  to {
+    transform: translateY(var(--dy));
+  }
+}
+@keyframes deep-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes deep-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes deep-pop {
+  50% {
+    r: 14;
+  }
+}
+@keyframes deep-blink {
+  50% {
+    stroke-opacity: 0.25;
+  }
+}
