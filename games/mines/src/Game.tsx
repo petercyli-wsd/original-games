@@ -76,6 +76,7 @@ interface Last {
 const OUTCOME_TITLE: Record<Outcome, string> = { bust: 'Mine hit', cashed: 'Cashed out', cleared: 'Board cleared' };
 
 const gemsWord = (n: number) => `${n} ${n === 1 ? 'gem' : 'gems'}`;
+const minesWord = (n: number) => `${n} ${n === 1 ? 'mine' : 'mines'}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -285,14 +286,14 @@ export default function Game() {
         pending,
       };
 
-  let status = `Ready · ${m} mines, ${g} gems`;
+  let status = `Ready · ${minesWord(m)}, ${gemsWord(g)}`;
   let tone: 'idle' | 'live' | 'won' | 'lost' = 'idle';
   if (isAuto) {
     if (auto.running) {
       status = `Autobet${auto.remaining !== null ? ` · ${auto.remaining} left` : ' · running'}`;
       tone = 'live';
     } else if (last) {
-      status = last.multiplier > 0 ? `All ${n} safe · ${fmtMult(last.multiplier)}` : 'Mine hit';
+      status = last.multiplier > 0 ? `${n === 1 ? 'Safe' : `All ${n} safe`} · ${fmtMult(last.multiplier)}` : 'Mine hit';
       tone = last.multiplier > 0 ? 'won' : 'lost';
     } else status = n ? `Auto · ${n} ${n === 1 ? 'tile' : 'tiles'} selected` : 'Auto · select tiles on the board';
   } else if (phase === 'revealing') {
@@ -309,25 +310,26 @@ export default function Game() {
   const pSafe = nextSafe(m, found);
   const readouts: ReadoutItem[] = isAuto
     ? [
-        { label: 'Win chance', value: n ? fmtChance(surviveChance(mines, n)) : '—', sub: n ? `all ${n} tiles safe` : 'select tiles', tone: 'chance' },
-        { label: 'Payout', value: n ? fmtMult(multiplier(mines, n)) : '—', sub: n ? formatAmount(bet.value * multiplier(mines, n), 2) : `${mines} mines`, tone: 'cash' },
+        { label: 'Win chance', value: n ? fmtChance(surviveChance(mines, n)) : '—', sub: n ? (n === 1 ? 'the tile is safe' : `all ${n} tiles safe`) : 'select tiles', tone: 'chance' },
+        { label: 'Payout', value: n ? fmtMult(multiplier(mines, n)) : '—', sub: n ? formatAmount(bet.value * multiplier(mines, n), 2) : minesWord(mines), tone: 'cash' },
         { label: 'Board', value: `${mines} / ${gems}`, sub: 'mines / gems', tone: 'prize' },
       ]
-    : [
-        {
-          label: 'Next tile safe',
-          value: phase === 'over' ? '—' : fmtChance(pSafe),
-          sub: phase === 'over' ? `${m} mines` : `${gemsWord(g - found)} in ${TILES - found} tiles`,
-          tone: 'chance',
-        },
-        { label: phase === 'over' ? 'Result' : 'Cash out now', value: live && found > 0 ? fmtMult(cash) : phase === 'over' ? fmtMult(cash) : '—', sub: live && found > 0 ? formatAmount(stake * cash, 2) : phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first gem', tone: 'cash' },
-        {
-          label: 'Next gem',
-          value: phase === 'over' ? '—' : fmtMult(multiplier(m, found + 1)),
-          sub: phase === 'over' ? 'round over' : `pays ${formatAmount(stake * multiplier(m, found + 1), 2)}`,
-          tone: 'prize',
-        },
-      ];
+    : phase === 'over' && round?.outcome
+      ? [
+          { label: 'Gems found', value: `${found} / ${g}`, sub: minesWord(m), tone: 'neutral' },
+          { label: 'Result', value: fmtMult(cash), sub: round.outcome === 'bust' ? 'mine hit' : OUTCOME_TITLE[round.outcome].toLowerCase(), tone: cash > 0 ? 'cash' : 'neutral' },
+          {
+            label: 'Profit',
+            value: `${cash >= 1 ? '+' : '−'}${formatAmount(Math.abs(stake * cash - stake), 2)}`,
+            sub: `bet ${formatAmount(stake, 2)}`,
+            tone: cash >= 1 ? 'prize' : 'neutral',
+          },
+        ]
+      : [
+          { label: 'Next tile safe', value: fmtChance(pSafe), sub: `${gemsWord(g - found)} in ${TILES - found} tiles`, tone: 'chance' },
+          { label: 'Cash out now', value: found > 0 ? fmtMult(cash) : '—', sub: found > 0 ? formatAmount(stake * cash, 2) : 'after the first gem', tone: 'cash' },
+          { label: 'Next gem', value: fmtMult(multiplier(m, found + 1)), sub: `pays ${formatAmount(stake * multiplier(m, found + 1), 2)}`, tone: 'prize' },
+        ];
 
   const minesPicker = (
     <>
@@ -360,13 +362,15 @@ export default function Game() {
           </div>
         </div>
       </div>
-      <Chips
-        label="Mine presets"
-        options={MINE_PRESETS.map((v): { value: number; label: number } => ({ value: v, label: v }))}
-        value={mines}
-        disabled={live || autoLocked}
-        onChange={(v) => changeMines(v)}
-      />
+      {!isAuto && (
+        <Chips
+          label="Mine presets"
+          options={MINE_PRESETS.map((v): { value: number; label: number } => ({ value: v, label: v }))}
+          value={mines}
+          disabled={live || autoLocked}
+          onChange={(v) => changeMines(v)}
+        />
+      )}
     </>
   );
 
@@ -481,7 +485,7 @@ export default function Game() {
             ? n
               ? `Each bet reveals your ${n} marked ${n === 1 ? 'tile' : 'tiles'} in order. All safe pays ${fmtMult(multiplier(mines, n))}.`
               : 'Click tiles to mark them. Each auto bet reveals the marked set.'
-            : `${m} mines hidden among ${TILES} tiles. Press Bet, then pick tiles. Cash out after any gem. RTP ${(RTP * 100).toFixed(0)}%.`}
+            : `${minesWord(m)} hidden among ${TILES} tiles. Press Bet, then pick tiles. Cash out after any gem. RTP ${(RTP * 100).toFixed(0)}%.`}
         </Caption>
       )}
 
