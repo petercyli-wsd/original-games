@@ -1,0 +1,304 @@
+/* Rock Paper Scissors: the duel board, the hand picker and the streak ladder. Layout and panel come from the kit. */
+
+.rps-blurb {
+  margin: -2px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.rps-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- Duel ---------- */
+.rps-board {
+  min-height: 250px;
+}
+.rps-board > svg.rps-duel {
+  max-height: 46vh;
+}
+.rps-duel text {
+  text-anchor: middle;
+  font-family: inherit;
+  fill: var(--text);
+}
+.rps-duel .disc {
+  fill: url(#rps-disc);
+}
+.rps-duel .ring {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 4;
+  transition: stroke 0.2s ease;
+}
+.rps-duel .you .ring {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.rps-duel .halo {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 10;
+  opacity: 0;
+  transition: opacity 0.25s ease, stroke 0.25s ease;
+}
+.rps-duel .side.win .ring { stroke: var(--green); }
+.rps-duel .side.win .halo { stroke: color-mix(in srgb, var(--green) 35%, transparent); opacity: 1; }
+.rps-duel .side.lose .ring { stroke: var(--red); }
+.rps-duel .side.lose .halo { stroke: color-mix(in srgb, var(--red) 25%, transparent); opacity: 1; }
+.rps-duel .side.lose .hs { opacity: 0.55; }
+.rps-duel .side.draw .ring { stroke: var(--gold); }
+
+/* Hand shapes */
+.hs .body {
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+.hs.rock .body { fill: #8f8a9c; stroke: #d6d1e2; }
+.hs.rock .facet { fill: none; stroke: #5d586a; stroke-width: 2.5; stroke-linejoin: round; }
+.hs.rock .shine { fill: none; stroke: #f3f0fa; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
+.hs.paper .body { fill: #f3f0fa; stroke: #c9c3d6; }
+.hs.paper .facet { fill: #c9c3d6; stroke: #c9c3d6; stroke-width: 2; stroke-linejoin: round; }
+.hs.paper .lines { fill: none; stroke: #b0a9bf; stroke-width: 3; stroke-linecap: round; }
+.hs.scissors .blade { fill: none; stroke: #e8e4f2; stroke-width: 8; stroke-linecap: round; }
+.hs.scissors .ring { fill: none; stroke: var(--accent); stroke-width: 6; }
+.hs.scissors .pivot { fill: #2a2433; stroke: #e8e4f2; stroke-width: 2; }
+.rps-duel .house .hs.scissors .ring,
+.rps-icon .hs.scissors .ring { stroke: var(--accent); }
+.rps-duel .house .hs.scissors .ring { stroke: #7dd3fc; }
+
+.rps-duel .hidden-face {
+  font-size: 84px;
+  font-weight: 800;
+  fill: color-mix(in srgb, var(--text) 30%, transparent);
+}
+
+.rps-duel .shake {
+  animation-name: rps-shake;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+.rps-duel .house .shake { animation-name: rps-shake-h; }
+.rps-duel .pop {
+  animation: rps-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+@keyframes rps-shake {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  16%, 50% { transform: translate(-4px, -22px) rotate(-9deg); }
+  33%, 66% { transform: translate(0, 8px) rotate(4deg); }
+  83% { transform: translate(-3px, -16px) rotate(-6deg); }
+}
+@keyframes rps-shake-h {
+  0%, 100% { transform: translate(0, 0) rotate(0); }
+  16%, 50% { transform: translate(4px, -22px) rotate(9deg); }
+  33%, 66% { transform: translate(0, 8px) rotate(-4deg); }
+  83% { transform: translate(3px, -16px) rotate(6deg); }
+}
+@keyframes rps-pop {
+  from { transform: scale(0.6); opacity: 0.2; }
+}
+
+.rps-duel .clash-line {
+  stroke: var(--line);
+  stroke-width: 2;
+  stroke-dasharray: 4 6;
+}
+.rps-duel .clash-line.win { stroke: color-mix(in srgb, var(--green) 50%, transparent); }
+.rps-duel .clash-line.lose { stroke: color-mix(in srgb, var(--red) 50%, transparent); }
+.rps-duel .clash-line.draw { stroke: color-mix(in srgb, var(--gold) 50%, transparent); }
+
+.rps-duel .vs {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 10px;
+}
+.rps-duel .verdict {
+  animation: rps-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.rps-duel .verdict text { paint-order: stroke; stroke: var(--card); stroke-width: 10px; }
+.rps-duel .verdict .word { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
+.rps-duel .verdict .sub { font-size: 14px; font-weight: 700; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.rps-duel .verdict.win .word { fill: var(--green); }
+.rps-duel .verdict.lose .word { fill: var(--red); }
+.rps-duel .verdict.draw .word { fill: var(--gold); }
+.rps-duel .tag {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  fill: var(--muted);
+}
+.rps-duel .tag.you { fill: var(--accent); }
+
+/* ---------- Hand picker ---------- */
+.rps-hands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.rps-game button.rps-hand,
+.rps-hand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 0;
+  height: 60px;
+  padding: 0 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  background: var(--raised);
+  border: 1.5px solid var(--line) !important;
+}
+.rps-hand:not(:disabled):hover {
+  background: var(--hover);
+  border-color: var(--line-strong) !important;
+}
+.rps-hand.on {
+  border-color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
+  box-shadow: 0 0 22px -10px var(--accent);
+}
+.rps-hand.throw:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 8%, var(--raised));
+}
+.rps-hand .rps-icon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+}
+.rps-hand kbd {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 1px 5px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+/* ---------- Streak ladder ---------- */
+.rps-streak {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.rps-strip {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.rps-strip i {
+  width: 12px;
+  height: 28px;
+  border-radius: 3px;
+}
+.rps-strip i.advance { background: var(--green); }
+.rps-strip i.replay { background: var(--gold); }
+.rps-strip i.bust { background: var(--red); }
+.rps-rungs {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);
+}
+.rps-rungs::-webkit-scrollbar { display: none; }
+.rps-rung {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 64px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.rps-rung small {
+  font-size: 10px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+.rps-rung.done {
+  color: var(--og-text-on-accent, #07070b);
+  background: var(--green);
+  border-color: var(--green);
+}
+.rps-rung.next {
+  color: var(--text);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.rps-rung.target {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.rps-rung.done.target { color: var(--og-text-on-accent, #07070b); }
+.rps-rung.bust {
+  color: var(--red);
+  border-color: var(--red);
+}
+
+@container (max-width: 760px) {
+  .rps-board { min-height: 200px; }
+  .rps-hand { height: 52px; gap: 6px; font-size: 13px; padding: 0 6px; }
+  .rps-hand .rps-icon { width: 28px; height: 28px; }
+  .rps-hand kbd { display: none; }
+  .rps-rung { min-width: 56px; font-size: 12px; }
+}
+
+/* ---------- Round over: the hands step apart and the card sits between them ---------- */
+.rps-duel .step {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.rps-duel.away .you .step { transform: translateX(-46px) scale(0.8); }
+.rps-duel.away .house .step { transform: translateX(46px) scale(0.8); }
+.rps-duel .centre,
+.rps-duel .tags { transition: opacity 0.2s ease; }
+.rps-duel.away .centre { opacity: 0; }
+
+@container (max-width: 760px) {
+  /* Narrow frames: no room between the hands, so the card gets its own band under the duel. */
+  .rps-board.over { padding-bottom: 168px; }
+  .rps-duel.away .you .step,
+  .rps-duel.away .house .step { transform: none; }
+  .rps-duel.away .centre { opacity: 1; }
+  .rps-board.over .og-round-over.center {
+    top: auto;
+    bottom: 6px;
+    transform: translateX(-50%);
+    animation-name: og-ro-in;
+  }
+}
+
+/* The Auto panel is tall: let it scroll instead of squashing the bet row. */
+.rps .og-panel > * { flex-shrink: 0; }
+
+@container (max-width: 760px) {
+  /* Room for the Auto result pill above the hands. */
+  .rps-board.auto { padding-top: 52px; }
+}
