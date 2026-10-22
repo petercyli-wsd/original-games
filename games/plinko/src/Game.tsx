@@ -32,7 +32,11 @@ import { along, layoutFor, waypoints, type Waypoint } from './geometry';
 import { MAX_ROWS, MIN_ROWS, RTP, exactLabel, resolveDrop, tableFor, volatilityOf, type Risk } from './math';
 import { useTickets } from './tickets';
 
-const RISK_LABEL: Record<Risk, string> = { low: 'Low', medium: 'Medium', high: 'High' };
+const RISK_LABEL: Record<Risk, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+};
 /** Balls allowed in flight at once. */
 const MAX_IN_FLIGHT = 30;
 /** Time per row of fall, normal and turbo (~27%). */
@@ -120,7 +124,12 @@ export default function Game() {
     flights.current.delete(f.id);
     tickets.settle(f.ticket, f.multiplier);
     pushHistory(f.multiplier);
-    setLast({ id: ++seq.current, bucket: f.bucket, multiplier: f.multiplier, stake: f.stake });
+    setLast({
+      id: ++seq.current,
+      bucket: f.bucket,
+      multiplier: f.multiplier,
+      stake: f.stake,
+    });
     setBalls((ids) => ids.filter((x) => x !== f.id));
     bucketEls.current.get(f.bucket)?.animate(BUCKET_HIT, { duration: 360, easing: 'ease-out' });
     f.done(f.multiplier);
@@ -156,11 +165,11 @@ export default function Game() {
 
   /** Drops one ball: debits the stake, draws the whole path now, animates it, settles on landing. */
   async function drop(stake: number): Promise<number | null> {
-    if (flights.current.size >= MAX_IN_FLIGHT) return null;
-    const ticket = await tickets.place(stake);
-    if (ticket === null || !alive.current) return null;
-    const r = resolveDrop(() => rng.next(), rows, risk);
-    tickets.resolve(ticket, r.multiplier);
+    if (tickets.count() >= MAX_IN_FLIGHT) return null;
+    const placed = await tickets.place(stake, () => resolveDrop(() => rng.next(), rows, risk));
+    if (placed === null) return null;
+    const { id: ticket, result: r } = placed;
+    if (!alive.current) return null; // already settled at r by the unmount cleanup
     return new Promise<number>((done) => {
       const id = ++seq.current;
       flights.current.set(id, {
@@ -217,7 +226,12 @@ export default function Game() {
   const profit = bet.value * shownMult - bet.value;
   const topChance = table.probs[0] * 2;
 
-  const status = inFlight > 0 ? `${inFlight} ball${inFlight === 1 ? '' : 's'} in flight` : last ? `Landed ${fmtMult(last.multiplier)}` : `${rows} rows · ${RISK_LABEL[risk]} risk`;
+  const status =
+    inFlight > 0
+      ? `${inFlight} ball${inFlight === 1 ? '' : 's'} in flight`
+      : last
+        ? `Landed ${fmtMult(last.multiplier)}`
+        : `${rows} rows · ${RISK_LABEL[risk]} risk`;
   const tone = inFlight > 0 ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle';
 
   return (
@@ -236,7 +250,11 @@ export default function Game() {
             value={risk}
             disabled={settingsLocked}
             onChange={changeRisk}
-            options={(['low', 'medium', 'high'] as const).map((r) => ({ value: r, label: RISK_LABEL[r], title: `Top prize ${fmtMult(tableFor(rows, r).max)}` }))}
+            options={(['low', 'medium', 'high'] as const).map((r) => ({
+              value: r,
+              label: RISK_LABEL[r],
+              title: `Top prize ${fmtMult(tableFor(rows, r).max)}`,
+            }))}
           />
 
           <Label
@@ -257,20 +275,20 @@ export default function Game() {
             ))}
           </div>
 
-          <dl className="og-stats">
-            <dt>Top prize</dt>
-            <dd>{fmtMult(table.max)}</dd>
-            <dt>Top prize chance</dt>
-            <dd>{fmtOneIn(topChance)}</dd>
-            <dt>Chance of profit</dt>
-            <dd>{fmtChance(table.chanceProfit)}</dd>
-            {auto.mode === 'manual' && (
-              <>
-                <dt>RTP</dt>
-                <dd>{(RTP * 100).toFixed(2)}%</dd>
-              </>
-            )}
-          </dl>
+          {/* Like Stake, the Auto panel carries only the auto settings, so Start, the
+              session profit and Turbo all fit at 1280×800. */}
+          {auto.mode === 'manual' && (
+            <dl className="og-stats">
+              <dt>Top prize</dt>
+              <dd>{fmtMult(table.max)}</dd>
+              <dt>Top prize chance</dt>
+              <dd>{fmtOneIn(topChance)}</dd>
+              <dt>Chance of profit</dt>
+              <dd>{fmtChance(table.chanceProfit)}</dd>
+              <dt>RTP</dt>
+              <dd>{(RTP * 100).toFixed(2)}%</dd>
+            </dl>
+          )}
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!!bet.blocked || full} onClick={manualDrop}>
@@ -331,15 +349,15 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The bars under the buckets are drawn to scale: each bar's height is that bucket's exact chance. Hover or tap a bucket to see its multiplier,
-              your profit if the ball lands there and its chance.
+              The bars under the buckets are drawn to scale: each bar's height is that bucket's exact chance. Hover or tap a bucket to see its multiplier, your
+              profit if the ball lands there and its chance.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
               With n rows the ball meets one peg per row and bounces left or right with probability ½ each. The bucket is the number of right bounces, so it
-              follows the binomial distribution (the Galton board): P(bucket k) = C(n, k) / 2ⁿ. The middle buckets are hit most often, the edges once in
-              2ⁿ⁻¹ drops.
+              follows the binomial distribution (the Galton board): P(bucket k) = C(n, k) / 2ⁿ. The middle buckets are hit most often, the edges once in 2ⁿ⁻¹
+              drops.
             </p>
             <p>
               RTP = Σ C(n, k) · multiplierₖ / 2ⁿ. Each table keeps round prizes everywhere except the centre run of lowest buckets, whose value is solved
@@ -372,8 +390,8 @@ export default function Game() {
             </table>
             <p>
               Every risk and row setting returns exactly {(RTP * 100).toFixed(2)}% of stakes in the long run; the settings change only the spread. The largest
-              prize is 1,000× (16 rows, High risk). Each ball's path is drawn when it is dropped and the animation follows it peg by peg; if you leave
-              mid-drop the ball still settles at that result.
+              prize is 1,000× (16 rows, High risk). Each ball's path is drawn when it is dropped and the animation follows it peg by peg; if you leave mid-drop
+              the ball still settles at that result.
             </p>
           </InfoSection>
         </InfoModal>

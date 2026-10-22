@@ -1,8 +1,10 @@
 // Several open bets at once, one per ball in flight. The kit's useTicket keeps a
 // single ticket per round; Plinko lets players drop balls faster than they land,
-// so each ball carries its own BetTicket. Every ball's outcome is drawn the
-// moment it is dropped (`resolve`), and if the game unmounts mid-flight each
-// open ticket settles at that drawn result: leaving can't dodge a ball.
+// so each ball carries its own BetTicket. A ball's outcome is drawn inside
+// `place`, in the same step that accepts the debited stake, so every open
+// ticket always has a drawn result: if the game unmounts mid-flight each one
+// settles at that result (leaving can't dodge a ball), and a stake accepted
+// after unmount, with nothing drawn, is returned.
 
 import type { BetTicket } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
@@ -10,15 +12,17 @@ import { useEffect, useMemo, useRef } from 'react';
 
 interface Open {
   ticket: BetTicket;
-  /** The drawn multiplier (0 until resolved, which happens synchronously after place). */
+  /** The drawn multiplier. */
   value: number;
 }
 
 export interface Tickets {
-  /** Debits one ball's stake. Resolves to a ticket id, or null if refused. */
-  place(amount: number): Promise<number | null>;
-  /** Records the drawn multiplier for an open ticket. */
-  resolve(id: number, multiplier: number): void;
+  /**
+   * Debits one ball's stake and, once accepted, draws its outcome with `draw`
+   * in the same synchronous step. Resolves to the ticket id and the drawn
+   * outcome, or null if the bet was refused or the game has gone.
+   */
+  place<T extends { multiplier: number }>(amount: number, draw: () => T): Promise<{ id: number; result: T } | null>;
   /** Pays the ticket and closes it. Safe to call twice. */
   settle(id: number, multiplier: number): void;
   /** Open tickets (balls in flight or being placed). */
@@ -44,7 +48,7 @@ export function useTickets(): Tickets {
 
   return useMemo<Tickets>(
     () => ({
-      async place(amount) {
+      async place(amount, draw) {
         placing.current++;
         try {
           const ticket = await wallet.placeBet(amount);
@@ -53,18 +57,15 @@ export function useTickets(): Tickets {
             void ticket.settle(1).catch(() => {});
             return null;
           }
+          const result = draw();
           const id = ++seq.current;
-          open.current.set(id, { ticket, value: 0 });
-          return id;
+          open.current.set(id, { ticket, value: result.multiplier });
+          return { id, result };
         } catch {
           return null;
         } finally {
           placing.current--;
         }
-      },
-      resolve(id, multiplier) {
-        const o = open.current.get(id);
-        if (o) o.value = multiplier;
       },
       settle(id, multiplier) {
         const o = open.current.get(id);
