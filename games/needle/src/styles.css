@@ -1,0 +1,411 @@
+/* Needle board. Layout, panel and readouts come from the kit. */
+
+.nd-board {
+  width: 100%;
+  max-width: 980px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
+  align-items: center;
+  gap: clamp(12px, 2.4cqi, 30px);
+}
+.nd-floor {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(66vh, 580px);
+  overflow: visible;
+}
+.nd-side {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.nd-dial {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 34vh;
+  overflow: visible;
+}
+.nd-slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 156px;
+}
+
+@container (max-width: 760px) {
+  .nd-board {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 6px;
+  }
+  .nd-floor {
+    max-width: 330px;
+    max-height: none;
+  }
+  .nd-side {
+    width: 100%;
+    max-width: 330px;
+  }
+  .nd-slot {
+    min-height: 0;
+  }
+  /* The result card flows under the dial instead of floating over it. */
+  .nd-slot .og-round-over.center {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    animation-name: og-ro-in-inline;
+  }
+  .nd-dial {
+    max-height: none;
+  }
+}
+
+/* ---------- Text ---------- */
+.nd-floor text,
+.nd-dial text {
+  font-family: inherit;
+  fill: var(--muted);
+}
+.nd-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.nd-floor .nd-label {
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+.nd-label.mid {
+  text-anchor: middle;
+}
+.nd-label.reach {
+  font-size: 12px;
+  font-weight: 500;
+}
+.nd-big {
+  text-anchor: middle;
+  font-size: 34px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.nd-dial text.nd-big.win {
+  fill: var(--green);
+}
+.nd-dial text.nd-big.lose {
+  fill: var(--red);
+}
+
+/* ---------- Floor ---------- */
+.nd-floor-bg {
+  fill: var(--bg);
+}
+.nd-reach {
+  transition: opacity 0.3s ease;
+}
+.nd-reach.dim {
+  opacity: 0.55;
+}
+.nd-floor text.ghost {
+  fill: var(--accent);
+}
+.nd-zone {
+  fill: color-mix(in srgb, var(--accent) 5%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+}
+.nd-line {
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 3;
+}
+.nd-dim line,
+.nd-dim path {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.nd-floor text.nd-dim-text {
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: end;
+  fill: var(--muted);
+}
+
+.nd-ghost line {
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+}
+.nd-ghost-ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+}
+
+.nd-needle-body {
+  stroke: var(--accent);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+  transition: stroke 0.25s ease;
+}
+.nd-needle-tip {
+  fill: var(--accent);
+  transition: fill 0.25s ease;
+}
+.nd-needle-pin {
+  fill: #fff;
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+.nd-needle.win .nd-needle-body {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--green) 55%, transparent));
+}
+.nd-needle.win .nd-needle-tip {
+  fill: var(--green);
+}
+.nd-needle.lose .nd-needle-body {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--red) 55%, transparent));
+}
+.nd-needle.lose .nd-needle-tip {
+  fill: var(--red);
+}
+.nd-needle.faded {
+  opacity: 0.45;
+}
+.nd-touch {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  animation: nd-touch calc(0.6s * var(--nd-speed, 1)) ease-out both;
+}
+
+.nd-centre {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.nd-drop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nd-drop 0.6s cubic-bezier(0.25, 0.8, 0.3, 1.15) both;
+}
+.nd-ripple {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0;
+  animation: nd-ripple 0.6s ease-out both;
+}
+.nd-compass {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: nd-grow calc(0.28s * var(--nd-speed, 1)) ease-out both;
+}
+
+.nd-wedge.win {
+  fill: color-mix(in srgb, var(--green) 20%, transparent);
+}
+.nd-wedge.lose {
+  fill: color-mix(in srgb, var(--red) 11%, transparent);
+}
+.nd-rim {
+  fill: none;
+}
+.nd-rim.win {
+  stroke: var(--green);
+}
+.nd-rim.lose {
+  stroke: color-mix(in srgb, var(--red) 85%, transparent);
+}
+
+/* ---------- Direction dial ---------- */
+.nd-dial-track {
+  fill: none;
+  stroke: var(--hover);
+}
+.nd-dial-arc {
+  fill: none;
+  transition: opacity 0.25s ease;
+}
+.nd-dial-arc.win {
+  stroke: var(--green);
+}
+.nd-dial-arc.lose {
+  stroke: color-mix(in srgb, var(--red) 85%, transparent);
+}
+.nd-dial.average .nd-dial-arc {
+  opacity: 0.45;
+}
+.nd-dial.average .nd-wedge {
+  opacity: 0.6;
+}
+.nd-dial-arcs {
+  animation: nd-fade calc(0.3s * var(--nd-speed, 1)) ease-out both;
+}
+.nd-tick {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.nd-dial-base {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.nd-pointer line {
+  stroke: var(--accent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.nd-pointer.win line {
+  stroke: #fff;
+}
+.nd-pointer.lose line {
+  stroke: #fff;
+}
+.nd-hub {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+
+/* ---------- Tally and legend ---------- */
+.nd-tally {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.nd-tally-row {
+  display: flex;
+  gap: 8px;
+}
+.nd-pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.nd-pip svg {
+  width: 14px;
+  height: 14px;
+}
+.nd-pip svg line {
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.nd-pip.current {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.nd-pip.won {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+.nd-pip.lost {
+  color: var(--red);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+.nd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nd-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+.nd-legend i.win {
+  background: var(--green);
+}
+.nd-legend i.lose {
+  background: var(--red);
+}
+
+/* ---------- Panel chips ---------- */
+.nd-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.nd-glyph {
+  width: 20px;
+  height: 13px;
+  overflow: visible;
+}
+.nd-glyph .l {
+  stroke: currentColor;
+  stroke-width: 2;
+  opacity: 0.6;
+}
+.nd-glyph .n {
+  stroke: var(--accent);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+@keyframes nd-drop {
+  from {
+    transform: translateY(-70px) scale(2.2);
+    opacity: 0;
+  }
+  60% {
+    opacity: 1;
+  }
+}
+@keyframes nd-ripple {
+  from {
+    r: 4;
+    opacity: 0.9;
+  }
+  to {
+    r: 34;
+    opacity: 0;
+  }
+}
+@keyframes nd-grow {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+@keyframes nd-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes nd-touch {
+  from {
+    r: 2;
+    opacity: 1;
+  }
+  to {
+    r: 9;
+    opacity: 0.85;
+  }
+}
