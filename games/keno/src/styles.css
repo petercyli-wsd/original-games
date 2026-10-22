@@ -1,0 +1,398 @@
+/* Keno: a 8×5 number board, a rail of drawn balls and the paytable strip. */
+
+.kn-pick-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.kn-pick-row .og-btn {
+  padding: 10px 6px;
+  font-size: 13px;
+}
+.kn-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- Board ---------- */
+.kn-board {
+  min-height: 0;
+  align-content: center;
+}
+.kn-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: min(100%, 640px);
+}
+.kn-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+.kn-grid.full {
+  animation: kn-shake 0.35s ease;
+}
+.kn-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 0.86;
+  padding: 0;
+  font-size: clamp(14px, 2.6cqi, 20px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: linear-gradient(180deg, #2a2a36, #1f1f29);
+  box-shadow: 0 4px 0 #111118, inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  border-radius: 10px !important;
+  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease, color 0.15s ease;
+}
+.og-game .kn-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.kn-tile:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, #34343f, #282832);
+}
+.kn-tile > span {
+  position: relative;
+  z-index: 1;
+}
+.kn-tile.picked {
+  color: #1d1400;
+  background: linear-gradient(180deg, #fcd34d, var(--accent));
+  box-shadow: 0 4px 0 #8a6404, 0 0 18px -6px var(--accent);
+}
+.kn-tile.picked:not(:disabled):hover {
+  background: linear-gradient(180deg, #fde68a, #f2be1c);
+}
+.kn-tile.picked.dim {
+  opacity: 0.62;
+  filter: saturate(0.7);
+}
+.kn-tile.miss {
+  color: var(--red);
+  background: #0d0d13;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--red) 40%, transparent), 0 4px 0 #08080c;
+}
+.kn-tile.hit {
+  color: #032b06;
+  background: linear-gradient(180deg, #1c3a22, #102414);
+  box-shadow: 0 4px 0 #071209, 0 0 26px -6px var(--green), inset 0 0 0 1.5px var(--green);
+}
+.kn-tile.fresh {
+  animation: kn-pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+.kn-gem {
+  position: absolute;
+  inset: 8% 14%;
+  width: 72%;
+  height: 84%;
+  margin: auto;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 70%, transparent));
+  animation: kn-gem-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+.kn-gem .g0 { fill: #19d94a; }
+.kn-gem .g1 { fill: #5cff7d; }
+.kn-gem .g2 { fill: #b8ffc6; opacity: 0.8; }
+.kn-gem .g3 { fill: #0a9c2c; }
+.kn-tile.hit > span {
+  color: #03210a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.kn-full {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  padding: 8px 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--accent);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: og-fade 0.15s ease;
+}
+
+/* ---------- Drawn-ball rail ---------- */
+.kn-rail {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+  padding: 8px;
+  border-radius: 99px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.kn-ball {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-height: 38px;
+  justify-self: center;
+  width: 100%;
+  max-width: 38px;
+  border-radius: 50%;
+  font-size: clamp(11px, 1.8cqi, 14px);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  background: color-mix(in srgb, var(--hover) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.kn-ball.hit,
+.kn-ball.miss {
+  animation: kn-drop 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+.kn-ball.hit {
+  color: #032b06;
+  background: radial-gradient(circle at 35% 30%, #b8ffc6, var(--green) 60%, #0a9c2c);
+  box-shadow: 0 0 14px -4px var(--green);
+}
+.kn-ball.miss {
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #4a4a58, #262630 70%);
+}
+
+/* ---------- Result pill over the board ---------- */
+.kn-result-wrap {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.kn-result-wrap .og-instant {
+  top: 38%;
+  padding: 14px 26px;
+  border-width: 2px;
+  background: rgba(12, 12, 18, 0.92);
+  box-shadow: 0 16px 40px #000a;
+  animation: kn-result-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.25) both;
+}
+.kn-result-wrap .og-instant b {
+  font-size: 30px;
+}
+.kn-result-wrap.win .og-instant {
+  box-shadow: 0 16px 40px #000a, 0 0 40px -8px var(--green);
+}
+/* The pill steps aside so the board stays readable; the status pill, history and paytable keep the result. */
+.kn-result-wrap.win .og-instant {
+  animation: kn-result-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.25) both, kn-result-out 0.45s ease 2.2s forwards;
+}
+.kn-result-wrap.lose .og-instant {
+  animation: kn-result-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.25) both, kn-result-out 0.4s ease 1.3s forwards;
+}
+
+/* Older results slide out under a fade instead of a hard clip. */
+.og-history {
+  flex: 1;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px);
+  mask-image: linear-gradient(90deg, transparent, #000 28px);
+}
+
+/* ---------- Paytable strip ---------- */
+.kn-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+.kn-empty {
+  margin: 4px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+.kn-empty b {
+  color: var(--text);
+}
+.kn-pay {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 4px;
+}
+.kn-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 2px 6px;
+  border-radius: 8px !important;
+  background: var(--bg) !important;
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.kn-cell b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+  white-space: nowrap;
+  font-size: clamp(11px, 1.7cqi, 14px);
+  font-weight: 800;
+  color: var(--muted);
+}
+.kn-cell.part b {
+  color: var(--gold);
+}
+.kn-cell.pays b {
+  color: var(--text);
+}
+.kn-odds {
+  font-size: 10.5px;
+  white-space: nowrap;
+  color: var(--muted);
+  opacity: 0.85;
+}
+.kn-hits {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.kn-hits i {
+  width: 7px;
+  height: 7px;
+  background: var(--green);
+  transform: rotate(45deg);
+  border-radius: 1px;
+  opacity: 0.8;
+}
+.kn-cell.focus {
+  box-shadow: inset 0 0 0 1.5px var(--line-strong);
+  background: var(--hover) !important;
+}
+.kn-cell.live {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.kn-cell.won {
+  box-shadow: inset 0 0 0 2px var(--green), 0 0 18px -6px var(--green);
+  background: color-mix(in srgb, var(--green) 14%, var(--bg)) !important;
+}
+.kn-cell.won b {
+  color: var(--green);
+}
+.kn-cell.lost {
+  box-shadow: inset 0 0 0 2px var(--red);
+  background: color-mix(in srgb, var(--red) 12%, var(--bg)) !important;
+}
+.kn-detail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.kn-detail > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.kn-detail span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.kn-detail b {
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kn-detail b.g {
+  color: var(--green);
+}
+.kn-detail b.p {
+  color: var(--gold);
+}
+.kn-detail b.r {
+  color: var(--red);
+}
+.kn-formula {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: ui-monospace, monospace;
+  font-size: 14px;
+}
+
+@keyframes kn-pop {
+  0% { transform: scale(0.82); }
+  60% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes kn-gem-in {
+  from { transform: scale(0.2) rotate(-30deg); opacity: 0; }
+}
+@keyframes kn-drop {
+  from { transform: translateY(-14px) scale(0.6); opacity: 0; }
+}
+@keyframes kn-shake {
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@keyframes kn-result-in {
+  from { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+@keyframes kn-result-out {
+  to { opacity: 0; transform: translateX(-50%) scale(0.96); }
+}
+
+@container (max-width: 760px) {
+  .kn-grid {
+    gap: 5px;
+  }
+  .kn-tile {
+    border-radius: 7px !important;
+    font-size: 15px;
+    box-shadow: 0 3px 0 #111118;
+  }
+  .kn-rail {
+    gap: 3px;
+    padding: 6px;
+  }
+  .kn-ball {
+    font-size: 11px;
+  }
+  .kn-odds {
+    display: none;
+  }
+  .kn-pay {
+    grid-template-columns: repeat(var(--m), minmax(0, 1fr));
+  }
+  .kn-cell b {
+    font-size: 11px;
+    letter-spacing: -0.3px;
+  }
+  .kn-table {
+    padding: 10px 8px;
+  }
+  .kn-detail > div {
+    padding: 6px 8px;
+  }
+  .kn-detail b {
+    font-size: 14px;
+  }
+  .kn-result-wrap .og-instant b {
+    font-size: 24px;
+  }
+}
