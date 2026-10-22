@@ -1,0 +1,197 @@
+/* Spanning board. Layout, panel and readouts come from the kit. */
+
+.span-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 26px;
+  font-size: 12px;
+}
+.span-picks .none {
+  color: var(--muted);
+  align-self: center;
+}
+.span-picks .chip {
+  padding: 4px 9px;
+  border-radius: 99px;
+  font-weight: 700;
+  color: var(--gold);
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, transparent);
+}
+.span-picks .chip.in {
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+}
+.span-picks .chip.out {
+  border-style: dashed;
+}
+
+.span-stage.over {
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.span-board {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.span-board text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.span-board .legend {
+  text-anchor: middle;
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+/* Sweep band */
+.span-board .sweep rect {
+  fill: color-mix(in srgb, var(--accent) 10%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-dasharray: 5 5;
+}
+.span-board .sweep-label {
+  text-anchor: end;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+
+/* Edges */
+.span-board .wire {
+  stroke-linecap: round;
+  transition: stroke-width 0.35s ease, stroke 0.25s ease;
+}
+.span-board .edge.open .wire {
+  stroke: color-mix(in srgb, var(--accent) 48%, transparent);
+}
+.span-board .edge.in .wire {
+  stroke: var(--accent);
+}
+.span-board .edge.out .wire {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-dasharray: 3 6;
+}
+.span-board .edge.flash .wire {
+  animation: span-flash 0.4s ease;
+}
+.span-board .halo {
+  stroke-linecap: round;
+  opacity: 0.5;
+  transition: stroke-width 0.35s ease;
+}
+.span-board .halo.held {
+  stroke: var(--gold);
+  opacity: 0.35;
+}
+.span-board .halo.good {
+  stroke: var(--green);
+}
+.span-board .halo.bad {
+  stroke: var(--red);
+}
+.span-board .hit {
+  stroke: transparent;
+  stroke-width: 24;
+  cursor: pointer;
+}
+.span-board .hit:hover {
+  stroke: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.span-board .dot {
+  fill: var(--text);
+  stroke: var(--card);
+  stroke-width: 3;
+  pointer-events: none;
+}
+
+/* Badges on backed edges */
+.span-board .badge circle {
+  stroke: var(--gold);
+  stroke-width: 2.5;
+}
+.span-board .badge.in circle {
+  fill: var(--gold);
+}
+.span-board .badge.out circle {
+  fill: var(--card);
+  stroke-dasharray: 4 3;
+}
+.span-board .badge .letter {
+  text-anchor: middle;
+  font-size: 13px;
+  font-weight: 800;
+}
+.span-board .badge.in .letter {
+  fill: #1a1408;
+}
+.span-board .badge.out .letter {
+  fill: var(--gold);
+}
+.span-board .badge .tag {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--gold);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.span-board .badge.good circle {
+  stroke: var(--green);
+}
+.span-board .badge.good .tag {
+  fill: var(--green);
+}
+.span-board .badge.bad circle {
+  stroke: var(--red);
+}
+.span-board .badge.bad .tag {
+  fill: var(--red);
+}
+.span-board .badge {
+  cursor: pointer;
+}
+
+/* Funnel */
+.span-board .f-head {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.span-board .f-total {
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.span-board .f-total.bad {
+  fill: var(--red);
+}
+.span-board .f-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--gold);
+}
+.span-board .f-track {
+  fill: color-mix(in srgb, var(--red) 22%, var(--bg));
+}
+.span-board .f-fill {
+  fill: color-mix(in srgb, var(--accent) 40%, var(--bg));
+  transition: width 0.35s ease;
+}
+.span-board .f-fill.last {
+  fill: var(--accent);
+}
+.span-board .f-pct {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes span-flash {
+  0% {
+    stroke: #fff;
+  }
+}
