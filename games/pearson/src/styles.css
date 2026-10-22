@@ -1,0 +1,195 @@
+/* Pearson Walk board. Layout, panel and readouts come from the kit. */
+
+.pearson text {
+  font-family: inherit;
+  text-anchor: middle;
+}
+.pearson .arena {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.pearson .grid {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 6%, transparent);
+  stroke-width: 1;
+}
+.pearson .field {
+  transition: opacity 0.3s ease;
+}
+.pearson .dead {
+  fill: color-mix(in srgb, var(--red) 13%, transparent);
+}
+.pearson .reach {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+  opacity: 0.85;
+}
+.pearson .reach-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  fill: var(--red);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+}
+.pearson .ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 32%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 4;
+}
+.pearson .ring-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: color-mix(in srgb, var(--text) 80%, transparent);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.pearson .own-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  opacity: 0.75;
+}
+.pearson .home {
+  fill: color-mix(in srgb, var(--green) 22%, transparent);
+  stroke: var(--green);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 45%, transparent));
+  transition: fill 0.3s ease;
+}
+.pearson .home.won {
+  fill: color-mix(in srgb, var(--green) 45%, transparent);
+}
+.pearson .home-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  fill: var(--green);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+}
+.pearson .trail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 80%, transparent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.pearson .trail-dot {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.pearson .origin {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 2;
+}
+.pearson .step-base {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 5;
+}
+.pearson .arc-up,
+.pearson .arc-down {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: butt;
+}
+.pearson .arc-up {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 55%, transparent));
+}
+.pearson .arc-down {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.pearson .step-circle.spinning {
+  opacity: 0.55;
+}
+.pearson .arc-label {
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--green);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+}
+.pearson .needle line {
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.pearson .needle circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.pearson .walker {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.pearson .walker.win {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 10px var(--green));
+}
+.pearson .walker.lose {
+  fill: var(--red);
+  stroke: #fff;
+  filter: drop-shadow(0 0 10px var(--red));
+}
+.pearson .walker.cash {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 10px var(--gold));
+}
+.pearson .tag rect {
+  fill: color-mix(in srgb, var(--bg) 88%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 1.2;
+}
+.pearson .tag text {
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--accent);
+}
+.pearson .pips circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
+.pearson .pips circle.done {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.pearson .pips circle.now {
+  fill: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke: var(--accent);
+}
+.pearson .hint-label {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+}
+.pearson .pip-count {
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: start;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
