@@ -1,0 +1,316 @@
+/* Lighthouse board. Layout, panel and readouts come from the kit. */
+
+.lh {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lh text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+}
+/* A dark halo keeps scene labels readable where they cross rays and glow. */
+.lh .land-label,
+.lh .h-label,
+.lh .range-title,
+.lh .range-label,
+.lh .win-label {
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+}
+
+/* Sky and shore */
+.lh .star {
+  fill: var(--text);
+  opacity: 0.22;
+}
+.lh .land {
+  fill: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+.lh .hit {
+  fill: transparent;
+}
+.lh.editable .hit {
+  cursor: crosshair;
+  touch-action: none;
+}
+.lh .shoreline {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.lh .tick {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.lh .ruler {
+  font-size: 14px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lh .ruler.zero {
+  fill: var(--text);
+  font-weight: 700;
+}
+
+/* Light */
+.lh .glow {
+  fill: url(#lh-glow);
+}
+.lh .edge-ray {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+}
+.lh .sector-ghost {
+  fill: none;
+  stroke: color-mix(in srgb, var(--green) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 5;
+}
+.lh .sector-ghost.idle {
+  fill: color-mix(in srgb, var(--green) 10%, transparent);
+  stroke: color-mix(in srgb, var(--green) 65%, transparent);
+}
+.lh .sector {
+  fill: color-mix(in srgb, var(--green) 24%, transparent);
+  stroke: var(--green);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.lh .beam-halo {
+  stroke: var(--accent);
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0.25;
+}
+.lh .beam {
+  stroke: #fffbe6;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* The window */
+.lh .window {
+  fill: var(--green);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--green) 55%, transparent));
+}
+.lh .window.dark {
+  fill: color-mix(in srgb, var(--green) 30%, var(--bg));
+  filter: none;
+}
+.lh.editable .window {
+  cursor: grab;
+  touch-action: none;
+}
+.lh .handle {
+  fill: var(--bg);
+  stroke: var(--green);
+  stroke-width: 3;
+  cursor: ew-resize;
+  touch-action: none;
+}
+.lh .handle:hover {
+  fill: var(--green);
+}
+.lh .win-label {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--green);
+}
+.lh .win-label.dark {
+  fill: var(--muted);
+}
+
+/* The tower */
+.lh .tower {
+  fill: #2c2e3d;
+  stroke: #5a5e78;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.lh .band {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 3;
+}
+.lh .range {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 5;
+}
+.lh .range-cap {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 2;
+}
+.lh .range-cap.faint {
+  opacity: 0.4;
+}
+.lh .range-label {
+  font-size: 13px;
+  text-anchor: end;
+  fill: var(--muted);
+}
+.lh .range-title {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.lh .h-label {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: end;
+  fill: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.lh .lamp {
+  fill: var(--accent);
+  stroke: #fffbe6;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+.lh .lamp.ghost {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-dasharray: 3 3;
+  filter: none;
+}
+.lh .mini {
+  fill: none;
+  stroke-width: 4;
+}
+.lh .mini.red {
+  stroke: var(--red);
+}
+.lh .mini.green {
+  stroke: var(--green);
+}
+
+/* Landing */
+.lh .landing .dot {
+  fill: #fffbe6;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.lh .landing.hit .dot {
+  fill: var(--green);
+}
+.lh .landing.miss .dot {
+  fill: var(--red);
+}
+.lh .landing .ring {
+  fill: none;
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lh-ring 0.9s ease-out 2;
+}
+.lh .landing.hit .ring {
+  stroke: var(--green);
+}
+.lh .landing.miss .ring {
+  stroke: var(--red);
+}
+.lh .land-label {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lh .landing.hit .land-label {
+  fill: var(--green);
+}
+.lh .landing.miss .land-label {
+  fill: var(--red);
+}
+
+/* The fan dial */
+.lh .dial-bg {
+  fill: color-mix(in srgb, var(--bg) 82%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.lh .dial-track {
+  fill: none;
+  stroke: #2a2b38;
+  stroke-width: 15;
+}
+.lh .dial-arc {
+  fill: none;
+  stroke-width: 15;
+}
+.lh .dial-arc.red {
+  stroke: var(--red);
+}
+.lh .dial-arc.green {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.lh .dial-edge {
+  stroke: var(--text);
+  stroke-width: 2;
+  opacity: 0.7;
+}
+.lh .needle {
+  stroke: #fffbe6;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.lh .needle-tip {
+  fill: var(--accent);
+  stroke: #fffbe6;
+  stroke-width: 1.5;
+}
+.lh .dial-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  fill: var(--muted);
+}
+.lh .dial-big {
+  font-size: 24px;
+  font-weight: 800;
+  fill: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.lh .dial-big.zero {
+  fill: var(--red);
+}
+.lh .dial-big.one {
+  fill: var(--green);
+}
+.lh .dial-small {
+  font-size: 12px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Narrow frames: the picture is scaled down, so the type is scaled up. */
+.lh.compact .ruler,
+.lh.compact .win-label,
+.lh.compact .land-label {
+  font-size: 20px;
+}
+.lh.compact .range-label,
+.lh.compact .range-title,
+.lh.compact .h-label {
+  font-size: 18px;
+}
+.lh.compact .dial-title {
+  font-size: 15px;
+}
+.lh.compact .dial-big {
+  font-size: 34px;
+}
+.lh.compact .dial-small {
+  font-size: 16px;
+}
+
+@keyframes lh-ring {
+  from {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
