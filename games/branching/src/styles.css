@@ -1,0 +1,211 @@
+/* Branching board. Layout, panel and readouts come from the kit. */
+
+/* Generation rings. */
+.branching .rings circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+  transition: stroke var(--ease) ease;
+}
+.branching .rings circle.done {
+  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke-dasharray: none;
+}
+.branching .rings circle.next {
+  stroke: color-mix(in srgb, var(--text) 38%, transparent);
+  stroke-width: 1.4;
+  stroke-dasharray: 2 4;
+  stroke-linecap: round;
+}
+
+/* The goal ring: red track, green slices (one per living line). */
+.branching .goal-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 55%, var(--bg));
+  stroke-width: 12;
+}
+.branching .goal-slice {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 12;
+  transition: stroke-dasharray var(--ease) ease, stroke-dashoffset var(--ease) ease;
+}
+.branching .goal-slice.alt {
+  stroke: color-mix(in srgb, var(--green) 72%, var(--bg));
+}
+.branching .seam {
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.branching .goal-tick {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.branching .goal-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+
+/* Branches. */
+.branching .edge {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 2.2;
+  transition: stroke var(--ease) ease, opacity var(--ease) ease;
+}
+.branching .edge.alive {
+  stroke: var(--accent);
+}
+.branching .edge.dead {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.branching .edge.new {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: br-grow calc(var(--grow) * 0.75) cubic-bezier(0.3, 0.7, 0.3, 1) forwards;
+}
+
+/* Nodes. */
+.branching .node {
+  stroke: var(--card);
+  stroke-width: 2;
+  transition: fill var(--ease) ease, stroke var(--ease) ease;
+}
+.branching .node.alive {
+  fill: color-mix(in srgb, var(--accent) 70%, var(--card));
+}
+.branching .node.alive.frontier {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.branching .node.dead {
+  fill: color-mix(in srgb, var(--text) 30%, var(--card));
+}
+.branching .node.ended {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--red) 60%, var(--card));
+  stroke-width: 1.6;
+}
+.branching .node.seed {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.branching .node.new {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: br-pop calc(var(--grow) * 0.3) ease-out calc(var(--grow) * 0.65) both;
+}
+.branching .node.dying {
+  animation: br-die var(--grow) ease forwards;
+}
+.branching.lost .node.ended {
+  stroke: var(--red);
+}
+
+/* Each frontier node's own survival pie. */
+.branching .pie-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 55%, var(--bg));
+  stroke-width: 2.6;
+}
+.branching .pie {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.6;
+  transition: stroke-dasharray var(--ease) ease;
+}
+.branching .big-pie {
+  stroke-width: 5;
+}
+
+/* Corner annotations. */
+.branching text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.branching .corner.end text {
+  text-anchor: end;
+}
+.branching .cap {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  fill: var(--muted);
+}
+.branching .big {
+  font-size: 30px;
+  font-weight: 800;
+}
+.branching .big .of {
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.branching .mid {
+  font-size: 22px;
+  font-weight: 800;
+  fill: var(--green);
+}
+.branching .small {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.branching .win {
+  fill: var(--green);
+}
+.branching .lose {
+  fill: color-mix(in srgb, var(--red) 80%, var(--text));
+}
+.branching .law .bar {
+  fill: color-mix(in srgb, var(--accent) 75%, var(--card));
+}
+.branching .law .bar.zero {
+  fill: color-mix(in srgb, var(--red) 80%, var(--card));
+}
+.branching .law .pct {
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.branching .law .k {
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+@keyframes br-grow {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes br-pop {
+  from {
+    transform: scale(0);
+  }
+  70% {
+    transform: scale(1.35);
+  }
+}
+@keyframes br-die {
+  0%,
+  45% {
+    fill: var(--accent);
+  }
+  65% {
+    fill: var(--red);
+    stroke: var(--red);
+  }
+  100% {
+    fill: var(--card);
+    stroke: color-mix(in srgb, var(--red) 60%, var(--card));
+  }
+}
