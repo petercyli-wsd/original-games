@@ -1,0 +1,319 @@
+/* Factor board. Layout, panel and readouts come from the kit. */
+
+.fx-board {
+  place-items: stretch;
+}
+.fx-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+.fx-wrap > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 64vh;
+  overflow: visible;
+}
+.fx-overlay {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+.fx-overlay > * {
+  pointer-events: auto;
+}
+
+.fx text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.fx .head {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.fx .head .accent {
+  fill: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.fx .head-r {
+  font-size: 12.5px;
+  font-weight: 600;
+  text-anchor: end;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.fx .head-r.small {
+  font-size: 11px;
+}
+.fx .win-t {
+  fill: var(--accent);
+  font-weight: 800;
+}
+.fx .row-label {
+  font-size: 9.5px;
+  text-anchor: end;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- The grid of N ---------- */
+.fx .cell {
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 0.78;
+}
+.fx .cell.ghost {
+  stroke: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.fx .cell.lose {
+  stroke: color-mix(in srgb, var(--text) 34%, transparent);
+}
+.fx .cell.win {
+  stroke: var(--accent);
+}
+.fx .cell.drop {
+  stroke: var(--red);
+  animation: fx-drop calc(var(--ms) * 2.2) ease-out forwards;
+}
+@keyframes fx-drop {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.fx .n-mark line {
+  stroke-width: 0.35;
+  opacity: 0.7;
+}
+.fx .n-mark circle {
+  fill: none;
+  stroke-width: 0.8;
+}
+.fx .n-mark.w line,
+.fx .n-mark.w circle {
+  stroke: var(--green);
+}
+.fx .n-mark.l line,
+.fx .n-mark.l circle {
+  stroke: var(--red);
+}
+.fx .legend text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.fx .lg.win {
+  fill: var(--accent);
+}
+.fx .lg.lose {
+  fill: color-mix(in srgb, var(--text) 34%, transparent);
+}
+.fx .lg.ghost {
+  fill: color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+/* ---------- Factor tree ---------- */
+.fx .slot {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.fx .slot.on {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.fx .slot.no {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.fx .slot.on.no {
+  fill: var(--red);
+  stroke: var(--red);
+}
+.fx .slot.rv {
+  fill: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.fx .slot-x {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+  stroke-width: 1.5;
+}
+.fx .tree .edge {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
+.fx .tree .edge.late {
+  stroke-dasharray: 3 3;
+}
+.fx .tree .node {
+  transition: transform var(--ms) ease;
+}
+.fx .tree .node .pop {
+  animation: fx-pop calc(var(--ms) * 0.9) ease-out;
+}
+@keyframes fx-pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+}
+.fx .tree text {
+  text-anchor: middle;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.fx .tree .leaf circle,
+.fx .tree .leaf rect {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.fx .tree .leaf.late circle,
+.fx .tree .leaf.late rect {
+  stroke-dasharray: 3 2;
+  fill: var(--bg);
+}
+.fx .tree .spine rect {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+}
+.fx .tree .spine.hidden text {
+  fill: var(--muted);
+}
+.fx .tree .spine.current rect {
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+}
+.fx .tree .tag {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.fx .tree .range {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+  text-anchor: start;
+}
+.fx .probe rect {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+.fx .probe text {
+  font-size: 12px;
+}
+.fx .probe.trying rect {
+  stroke: var(--accent);
+  animation: fx-pulse 0.5s ease-in-out infinite alternate;
+}
+.fx .probe.hit rect {
+  stroke: var(--green);
+  fill: color-mix(in srgb, var(--green) 18%, var(--bg));
+}
+.fx .probe.miss rect,
+.fx .probe.end rect {
+  stroke: var(--muted);
+}
+.fx .probe.miss text,
+.fx .probe.end text {
+  fill: var(--muted);
+}
+@keyframes fx-pulse {
+  to {
+    stroke-width: 3;
+  }
+}
+
+/* ---------- Trial divisors ---------- */
+.fx .pcell rect {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1;
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease;
+}
+.fx .pcell text {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.fx .pcell .exp {
+  font-size: 10px;
+}
+.fx .pcell.miss text {
+  fill: var(--muted);
+}
+.fx .pcell .slash {
+  stroke: color-mix(in srgb, var(--muted) 70%, transparent);
+  stroke-width: 1;
+}
+.fx .pcell.hit rect {
+  fill: color-mix(in srgb, var(--accent) 24%, transparent);
+  stroke: var(--accent);
+}
+.fx .pcell.current rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.fx .pcell.trying rect {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.fx .pcell.stop rect {
+  stroke: var(--muted);
+  stroke-dasharray: 3 2;
+}
+.fx .pcell.beyond {
+  opacity: 0.28;
+}
+
+/* ---------- Ω bars ---------- */
+.fx .hist .bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  transition: transform 0.3s ease;
+}
+.fx .hist .bar.h {
+  transform-origin: left;
+}
+.fx .hist .bar.win {
+  fill: var(--green);
+}
+.fx .hist .bar.lose {
+  fill: color-mix(in srgb, var(--text) 26%, transparent);
+}
+.fx .hist .base {
+  fill: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.fx .hist .pct {
+  font-size: 9.5px;
+  text-anchor: middle;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.fx .hist .pct.start {
+  text-anchor: start;
+}
+.fx .hist .axis {
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.fx .hist .axis.end {
+  text-anchor: end;
+}
+.fx .hist .axis.win-t {
+  fill: var(--green);
+}
+.fx .hist .threshold {
+  stroke: var(--green);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
