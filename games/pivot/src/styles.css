@@ -1,0 +1,194 @@
+/* Pivot board. Layout, panel and readouts come from the kit. */
+
+.pivot text {
+  fill: var(--text);
+  font-family: inherit;
+  text-anchor: middle;
+}
+.pivot .sec {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--muted);
+  text-anchor: start;
+}
+.pivot .sec.end {
+  text-anchor: end;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.pivot .track {
+  fill: var(--hover);
+}
+.pivot .tick {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1;
+}
+.pivot .zone {
+  fill: color-mix(in srgb, var(--green) 16%, transparent);
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  transition: fill 0.3s ease;
+}
+.pivot .zone.hot {
+  fill: color-mix(in srgb, var(--green) 30%, transparent);
+}
+.pivot .zone-t {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--green);
+}
+.pivot .blk {
+  fill: color-mix(in srgb, var(--text) 32%, var(--bg));
+  stroke: var(--bg);
+  stroke-width: 1;
+}
+.pivot .blk.you {
+  fill: var(--accent);
+}
+.pivot .blk.you.lost {
+  fill: color-mix(in srgb, var(--accent) 45%, var(--bg));
+  stroke: var(--red);
+  stroke-width: 2;
+}
+.pivot .blk.you.won {
+  stroke: #fff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+.pivot .blk.beat {
+  fill: var(--red);
+}
+.pivot .blk-t {
+  font-size: 13px;
+  font-weight: 800;
+  fill: var(--bg);
+  pointer-events: none;
+}
+.pivot .fresh {
+  animation: pivot-in 0.35s ease-out;
+  transform-box: fill-box;
+  transform-origin: left center;
+}
+.pivot .ghost rect {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.pivot .ghost text {
+  font-size: 13px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.pivot .ghost.tips rect {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.pivot .quota {
+  stroke: var(--text);
+  stroke-width: 2.5;
+}
+.pivot .quota-t {
+  font-size: 12px;
+  font-weight: 800;
+}
+.pivot .note {
+  font-size: 12.5px;
+  fill: var(--muted);
+}
+.pivot .chart-bg {
+  fill: none;
+}
+.pivot .col-box {
+  fill: color-mix(in srgb, var(--hover) 70%, transparent);
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-width: 1;
+}
+.pivot .col-fill {
+  fill: color-mix(in srgb, var(--green) 70%, transparent);
+  transition:
+    height 0.3s ease,
+    y 0.3s ease;
+}
+.pivot .col.you .col-fill {
+  fill: var(--accent);
+}
+.pivot .col.you .col-box {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pivot .col.dead .col-box {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.pivot .col-x {
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--red);
+}
+.pivot .tok {
+  fill: var(--hover);
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.pivot .col.you .tok {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.pivot .tok-t {
+  font-size: 13px;
+  font-weight: 800;
+  pointer-events: none;
+}
+.pivot .col.you .tok-t {
+  fill: var(--bg);
+}
+.pivot .tok-w {
+  font-size: 10.5px;
+  fill: var(--muted);
+}
+.pivot .col.you .tok-w {
+  fill: var(--accent);
+  font-weight: 700;
+}
+.pivot .col.pick .tok {
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px var(--accent));
+  animation: pivot-pulse 0.5s ease-in-out infinite alternate;
+}
+.pivot .col.pick .col-box {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.pivot .col.clickable {
+  cursor: pointer;
+}
+.pivot .col.clickable:hover .col-box {
+  stroke: var(--accent);
+}
+.pivot .avg {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  transition:
+    y1 0.3s ease,
+    y2 0.3s ease;
+}
+.pivot .avg-t {
+  font-size: 12px;
+  font-weight: 800;
+  text-anchor: end;
+}
+
+@keyframes pivot-in {
+  from {
+    transform: scaleX(0.2);
+    opacity: 0.3;
+  }
+}
+@keyframes pivot-pulse {
+  to {
+    opacity: 0.55;
+  }
+}
