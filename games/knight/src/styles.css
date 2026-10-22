@@ -1,0 +1,129 @@
+/* Knight board. Layout, panel and readouts come from the kit. */
+
+.knight text {
+  font-family: inherit;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.knight .sq rect.dark {
+  fill: color-mix(in srgb, var(--text) 4%, var(--bg));
+}
+.knight .sq rect.light {
+  fill: color-mix(in srgb, var(--text) 10%, var(--bg));
+}
+.knight .sq rect.target {
+  fill: color-mix(in srgb, var(--green) 16%, transparent);
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 1.5;
+}
+.knight .sq.pick {
+  cursor: pointer;
+}
+.knight .sq.pick:hover rect.dark,
+.knight .sq.pick:hover rect.light {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--bg));
+}
+.knight .sq.off {
+  opacity: 0.45;
+}
+.knight .frame {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+.knight .deg {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-anchor: start;
+  fill: color-mix(in srgb, var(--text) 42%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.knight .coord {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.knight .mass {
+  fill: color-mix(in srgb, var(--text) 38%, transparent);
+  pointer-events: none;
+  transition: r 0.3s ease;
+}
+.knight .mass.in {
+  fill: var(--green);
+  opacity: 0.85;
+}
+.knight .trail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.knight .trail.fresh {
+  stroke: var(--accent);
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: knight-draw ease-in-out forwards;
+}
+.knight .visit {
+  fill: var(--accent);
+  pointer-events: none;
+}
+.knight .visit.start {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.knight .next {
+  pointer-events: none;
+}
+.knight .next .ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+.knight .next .ring.sure {
+  stroke: var(--green);
+}
+.knight .next .ring.dead {
+  stroke: var(--red);
+}
+.knight .pct {
+  font-size: 10.5px;
+  font-weight: 800;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.knight .token-move {
+  pointer-events: none;
+}
+.knight .token {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.knight .token.won {
+  fill: var(--green);
+}
+.knight .token.lost {
+  fill: var(--red);
+}
+.knight .glyph {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes knight-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
