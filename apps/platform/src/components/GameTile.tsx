@@ -18,11 +18,11 @@ export function GameTile({ manifest, index }: { manifest: GameManifest; index: n
       <span className="tile-aura" />
       <span className="tile-sheen" />
       <Emblem mechanic={manifest.mechanic} />
-      <RatingChip gameId={manifest.id} />
       <div className="tile-body">
         <h3 className="tile-name">{manifest.name}</h3>
         <p className="tile-tagline">{manifest.tagline}</p>
       </div>
+      <RatingChip gameId={manifest.id} />
       <div className="tile-foot">
         <span className="tile-chip">RTP {formatPercent(manifest.rtp)}</span>
         <span className="tile-chip">Max {formatMultiplier(manifest.maxMultiplier)}</span>

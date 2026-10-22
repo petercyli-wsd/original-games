@@ -647,23 +647,64 @@ button:disabled {
 /* ---------------------------------------------------------------------------
    Ratings
    --------------------------------------------------------------------------- */
-.rating-chip {
-  position: absolute;
-  top: 20px;
-  right: 18px;
-  padding: 4px 9px;
+.tile-rating {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-height: 20px;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--og-gold);
-  background: color-mix(in srgb, var(--og-bg) 75%, transparent);
-  border: 1px solid color-mix(in srgb, var(--og-gold) 35%, transparent);
-  border-radius: 20px;
-  font-variant-numeric: tabular-nums;
-}
-.rating-chip-count {
-  margin-left: 3px;
   font-weight: 600;
   color: var(--og-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tile-rating b {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--og-gold);
+}
+.tile-rating.loading {
+  width: 140px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--og-bg-raised), var(--og-bg-hover), var(--og-bg-raised));
+  background-size: 200% 100%;
+  animation: rating-shimmer 1.4s linear infinite;
+}
+.tile-stars {
+  position: relative;
+  display: inline-block;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 1px;
+}
+.tile-stars-base {
+  color: color-mix(in srgb, var(--og-text-muted) 35%, transparent);
+}
+.tile-stars-fill {
+  position: absolute;
+  inset: 0;
+  width: var(--fill);
+  overflow: hidden;
+  white-space: nowrap;
+  color: var(--og-gold);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--og-gold) 45%, transparent);
+}
+.tile-rating.unrated .tile-rating-count {
+  font-style: italic;
+}
+.tile-rating-mine {
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--og-gold);
+  border: 1px solid color-mix(in srgb, var(--og-gold) 40%, transparent);
+  border-radius: 20px;
+}
+@keyframes rating-shimmer {
+  to { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-rating.loading { animation: none; }
 }
 
 .rating-panel {
