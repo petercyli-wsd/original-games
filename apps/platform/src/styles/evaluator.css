@@ -463,6 +463,121 @@
   color: var(--og-text-muted);
 }
 
+/* ---------------------------------------------------------------------------
+   Facets: rankings controls, the review form, review chips
+   --------------------------------------------------------------------------- */
+.ai-toggle.on {
+  color: #b9a4ff;
+  border-color: color-mix(in srgb, #b9a4ff 50%, transparent);
+  background: color-mix(in srgb, #b9a4ff 10%, transparent);
+}
+.rank-controls {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.rank-facets {
+  justify-content: flex-start;
+  margin-bottom: 0;
+}
+.rank-facet-question {
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--og-text-muted);
+}
+.segmented-mini {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--og-border);
+  border-radius: 20px;
+}
+.segmented-mini button {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--og-text-muted);
+  border-radius: 16px;
+}
+.segmented-mini button.on {
+  color: var(--og-text-on-accent);
+  background: var(--og-text);
+}
+.rank-tag {
+  margin-left: 8px;
+  padding: 2px 7px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: var(--og-gold);
+  border: 1px solid color-mix(in srgb, var(--og-gold) 40%, transparent);
+  border-radius: 10px;
+}
+.rank-list.no-ai .rank-row {
+  grid-template-columns: 40px minmax(0, 1fr) 110px 150px;
+}
+
+.facet-form {
+  padding: 10px 12px;
+  border: 1px solid var(--og-border);
+  border-radius: var(--og-radius);
+  background: var(--og-bg);
+}
+.facet-form summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.facet-form summary span {
+  font-weight: 500;
+  color: var(--og-text-muted);
+}
+.facet-form ul {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+  list-style: none;
+}
+.facet-form li {
+  display: grid;
+  grid-template-columns: 130px auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.facet-form li small {
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--og-text-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.review-facets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.review-facets span {
+  padding: 2px 7px;
+  font-size: 11px;
+  color: var(--og-text-muted);
+  border: 1px solid var(--og-border);
+  border-radius: 10px;
+}
+@media (max-width: 640px) {
+  .facet-form li {
+    grid-template-columns: 110px auto;
+  }
+  .facet-form li small {
+    display: none;
+  }
+}
+
 /* AI column on the Rankings page */
 .rank-ai {
   display: flex;

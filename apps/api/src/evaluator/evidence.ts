@@ -29,6 +29,8 @@ export interface GameEvidence {
     tagline: string;
     mechanic: string;
     status: string;
+    /** 'classics' for the proven casino games used as the benchmark. */
+    collection?: string;
     rtp: number;
     maxMultiplier: number;
     volatility: string[];

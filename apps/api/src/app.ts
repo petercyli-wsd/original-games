@@ -5,7 +5,7 @@
 //   GET  /health
 //   GET  /ratings[?voter=<uuid>]        -> { [gameId]: { average, count, mine? } }
 //   GET  /ratings/:gameId?voter=<uuid>  -> RatingDetail (incl. reviews)
-//   PUT  /ratings/:gameId  { voterId, stars, comment?, reviewer? } -> RatingDetail
+//   PUT  /ratings/:gameId  { voterId, stars, comment?, reviewer?, facets? } -> RatingDetail
 //
 // AI evaluator (reads public; actions marked * need the x-admin-key header):
 //   GET  /evaluator                      -> status and active prompt version
@@ -25,14 +25,14 @@
 //   POST /evaluator/judge-prompt *       { gameId|anchorId, card?, facts?, table?, versionId?, pool? } -> prompt
 //   POST /evaluations/import *           { gameId|anchorId, versionId?, codeHash, card?, review, checks?, model? }
 //   GET  /evaluator/refine-prompt *      -> refine prompt over train games, plus games still to review
-//   POST /evaluator/versions *           { proposal } -> candidate version
+//   POST /evaluator/versions *           { proposal } or { version } -> candidate version
 //   GET  /evaluator/calibration?version= -> what to review to backtest a version
 //   POST /evaluator/versions/:id/score * -> recompute agreement metrics from stored reviews
 
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
 import { EvaluatorError, type Evaluator } from './evaluator/service.js';
-import { MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, summarize, type RatingDetail, type RatingRow } from './shared.js';
+import { CRITERION_KEYS, MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, facetAverages, summarize, type FacetScores, type RatingDetail, type RatingRow } from './shared.js';
 import type { RatingsStore } from './store.js';
 
 const GAME_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -62,6 +62,20 @@ class HttpError extends Error {
   }
 }
 
+/** Validates per-facet scores: known facet keys with integer 1-5 values. */
+function cleanFacets(value: unknown): FacetScores | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new HttpError(400, 'facets must be an object');
+  const out: FacetScores = {};
+  for (const [key, score] of Object.entries(value)) {
+    if (!(CRITERION_KEYS as readonly string[]).includes(key)) throw new HttpError(400, `Unknown facet ${key}`);
+    if (score === null) continue;
+    if (!Number.isInteger(score) || (score as number) < 1 || (score as number) > 5) throw new HttpError(400, `Facet ${key} must be an integer from 1 to 5`);
+    out[key as keyof FacetScores] = score as number;
+  }
+  return out;
+}
+
 /** Trims, strips control characters (keeping newlines) and caps length. */
 function cleanText(value: unknown, max: number): string | undefined {
   if (value === undefined) return undefined;
@@ -73,13 +87,14 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
   const allowWrite = createRateLimiter(writeLimit.max, writeLimit.windowMs);
 
   async function detail(gameId: string, voterId: string | null): Promise<RatingDetail> {
-    const [distribution, mine, myReview, reviews] = await Promise.all([
+    const [distribution, mine, myReview, reviews, facets] = await Promise.all([
       ratings.distribution(gameId),
       voterId ? ratings.stars(gameId, voterId) : null,
       voterId ? ratings.review(gameId, voterId) : null,
       ratings.reviews(gameId, REVIEWS_SHOWN),
+      ratings.facetScores(gameId),
     ]);
-    return { ...summarize(distribution), distribution, mine, myReview, reviews };
+    return { ...summarize(distribution), distribution, facets: facetAverages(facets.get(gameId) ?? []), mine, myReview, reviews };
   }
 
   function requireAdmin(req: IncomingMessage) {
@@ -109,9 +124,18 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
     if (!gameId) {
       if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
       const voter = url.searchParams.get('voter');
-      const [all, mine] = await Promise.all([ratings.distributions(), voter && UUID.test(voter) ? ratings.votesBy(voter) : null]);
+      const [all, mine, facets] = await Promise.all([
+        ratings.distributions(),
+        voter && UUID.test(voter) ? ratings.votesBy(voter) : null,
+        ratings.facetScores(),
+      ]);
       return Object.fromEntries(
-        [...all].map(([id, d]): [string, RatingRow] => [id, mine ? { ...summarize(d), mine: mine.get(id) ?? null } : summarize(d)]),
+        [...all].map(([id, d]): [string, RatingRow] => {
+          const row: RatingRow = summarize(d);
+          if (mine) row.mine = mine.get(id) ?? null;
+          if (facets.has(id)) row.facets = facetAverages(facets.get(id)!);
+          return [id, row];
+        }),
       );
     }
     validGameId(gameId);
@@ -123,14 +147,14 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
 
     if (req.method === 'PUT') {
       if (!allowWrite(clientIp(req))) throw new HttpError(429, 'Too many ratings, try again later');
-      const body = (await readJson(req)) as Partial<{ voterId: unknown; stars: unknown; comment: unknown; reviewer: unknown }>;
+      const body = (await readJson(req)) as Partial<{ voterId: unknown; stars: unknown; comment: unknown; reviewer: unknown; facets: unknown }>;
       if (typeof body.voterId !== 'string' || !UUID.test(body.voterId)) throw new HttpError(400, 'Invalid voterId');
       if (!Number.isInteger(body.stars) || (body.stars as number) < 1 || (body.stars as number) > 5) {
         throw new HttpError(400, 'stars must be an integer from 1 to 5');
       }
       const comment = cleanText(body.comment, MAX_COMMENT_LENGTH);
       const reviewer = cleanText(body.reviewer, MAX_REVIEWER_LENGTH);
-      await ratings.upsert(gameId, body.voterId, body.stars as number, comment, reviewer);
+      await ratings.upsert(gameId, body.voterId, body.stars as number, comment, reviewer, cleanFacets(body.facets));
       return detail(gameId, body.voterId);
     }
 
@@ -178,7 +202,8 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
       if (!id && get) return ev.versions();
       if (!id && post) {
         requireAdmin(req);
-        const body = (await readJson(req, MAX_EVALUATOR_BODY)) as { proposal?: unknown };
+        const body = (await readJson(req, MAX_EVALUATOR_BODY)) as { proposal?: unknown; version?: unknown };
+        if (body.version !== undefined) return ev.createVersion(body.version as Parameters<Evaluator['createVersion']>[0]);
         return ev.submitVersion(body.proposal as Parameters<Evaluator['submitVersion']>[0]);
       }
       if (id && action === 'score' && post) {

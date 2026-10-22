@@ -135,7 +135,23 @@ describe('ratings API', () => {
     const mine = (await (await fetch(`${base}/ratings/drift?voter=${B}`)).json()) as RatingDetail;
     expect(mine.mine).toBe(2);
     const anon = await (await fetch(`${base}/ratings/unrated`)).json();
-    expect(anon).toEqual({ average: 0, count: 0, distribution: [0, 0, 0, 0, 0], mine: null, myReview: null, reviews: [] });
+    expect(anon).toEqual({ average: 0, count: 0, distribution: [0, 0, 0, 0, 0], facets: {}, mine: null, myReview: null, reviews: [] });
+  });
+
+  it('stores per-facet scores, keeps them on quick votes and averages them per game', async () => {
+    const { base, put } = await start();
+    await put('drift', { voterId: A, stars: 4, facets: { pace: 5, odds_legibility: 4 } });
+    await put('drift', { voterId: B, stars: 2, facets: { pace: 3, fun: 2, uniqueness: null } });
+    await put('drift', { voterId: A, stars: 5 }); // quick vote keeps A's facets
+    const detail = (await (await fetch(`${base}/ratings/drift?voter=${A}`)).json()) as RatingDetail;
+    expect(detail.myReview?.facets).toEqual({ pace: 5, odds_legibility: 4 });
+    expect(detail.facets).toEqual({ pace: { average: 4, count: 2 }, odds_legibility: { average: 4, count: 1 }, fun: { average: 2, count: 1 } });
+    const rows = (await (await fetch(`${base}/ratings`)).json()) as Record<string, { facets?: object }>;
+    expect(rows.drift.facets).toMatchObject({ pace: { average: 4, count: 2 } });
+
+    expect((await put('drift', { voterId: A, stars: 3, facets: { pace: 6 } })).status).toBe(400);
+    expect((await put('drift', { voterId: A, stars: 3, facets: { speed: 3 } })).status).toBe(400);
+    expect((await put('drift', { voterId: A, stars: 3, facets: [3] })).status).toBe(400);
   });
 
   it('keeps written reviews when a quick star vote follows', async () => {
@@ -310,6 +326,8 @@ describe('Claude Code path', () => {
     const others = DEFAULT_WEIGHT_TOTAL - 3;
     expect(view.overall).toBeCloseTo((5 * 3 + 3 * others) / DEFAULT_WEIGHT_TOTAL, 5);
     expect(view).toMatchObject({ model: 'claude-code (Opus)', recommendation: 'iterate', stale: false });
+    const summaries = await getJson<Record<string, { facets: Record<string, number> }>>('/evaluations');
+    expect(summaries.alpha.facets).toMatchObject({ odds_legibility: 5, pace: 3 });
     expect(view.rulesCard?.concept).toBe('c');
     expect(await (await fetch(`${base}/evaluator/cards/alpha?hash=hash-alpha`)).json()).toMatchObject({ concept: 'c' });
 
@@ -319,6 +337,21 @@ describe('Claude Code path', () => {
 
     const anchorPrompt = (await (await post('/evaluator/judge-prompt', { anchorId: ANCHORS[0].id })).json()) as { user: string };
     expect(anchorPrompt.user).toContain(ANCHORS[0].name);
+
+    // Classics are flagged to the judge as the benchmark.
+    const classic = (await (await post('/evaluator/judge-prompt', { gameId: 'alpha', card, collection: 'classics' })).json()) as { user: string };
+    expect(classic.user).toContain('Standing: A proven casino classic');
+    expect(prompt.user).toContain('Standing: A new prototype');
+  });
+
+  it('accepts a hand-written prompt version without team reviews', async () => {
+    const { post } = await start();
+    const version = { criteria: DEFAULT_CRITERIA, guidance: 'Calibrated guidance.', changelog: 'v2 calibration' };
+    const created = (await (await post('/evaluator/versions', { version })).json()) as PromptVersion;
+    expect(created).toMatchObject({ id: 2, status: 'candidate', parentId: 1, guidance: 'Calibrated guidance.' });
+    const broken = await post('/evaluator/versions', { version: { ...version, criteria: DEFAULT_CRITERIA.slice(1) } });
+    expect(broken.status).toBe(400);
+    expect((await post('/evaluator/versions/2/promote')).status).toBe(200);
   });
 
   it('runs refine, calibration and scoring without in-app AI', async () => {

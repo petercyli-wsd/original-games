@@ -126,11 +126,24 @@ function referencesText(refs: ExemplarContext[]): string {
     .join('\n');
 }
 
-export function judgeUser(name: string, id: string, card: unknown, checks: string, evalTable: string, references: ExemplarContext[]): string {
+export const CLASSIC_STANDING =
+  'A proven casino classic: one of the benchmark games the studio already runs. Judge how well this implementation meets each criterion; as the original of its format it is not a reskin.';
+export const PROTOTYPE_STANDING = 'A new prototype being considered for the catalogue.';
+
+export function judgeUser(
+  name: string,
+  id: string,
+  standing: string,
+  card: unknown,
+  checks: string,
+  evalTable: string,
+  references: ExemplarContext[],
+): string {
   return `Reference games the team has reviewed, lowest score first:
 ${referencesText(references)}
 
 Evaluate the game "${name}" (id: ${id}).
+Standing: ${standing}
 
 Rules card:
 ${JSON.stringify(card, null, 2)}

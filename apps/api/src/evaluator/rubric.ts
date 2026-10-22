@@ -1,5 +1,7 @@
-// Version 1 of the evaluator's rubric, written from the manager's brief.
-// Refinement creates later versions in the database; this is only the seed.
+// The evaluator's rubric, written from the manager's brief and calibrated so
+// the proven casino classics land at the top of the scale. It seeds a fresh
+// database; an existing one takes it as a new version via
+// `npm run evaluator -- seed-version`. Refinement creates later versions.
 
 import type { CriterionDef } from '../shared.js';
 
@@ -12,7 +14,7 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
     descriptors: {
       1: 'The player cannot tell their chances, or must compute them; the maths result behind the game is unintuitive.',
       3: 'The odds are shown as a number or meter, but the board itself does not make them obvious.',
-      5: 'The board is the probability: chambers left, an area, a position, a count. Readable at a glance, no explanation needed.',
+      5: "The board is the probability: chambers left, tiles left, the share of a dice slider, a position, an area. Readable at a glance, no explanation needed.",
     },
   },
   {
@@ -40,12 +42,12 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
   {
     key: 'uniqueness',
     name: 'Unique mechanic',
-    question: 'Is the underlying maths and round dynamic distinct from mines-style and crash-style games and from every game in the catalogue?',
+    question: 'Is it a distinct format rather than a reskin of mines-style, crash-style or any other game in the catalogue?',
     weight: 2,
     descriptors: {
-      1: 'A reskin: the same maths as an existing game under a new theme.',
+      1: 'A reskin: the same maths and decision as an existing game under a new theme.',
       3: 'A known family (e.g. a mines-style survival ladder) with a genuinely different danger law, reveal or decision.',
-      5: 'A dynamic not found in the catalogue or on the market, that still plays simply.',
+      5: 'A distinct format: a proven classic that defines its own format (Dice, Crash, Plinko), or a new dynamic not found in the catalogue or on the market that still plays simply.',
     },
   },
   {
@@ -56,18 +58,18 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
     descriptors: {
       1: 'No control, or the control barely changes the risk (measured spread small).',
       3: 'A control exists but its range is narrow or its effect is hard to understand.',
-      5: 'One natural knob (like the number of chambers) spanning low to high volatility; measured std-dev spread of 5× or more.',
+      5: "One natural knob (chamber count, Dice's win-chance slider, Plinko's risk and rows) spanning low to high volatility; measured std-dev spread of 5× or more.",
     },
   },
   {
     key: 'checkpoints',
     name: 'Checkpoints and cash-out',
-    question: 'Are there natural pauses where the player can stop and cash out, and is that a real decision?',
+    question: 'Can the player pause or continue quickly, and, when a round has several steps, stop and cash out at a real decision point?',
     weight: 1.5,
     descriptors: {
-      1: 'A one-shot outcome with no pauses.',
-      3: 'Pauses exist, but cashing out rarely matters (value barely changes, or is always below the stake).',
-      5: 'A natural break after every step where cashing out is a real, tense decision.',
+      1: 'A multi-step round with no point to stop, or a slow outcome with no rhythm of pauses.',
+      3: 'Pauses exist, but cashing out rarely matters (the value barely changes, or is always below the stake).',
+      5: 'A natural break after every step where cashing out is a real, tense decision (Mines, Crash), or an instant round (Dice, Limbo) that resolves at once so every bet is its own pause.',
     },
   },
   {
@@ -77,8 +79,8 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
     weight: 1,
     descriptors: {
       1: 'One fixed pace, or rounds far too long or too short.',
-      3: 'Works well at only one pace.',
-      5: 'Instant play (turbo/auto) and deliberate step-by-step play both work; round length sits in a comfortable range.',
+      3: 'Works well at only one pace, or lacks turbo or auto-bet.',
+      5: 'Instant play (turbo, auto-bet) and deliberate play both work, and round length suits the format (instant games resolve in one step).',
     },
   },
   {
@@ -105,7 +107,8 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
   },
 ];
 
-export const DEFAULT_GUIDANCE = `Calibrate against proven Originals. Mines, Crash, Dice, Limbo, Plinko and Russian roulette score 4–5 on most criteria; a game must earn a 5 by being at least as clear as those.
+export const DEFAULT_GUIDANCE = `Benchmark: the catalogue's classics (marked "classic": Dice, Limbo, Crash, Mines, Plinko, Keno, HiLo, Tower, Wheel, Roulette and the table games) are proven games the studio already runs. A well-made classic should land around 4 or above overall, and the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the very top. They are the top of the scale for prototypes: a prototype should only out-score a comparable classic on a criterion where it is clearly better.
+Instant one-shot games (Dice, Limbo, Coin Flip) are not penalised for lacking mid-round checkpoints: each bet resolves at once and the player pauses between bets. Table classics (Blackjack, Baccarat, Craps, Sic Bo) are proven but less Originals-shaped: familiarity makes their win condition clear, while their odds clarity and volatility control depend on how the implementation presents the bets and pay table.
 Common failure modes to score down:
 - Reskins. AI-generated concepts often re-theme an existing mechanic (frozen lake, lava, broken digger, sticky custard). Same maths under a new theme is uniqueness 1 and usually geometry_first 1–2.
 - Player-vs-House variants that add rules without adding gameplay. Extra rules cost simplicity.

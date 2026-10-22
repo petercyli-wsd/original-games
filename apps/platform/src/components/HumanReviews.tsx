@@ -1,4 +1,4 @@
-import { MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, type RatingDetail } from '@originals/api/shared';
+import { FACETS, MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, type FacetScores, type RatingDetail } from '@originals/api/shared';
 import { useEffect, useState, type FormEvent } from 'react';
 import { fetchRating, rate, ratingsEnabled, savedReviewer } from '../lib/ratings';
 import { StarInput } from './StarInput';
@@ -8,13 +8,14 @@ Cons: what's confusing, flat or too close to an existing game?`;
 
 const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-/** Write a review (stars, pros and cons, name) and read the team's reviews. */
+/** Write a review (overall stars, optional facet scores, pros and cons, name) and read the team's reviews. */
 export function HumanReviews({ gameId }: { gameId: string }) {
   const [detail, setDetail] = useState<RatingDetail | null>(null);
   const [error, setError] = useState('');
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState('');
   const [reviewer, setReviewer] = useState(savedReviewer);
+  const [facets, setFacets] = useState<FacetScores>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -28,6 +29,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
         setDetail(d);
         setStars(d.mine ?? 0);
         setComment(d.myReview?.comment ?? '');
+        setFacets(d.myReview?.facets ?? {});
         if (d.myReview?.reviewer) setReviewer(d.myReview.reviewer);
       })
       .catch(() => !cancelled && setError("Can't reach the ratings server."));
@@ -44,7 +46,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
     setSaving(true);
     setError('');
     try {
-      setDetail(await rate(gameId, stars, { comment: comment.trim(), reviewer: reviewer.trim() }));
+      setDetail(await rate(gameId, stars, { comment: comment.trim(), reviewer: reviewer.trim(), facets }));
       setSaved(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save your review');
@@ -77,6 +79,34 @@ export function HumanReviews({ gameId }: { gameId: string }) {
             onChange={(e) => (setReviewer(e.target.value), setSaved(false))}
           />
         </div>
+        <details className="facet-form" open={Object.keys(facets).length > 0}>
+          <summary>
+            Rate each facet <span>(optional, {Object.keys(facets).length}/{FACETS.length})</span>
+          </summary>
+          <ul>
+            {FACETS.map((f) => (
+              <li key={f.key}>
+                <span title={f.question}>{f.label}</span>
+                <StarInput
+                  size="sm"
+                  value={facets[f.key] ?? 0}
+                  label={`${f.label}: ${f.question}`}
+                  onRate={(s) => {
+                    // Clicking the current score again clears it.
+                    setFacets((prev) => {
+                      const next = { ...prev };
+                      if (next[f.key] === s) delete next[f.key];
+                      else next[f.key] = s;
+                      return next;
+                    });
+                    setSaved(false);
+                  }}
+                />
+                <small>{f.question}</small>
+              </li>
+            ))}
+          </ul>
+        </details>
         <textarea
           rows={4}
           placeholder={PLACEHOLDER}
@@ -103,6 +133,15 @@ export function HumanReviews({ gameId }: { gameId: string }) {
                 <span>{r.reviewer || 'Anonymous'}</span>
                 <span>{when(r.updatedAt)}</span>
               </div>
+              {Object.keys(r.facets ?? {}).length > 0 && (
+                <div className="review-facets">
+                  {FACETS.filter((f) => r.facets[f.key]).map((f) => (
+                    <span key={f.key}>
+                      {f.label} {r.facets[f.key]}
+                    </span>
+                  ))}
+                </div>
+              )}
               <p>{r.comment}</p>
             </li>
           ))}

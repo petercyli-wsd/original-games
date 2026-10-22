@@ -17,6 +17,7 @@ import {
   startEvaluate,
   startRefine,
 } from '../lib/evaluator';
+import { reviewPrefs, setShowAi } from '../lib/preferences';
 import { findGame } from '../registry';
 
 const nameOf = (id: string) => findGame(id)?.manifest.name ?? id;
@@ -122,6 +123,7 @@ function VersionDetails({ version, parent }: { version: PromptVersion; parent?: 
 
 export function Evaluator() {
   const key = useStore(adminKey);
+  const { showAi } = useStore(reviewPrefs);
   const [status, setStatus] = useState<EvaluatorStatus | null>(null);
   const [versions, setVersions] = useState<PromptVersion[]>([]);
   const [agreement, setAgreement] = useState<{ rows: AgreementRow[]; spearman: number | null; mae: number | null } | null>(null);
@@ -170,6 +172,19 @@ export function Evaluator() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not promote');
     }
+  }
+
+  if (evaluatorEnabled && !showAi) {
+    return (
+      <main className="evaluator">
+        <p className="rankings-banner">
+          AI reviews are hidden in this browser, so they don't influence your own reviews.{' '}
+          <button type="button" className="btn-link" onClick={() => setShowAi(true)}>
+            Show AI reviews
+          </button>
+        </p>
+      </main>
+    );
   }
 
   if (!evaluatorEnabled) {

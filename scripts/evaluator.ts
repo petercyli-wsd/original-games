@@ -12,6 +12,8 @@
 //   calibration [--version N]          what to review to backtest a version
 //   score <version>                    recompute agreement metrics from stored reviews
 //   promote <version>                  make a version active
+//   seed-version ["changelog"]         store the rubric in apps/api/src/evaluator/rubric.ts as a candidate
+//   results [--json]                   every AI-reviewed game ranked by overall, with facet scores
 //
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // Working files live in .evaluator/<id>/ (git-ignored).
@@ -22,7 +24,8 @@ import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { evalTable, measuredChecks, type GameEvidence } from '../apps/api/src/evaluator/evidence';
 import { EXTRACT_SYSTEM, RULES_CARD_SCHEMA, extractUser } from '../apps/api/src/evaluator/prompts';
-import type { EvaluationSummary, MeasuredCheck } from '../apps/api/src/shared';
+import { DEFAULT_CRITERIA, DEFAULT_GUIDANCE } from '../apps/api/src/evaluator/rubric';
+import { FACETS, type EvaluationSummary, type MeasuredCheck } from '../apps/api/src/shared';
 import { GAMES_DIR, ROOT, buildGameEvidence, gameIds } from './lib/game-evidence';
 
 const envFile = join(ROOT, '.env.local');
@@ -35,6 +38,7 @@ const { positionals, values } = parseArgs({
     pool: { type: 'string' },
     model: { type: 'string' },
     all: { type: 'boolean' },
+    json: { type: 'boolean' },
     rounds: { type: 'string', default: '20000' },
   },
 });
@@ -165,6 +169,7 @@ async function judgePrompt() {
         gameId: id,
         name: evidence.manifest.name,
         mechanic: evidence.manifest.mechanic,
+        collection: evidence.manifest.collection,
         card: readJson(join(d, 'card.json')),
         facts: checks.map((c) => `- ${c.pass ? 'PASS' : 'FAIL'} ${c.label}: ${c.detail}`).join('\n'),
         table: evalTable(evidence),
@@ -259,6 +264,39 @@ async function promote() {
   console.log(`✓ v${id} is now the active prompt.`);
 }
 
+async function seedVersion() {
+  const changelog = ids.join(' ') || 'Rubric from apps/api/src/evaluator/rubric.ts.';
+  const v = await api<{ id: number }>('/evaluator/versions', {
+    method: 'POST',
+    body: { version: { criteria: DEFAULT_CRITERIA, guidance: DEFAULT_GUIDANCE, changelog } },
+  });
+  console.log(`✓ Candidate prompt v${v.id} created from rubric.ts. Promote it with: npm run evaluator -- promote ${v.id}`);
+}
+
+async function results() {
+  const summaries = await api<Record<string, EvaluationSummary>>('/evaluations');
+  const local = new Map(
+    gameIds().map((id) => {
+      const manifest = readFileSync(join(GAMES_DIR, id, 'src', 'manifest.ts'), 'utf8');
+      return [id, { name: /name: ['"]([^'"]+)/.exec(manifest)?.[1] ?? id, classic: /collection: ['"]classics/.test(manifest) }] as const;
+    }),
+  );
+  const rows = Object.entries(summaries)
+    .map(([id, s]) => ({ id, ...s, name: local.get(id)?.name ?? id, classic: local.get(id)?.classic ?? false }))
+    .sort((a, b) => b.overall - a.overall);
+  if (values.json) {
+    console.log(JSON.stringify(rows, null, 2));
+    return;
+  }
+  const head = ['#', 'game', 'kind', 'overall', 'rec', ...FACETS.map((f) => f.label.split(' ')[0].slice(0, 6))];
+  console.log(head.join('\t'));
+  rows.forEach((r, i) =>
+    console.log([i + 1, r.name, r.classic ? 'classic' : 'proto', r.overall.toFixed(2), r.recommendation, ...FACETS.map((f) => r.facets?.[f.key] ?? '-')].join('\t')),
+  );
+  const mean = (xs: number[]) => (xs.length ? (xs.reduce((a, b) => a + b, 0) / xs.length).toFixed(2) : '—');
+  console.log(`\n${rows.length} reviewed. Mean overall: classics ${mean(rows.filter((r) => r.classic).map((r) => r.overall))}, prototypes ${mean(rows.filter((r) => !r.classic).map((r) => r.overall))}.`);
+}
+
 const commands: Record<string, () => Promise<void>> = {
   todo,
   prepare,
@@ -269,10 +307,12 @@ const commands: Record<string, () => Promise<void>> = {
   calibration,
   score,
   promote,
+  'seed-version': seedVersion,
+  results,
 };
 
 if (!command || !commands[command]) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 19).join('\n'));
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 21).join('\n'));
   process.exit(command ? 1 : 0);
 }
 await commands[command]();

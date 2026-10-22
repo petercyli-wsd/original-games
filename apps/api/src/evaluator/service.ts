@@ -20,6 +20,7 @@ import {
   type AgreementRow,
   type AgreementStats,
   type BacktestMetrics,
+  type CriterionDef,
   type CriterionKey,
   type CriterionScore,
   type Evaluation,
@@ -39,7 +40,9 @@ import { evalTable, measuredChecks, type EvidenceIndex, type GameEvidence } from
 import type { Llm } from './llm.js';
 import {
   EXTRACT_SYSTEM,
+  CLASSIC_STANDING,
   JUDGE_SCHEMA,
+  PROTOTYPE_STANDING,
   REFINE_SCHEMA,
   REFINE_SYSTEM,
   RULES_CARD_SCHEMA,
@@ -96,6 +99,8 @@ interface Subject {
   id: string;
   name: string;
   mechanic: string;
+  /** Whether the judge is told this is a proven classic or a prototype. */
+  standing: string;
   card: RulesCard;
   facts: string;
   table: string;
@@ -206,7 +211,8 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       .map((g, i) => {
         const card = cards[i];
         const maths = card ? `; ${card.maths_family}; ${card.dynamics.join('/')}` : '';
-        return `- ${g.id}: ${g.manifest.name}, "${g.manifest.tagline}" [${g.manifest.mechanic}${maths}]`;
+        const classic = g.manifest.collection === 'classics' ? 'classic; ' : '';
+        return `- ${g.id}: ${g.manifest.name}, "${g.manifest.tagline}" [${classic}${g.manifest.mechanic}${maths}]`;
       })
       .join('\n');
   }
@@ -271,19 +277,31 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     const refs = await references(subject, version, pool);
     return {
       system: judgeSystem(version, catalogue ?? (await catalogueText())),
-      user: judgeUser(subject.name, subject.id, subject.card, subject.facts, subject.table, refs),
+      user: judgeUser(subject.name, subject.id, subject.standing, subject.card, subject.facts, subject.table, refs),
       references: refs.length,
     };
   }
 
+  const standingOf = (collection: string | undefined) => (collection === 'classics' ? CLASSIC_STANDING : PROTOTYPE_STANDING);
+
   function gameSubject(e: GameEvidence, card: RulesCard): Subject {
-    return { id: e.id, name: e.manifest.name, mechanic: e.manifest.mechanic, card, facts: checksText(measuredChecks(e)), table: evalTable(e) };
+    return {
+      id: e.id,
+      name: e.manifest.name,
+      mechanic: e.manifest.mechanic,
+      standing: standingOf(e.manifest.collection),
+      card,
+      facts: checksText(measuredChecks(e)),
+      table: evalTable(e),
+    };
   }
 
+  // Anchors are described as plain concepts, so they test the rubric rather than the label.
   const anchorSubject = (a: Anchor): Subject => ({
     id: a.id,
     name: a.name,
     mechanic: '',
+    standing: 'A game concept for calibration.',
     card: a.card,
     facts: a.measured,
     table: 'Not available for this game; see the measured facts.',
@@ -584,7 +602,7 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     return backtest(job, candidate);
   }
 
-  async function subjectFor(input: { gameId?: string; anchorId?: string; name?: string; mechanic?: string; card?: unknown; facts?: string; table?: string }) {
+  async function subjectFor(input: { gameId?: string; anchorId?: string; name?: string; mechanic?: string; collection?: string; card?: unknown; facts?: string; table?: string }) {
     const anchor = input.anchorId ? ANCHORS.find((a) => a.id === input.anchorId) : undefined;
     if (input.anchorId && !anchor) throw new EvaluatorError(404, `No anchor ${input.anchorId}`);
     if (anchor) return anchorSubject(anchor);
@@ -597,6 +615,7 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       id: input.gameId,
       name: input.name ?? e?.manifest.name ?? input.gameId,
       mechanic: input.mechanic ?? e?.manifest.mechanic ?? '',
+      standing: standingOf(input.collection ?? e?.manifest.collection),
       card,
       facts: input.facts ?? (e ? checksText(measuredChecks(e)) : 'No measured facts.'),
       table: input.table ?? (e ? evalTable(e) : 'No eval available.'),
@@ -640,7 +659,14 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
           .filter(([id]) => evidence.get(id))
           .map(([id, e]) => [
             id,
-            { overall: e.overall, codeHash: e.codeHash, recommendation: e.recommendation, stale: evidence.get(id)!.codeHash !== e.codeHash, createdAt: e.createdAt },
+            {
+              overall: e.overall,
+              codeHash: e.codeHash,
+              recommendation: e.recommendation,
+              facets: Object.fromEntries(e.criteria.map((c) => [c.key, c.score])) as Record<CriterionKey, number>,
+              stale: evidence.get(id)!.codeHash !== e.codeHash,
+              createdAt: e.createdAt,
+            },
           ]),
       );
     },
@@ -713,7 +739,18 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     card: (gameId: string, codeHash: string) => evals.rulesCard(gameId, codeHash),
 
     /** The judge prompt for a game (with the caller's rules card) or an anchor. */
-    async judgePrompt(input: { gameId?: string; anchorId?: string; name?: string; mechanic?: string; card?: unknown; facts?: string; table?: string; versionId?: number; pool?: ReferencePool }) {
+    async judgePrompt(input: {
+      gameId?: string;
+      anchorId?: string;
+      name?: string;
+      mechanic?: string;
+      collection?: string;
+      card?: unknown;
+      facts?: string;
+      table?: string;
+      versionId?: number;
+      pool?: ReferencePool;
+    }) {
       const version = input.versionId ? await versionOrThrow(input.versionId) : await activeVersion();
       const subject = await subjectFor(input);
       const prompt = await buildJudgePrompt(version, subject, input.pool === 'train' ? 'train' : 'all');
@@ -747,6 +784,39 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
         user: ctx.user,
         schema: REFINE_SCHEMA,
       };
+    },
+
+    /**
+     * Stores a hand-written prompt version as a candidate, e.g. a recalibrated
+     * rubric. Needs no team reviews, unlike a refiner proposal.
+     */
+    async createVersion(input: { criteria?: unknown; guidance?: unknown; exemplars?: unknown; changelog?: unknown }): Promise<PromptVersion> {
+      const active = await activeVersion();
+      const criteria = input.criteria as CriterionDef[] | undefined;
+      const valid =
+        Array.isArray(criteria) &&
+        CRITERION_KEYS.every((key) => {
+          const c = criteria.find((x) => x?.key === key);
+          return (
+            c &&
+            typeof c.name === 'string' &&
+            typeof c.question === 'string' &&
+            typeof c.weight === 'number' &&
+            c.weight >= 0 &&
+            c.weight <= 3 &&
+            [1, 3, 5].every((n) => typeof c.descriptors?.[n as 1 | 3 | 5] === 'string')
+          );
+        });
+      if (!valid) throw new EvaluatorError(400, 'criteria must define every criterion with name, question, weight 0-3 and 1/3/5 descriptors.');
+      if (typeof input.guidance !== 'string' || !input.guidance.trim()) throw new EvaluatorError(400, 'guidance is required.');
+      return evals.createVersion({
+        parentId: active.id,
+        status: 'candidate',
+        criteria: CRITERION_KEYS.map((key) => criteria!.find((c) => c.key === key)!),
+        guidance: input.guidance.slice(0, MAX_GUIDANCE_CHARS),
+        exemplars: [],
+        changelog: typeof input.changelog === 'string' ? input.changelog : '',
+      });
     },
 
     async submitVersion(proposal: RefineOutput): Promise<PromptVersion> {

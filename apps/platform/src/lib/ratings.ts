@@ -2,7 +2,7 @@
 // random voter id and holds one rating per game (stars plus an optional written
 // review), which it can change.
 
-import { summarize, type RatingDetail, type RatingRow } from '@originals/api/shared';
+import { summarize, type FacetScores, type RatingDetail, type RatingRow } from '@originals/api/shared';
 import { createStore } from '@originals/game-sdk';
 import { apiEnabled, apiRequest as request, jsonBody } from './api';
 import { safeStorage } from './storage';
@@ -70,7 +70,7 @@ export const fetchRating = (gameId: string) =>
   request<RatingDetail>(`/ratings/${gameId}?voter=${encodeURIComponent(voterId())}`);
 
 /** Saves stars, and a written review when `review` is given (omitting it keeps the old one). */
-export async function rate(gameId: string, stars: number, review?: { comment: string; reviewer: string }): Promise<RatingDetail> {
+export async function rate(gameId: string, stars: number, review?: { comment: string; reviewer: string; facets: FacetScores }): Promise<RatingDetail> {
   if (review) {
     try {
       safeStorage()?.setItem(REVIEWER_KEY, review.reviewer);
@@ -79,7 +79,7 @@ export async function rate(gameId: string, stars: number, review?: { comment: st
     }
   }
   const detail = await request<RatingDetail>(`/ratings/${gameId}`, jsonBody('PUT', { voterId: voterId(), stars, ...review }));
-  ratingSummaries.set({ ...ratingSummaries.get(), [gameId]: { ...summarize(detail.distribution), mine: detail.mine } });
+  ratingSummaries.set({ ...ratingSummaries.get(), [gameId]: { ...summarize(detail.distribution), mine: detail.mine, facets: detail.facets } });
   ratingsStatus.set('ready');
   return detail;
 }

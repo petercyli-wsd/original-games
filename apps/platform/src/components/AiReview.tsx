@@ -12,6 +12,7 @@ import {
   loadEvaluationSummaries,
   startEvaluate,
 } from '../lib/evaluator';
+import { reviewPrefs, setShowAi } from '../lib/preferences';
 import { AdminUnlock, JobProgress } from './AdminUnlock';
 
 const CARD_FIELDS: [keyof NonNullable<EvaluationView['rulesCard']>, string][] = [
@@ -27,6 +28,25 @@ const CARD_FIELDS: [keyof NonNullable<EvaluationView['rulesCard']>, string][] = 
 
 /** The latest AI review of a game under the active prompt, with a button to (re)run it. */
 export function AiReview({ gameId }: { gameId: string }) {
+  const { showAi } = useStore(reviewPrefs);
+  if (!evaluatorEnabled) return null;
+  if (!showAi) {
+    return (
+      <section className="review-card ai-review ai-hidden">
+        <div className="review-card-head">
+          <h2>AI review</h2>
+        </div>
+        <p className="rating-note">Hidden so it doesn't influence your own review.</p>
+        <button type="button" className="btn-ghost" onClick={() => setShowAi(true)}>
+          Show AI reviews
+        </button>
+      </section>
+    );
+  }
+  return <AiReviewPanel gameId={gameId} />;
+}
+
+function AiReviewPanel({ gameId }: { gameId: string }) {
   const key = useStore(adminKey);
   const [review, setReview] = useState<EvaluationView | null | undefined>(undefined);
   const [version, setVersion] = useState<PromptVersion | null>(null);

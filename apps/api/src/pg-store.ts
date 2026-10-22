@@ -1,5 +1,5 @@
 import pg from 'pg';
-import type { CriterionDef, Evaluation, Exemplar, PromptVersion, Review, RulesCard } from './shared.js';
+import type { CriterionDef, Evaluation, Exemplar, FacetScores, PromptVersion, Review, RulesCard } from './shared.js';
 import { emptyDistribution, type EvalStore, type RatingsStore } from './store.js';
 
 // Idempotent, so it runs on every start instead of a separate migration step.
@@ -15,6 +15,7 @@ const SCHEMA = `
   );
   ALTER TABLE ratings ADD COLUMN IF NOT EXISTS comment  text NOT NULL DEFAULT '';
   ALTER TABLE ratings ADD COLUMN IF NOT EXISTS reviewer text NOT NULL DEFAULT '';
+  ALTER TABLE ratings ADD COLUMN IF NOT EXISTS facets   jsonb NOT NULL DEFAULT '{}';
 
   CREATE TABLE IF NOT EXISTS prompt_versions (
     id         serial      PRIMARY KEY,
@@ -67,10 +68,11 @@ interface VoteRow {
   stars: number;
   comment: string;
   reviewer: string;
+  facets: FacetScores;
   updated_at: Date;
 }
 
-const toReview = (r: VoteRow): Review => ({ stars: r.stars, comment: r.comment, reviewer: r.reviewer, updatedAt: r.updated_at.toISOString() });
+const toReview = (r: VoteRow): Review => ({ stars: r.stars, comment: r.comment, reviewer: r.reviewer, facets: r.facets ?? {}, updatedAt: r.updated_at.toISOString() });
 
 export async function createPgStores(connectionString: string, { ssl = false } = {}): Promise<PgStores> {
   const pool = new pg.Pool({ connectionString, max: 5, ssl: ssl ? { rejectUnauthorized: false } : undefined });
@@ -85,7 +87,7 @@ export async function createPgStores(connectionString: string, { ssl = false } =
     return out;
   };
   const GROUPED = 'SELECT game_id, stars, COUNT(*)::int AS n FROM ratings';
-  const REVIEW_COLS = 'stars, comment, reviewer, updated_at';
+  const REVIEW_COLS = 'stars, comment, reviewer, facets, updated_at';
 
   const ratings: RatingsStore = {
     async distributions() {
@@ -126,17 +128,30 @@ export async function createPgStores(connectionString: string, { ssl = false } =
       const { rows } = await pool.query('SELECT game_id, stars FROM ratings WHERE voter_id = $1', [voterId]);
       return new Map(rows.map((r: { game_id: string; stars: number }) => [r.game_id, r.stars]));
     },
-    async upsert(gameId, voterId, stars, comment, reviewer) {
-      // COALESCE keeps the stored comment/reviewer when a quick vote omits them.
+    async facetScores(gameId) {
+      const { rows } = await pool.query<{ game_id: string; facets: FacetScores }>(
+        `SELECT game_id, facets FROM ratings WHERE facets <> '{}'::jsonb${gameId ? ' AND game_id = $1' : ''}`,
+        gameId ? [gameId] : [],
+      );
+      const out = new Map<string, FacetScores[]>();
+      for (const r of rows) {
+        if (!out.has(r.game_id)) out.set(r.game_id, []);
+        out.get(r.game_id)!.push(r.facets);
+      }
+      return out;
+    },
+    async upsert(gameId, voterId, stars, comment, reviewer, facets) {
+      // COALESCE keeps the stored comment/reviewer/facets when a quick vote omits them.
       await pool.query(
-        `INSERT INTO ratings (game_id, voter_id, stars, comment, reviewer)
-         VALUES ($1, $2, $3, COALESCE($4, ''), COALESCE($5, ''))
+        `INSERT INTO ratings (game_id, voter_id, stars, comment, reviewer, facets)
+         VALUES ($1, $2, $3, COALESCE($4, ''), COALESCE($5, ''), COALESCE($6::jsonb, '{}'::jsonb))
          ON CONFLICT (game_id, voter_id) DO UPDATE SET
            stars = EXCLUDED.stars,
            comment = COALESCE($4, ratings.comment),
            reviewer = COALESCE($5, ratings.reviewer),
+           facets = COALESCE($6::jsonb, ratings.facets),
            updated_at = now()`,
-        [gameId, voterId, stars, comment ?? null, reviewer ?? null],
+        [gameId, voterId, stars, comment ?? null, reviewer ?? null, facets ? JSON.stringify(facets) : null],
       );
     },
     close: async () => {},

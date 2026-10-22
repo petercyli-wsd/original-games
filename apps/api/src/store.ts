@@ -1,7 +1,7 @@
 // Storage behind the API. Postgres in production; in-memory stores for tests
 // and for running locally without a database.
 
-import type { Evaluation, PromptVersion, Review, RulesCard } from './shared.js';
+import type { Evaluation, FacetScores, PromptVersion, Review, RulesCard } from './shared.js';
 
 export interface RatingsStore {
   /** Star distribution per game id (index 0 = 1 star). */
@@ -15,12 +15,14 @@ export interface RatingsStore {
   allReviews(): Promise<Map<string, Review[]>>;
   /** Every game this voter has rated, with their stars. */
   votesBy(voterId: string): Promise<Map<string, number>>;
+  /** Facet scores of every review that scored at least one facet, by game. */
+  facetScores(gameId?: string): Promise<Map<string, FacetScores[]>>;
   /**
-   * One rating per voter per game; rating again replaces it. A comment or
-   * reviewer left undefined keeps the stored one, so quick star votes don't
-   * wipe a written review.
+   * One rating per voter per game; rating again replaces it. A comment,
+   * reviewer or facets left undefined keep the stored ones, so quick star
+   * votes don't wipe a written review.
    */
-  upsert(gameId: string, voterId: string, stars: number, comment?: string, reviewer?: string): Promise<void>;
+  upsert(gameId: string, voterId: string, stars: number, comment?: string, reviewer?: string, facets?: FacetScores): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -48,10 +50,11 @@ interface Vote {
   stars: number;
   comment: string;
   reviewer: string;
+  facets: FacetScores;
   updatedAt: Date;
 }
 
-const toReview = (v: Vote): Review => ({ stars: v.stars, comment: v.comment, reviewer: v.reviewer, updatedAt: v.updatedAt.toISOString() });
+const toReview = (v: Vote): Review => ({ stars: v.stars, comment: v.comment, reviewer: v.reviewer, facets: v.facets, updatedAt: v.updatedAt.toISOString() });
 const newestFirst = (a: Vote, b: Vote) => b.updatedAt.getTime() - a.updatedAt.getTime();
 
 export function createMemoryStore(): RatingsStore {
@@ -92,7 +95,16 @@ export function createMemoryStore(): RatingsStore {
       }
       return out;
     },
-    async upsert(gameId, voterId, stars, comment, reviewer) {
+    async facetScores(gameId) {
+      const out = new Map<string, FacetScores[]>();
+      for (const [id, votes] of games) {
+        if (gameId && id !== gameId) continue;
+        const scored = [...votes.values()].map((v) => v.facets).filter((f) => Object.keys(f).length);
+        if (scored.length) out.set(id, scored);
+      }
+      return out;
+    },
+    async upsert(gameId, voterId, stars, comment, reviewer, facets) {
       if (!games.has(gameId)) games.set(gameId, new Map());
       const votes = games.get(gameId)!;
       const prev = votes.get(voterId);
@@ -100,6 +112,7 @@ export function createMemoryStore(): RatingsStore {
         stars,
         comment: comment ?? prev?.comment ?? '',
         reviewer: reviewer ?? prev?.reviewer ?? '',
+        facets: facets ?? prev?.facets ?? {},
         updatedAt: new Date(),
       });
     },

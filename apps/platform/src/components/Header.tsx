@@ -3,10 +3,12 @@ import { useStore } from '@originals/game-sdk/react';
 import { Link, NavLink } from 'react-router-dom';
 import { BRAND } from '../brand';
 import { settings, wallet } from '../host/session';
+import { reviewPrefs, setShowAi } from '../lib/preferences';
 
 export function Header() {
   const balance = useStore(wallet.balance);
   const { turbo } = useStore(settings);
+  const { showAi } = useStore(reviewPrefs);
 
   return (
     <header className="site-header">
@@ -30,6 +32,14 @@ export function Header() {
           <NavLink to="/evaluator" className="nav-link">
             ✦ Evaluator
           </NavLink>
+          <button
+            className={`toggle ai-toggle ${showAi ? 'on' : ''}`}
+            aria-pressed={showAi}
+            onClick={() => setShowAi(!showAi)}
+            title={showAi ? 'Hide AI reviews, so your own review is not influenced' : 'Show AI reviews'}
+          >
+            ✦<span className="toggle-label"> AI {showAi ? 'on' : 'off'}</span>
+          </button>
           <button
             className={`toggle ${turbo ? 'on' : ''}`}
             aria-pressed={turbo}

@@ -2,6 +2,38 @@
 // Keep this file free of imports so both can use it directly.
 
 // ---------------------------------------------------------------------------
+// Facets: the criteria every game is ranked on, by humans and by the AI
+// ---------------------------------------------------------------------------
+
+export const CRITERION_KEYS = [
+  'odds_legibility',
+  'win_clarity',
+  'simplicity',
+  'uniqueness',
+  'volatility_control',
+  'checkpoints',
+  'pace',
+  'fun',
+  'geometry_first',
+] as const;
+export type CriterionKey = (typeof CRITERION_KEYS)[number];
+
+/** Short labels and the question a human reviewer answers, in display order. */
+export const FACETS: { key: CriterionKey; label: string; question: string }[] = [
+  { key: 'pace', label: 'Pace', question: 'Can it be played both fast (turbo/auto) and slowly, step by step?' },
+  { key: 'volatility_control', label: 'Volatility control', question: 'Can you choose your risk, with a control that really changes it?' },
+  { key: 'win_clarity', label: 'Win condition', question: 'Is it obvious what wins and what loses?' },
+  { key: 'odds_legibility', label: 'Odds clarity', question: 'Can you see your chance of winning on the board as the round plays out?' },
+  { key: 'checkpoints', label: 'Checkpoints', question: 'Are there natural pauses where cashing out is a real decision?' },
+  { key: 'simplicity', label: 'Simplicity', question: 'Could a new player explain it in one sentence?' },
+  { key: 'uniqueness', label: 'Uniqueness', question: 'Is it more than a reskin of an existing game?' },
+  { key: 'fun', label: 'Fun', question: 'Does it build tension and make you want another round?' },
+  { key: 'geometry_first', label: 'Geometry-first', question: 'Does it work as plain shapes, without its theme?' },
+];
+
+export type FacetScores = Partial<Record<CriterionKey, number>>;
+
+// ---------------------------------------------------------------------------
 // Human ratings and reviews
 // ---------------------------------------------------------------------------
 
@@ -17,6 +49,8 @@ export interface RatingSummary {
 /** A summary plus this voter's own stars, when the request names a voter. */
 export interface RatingRow extends RatingSummary {
   mine?: number | null;
+  /** Team averages per facet, for facets anyone has scored. */
+  facets?: Partial<Record<CriterionKey, RatingSummary>>;
 }
 
 /**
@@ -33,12 +67,16 @@ export interface Review {
   stars: number;
   comment: string;
   reviewer: string;
+  /** Optional 1-5 scores per facet. */
+  facets: FacetScores;
   updatedAt: string;
 }
 
 export interface RatingDetail extends RatingSummary {
   /** Number of 1..5 star ratings; index 0 is 1 star. */
   distribution: number[];
+  /** Team averages per facet. */
+  facets: Partial<Record<CriterionKey, RatingSummary>>;
   /** This voter's stars, or null if they haven't rated the game. */
   mine: number | null;
   /** This voter's full review, if any. */
@@ -53,6 +91,18 @@ export interface RatingInput {
   /** Omit to keep the existing comment (quick star-only votes). */
   comment?: string;
   reviewer?: string;
+  /** Omit to keep existing facet scores; send {} to clear them. */
+  facets?: FacetScores;
+}
+
+/** Averages each facet over the reviews that scored it. */
+export function facetAverages(all: FacetScores[]): Partial<Record<CriterionKey, RatingSummary>> {
+  const out: Partial<Record<CriterionKey, RatingSummary>> = {};
+  for (const key of CRITERION_KEYS) {
+    const scores = all.map((f) => f[key]).filter((s): s is number => typeof s === 'number');
+    if (scores.length) out[key] = { average: scores.reduce((a, b) => a + b, 0) / scores.length, count: scores.length };
+  }
+  return out;
 }
 
 export function summarize(distribution: number[]): RatingSummary {
@@ -68,19 +118,6 @@ export function summarize(distribution: number[]): RatingSummary {
 // ---------------------------------------------------------------------------
 // AI evaluator
 // ---------------------------------------------------------------------------
-
-export const CRITERION_KEYS = [
-  'odds_legibility',
-  'win_clarity',
-  'simplicity',
-  'uniqueness',
-  'volatility_control',
-  'checkpoints',
-  'pace',
-  'fun',
-  'geometry_first',
-] as const;
-export type CriterionKey = (typeof CRITERION_KEYS)[number];
 
 export interface CriterionDef {
   key: CriterionKey;
@@ -195,6 +232,8 @@ export interface EvaluationSummary {
   /** The code version that was reviewed; tools compare it with local code. */
   codeHash: string;
   recommendation: Evaluation['recommendation'];
+  /** The AI's 1-5 score per facet, for ranking by facet. */
+  facets: Record<CriterionKey, number>;
   stale: boolean;
   createdAt: string;
 }
