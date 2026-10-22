@@ -123,7 +123,7 @@ export default function Game() {
 
   const hopMs = turbo.turbo ? 110 : 380;
   const slamMs = turbo.turbo ? 160 : 460;
-  const autoHopMs = turbo.turbo ? 45 : 150;
+  const autoHopMs = turbo.turbo ? 40 : 120;
   const live = phase === 'live' || phase === 'crossing';
   const spec = DIFFICULTY[difficulty];
 
@@ -330,8 +330,11 @@ export default function Game() {
       status = last.multiplier > 0 ? `Lane ${autoView?.target ?? target} reached · ${fmtMult(last.multiplier)}` : `Hit in lane ${autoView?.hit ?? 0}`;
       tone = last.multiplier > 0 ? 'won' : 'lost';
     } else status = `Auto · cross to lane ${target}`;
+  } else if (phase === 'crossing' && round?.hit) {
+    status = `Hit in lane ${round.hit}`;
+    tone = 'lost';
   } else if (phase === 'crossing') {
-    status = `Crossing lane ${moving ?? round?.hit ?? nextLane}…`;
+    status = `Crossing lane ${moving ?? nextLane}…`;
     tone = 'live';
   } else if (phase === 'live') {
     status = pos === 0 ? 'Cross lane 1 to start' : `Lane ${pos} of ${LANES} · cross or cash out`;
