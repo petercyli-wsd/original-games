@@ -1,4 +1,3 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
@@ -14,7 +13,6 @@ import {
   ModeTabs,
   PanelFoot,
   StageTop,
-  VolBadge,
   fmtChance,
   useAutoBet,
   useBetInput,
@@ -32,7 +30,6 @@ import {
   MAX_PICKS,
   RISKS,
   RISK_LABEL,
-  RISK_VOL,
   RTP,
   TOTAL_DRAWS,
   countHits,
@@ -63,6 +60,7 @@ function shortChance(p: number): string {
 }
 /** Exact multiplier text: tables are set to the cent, so never round them away ("1,011.60×"). */
 const fmtX = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '×';
+const fmtAmt = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const longOdds = (p: number) => (p <= 0 ? 'never' : `1 in ${Math.round(1 / p).toLocaleString('en-US')}`);
 
 function Gem() {
@@ -95,7 +93,9 @@ export default function Game() {
   const seq = useRef(0);
 
   const resolved = useRef(0);
-  const ticket = useTicket(() => (drawing ? resolved.current : 0));
+  // The draw is fixed before the animation starts, so leaving mid-draw settles
+  // the ticket at that round's real result (read from a ref, never stale).
+  const ticket = useTicket(() => resolved.current);
 
   const n = picks.length;
   const rows = payRows(risk, n);
@@ -209,7 +209,7 @@ export default function Game() {
           <ModeTabs auto={auto} disabled={drawing} />
           <BetField bet={bet} disabled={busy} />
 
-          <Label hint={<VolBadge level={RISK_VOL[risk]} />}>Risk</Label>
+          <Label>Risk</Label>
           <Chips label="Risk" options={RISKS.map((r) => ({ value: r, label: RISK_LABEL[r] }))} value={risk} onChange={changeRisk} disabled={busy} />
 
           <div className="kn-pick-row">
@@ -351,7 +351,7 @@ export default function Game() {
                   <span>Profit</span>
                   <b>
                     {bet.value * focusRow.multiplier - bet.value >= 0 ? '+' : '−'}
-                    {formatAmount(Math.abs(bet.value * focusRow.multiplier - bet.value), 2)}
+                    {fmtAmt(Math.abs(bet.value * focusRow.multiplier - bet.value))}
                   </b>
                 </div>
                 <div>
