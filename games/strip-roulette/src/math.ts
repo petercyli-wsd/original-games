@@ -84,7 +84,7 @@ export const chanceOf = (bet: BetKey, n: number) => slotsCovered(bet, n) / n;
 /** Payout multiplier of a single bet: RTP / chance. */
 export const payoutOf = (bet: BetKey, n: number) => (RTP * n) / slotsCovered(bet, n);
 
-/** 0.99 · 55, written exactly (RTP * 55 is 54.45000000000001 in floating point). */
+/** 0.99 Ã— 55, written exactly (RTP * 55 is 54.45000000000001 in floating point). */
 export const MAX_MULTIPLIER = 54.45;
 
 /** The drawn slot for a uniform u in [0, 1). */

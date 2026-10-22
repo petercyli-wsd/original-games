@@ -465,6 +465,13 @@
   background: var(--bg);
   border: 1px solid var(--line) !important;
 }
+.sr-bet-minus > i {
+  display: block;
+  width: 10px;
+  height: 2px;
+  border-radius: 1px;
+  background: currentColor;
+}
 .sr-bet-minus:hover {
   color: var(--text);
   border-color: var(--line-strong) !important;

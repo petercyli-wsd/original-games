@@ -113,8 +113,11 @@ export default function Game() {
   const posRef = useRef(pos.p);
   posRef.current = pos.p;
 
+  // Fair value if the game unmounts mid-spin: the drawn result, read from a ref
+  // (not render state) so leaving before the next render can't forfeit a win
+  // or dodge a loss. It is set in the same tick the ticket is accepted.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (spinning ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const total = cents(totalOf(layout));
   const stats = useMemo(() => layoutStats(layout, n), [layout, n]);
@@ -172,9 +175,11 @@ export default function Game() {
     }
     const t = cents(totalOf(lay));
     if (!(t > 0)) return null;
+    resolved.current = 0;
     if (!(await ticket.place(t))) return null;
 
     const res = spin(lay, n, rng.next());
+    resolved.current = res.multiplier;
     // Cosmetic: where inside the winning slot the pointer comes to rest.
     const offset = 0.14 + 0.72 * rng.next();
     const p0 = posRef.current;
@@ -182,7 +187,6 @@ export default function Game() {
     let target = Math.floor((p0 + travel) / n) * n + res.slot + offset;
     if (target < p0 + travel) target += n;
 
-    resolved.current = res.multiplier;
     const slot = stripOrder(n)[res.slot];
     setLast(null);
     setSpinning(true);
@@ -425,9 +429,9 @@ export default function Game() {
                   {won ? <em>+{money(amt * payoutOf(k, n))}</em> : amt > 0 ? <span className="sr-chip">{money(amt)}</span> : <span className="sr-add">+ {money(chip.value)}</span>}
                 </span>
               </button>
-              {amt > 0 && !busy && !last && (
+              {layout[k] > 0 && !busy && (
                 <button type="button" className="sr-bet-minus" onClick={() => removeChip(k)} aria-label={`Remove a chip from ${BET_NAMES[k]}`} title="Remove a chip (Shift + key)">
-                  −
+                  <i aria-hidden="true" />
                 </button>
               )}
             </div>
