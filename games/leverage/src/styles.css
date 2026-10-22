@@ -1,0 +1,628 @@
+/* Leverage: the simulated market chart, the direction toggle, leverage and limit inputs, and the odds bar. */
+
+.lev-game {
+  --up: var(--green);
+  --down: var(--red);
+  --sl: #fb923c;
+}
+
+/* ---------- Panel ---------- */
+.lev-game .og-panel > *,
+.lev-game .og-autobet > * {
+  flex-shrink: 0;
+}
+.lev-keyhint {
+  font-size: 11px;
+  color: var(--muted);
+}
+.lev-dir {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.lev-dir-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.lev-dir-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.lev-dir-btn:not(:disabled):hover {
+  border-color: var(--line-strong);
+  color: var(--text);
+}
+.lev-dir-btn.up.on {
+  color: #04140a;
+  background: var(--up);
+  border-color: var(--up);
+  box-shadow: 0 6px 22px -10px var(--up);
+}
+.lev-dir-btn.down.on {
+  color: #fff;
+  background: var(--down);
+  border-color: var(--down);
+  box-shadow: 0 6px 22px -10px var(--down);
+}
+.lev-dir-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.lev-dir-btn.on:disabled {
+  opacity: 0.85;
+}
+
+.lev-lev {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lev-lev-row {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+.lev-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 10px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  min-width: 0;
+}
+.lev-input:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.lev-input input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lev-input input::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  font-weight: 600;
+}
+.lev-input input:disabled {
+  opacity: 0.6;
+}
+.lev-input b {
+  color: var(--muted);
+}
+.lev-range::-webkit-slider-runnable-track {
+  background: linear-gradient(90deg, var(--green), var(--gold) 60%, var(--red));
+}
+.lev-range::-moz-range-track {
+  background: linear-gradient(90deg, var(--green), var(--gold) 60%, var(--red));
+}
+.lev-quick .og-chip {
+  flex: 1 0 auto;
+  padding: 6px 2px;
+  font-size: 12px;
+}
+
+.lev-limits {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+.lev-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.lev-limit-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.lev-limit.tp .lev-limit-label::before,
+.lev-limit.sl .lev-limit-label::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 2px;
+  background: var(--green);
+  vertical-align: 1px;
+}
+.lev-limit.sl .lev-limit-label::before {
+  background: var(--sl);
+}
+.lev-limit small {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lev-x {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.lev-x:hover {
+  color: var(--text);
+}
+.og-stats dd.lev-red {
+  color: var(--red);
+}
+.og-btn.lev-open.down:not(:disabled) {
+  background: var(--down);
+  color: #fff;
+}
+.lev-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- Chart ---------- */
+.lev-board {
+  place-items: stretch;
+  min-height: 320px;
+}
+.lev-board .og-instant {
+  top: 64px;
+}
+.lev-chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 320px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 65%, transparent), color-mix(in srgb, var(--bg) 92%, transparent));
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.lev-chart > svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.lev-chart text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.lev-grid line {
+  stroke: color-mix(in srgb, var(--text) 6%, transparent);
+  stroke-width: 1;
+}
+.lev-ylabels text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.lev-xlabels text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.lev-window {
+  fill: color-mix(in srgb, var(--accent) 3%, transparent);
+}
+.lev-elapsed {
+  fill: color-mix(in srgb, var(--text) 2.5%, transparent);
+}
+.lev-cone {
+  fill: color-mix(in srgb, var(--text) 5%, transparent);
+  stroke: color-mix(in srgb, var(--text) 16%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.lev-zone.bust {
+  fill: color-mix(in srgb, var(--red) 10%, transparent);
+}
+.lev-zone.tp {
+  fill: color-mix(in srgb, var(--green) 8%, transparent);
+}
+.lev-level {
+  stroke-width: 1.5;
+}
+.lev-level.entry {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-dasharray: 5 5;
+  stroke-width: 1.2;
+}
+.lev-level.bust {
+  stroke: var(--red);
+}
+.lev-level.tp {
+  stroke: var(--green);
+  stroke-dasharray: 7 4;
+}
+.lev-level.sl {
+  stroke: var(--sl);
+  stroke-dasharray: 7 4;
+}
+.lev-level-label {
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.lev-level-label.bust {
+  fill: var(--red);
+}
+.lev-level-label.tp {
+  fill: var(--green);
+}
+.lev-level-label.sl {
+  fill: var(--sl);
+}
+.lev-off {
+  font-size: 11px;
+  font-weight: 700;
+}
+.lev-off.bust {
+  fill: color-mix(in srgb, var(--red) 85%, var(--text));
+}
+.lev-off.tp {
+  fill: var(--green);
+}
+.lev-off.sl {
+  fill: var(--sl);
+}
+
+.lev-line {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.lev-line.idle,
+.lev-line.hist {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+}
+.lev-chart.up .lev-line:not(.hist) {
+  stroke: var(--up);
+}
+.lev-chart.down .lev-line:not(.hist) {
+  stroke: var(--down);
+}
+.lev-area {
+  stroke: none;
+  fill-opacity: 0.12;
+}
+.lev-area.up {
+  fill: var(--green);
+}
+.lev-area.down {
+  fill: var(--red);
+}
+.lev-line.glow {
+  stroke-width: 7;
+  opacity: 0.22;
+}
+.lev-expiry {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 4;
+}
+.lev-expiry-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.lev-entry-dot circle {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.lev-entry-dot path {
+  fill: var(--text);
+}
+.lev-now circle {
+  fill: #fff;
+}
+.lev-chart.up .lev-now circle {
+  fill: var(--up);
+}
+.lev-chart.down .lev-now circle {
+  fill: var(--down);
+}
+.lev-now .pulse {
+  opacity: 0.25;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lev-pulse 1.4s ease-out infinite;
+}
+.lev-now.idle circle {
+  fill: var(--accent);
+}
+.lev-close circle {
+  fill: var(--gold);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.lev-close.win circle {
+  fill: var(--green);
+}
+.lev-close.lose circle {
+  fill: var(--red);
+}
+.lev-close .halo {
+  opacity: 0.3;
+  stroke: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: lev-pop 0.5s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+
+.lev-tag rect {
+  fill: var(--raised);
+  stroke: var(--line);
+}
+.lev-tag text {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.lev-tag.bust rect {
+  fill: color-mix(in srgb, var(--red) 80%, #000);
+  stroke: var(--red);
+}
+.lev-tag.bust text {
+  fill: #fff;
+}
+.lev-tag.tp rect {
+  fill: color-mix(in srgb, var(--green) 22%, var(--bg));
+  stroke: var(--green);
+}
+.lev-tag.tp text {
+  fill: var(--green);
+}
+.lev-tag.sl rect {
+  fill: color-mix(in srgb, var(--sl) 22%, var(--bg));
+  stroke: var(--sl);
+}
+.lev-tag.sl text {
+  fill: var(--sl);
+}
+.lev-tag.entry rect {
+  fill: var(--hover);
+}
+.lev-tag.now rect {
+  fill: var(--accent);
+  stroke: none;
+}
+.lev-tag.now text {
+  font-size: 12px;
+  font-weight: 800;
+  fill: #04140a;
+}
+.lev-tag.now.down rect {
+  fill: var(--down);
+}
+.lev-tag.now.down text {
+  fill: #fff;
+}
+.lev-tag.now.idle rect {
+  fill: var(--text);
+}
+.lev-clock-track {
+  fill: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.lev-clock {
+  fill: var(--accent);
+}
+.lev-chart.down .lev-clock {
+  fill: var(--down);
+}
+
+/* HUD over the chart */
+.lev-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.lev-hud {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lev-ticker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lev-ticker b {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #04140a;
+  background: var(--accent);
+}
+.lev-sim {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.lev-price {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lev-price small {
+  margin-left: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.lev-price.up small {
+  color: var(--green);
+}
+.lev-price.down small {
+  color: var(--red);
+}
+.lev-pnl {
+  position: absolute;
+  top: 34px;
+  left: 12px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.lev-pnl b {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text);
+}
+.lev-pnl span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.lev-pnl.up b {
+  color: var(--green);
+}
+.lev-pnl.down b {
+  color: var(--red);
+}
+
+/* ---------- Odds bar ---------- */
+.lev-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.lev-odds-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.lev-odds-head b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.lev-odds-track {
+  display: flex;
+  height: 10px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: var(--hover);
+}
+.lev-odds-track i {
+  display: block;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+.lev-odds .tp i,
+.lev-odds-track i.tp {
+  background: var(--green);
+}
+.lev-odds .ep i,
+.lev-odds-track i.ep {
+  background: color-mix(in srgb, var(--green) 45%, var(--bg));
+}
+.lev-odds .el i,
+.lev-odds-track i.el {
+  background: color-mix(in srgb, var(--gold) 50%, var(--bg));
+}
+.lev-odds .lo i,
+.lev-odds-track i.lo {
+  background: var(--red);
+}
+.lev-odds-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.lev-odds-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.lev-odds-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.lev-odds-legend b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes lev-pulse {
+  from {
+    transform: scale(0.4);
+    opacity: 0.5;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+@keyframes lev-pop {
+  from {
+    transform: scale(0.2);
+  }
+}
+
+@container (max-width: 760px) {
+  .lev-board,
+  .lev-chart {
+    min-height: 300px;
+  }
+  .lev-sim {
+    display: none;
+  }
+  .lev-pnl b {
+    font-size: 20px;
+  }
+  .lev-board .og-instant {
+    top: 58px;
+  }
+}
