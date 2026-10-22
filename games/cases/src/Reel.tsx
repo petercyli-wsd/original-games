@@ -5,7 +5,7 @@
 // does the animation; a skip snaps from the current matrix to the stop point.
 
 import { useLayoutEffect, useRef } from 'react';
-import { ItemCard } from './Item';
+import { ItemCard, MysteryCard } from './Item';
 import { START_SLOT, WIN_SLOT } from './math';
 
 export type ReelPhase = 'preview' | 'spinning' | 'done';
@@ -70,9 +70,13 @@ export function Reel({
     <div className={`cs-reel ${phase}`}>
       <div className="cs-window">
         <div ref={ref} className="cs-strip">
-          {strip.map((idx, i) => (
-            <ItemCard key={i} mult={mults[idx]} className={i === WIN_SLOT ? (phase === 'done' ? 'hit' : phase === 'preview' ? 'focus' : '') : phase === 'done' ? 'dim' : ''} />
-          ))}
+          {strip.map((idx, i) =>
+            phase === 'preview' && i === WIN_SLOT ? (
+              <MysteryCard key={i} />
+            ) : (
+              <ItemCard key={i} mult={mults[idx]} className={i === WIN_SLOT ? (phase === 'done' ? 'hit' : '') : phase === 'done' ? 'dim' : ''} />
+            ),
+          )}
         </div>
       </div>
       <i className="cs-marker top" aria-hidden="true" />

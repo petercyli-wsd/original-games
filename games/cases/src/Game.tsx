@@ -81,8 +81,10 @@ export default function Game() {
   const seq = useRef(0);
 
   // The bet is decided before the reel moves, so leaving mid-spin settles at the real result.
+  // A ticket only exists after the outcome is drawn (synchronously, right
+  // after place() resolves), so the fair value is always the drawn result.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (opening ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const skipFn = useRef<(() => void) | null>(null);
   function skippableWait(ms: number): Promise<WaitOutcome> {
@@ -171,8 +173,8 @@ export default function Game() {
   const mults = useMemo(() => items.map((it) => it.mult), [items]);
   const reels = useMemo(() => {
     if (last) return last.openings.map((o) => reelFor(last.d, o.index, o.u));
-    const top = CASES[difficulty].length - 1;
-    return Array.from({ length: count }, (_, r) => reelFor(difficulty, top - r, 0.37 + 0.113 * r + DIFFICULTIES.indexOf(difficulty) * 0.05));
+    // Preview: the slot under the marker is an unopened "?" card, so nothing reads as a result.
+    return Array.from({ length: count }, (_, r) => reelFor(difficulty, 0, 0.37 + 0.113 * r + DIFFICULTIES.indexOf(difficulty) * 0.05));
   }, [last, difficulty, count]);
   const phase = last ? (opening ? 'spinning' : 'done') : 'preview';
   const wonSet = new Set(last && !opening ? last.openings.map((o) => o.index) : []);
@@ -192,7 +194,7 @@ export default function Game() {
   }
   const tone = opening ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle';
 
-  let caption: ReactNode = 'Only the item that stops under the marker pays. Every item and its exact chance is listed below.';
+  let caption: ReactNode = 'Press Bet to open. Only the item that stops under the marker pays; every item and its exact chance is listed below.';
   if (opening) caption = auto.mode === 'manual' ? 'Press Space or Skip to stop the reel now. The prize was drawn when you bet.' : 'Auto is opening cases…';
   else if (last && last.n > 1)
     caption = (
@@ -353,8 +355,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The contents panel lists every item with its exact chance; the coloured bar splits into those same shares. Colours mark rarity: grey under 1×, blue
-              1–2×, violet 2–5×, pink 5–20×, orange 20–100× and gold 100× and up. The items scrolling past on the reel are decoration; only the one under the marker
-              counts.
+              1–2×, violet 2–5×, pink 5–20×, orange 20–100× and gold 100× and up. The items scrolling past on the reel are decoration that shows off the whole case (rare
+              items appear there more often than their real chances); only the one under the marker counts, at the chance listed.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

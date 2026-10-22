@@ -97,7 +97,12 @@
 .cs-reels.n1 .cs-item b { font-size: 15px; }
 .cs-reels.n3 .cs-item b,
 .cs-reels.n4 .cs-item b { font-size: 12px; }
-.cs-item.focus { box-shadow: 0 0 0 1px var(--line-strong); }
+.cs-item.mystery {
+  --tc: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), 0 0 20px -6px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.cs-item.mystery b { color: var(--accent); }
 .cs-item.dim { opacity: 0.35; }
 .cs-item.hit {
   z-index: 1;

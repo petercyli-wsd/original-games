@@ -111,3 +111,16 @@ export function ItemCard({ mult, className }: { mult: number; className?: string
     </div>
   );
 }
+
+/** The unopened slot under the marker before the first bet: no prize is implied. */
+export function MysteryCard() {
+  return (
+    <div className="cs-item mystery" aria-label="Unopened">
+      <svg viewBox="0 0 60 60" className="cs-gem" aria-hidden="true">
+        <rect x="13" y="13" width="34" height="34" rx="7" fill="none" stroke="currentColor" strokeWidth="3" strokeDasharray="6 4" />
+        <text x="30" y="38" textAnchor="middle" fontSize="22" fontWeight="800" fill="currentColor">?</text>
+      </svg>
+      <b>?</b>
+    </div>
+  );
+}
