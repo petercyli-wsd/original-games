@@ -1,6 +1,6 @@
 # Game ideas backlog
 
-Single-player Originals concepts, scored against the brief:
+Single-player Originals concepts, scored against the brief. The maths-first batch of 39 built games is in `docs/CATALOGUE.md`.
 
 1. Gameplay can be fast or slow
 2. Volatility is player-customisable

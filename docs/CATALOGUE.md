@@ -280,3 +280,66 @@ A knight makes uniformly random legal moves on an 8×8 board for T moves (T ∈ 
 ### call-it
 **Call It** · inference · accent `#ffc6ff` · M
 A deck of r red and b black cards (presets 13/13, 8/16, 5/20, 2/23) is turned over one at a time. At any moment, call "next is red". The prize RTP·(r+b)/r is fixed at the start, and no timing changes the win chance (Winkler's martingale). Cash-out = prize × current red share (the deck bar). The last card forces the call.
+
+## Results
+
+All 39 catalogue games are built and pass the CI checks: typecheck, 451 unit tests (exact formulas against simulation, a one-step martingale check, drawn odds equal to the true risk), `npm run eval` and the platform build. Every game also passed a second 200k-round eval on a seed the builders never used, and a headless-Chrome smoke test (load, bet, play) with no console errors.
+
+The independent adversarial review stage (re-derive the maths, attack the RTP with hostile strategies, play every UI path) did not run: the batch hit the org spend limit first. It is the recommended next step before promoting any game from `prototype`. Known trade-offs the builders flagged:
+
+- Heavy-tailed payouts make the sample RTP noisy on extreme configs (Chords, Convex, Core, Records). The exact martingale tests are the proof of fairness.
+- Some settings have high top prizes: Chords 8,886×, Core 6,290×, Probe 56,712×.
+- On phones, the round-over card covers part of some boards.
+- A few one-shot extreme settings (Snap with one cut, Needle at small p) reach no checkpoint.
+
+Eval at 100k rounds per config (`npx tsx scripts/report.ts`). Spread is the std-dev of the riskiest config divided by the safest; the rubric asks for at least 5×.
+
+| Game | Mechanic | RTP range (z) | Std dev low → high | Spread | Avg steps | Max seen | ok |
+|---|---|---|---|---|---|---|---|
+| Bayes | inference | 94.80%–98.93% (max \|z\| 2.2) | 0.27 → 5.93 | 22.2× | 6.2–11.0 | 50× | ✓ |
+| Branching | process | 98.02%–99.18% (max \|z\| 1.1) | 0.28 → 3.74 | 13.3× | 2.2–3.4 | 36× | ✓ |
+| Call It | inference | 98.03%–100.02% (max \|z\| 1.1) | 0.87 → 6.05 | 6.9× | 8.8–13.7 | 50× | ✓ |
+| Chords | combinatorics | 97.90%–113.52% (max \|z\| 1.7) | 1.19 → 46.18 | 38.7× | 3.3–4.3 | 8886× | ✓ |
+| Circuit | graph | 97.71%–99.17% (max \|z\| 0.9) | 0.50 → 4.36 | 8.7× | 1.7–5.8 | 63× | ✓ |
+| Convex | geometry | 96.73%–98.87% (max \|z\| 1.9) | 1.36 → 15.07 | 11.1× | 4.0–4.4 | 2412× | ✓ |
+| Core | geometry | 86.07%–98.74% (max \|z\| 1.9) | 1.35 → 21.57 | 15.9× | 2.1–3.0 | 6290× | ✓ |
+| Croc Dentist (Solo) | mines | 98.16%–107.72% (max \|z\| 1.8) | 1.48 → 52.25 | 35.3× | 2.2–7.0 | 15349× | ✓ |
+| Croc Dentist (vs House) | duel | 98.60%–99.47% (max \|z\| 1.9) | 0.77 → 1.53 | 2.0× | 1.3–4.0 | 38× | ✓ |
+| Deep | graph | 98.31%–99.01% (max \|z\| 0.8) | 0.56 → 7.92 | 14.1× | 5.6–8.1 | 125× | ✓ |
+| Doors | inference | 98.91%–100.59% (max \|z\| 2.2) | 0.41 → 2.32 | 5.6× | 1.8–8.5 | 12× | ✓ |
+| Drift | random-walk | 98.86%–100.03% (max \|z\| 1.5) | 0.65 → 6.47 | 10.0× | 18.4–107.8 | 99× | ✓ |
+| Factor | number-theory | 99.00%–102.40% (max \|z\| 2.7) | 0.76 → 8.86 | 11.7× | 2.0–6.0 | 124× | ✓ |
+| Full Set | combinatorics | 96.99%–99.03% (max \|z\| 2.8) | 0.33 → 4.44 | 13.4× | 4.3–9.1 | 44× | ✓ |
+| Half-Life | process | 98.02%–99.53% (max \|z\| 0.8) | 0.72 → 4.22 | 5.9× | 1.4–2.3 | 60× | ✓ |
+| Half Moon | geometry | 89.27%–99.18% (max \|z\| 1.3) | 0.46 → 26.68 | 57.4× | 2.2–4.2 | 4977× | ✓ |
+| Halo | random-walk | 95.78%–99.21% (max \|z\| 1.7) | 0.52 → 5.89 | 11.2× | 2.4–4.4 | 71× | ✓ |
+| Knight | process | 98.77%–101.64% (max \|z\| 0.6) | 1.11 → 13.29 | 12.0× | 2.4–7.1 | 302× | ✓ |
+| Landing | process | 97.77%–98.70% (max \|z\| 1.1) | 0.92 → 18.51 | 20.2× | 2.6–5.5 | 1619× | ✓ |
+| Last Light | random-walk | 98.27%–100.13% (max \|z\| 1.6) | 0.65 → 4.37 | 6.7× | 2.1–3.2 | 35× | ✓ |
+| Lighthouse | geometry | 96.24%–99.88% (max \|z\| 1.1) | 0.99 → 7.62 | 7.7× | 2.0–2.8 | 161× | ✓ |
+| Line Cut | geometry | 98.81%–99.72% (max \|z\| 1.6) | 0.45 → 3.28 | 7.3× | 3.5–4.6 | 49× | ✓ |
+| Line of Sight | number-theory | 97.92%–98.86% (max \|z\| 1.0) | 0.68 → 6.26 | 9.3× | 1.8–3.4 | 115× | ✓ |
+| Loops | combinatorics | 97.54%–99.11% (max \|z\| 0.7) | 0.55 → 6.84 | 12.5× | 3.7–5.3 | 75× | ✓ |
+| Mismatch | combinatorics | 99.08%–100.17% (max \|z\| 0.5) | 0.52 → 12.02 | 23.3× | 3.9–6.5 | 271× | ✓ |
+| Needle | geometry | 96.03%–99.15% (max \|z\| 1.2) | 0.67 → 7.76 | 11.5× | 1.8–2.6 | 156× | ✓ |
+| Noughts | combinatorics | 98.62%–101.21% (max \|z\| 1.6) | 0.74 → 6.22 | 8.4× | 5.0–6.3 | 61× | ✓ |
+| Overhang | geometry | 91.69%–97.64% (max \|z\| 2.5) | 4.87 → 14.51 | 3.0× | 1.3–3.1 | 3610× | ✓ |
+| Pascal | combinatorics | 96.76%–100.27% (max \|z\| 1.4) | 0.22 → 10.07 | 46.0× | 3.1–5.7 | 199× | ✓ |
+| Patience | combinatorics | 97.90%–98.95% (max \|z\| 1.0) | 0.26 → 7.51 | 28.8× | 4.0–7.0 | 88× | ✓ |
+| Pearson Walk | random-walk | 98.79%–99.67% (max \|z\| 0.7) | 0.88 → 5.13 | 5.8× | 2.6–8.6 | 50× | ✓ |
+| Penney | combinatorics | 98.49%–99.48% (max \|z\| 1.4) | 0.43 → 3.17 | 7.4× | 3.4–5.4 | 32× | ✓ |
+| Prime Time | number-theory | 98.52%–99.19% (max \|z\| 1.9) | 0.32 → 14.62 | 46.0× | 1.8–2.9 | 411× | ✓ |
+| Probe | combinatorics | 98.82%–100.83% (max \|z\| 0.5) | 0.37 → 12.73 | 34.4× | 11.0–11.4 | 1553× | ✓ |
+| Quadrant | geometry | 96.01%–99.77% (max \|z\| 0.9) | 0.32 → 15.58 | 48.2× | 1.9–2.8 | 722× | ✓ |
+| Ramsey | graph | 98.56%–100.88% (max \|z\| 1.3) | 1.08 → 18.16 | 16.8× | 3.7–10.8 | 2926× | ✓ |
+| Records | combinatorics | 95.31%–99.96% (max \|z\| 1.4) | 0.51 → 10.49 | 20.6× | 3.7–11.3 | 224× | ✓ |
+| Roots | number-theory | 97.26%–100.50% (max \|z\| 2.2) | 0.45 → 7.06 | 15.8× | 2.0–2.2 | 71× | ✓ |
+| Scratch | mines | 98.21%–100.68% (max \|z\| 1.9) | 0.71 → 9.93 | 13.9× | 1.0–6.2 | 99× | ✓ |
+| Slice | geometry | 98.93%–99.22% (max \|z\| 1.0) | 0.69 → 2.84 | 4.1× | 2.1–3.3 | 25× | ✓ |
+| Slide Rule | number-theory | 96.65%–99.24% (max \|z\| 2.7) | 0.58 → 3.89 | 6.8× | 2.8–4.0 | 23× | ✓ |
+| Snake | random-walk | 98.94%–101.36% (max \|z\| 0.9) | 0.70 → 14.30 | 20.5× | 2.2–3.6 | 2403× | ✓ |
+| Snap | geometry | 98.22%–99.95% (max \|z\| 1.9) | 0.31 → 4.55 | 14.6× | 1.0–2.0 | 33× | ✓ |
+| Snowball | urn | 98.94%–100.45% (max \|z\| 2.1) | 0.27 → 5.70 | 21.1× | 4.0–10.5 | 77× | ✓ |
+| Sperner | combinatorics | 99.10%–101.11% (max \|z\| 1.7) | 0.46 → 6.23 | 13.7× | 5.3–6.5 | 51× | ✓ |
+| Tumble | process | 98.67%–101.79% (max \|z\| 0.9) | 0.60 → 9.93 | 16.7× | 3.0–5.0 | 260× | ✓ |
+| Two-Tone | graph | 98.98%–100.17% (max \|z\| 0.5) | 0.30 → 6.81 | 22.9× | 4.7–6.3 | 378× | ✓ |
