@@ -1,0 +1,379 @@
+/* Sperner board. Layout, panel and readouts come from the kit. */
+
+/* Two secondary actions side by side under Cash out. */
+.sp-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.sp-actions.one {
+  grid-template-columns: 1fr;
+}
+.sp-actions .og-btn {
+  padding: 12px 6px;
+  white-space: nowrap;
+}
+
+/* ---------- Board layout: triangle beside the odds (stacked when narrow) ---------- */
+.sp-board {
+  place-items: stretch;
+}
+.sp-wrap {
+  container-type: inline-size;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+.sp-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+  align-items: center;
+}
+@container (max-width: 640px) {
+  .sp-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .sp-tri {
+    max-height: 48vh;
+  }
+}
+
+/* ---------- The triangle ---------- */
+.sp-tri {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(68vh, 600px);
+  overflow: visible;
+}
+.sp-outer {
+  fill: color-mix(in srgb, var(--bg) 60%, transparent);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.sp-cell {
+  fill: transparent;
+  stroke: var(--line);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+.sp-cell.done {
+  fill-opacity: 0.13;
+  animation: sp-fade calc(320ms * var(--sp-speed, 1)) ease both;
+}
+.sp-band {
+  fill: color-mix(in srgb, var(--accent) 9%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 4 4;
+  transition: all 0.25s ease;
+}
+
+.sp-rainbow {
+  animation: sp-burst calc(700ms * var(--sp-speed, 1)) cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.sp-kite {
+  fill-opacity: 0.88;
+}
+.sp-rb-edge {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.sp-badge {
+  fill: rgba(8, 8, 14, 0.82);
+  stroke: #fff;
+  stroke-width: 1.2;
+}
+.sp-badge-n {
+  text-anchor: middle;
+  font-size: 10.5px;
+  font-weight: 800;
+  fill: #fff;
+  font-family: inherit;
+}
+
+.sp-side {
+  text-anchor: middle;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  font-family: inherit;
+}
+.sp-side-or {
+  fill: var(--muted);
+  font-weight: 600;
+}
+
+/* Vertices. */
+.sp-open-disc {
+  fill: var(--raised);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.sp-open-arc {
+  fill: none;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  opacity: 0.75;
+}
+.sp-open.next .sp-open-arc {
+  opacity: 1;
+}
+.sp-open.next .sp-open-disc {
+  fill: var(--hover);
+}
+.sp-next-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  animation: sp-pulse 1.1s ease-in-out infinite;
+}
+.sp-spin {
+  transform-box: view-box;
+  animation: sp-rot calc(240ms * var(--sp-speed, 1)) linear infinite;
+}
+.sp-spin-ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.sp-dot circle {
+  stroke: var(--bg);
+  stroke-width: 2.5;
+}
+.sp-dot.landed {
+  transform-box: view-box;
+  animation: sp-pop calc(360ms * var(--sp-speed, 1)) cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.sp-letter {
+  text-anchor: middle;
+  font-size: 10.5px;
+  font-weight: 800;
+  fill: #0b0b12;
+  font-family: inherit;
+  pointer-events: none;
+}
+.sp-letter.big {
+  font-size: 13px;
+}
+
+/* ---------- The odds panel ---------- */
+.sp-odds {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 262px;
+  padding: 14px 14px 12px;
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border: 1px solid var(--line);
+}
+.sp-odds-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: opacity 0.25s ease, filter 0.25s ease;
+}
+.sp-odds.over .sp-odds-body {
+  opacity: 0.16;
+  filter: blur(1.5px);
+}
+.sp-odds-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.sp-found {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 99px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.sp-found svg {
+  width: 15px;
+  height: 14px;
+  opacity: 0.45;
+}
+.sp-found.on {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.sp-found.on svg {
+  opacity: 1;
+}
+
+.sp-bars {
+  display: flex;
+  gap: 5px;
+  height: 150px;
+}
+.sp-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.3s ease;
+}
+.sp-pct {
+  font-size: 10.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text);
+}
+.sp-track {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.sp-col.win .sp-track {
+  background: color-mix(in srgb, var(--green) 9%, transparent);
+}
+.sp-col.lose .sp-track {
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+}
+.sp-track i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 4px 4px 0 0;
+  transition: height 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.sp-col.win .sp-track i {
+  background: var(--green);
+  box-shadow: 0 0 14px -4px var(--green);
+}
+.sp-col.lose .sp-track i {
+  background: color-mix(in srgb, var(--red) 80%, transparent);
+}
+.sp-k {
+  width: 100%;
+  padding: 3px 0;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sp-col.win .sp-k {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 15%, transparent);
+}
+.sp-col.lose .sp-k {
+  color: color-mix(in srgb, var(--red) 70%, var(--text));
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+.sp-col.gone {
+  opacity: 0.32;
+}
+.sp-col.gone .sp-k {
+  text-decoration: line-through;
+}
+
+.sp-odds-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.sp-odds-note b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.sp-odds-note .sp-g {
+  color: var(--green);
+}
+
+.sp-swing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.sp-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px 4px 6px;
+  border-radius: 99px;
+  background: var(--hover);
+  color: var(--text);
+  font-weight: 800;
+}
+.sp-opt i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.sp-opt b {
+  font-variant-numeric: tabular-nums;
+}
+.sp-opt.up b {
+  color: var(--green);
+}
+.sp-opt.down b {
+  color: color-mix(in srgb, var(--red) 75%, var(--text));
+}
+
+/* ---------- Animations ---------- */
+@keyframes sp-pop {
+  from {
+    transform: scale(1.7);
+    opacity: 0.3;
+  }
+}
+@keyframes sp-rot {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes sp-pulse {
+  50% {
+    stroke-opacity: 0.25;
+  }
+}
+@keyframes sp-fade {
+  from {
+    fill-opacity: 0;
+  }
+}
+@keyframes sp-burst {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+    filter: brightness(1.9);
+  }
+}
