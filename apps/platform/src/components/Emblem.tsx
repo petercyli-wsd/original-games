@@ -64,6 +64,30 @@ const GLYPHS: Record<Mechanic, JSX.Element> = {
       <path d="M19 9 L19 31" className="em-stroke em-dim" />
     </>
   ),
+  dice: (
+    <>
+      <rect x={8} y={8} width={22} height={22} rx={5} className="em-stroke" />
+      {[[14, 14], [24, 24], [19, 19]].map(([x, y]) => (
+        <circle key={x} cx={x} cy={y} r={2.6} className="em-on" />
+      ))}
+    </>
+  ),
+  table: (
+    <>
+      <rect x={9} y={7} width={14} height={20} rx={3} className="em-stroke em-dim" />
+      <rect x={15} y={11} width={14} height={20} rx={3} className="em-stroke" />
+      <path d="M22 18 l3 4 l-3 4 l-3 -4 Z" className="em-on" />
+    </>
+  ),
+  slots: (
+    <>
+      <rect x={5} y={10} width={28} height={18} rx={4} className="em-stroke" />
+      <path d="M14.3 10 V28 M23.6 10 V28" className="em-stroke em-dim" />
+      {[9.7, 19, 28.3].map((x) => (
+        <circle key={x} cx={x} cy={19} r={2.6} className="em-on" />
+      ))}
+    </>
+  ),
   duel: (
     <>
       <path d="M8 30 L30 8 M8 8 L30 30" className="em-line" />

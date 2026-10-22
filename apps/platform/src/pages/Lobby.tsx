@@ -1,13 +1,28 @@
-import type { GameStatus, Mechanic } from '@originals/game-sdk';
+import type { Mechanic } from '@originals/game-sdk';
 import { useMemo, useState } from 'react';
 import { BRAND } from '../brand';
 import { GameTile } from '../components/GameTile';
 import { games, type GameEntry } from '../registry';
 
-const SECTIONS: { title: string; subtitle: string; statuses: GameStatus[] }[] = [
-  { title: `Core ${BRAND.product}`, subtitle: 'Click any game to play instantly', statuses: ['live', 'beta'] },
-  { title: 'Experimental', subtitle: 'Fresh probability prototypes and new mechanics', statuses: ['prototype'] },
-  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', statuses: ['template'] },
+const isClassic = (g: GameEntry) => g.manifest.collection === 'classics';
+
+const SECTIONS: { title: string; subtitle: string; includes: (g: GameEntry) => boolean }[] = [
+  {
+    title: `Core ${BRAND.product}`,
+    subtitle: 'Click any game to play instantly',
+    includes: (g) => !isClassic(g) && (g.manifest.status === 'live' || g.manifest.status === 'beta'),
+  },
+  {
+    title: 'Casino Classics',
+    subtitle: 'Proven formats from the biggest crypto casinos, rebuilt to house standard',
+    includes: (g) => isClassic(g) && g.manifest.status !== 'template',
+  },
+  {
+    title: 'Experimental',
+    subtitle: 'Fresh probability prototypes and new mechanics',
+    includes: (g) => !isClassic(g) && g.manifest.status === 'prototype',
+  },
+  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', includes: (g) => g.manifest.status === 'template' },
 ];
 
 const MECHANIC_LABELS: Record<Mechanic, string> = {
@@ -21,6 +36,9 @@ const MECHANIC_LABELS: Record<Mechanic, string> = {
   'number-theory': 'Number theory',
   process: 'Process',
   inference: 'Inference',
+  dice: 'Dice',
+  table: 'Table',
+  slots: 'Slots',
   duel: 'Duel',
   other: 'Other',
 };
@@ -58,7 +76,7 @@ export function Lobby() {
       {visible.length === 0 && <p className="empty">No games yet. Run `npm run new-game` to add one.</p>}
 
       {SECTIONS.map((section) => (
-        <Section key={section.title} {...section} entries={visible.filter((g) => section.statuses.includes(g.manifest.status))} />
+        <Section key={section.title} {...section} entries={visible.filter(section.includes)} />
       ))}
     </main>
   );

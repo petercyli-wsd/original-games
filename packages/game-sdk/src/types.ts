@@ -15,8 +15,18 @@ export type Mechanic =
   | 'number-theory'
   | 'process'
   | 'inference'
+  | 'dice'
+  | 'table'
+  | 'slots'
   | 'duel'
   | 'other';
+
+/**
+ * `originals` are the house's own maths-first designs; `classics` are proven
+ * formats rebuilt from the big crypto casinos (Stake, Roobet, BC.Game, …),
+ * shown in their own lobby section and useful as a rating benchmark.
+ */
+export type Collection = 'originals' | 'classics';
 
 /** `template` games are hidden from production lobbies. */
 export type GameStatus = 'template' | 'prototype' | 'beta' | 'live';
@@ -39,6 +49,8 @@ export interface GameManifest {
   checkpoints: boolean;
   /** Card colour in the lobby (CSS colour). */
   accent: string;
+  /** Which lobby collection the game belongs to. Defaults to `originals`. */
+  collection?: Collection;
 }
 
 export interface ReadableStore<T> {

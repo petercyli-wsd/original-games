@@ -1,0 +1,211 @@
+/* Dice board: a 0–100 track with the win zone, a slider for the target and the rolled marker. */
+
+.dice-profit {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--green);
+}
+.dice-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+.dice-board {
+  min-height: 260px;
+}
+.dice-wrap {
+  width: min(100%, 760px);
+  padding: 48px 8px 0;
+}
+.dice-scale {
+  position: relative;
+  height: 18px;
+  margin: 0 12px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.dice-scale span {
+  position: absolute;
+  transform: translateX(-50%);
+}
+.dice-track {
+  position: relative;
+  height: 14px;
+  margin: 0 12px;
+  border-radius: 99px;
+}
+.dice-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
+}
+.dice-zone.lose {
+  left: 0;
+  right: 0;
+  background: var(--red);
+  opacity: 0.85;
+}
+.dice-zone.win {
+  background: var(--green);
+  transition: left 0.15s ease, width 0.15s ease;
+}
+.dice-range {
+  position: absolute;
+  left: -12px;
+  right: -12px;
+  top: -8px;
+  width: calc(100% + 24px);
+  height: 30px;
+  margin: 0;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.dice-range::-webkit-slider-runnable-track {
+  height: 30px;
+  background: transparent;
+}
+.dice-range::-moz-range-track {
+  height: 30px;
+  background: transparent;
+}
+.dice-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 26px;
+  height: 30px;
+  border-radius: 6px;
+  background: var(--accent);
+  border: 3px solid #fff;
+  box-shadow: 0 4px 14px #0009;
+}
+.dice-range::-moz-range-thumb {
+  width: 22px;
+  height: 26px;
+  border-radius: 6px;
+  background: var(--accent);
+  border: 3px solid #fff;
+}
+.dice-range:disabled {
+  cursor: not-allowed;
+}
+
+.dice-marker {
+  position: absolute;
+  top: -50px;
+  transform: translateX(-50%);
+  transition-property: left;
+  transition-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+}
+.dice-marker span {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #07070b;
+  background: #fff;
+  box-shadow: 0 6px 18px #0008;
+}
+.dice-marker::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  border: 6px solid transparent;
+  border-top-color: #fff;
+  border-bottom: 0;
+  transform: translateX(-50%);
+}
+.dice-marker.win:not(.moving) span {
+  color: #07070b;
+  background: var(--green);
+}
+.dice-marker.win:not(.moving)::after {
+  border-top-color: var(--green);
+}
+.dice-marker.lose:not(.moving) span {
+  color: #fff;
+  background: var(--red);
+}
+.dice-marker.lose:not(.moving)::after {
+  border-top-color: var(--red);
+}
+.dice-caption {
+  margin: 26px 0 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.dice-inputs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+.dice-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.dice-input,
+.dice-swap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 12px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.dice-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dice-input b,
+.dice-swap b {
+  color: var(--muted);
+}
+.dice-swap {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.dice-swap:not(:disabled):hover {
+  border-color: var(--line-strong);
+}
+
+@container (max-width: 760px) {
+  .dice-inputs {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dice-inputs .dice-field:nth-child(2) {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}

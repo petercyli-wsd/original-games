@@ -32,7 +32,7 @@ for (const id of readdirSync(gamesDir).sort()) {
   const manifest = await load<GameManifest>('manifest.ts');
   if (manifest.status === 'template') continue;
   const reports = runEval(await load<EvalSpec>('eval.ts'), { rounds });
-  const zs = reports.map((r) => (r.rtp - manifest.rtp) / (r.stdError || Infinity));
+  const zs = reports.map((r) => (r.rtp - (r.targetRtp ?? manifest.rtp)) / (r.stdError || Infinity));
   const ok = zs.every((z) => Math.abs(z) <= 4) && reports.every((r) => r.max <= manifest.maxMultiplier + 1e-9);
   const stds = reports.map((r) => r.stdDev);
   const lo = Math.min(...stds);

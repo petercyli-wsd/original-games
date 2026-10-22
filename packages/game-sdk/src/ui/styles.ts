@@ -266,6 +266,42 @@ export const kitStyles = /* css */ `
 .og-board > svg { display: block; width: 100%; height: 100%; max-height: 62vh; overflow: visible; }
 .og-caption { margin: 0; text-align: center; font-size: 13px; line-height: 1.5; color: var(--muted); }
 
+
+/* ---------- Manual / Auto ---------- */
+.og-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--bg); border-radius: 99px; margin-bottom: 4px; }
+.og-mode-tabs button { padding: 8px 0; border-radius: 99px !important; font-size: 13px; font-weight: 700; color: var(--muted); background: transparent; }
+.og-mode-tabs button.on { color: var(--text); background: var(--hover); }
+.og-autobet { display: flex; flex-direction: column; gap: 8px; }
+.og-num-field { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); overflow: hidden; }
+.og-num-field input { flex: 1; min-width: 0; padding: 10px 12px; border: 0; outline: none; background: transparent; font-weight: 600; font-variant-numeric: tabular-nums; }
+.og-num-field input:disabled { opacity: 0.5; }
+.og-num-suffix { padding: 0 12px; color: var(--muted); font-weight: 700; }
+.og-on-outcome { display: grid; grid-template-columns: minmax(0, 1fr) 92px; gap: 6px; }
+.og-on-outcome .og-chip { font-size: 12px; padding: 8px 2px; }
+.og-stop-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+.og-stop-row > div { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.og-stop-row .og-label { margin-top: 0; }
+.og-auto-profit { text-align: center; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.og-auto-profit.up b { color: var(--green); }
+.og-auto-profit.down b { color: var(--red); }
+
+/* ---------- Instant result pill ---------- */
+.og-instant {
+  position: absolute; top: 12px; left: 50%; z-index: 4;
+  display: flex; align-items: baseline; gap: 10px; padding: 8px 16px;
+  border-radius: 99px; background: rgba(16, 16, 22, 0.9); border: 1.5px solid var(--gold);
+  font-variant-numeric: tabular-nums; transform: translateX(-50%);
+  animation: og-instant-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+  pointer-events: none;
+}
+.og-instant b { font-size: 22px; font-weight: 800; color: var(--gold); }
+.og-instant span { font-size: 13px; font-weight: 600; color: var(--muted); }
+.og-instant.win { border-color: var(--green); box-shadow: 0 0 30px -10px var(--green); }
+.og-instant.win b { color: var(--green); }
+.og-instant.lose { border-color: var(--red); }
+.og-instant.lose b { color: var(--red); }
+@keyframes og-instant-in { from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.92); } }
+
 /* ---------- Info modal ---------- */
 .og-modal-backdrop {
   position: fixed;

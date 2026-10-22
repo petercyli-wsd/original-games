@@ -44,7 +44,7 @@ for (const id of ids) {
 
   console.log(`\n${manifest.name} (${id}), target RTP ${formatPercent(manifest.rtp, 2)}, ${rounds.toLocaleString()} rounds/config`);
   const rows = runEval(spec, { rounds, seed }).map((r) => {
-    const z = (r.rtp - manifest.rtp) / (r.stdError || Infinity);
+    const z = (r.rtp - (r.targetRtp ?? manifest.rtp)) / (r.stdError || Infinity);
     const ok = Math.abs(z) <= 4 && r.max <= manifest.maxMultiplier + 1e-9;
     if (!ok) failures++;
     return {

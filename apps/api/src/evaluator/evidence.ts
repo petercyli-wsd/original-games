@@ -8,6 +8,8 @@ import type { MeasuredCheck } from '../shared.js';
 
 export interface EvalReportRow {
   label: string;
+  /** The config's own RTP target, when it overrides the manifest's. */
+  targetRtp?: number;
   rounds: number;
   rtp: number;
   stdError: number;
@@ -72,7 +74,7 @@ export function measuredChecks(e: GameEvidence): MeasuredCheck[] {
     return [{ key: 'rtp', label: 'RTP', pass: false, detail: 'No Monte Carlo eval for this game.' }];
   }
 
-  const worstZ = Math.max(...rows.map((r) => Math.abs((r.rtp - e.manifest.rtp) / (r.stdError || Infinity))));
+  const worstZ = Math.max(...rows.map((r) => Math.abs((r.rtp - (r.targetRtp ?? e.manifest.rtp)) / (r.stdError || Infinity))));
   const sds = rows.map((r) => r.stdDev).filter((s) => s > 0);
   const spread = sds.length > 1 ? Math.max(...sds) / Math.min(...sds) : 1;
   const steps = rows.map((r) => r.avgSteps).sort((a, b) => a - b);
