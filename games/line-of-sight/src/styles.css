@@ -1,0 +1,254 @@
+/* Line of Sight board. Layout, panel and readouts come from the kit. */
+
+.sight {
+  --fx: 250ms;
+}
+.sight text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+
+/* ---------- Trees ---------- */
+.sight .tree {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: fill var(--fx) ease, opacity var(--fx) ease, transform var(--fx) ease;
+}
+.sight .tree.lit {
+  fill: var(--accent);
+  opacity: 0.88;
+}
+.sight .tree.unlit {
+  fill: var(--muted);
+  opacity: 0.3;
+}
+.sight .tree.dim {
+  opacity: 0.14;
+}
+.sight .tree.lit.dim {
+  opacity: 0.24;
+}
+.sight .tree.col.lit {
+  fill: var(--green);
+  opacity: 1;
+  transform: scale(var(--lit-k, 1.15));
+}
+.sight .tree.col.unlit {
+  fill: var(--red);
+  opacity: 1;
+  transform: scale(var(--unlit-k, 1.45));
+}
+
+/* ---------- Column strip and row marker ---------- */
+.sight .strip rect {
+  fill: color-mix(in srgb, var(--accent) 9%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.5;
+}
+.sight .strip.scanning rect {
+  fill: color-mix(in srgb, var(--accent) 24%, transparent);
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.sight .rowmark line {
+  stroke: color-mix(in srgb, var(--text) 32%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+.sight .rowmark rect {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.sight .rowmark.scanning rect {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* ---------- Lines of sight ---------- */
+.sight .ray {
+  stroke-linecap: round;
+}
+.sight .ray.seen {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.sight .ray.blocked {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 5;
+}
+.sight .ray.past.seen {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+}
+.sight .ray.past.blocked {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.2;
+}
+.sight .ray.draw {
+  stroke-dasharray: 1;
+  animation: los-draw linear both;
+}
+.sight .ray.fade,
+.sight .blocker.pop {
+  animation: los-fade ease both;
+}
+.sight .blocker {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 65%, transparent);
+  stroke-width: 1.5;
+}
+.sight .blocker.first {
+  stroke: var(--text);
+  stroke-width: 2.5;
+}
+.sight .hit {
+  fill: none;
+  stroke-width: 3;
+}
+.sight .hit.pending {
+  stroke: var(--text);
+}
+.sight .hit.win {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 70%, transparent));
+}
+.sight .hit.lose {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 70%, transparent));
+  animation: los-pulse 0.45s ease 2;
+}
+.sight .hit.small {
+  stroke-width: 2;
+  filter: none;
+  animation: none;
+}
+.sight .hitlabel {
+  font-size: 13px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  animation: los-fade var(--fx) ease both;
+}
+.sight .hitlabel.win {
+  fill: var(--green);
+}
+.sight .hitlabel.lose {
+  fill: var(--red);
+}
+
+/* ---------- Observer, axes and labels ---------- */
+.sight .eye-ring {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.sight .eye {
+  fill: var(--accent);
+}
+.sight .axis {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.sight .tick {
+  font-size: 11px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sight .tick.y {
+  text-anchor: end;
+}
+.sight .pill rect {
+  fill: var(--accent);
+}
+.sight .pill text {
+  font-size: 11.5px;
+  font-weight: 800;
+  fill: var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+.sight .count {
+  font-size: 14px;
+  font-weight: 700;
+}
+.sight .count .num {
+  fill: var(--green);
+  font-size: 16px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.sight .count.orchard .num {
+  fill: var(--accent);
+}
+.sight .count.zero .num {
+  fill: var(--red);
+}
+.sight .count .of {
+  fill: var(--muted);
+}
+
+/* ---------- Tracker: one pie per target ---------- */
+.sight .token .bg {
+  fill: color-mix(in srgb, var(--red) 42%, var(--bg));
+}
+.sight .token .share {
+  fill: color-mix(in srgb, var(--green) 70%, var(--bg));
+}
+.sight .token.current .share {
+  fill: var(--green);
+}
+.sight .token:not(.current):not(.won):not(.lost) {
+  opacity: 0.72;
+}
+.sight .token .ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.sight .token.won .share {
+  fill: var(--green);
+}
+.sight .token.lost .bg {
+  fill: var(--red);
+}
+.sight .token .mark {
+  font-size: 15px;
+  font-weight: 900;
+  fill: var(--bg);
+}
+.sight .token .tlabel {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sight .token.current .tlabel {
+  fill: var(--text);
+}
+.sight .times {
+  font-size: 13px;
+  fill: var(--muted);
+}
+
+@keyframes los-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes los-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes los-pulse {
+  50% {
+    stroke-width: 6;
+  }
+}
