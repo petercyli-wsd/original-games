@@ -1,0 +1,303 @@
+/* Full Set board. Layout, panel and readouts come from the kit. */
+
+.fset text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+
+/* The ring. */
+.fset .seg {
+  transition:
+    fill 0.25s ease,
+    stroke 0.25s ease;
+}
+.fset .seg.dark {
+  fill: color-mix(in srgb, var(--green) 6%, var(--bg));
+  stroke: color-mix(in srgb, var(--green) 50%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.fset .seg.lit {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, var(--accent) 70%, #fff);
+  stroke-width: 1;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+.fset.no-spare .seg.lit {
+  fill: color-mix(in srgb, var(--accent) 55%, var(--red));
+  stroke: var(--red);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--red) 50%, transparent));
+}
+.fset.over.full .seg.lit {
+  fill: var(--green);
+  stroke: color-mix(in srgb, var(--green) 70%, #fff);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 55%, transparent));
+}
+.fset.over.short .seg.dark {
+  fill: color-mix(in srgb, var(--red) 16%, var(--bg));
+  stroke: var(--red);
+  stroke-dasharray: none;
+}
+.fset .hits {
+  font-size: 13px;
+  font-weight: 800;
+  fill: color-mix(in srgb, var(--bg) 78%, transparent);
+  pointer-events: none;
+}
+
+/* The newest landing. */
+.fset .flash {
+  pointer-events: none;
+  fill: #fff;
+  opacity: 0;
+}
+.fset .flash.fresh {
+  animation: fset-flash 0.55s ease-out;
+}
+.fset .flash.repeat {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4;
+  animation: fset-flash 0.45s ease-out;
+}
+.fset .land.fresh {
+  fill: var(--accent);
+}
+.fset .land.repeat {
+  fill: var(--muted);
+}
+
+/* The budget ring: one cell per draw. */
+.fset .cell {
+  stroke-width: 1.3;
+  transition:
+    fill 0.2s ease,
+    stroke 0.2s ease;
+}
+.fset .cell.used.fresh {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.fset .cell.used.repeat {
+  fill: color-mix(in srgb, var(--red) 42%, var(--bg));
+  stroke: color-mix(in srgb, var(--red) 55%, var(--bg));
+}
+.fset .cell.need {
+  fill: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.fset .cell.spare {
+  fill: color-mix(in srgb, var(--text) 70%, var(--bg));
+  stroke: color-mix(in srgb, var(--text) 70%, var(--bg));
+}
+.fset .cell.unused {
+  fill: var(--hover);
+  stroke: var(--hover);
+}
+.fset .cell.aim {
+  fill: #fff;
+  stroke: #fff;
+  animation: fset-pulse 0.4s ease-in-out infinite alternate;
+}
+
+/* The pointer. */
+.fset .pointer {
+  transform-box: view-box;
+  transform-origin: 200px 174px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.25, 0.7, 0.25, 1);
+}
+.fset .pointer line {
+  stroke: #fff;
+  stroke-width: 2;
+  opacity: 0.75;
+}
+.fset .pointer path {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Centre readout. */
+.fset .cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  fill: var(--muted);
+}
+.fset .big {
+  font-size: 38px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.fset .big.new {
+  fill: var(--green);
+}
+.fset .big.won {
+  fill: var(--green);
+}
+.fset .big.lost {
+  fill: var(--red);
+}
+.fset .big.cashed {
+  fill: var(--gold);
+}
+.fset .sub {
+  font-size: 13px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.fset .budget-note {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.fset .need-t {
+  fill: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+.fset .spare-t {
+  fill: color-mix(in srgb, var(--text) 75%, var(--bg));
+}
+.fset .warn {
+  fill: var(--red);
+}
+
+/* Legend under the ring. */
+.fset .key-t {
+  font-size: 12.5px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.fset .key-t.left {
+  text-anchor: end;
+}
+.fset .key-t.right {
+  text-anchor: start;
+}
+.fset .key-t .new {
+  fill: var(--green);
+  font-weight: 800;
+}
+.fset .key-t .litc {
+  fill: var(--accent);
+  font-weight: 800;
+}
+.fset .key-t .bust {
+  fill: var(--red);
+  font-weight: 800;
+}
+.fset .key-dot {
+  fill: var(--muted);
+}
+
+/* The end strip. */
+.fset .strip-cap {
+  text-anchor: start;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.1px;
+  fill: var(--muted);
+}
+.fset .strip-win {
+  text-anchor: end;
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.fset .strip-bg {
+  fill: var(--hover);
+}
+.fset .slice {
+  transition:
+    x 0.3s ease,
+    width 0.3s ease;
+}
+.fset .slice.win {
+  fill: var(--green);
+}
+.fset .slice.short1 {
+  fill: color-mix(in srgb, var(--red) 88%, var(--bg));
+}
+.fset .slice.short2 {
+  fill: color-mix(in srgb, var(--red) 60%, var(--bg));
+}
+.fset .slice.short3 {
+  fill: color-mix(in srgb, var(--red) 38%, var(--bg));
+}
+.fset .slice-pct {
+  font-size: 12px;
+  font-weight: 800;
+  fill: #fff;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.fset .slice-pct.on-win {
+  fill: var(--og-text-on-accent, #07070b);
+}
+.fset .slice-name {
+  font-size: 11px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.fset .slice-name.win {
+  fill: var(--green);
+}
+
+@keyframes fset-flash {
+  0% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes fset-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* Narrow frames: larger type (the board scales down). */
+.fset.narrow .cap {
+  font-size: 12.5px;
+}
+.fset.narrow .sub {
+  font-size: 14.5px;
+}
+.fset.narrow .budget-note {
+  font-size: 14px;
+}
+.fset.narrow .key-t {
+  font-size: 14px;
+}
+.fset.narrow .strip-cap {
+  font-size: 12px;
+}
+.fset.narrow .strip-win {
+  font-size: 14px;
+}
+.fset.narrow .slice-pct {
+  font-size: 13.5px;
+}
+.fset.narrow .slice-name {
+  font-size: 13px;
+}
+.fset.narrow .hits {
+  font-size: 15px;
+}
+
+/* The result card sits below the board, so it never covers the ring. */
+.fset-board.over {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.fset-board.over > svg {
+  min-height: 0;
+}
