@@ -1,0 +1,193 @@
+/* Median board. Layout, panel and readouts come from the kit. */
+
+.median-hint {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.median-board {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.median {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.median text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.median .hdr {
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.median .hdr.right,
+.median .lbl.right {
+  text-anchor: end;
+}
+.median .lbl {
+  font-size: 16px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.median .lbl.small {
+  font-size: 13px;
+}
+.median .mid {
+  text-anchor: middle;
+}
+.median .strong {
+  fill: var(--text);
+  font-weight: 700;
+}
+.median .win {
+  fill: var(--green);
+  font-weight: 700;
+}
+.median .lose {
+  fill: var(--red);
+  font-weight: 700;
+}
+
+/* The law of the median (preview). */
+.median .law-all {
+  fill: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.median .law-win {
+  fill: color-mix(in srgb, var(--green) 55%, transparent);
+}
+.median .law-line {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 2;
+}
+
+/* Number line. */
+.median .track {
+  fill: var(--hover);
+}
+.median .side-zone {
+  fill: color-mix(in srgb, var(--red) 28%, transparent);
+}
+.median .window {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.median .edge {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
+/* Points. */
+.median .dot {
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.median .dot.inside {
+  fill: var(--green);
+}
+.median .dot.below,
+.median .dot.above {
+  fill: var(--red);
+}
+.median .dot.med {
+  stroke: #fff;
+  stroke-width: 3;
+}
+.median .dot-wrap {
+  animation: median-fall cubic-bezier(0.3, 0, 0.6, 1) both;
+}
+.median .med-mark line {
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.median .med-mark text {
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.median .note {
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+/* Tug of war. */
+.median .rope {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 2;
+}
+.median .slot {
+  fill: var(--card, #15151c);
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
+.median .slot.on {
+  fill: var(--red);
+  stroke: var(--red);
+  opacity: 0.75;
+}
+.median .slot.bust {
+  stroke: var(--red);
+  stroke-width: 2;
+}
+.median .slot.bust.hit {
+  fill: var(--red);
+  animation: median-pop 0.5s ease 2;
+}
+.median .knot {
+  fill: color-mix(in srgb, var(--green) 25%, var(--bg));
+  stroke: var(--green);
+  stroke-width: 2;
+}
+.median .knot-n {
+  font-size: 16px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+
+/* The odds bar. */
+.median .bar-bg {
+  fill: var(--hover);
+}
+.median .bar-win {
+  fill: var(--green);
+  transition: x 0.3s ease, width 0.3s ease;
+}
+.median .bar-lose {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+  transition: x 0.3s ease, width 0.3s ease;
+}
+.median .bar-lose.alt {
+  fill: color-mix(in srgb, var(--red) 45%, transparent);
+}
+
+.median .drag {
+  fill: transparent;
+  cursor: ew-resize;
+}
+
+@keyframes median-fall {
+  from {
+    transform: translateY(-120px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+}
+@keyframes median-pop {
+  50% {
+    opacity: 0.4;
+  }
+}
