@@ -54,6 +54,7 @@ export const kitStyles = /* css */ `
 }
 
 /* ---------- Control panel ---------- */
+.og-panel > * { flex-shrink: 0; }
 .og-panel {
   display: flex;
   flex-direction: column;
@@ -216,7 +217,7 @@ export const kitStyles = /* css */ `
 .og-status.live { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
 .og-status.won { color: var(--green); border-color: color-mix(in srgb, var(--green) 50%, transparent); }
 .og-status.lost { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, transparent); }
-.og-history { display: flex; gap: 4px; overflow: hidden; justify-content: flex-end; min-width: 0; }
+.og-history { display: flex; gap: 4px; overflow: hidden; justify-content: flex-start; min-width: 0; -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent); mask-image: linear-gradient(90deg, #000 80%, transparent); }
 .og-hist {
   flex-shrink: 0;
   padding: 4px 8px;
@@ -248,6 +249,8 @@ export const kitStyles = /* css */ `
 .og-readout.chance > b { color: var(--accent); }
 .og-readout.cash > b { color: var(--gold); }
 .og-readout.prize > b { color: var(--green); }
+.og-readout.win > b { color: var(--green); }
+.og-readout.lose > b { color: var(--red); }
 
 .og-chance { display: flex; flex-direction: column; gap: 6px; }
 .og-chance-head { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--muted); }
@@ -346,6 +349,9 @@ export const kitStyles = /* css */ `
   .og-game { grid-template-columns: minmax(0, 1fr); height: auto; }
   .og-stage { order: -1; }
   .og-panel { overflow: visible; }
+  /* Phones: the main action sits right under the board, as on the big casinos. */
+  .og-mode-tabs { order: -3; }
+  .og-panel > .og-btn.bet, .og-panel > .og-btn.cash, .og-panel > .og-btn.secondary { order: -2; margin-top: 0; }
   .og-board { min-height: 240px; }
   .og-readout > b { font-size: 18px; }
   .og-readout { padding: 8px 10px; }

@@ -1,7 +1,8 @@
 // Display formatting for kit-based games.
 
 /** 1.234 → "1.23×". */
-export const fmtMult = (x: number) => (x >= 1000 ? Math.round(x).toLocaleString('en-US') : x.toFixed(2)) + '×';
+export const fmtMult = (x: number) =>
+  (x >= 1000 ? x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : x.toFixed(2)) + '×';
 
 /** A probability as a percentage, with more digits when it's small. */
 export function fmtChance(p: number): string {

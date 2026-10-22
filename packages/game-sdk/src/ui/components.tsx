@@ -199,7 +199,7 @@ export interface ReadoutItem {
   value: ReactNode;
   sub?: ReactNode;
   /** chance = the live win probability, cash = cash-out value, prize = full win. */
-  tone?: 'chance' | 'cash' | 'prize' | 'neutral';
+  tone?: 'chance' | 'cash' | 'prize' | 'win' | 'lose' | 'neutral';
 }
 
 export function Readouts({ items }: { items: ReadoutItem[] }) {
