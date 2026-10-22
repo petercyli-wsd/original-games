@@ -1,0 +1,301 @@
+/* Prime Time board. Layout, panel and readouts come from the kit. */
+
+.pt text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.pt text.start {
+  text-anchor: start;
+}
+.pt text.end {
+  text-anchor: end;
+}
+
+/* ---------- Digit tiles ---------- */
+.pt .tile .face {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  transition:
+    stroke 0.15s ease,
+    fill 0.2s ease;
+}
+.pt .tile .q {
+  font-size: 30px;
+  font-weight: 800;
+  fill: var(--muted);
+  dominant-baseline: middle;
+}
+.pt .tile .digit {
+  font-size: 36px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  dominant-baseline: middle;
+}
+.pt .tile .place {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  fill: var(--muted);
+}
+.pt .tile.shown .face,
+.pt .tile.rolling .face {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--bg));
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.pt .tile.rolling .face {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.pt .tile.auto .face {
+  stroke-dasharray: 4 4;
+}
+.pt .tile.auto .digit {
+  fill: var(--muted);
+}
+.pt .tile.click {
+  cursor: pointer;
+}
+.pt .tile.click:hover .face {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  fill: color-mix(in srgb, var(--accent) 7%, var(--bg));
+}
+.pt .tile.click:focus-visible {
+  outline: none;
+}
+.pt .tile.click:focus-visible .face {
+  stroke: var(--text);
+}
+.pt .tile.ptr .face {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+.pt .tile.ptr .q {
+  fill: var(--accent);
+}
+.pt .caret {
+  fill: var(--accent);
+}
+.pt .caret-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  fill: var(--accent);
+}
+.pt .reel {
+  animation-name: pt-reel;
+  animation-timing-function: cubic-bezier(0.15, 0.6, 0.2, 1);
+  animation-fill-mode: forwards;
+}
+@keyframes pt-reel {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(var(--to));
+  }
+}
+
+/* ---------- Fans: the chance after each value of a hidden digit ---------- */
+.pt .fan-bg {
+  fill: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.pt .bar {
+  fill: color-mix(in srgb, var(--accent) 80%, transparent);
+}
+.pt .bar.sure {
+  fill: var(--green);
+}
+.pt .bar.bust {
+  fill: var(--red);
+}
+.pt .now {
+  stroke: var(--text);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+  opacity: 0.75;
+}
+.pt .fan-label {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pt .fan-label.bust {
+  fill: var(--red);
+}
+.pt .fan-label.sure {
+  fill: var(--green);
+}
+.pt .verdict {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pt .verdict.win {
+  fill: var(--green);
+}
+.pt .verdict.lose {
+  fill: var(--text);
+}
+
+/* ---------- The candidates ---------- */
+.pt .head {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pt .head .lit {
+  fill: var(--accent);
+  font-weight: 800;
+}
+.pt .block rect {
+  fill: color-mix(in srgb, var(--bg) 60%, transparent);
+  stroke: var(--line);
+  stroke-width: 0.75;
+}
+.pt .block text {
+  text-anchor: start;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pt .cell {
+  transition:
+    transform var(--move) cubic-bezier(0.3, 0.7, 0.2, 1),
+    opacity var(--move) ease;
+}
+.pt .cell circle {
+  transition: r var(--move) ease;
+}
+.pt .cells.enter .cell {
+  animation: pt-in var(--move) ease both;
+}
+.pt .cell.dead {
+  opacity: 0.1;
+}
+.pt .dot {
+  fill: color-mix(in srgb, var(--text) 11%, var(--bg));
+}
+.pt .core {
+  fill: var(--accent);
+}
+.pt .ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 0.8;
+}
+.pt .num {
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.pt .num.on {
+  fill: #2a1410;
+}
+.pt .target {
+  fill: none;
+  stroke-width: 2.5;
+  animation: pt-pulse 1.2s ease-in-out 2;
+}
+.pt .target.win {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 6px var(--green));
+}
+.pt .target.lose {
+  stroke: var(--text);
+}
+.pt .legend text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+@keyframes pt-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pt-pulse {
+  50% {
+    stroke-width: 5;
+  }
+}
+
+/* ---------- Wide arrangement: the labelled fan and the tally ---------- */
+.og-board > svg.pt {
+  max-height: min(72vh, 720px);
+}
+.pt .detail-title {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.pt .detail-note {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.pt .detail-digit {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pt .detail-val {
+  font-size: 9.5px;
+  font-weight: 700;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.pt .detail-val.bust {
+  fill: var(--red);
+}
+.pt .detail-val.sure {
+  fill: var(--green);
+}
+.pt .tally-big {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pt .tally-big .lit,
+.pt .tally-sub .lit {
+  fill: var(--accent);
+}
+.pt .tally-big .of {
+  fill: var(--muted);
+  font-size: 20px;
+  font-weight: 700;
+}
+.pt .tally-sub {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.pt .tally-sub .lit {
+  font-weight: 800;
+}
+
+/* The round-over card's slot: beside the dots on wide boards, over the whole board otherwise. */
+.pt-overlay {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+}
+.pt-overlay.fill {
+  inset: 0;
+}
+.pt-overlay > * {
+  pointer-events: auto;
+}
+.pt.tall .legend text {
+  font-size: 10px;
+}
+.pt .cells.settled .cell.dead {
+  opacity: 0.38;
+}
