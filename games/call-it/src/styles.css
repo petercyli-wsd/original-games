@@ -1,0 +1,153 @@
+/* Call It board. Layout, panel and readouts come from the kit. */
+
+.ci-board {
+  --card-red: #ff4f79;
+  --card-black: #22252e;
+}
+.ci-board text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.ci-board text.start {
+  text-anchor: start;
+}
+.ci-board text.end {
+  text-anchor: end;
+}
+.ci-board .ci-cap {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.ci-board .ci-small {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.ci-board .ci-num {
+  font-size: 50px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ci-board .ci-num .r {
+  fill: var(--card-red);
+}
+.ci-board .ci-num .slash {
+  fill: var(--text);
+}
+.ci-board .ci-pct {
+  font-size: 22px;
+  font-weight: 800;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Cards */
+.ci-face rect {
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-width: 1;
+}
+.ci-face.red rect {
+  fill: var(--card-red);
+}
+.ci-face.black rect {
+  fill: var(--card-black);
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+}
+.ci-face .pip {
+  fill: rgba(255, 255, 255, 0.92);
+}
+.ci-face.black .pip {
+  fill: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.ci-face.last rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.ci-face.called rect {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.ci-face.called.win rect {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.ci-face.called.lose rect {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.ci-back rect {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--bg));
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.ci-back .inner {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.ci-back .q {
+  font-size: 42px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.ci-flip {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: ci-flip;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: both;
+}
+@keyframes ci-flip {
+  0% {
+    transform: scaleX(0.02);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+/* The deck bar */
+.ci-bar .frame {
+  fill: var(--hover);
+}
+.ci-bar rect.red {
+  fill: var(--card-red);
+}
+.ci-bar rect.black {
+  fill: var(--card-black);
+}
+.ci-bracket path {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.5;
+}
+.ci-bracket text {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--green);
+}
+.ci-board .ci-none {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--red);
+}
+
+/* Turned-over grid */
+.ci-slot {
+  fill: none;
+  stroke: var(--line-strong, rgba(255, 255, 255, 0.18));
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+/* Deck chips in the panel */
+.ci-chip i {
+  font-style: normal;
+}
+.ci-chip i.r {
+  color: #ff4f79;
+}
