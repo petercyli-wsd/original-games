@@ -1,0 +1,695 @@
+/* Baccarat: two hands on the board, the betting felt and the bead road below. */
+
+.bc-game {
+  --bc-p: #3b82f6;
+  --bc-b: #ef4444;
+  --bc-t: #22c55e;
+  --cw: clamp(44px, 7.4cqi, 76px);
+}
+
+/* ---------- Panel ---------- */
+.bc-game .og-panel > * {
+  flex-shrink: 0;
+}
+.bc-denoms {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.bc-denom {
+  display: grid;
+  place-items: center;
+  padding: 3px 0 !important;
+  background: transparent;
+  border-radius: 99px !important;
+}
+.bc-denom svg {
+  width: 100%;
+  max-width: 30px;
+  aspect-ratio: 1;
+  display: block;
+  overflow: visible;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+.bc-denom:not(:disabled):hover svg {
+  transform: translateY(-2px);
+}
+.bc-denom.on svg {
+  transform: translateY(-3px) scale(1.08);
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gold) 80%, transparent));
+}
+.bc-tools {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.bc-tools .og-ghost {
+  padding: 8px 2px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.bc-note {
+  margin: 0 0 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.bc-note.center {
+  text-align: center;
+}
+.bc-note.err {
+  color: var(--red);
+}
+
+/* ---------- Chips (SVG) ---------- */
+.bc-chip .edge {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 2.6;
+}
+.bc-chip .face {
+  stroke: rgba(255, 255, 255, 0.35);
+  stroke-width: 0.8;
+}
+.bc-chip text {
+  text-anchor: middle;
+  font-weight: 800;
+  fill: #fff;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* ---------- Board: the two hands ---------- */
+.bc-board.og-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 0;
+  padding: 58px 0 2px;
+}
+.bc-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 12px;
+  width: min(100%, 760px);
+}
+.bc-vs {
+  display: grid;
+  place-items: center;
+}
+.bc-vs span {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bc-hand {
+  --hc: var(--bc-p);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 10px 14px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--hc) 9%, transparent), transparent 70%), var(--bg);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.bc-hand.banker {
+  --hc: var(--bc-b);
+}
+.bc-hand.win {
+  border-color: var(--hc);
+  box-shadow: 0 0 0 1px var(--hc), 0 0 40px -12px var(--hc);
+}
+.bc-hand.tie {
+  border-color: color-mix(in srgb, var(--bc-t) 70%, transparent);
+}
+.bc-hand.lose .bc-cards {
+  opacity: 0.5;
+  filter: saturate(0.6);
+  transition: opacity 0.4s ease;
+}
+.bc-hand-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  max-width: calc(var(--cw) * 3.6);
+}
+.bc-hand-name {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--hc);
+}
+.bc-total {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 99px;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  background: var(--hc);
+  box-shadow: 0 4px 14px -4px var(--hc);
+  animation: bc-pop 0.22s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+.bc-total.none {
+  color: var(--muted);
+  background: var(--raised);
+  box-shadow: none;
+  animation: none;
+}
+.bc-cards {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  height: calc(var(--cw) * 1.4);
+  min-width: 0;
+}
+
+/* ---------- Cards ---------- */
+.bc-slot {
+  position: relative;
+  flex: none;
+  width: var(--cw);
+  height: calc(var(--cw) * 1.4);
+  perspective: 700px;
+}
+.bc-slot.side {
+  width: calc(var(--cw) * 1.4);
+  height: var(--cw);
+}
+.bc-slot.empty {
+  border-radius: calc(var(--cw) * 0.1);
+  border: 1.5px dashed var(--line);
+}
+.bc-card {
+  --dx: 70px;
+  position: absolute;
+  left: calc(50% - var(--cw) / 2);
+  top: calc(50% - var(--cw) * 0.7);
+  width: var(--cw);
+  height: calc(var(--cw) * 1.4);
+  animation: bc-deal calc(var(--step, 520ms) * 0.42) cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+.bc-card.right {
+  --dx: -70px;
+}
+.bc-slot.side .bc-card {
+  rotate: 90deg;
+}
+.bc-card-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transform: rotateY(180deg);
+  transition: transform calc(var(--step, 520ms) * 0.5) cubic-bezier(0.3, 0.6, 0.3, 1);
+}
+.bc-card.up .bc-card-inner {
+  transform: rotateY(0deg);
+}
+.bc-face,
+.bc-back {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--cw) * 0.1);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  box-shadow: 0 6px 16px -6px #000c, 0 1px 0 #0006;
+}
+.bc-face {
+  color: #1d1b26;
+  background: linear-gradient(160deg, #ffffff, #ebe8f4);
+  border: 1px solid #d9d4e8;
+}
+.bc-face.red {
+  color: #d42a4a;
+}
+.bc-corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 0.95;
+}
+.bc-corner b {
+  font-size: calc(var(--cw) * 0.26);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.bc-corner i {
+  font-style: normal;
+  font-size: calc(var(--cw) * 0.2);
+}
+.bc-corner.tl {
+  top: 6%;
+  left: 8%;
+}
+.bc-corner.br {
+  right: 8%;
+  bottom: 6%;
+  transform: rotate(180deg);
+}
+.bc-pip {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: calc(var(--cw) * 0.56);
+  line-height: 1;
+}
+.bc-back {
+  transform: rotateY(180deg);
+  border: calc(var(--cw) * 0.05) solid #f1eefa;
+  background:
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.16) 0 1.5px, transparent 1.5px 7px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.16) 0 1.5px, transparent 1.5px 7px),
+    linear-gradient(140deg, color-mix(in srgb, var(--accent) 85%, #fff), color-mix(in srgb, var(--accent) 55%, #000));
+}
+@keyframes bc-deal {
+  from {
+    opacity: 0;
+    translate: var(--dx) -90px;
+    scale: 0.85;
+  }
+}
+@keyframes bc-pop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+
+/* ---------- Result banner ---------- */
+.bc-banner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-height: 46px;
+  padding: 6px 22px;
+  border-radius: 99px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  text-align: center;
+  animation: bc-pop 0.25s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+}
+.bc-banner b {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.bc-banner span {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bc-banner.idle b {
+  color: var(--muted);
+}
+.bc-banner.live b {
+  color: var(--accent);
+}
+.bc-banner.P {
+  border-color: var(--bc-p);
+  box-shadow: 0 0 28px -10px var(--bc-p);
+}
+.bc-banner.P b {
+  color: var(--bc-p);
+}
+.bc-banner.B {
+  border-color: var(--bc-b);
+  box-shadow: 0 0 28px -10px var(--bc-b);
+}
+.bc-banner.B b {
+  color: var(--bc-b);
+}
+.bc-banner.T {
+  border-color: var(--bc-t);
+  box-shadow: 0 0 28px -10px var(--bc-t);
+}
+.bc-banner.T b {
+  color: var(--bc-t);
+}
+
+/* ---------- Felt ---------- */
+.bc-felt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-lg);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+  background:
+    radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%),
+    color-mix(in srgb, var(--accent) 6%, var(--bg));
+}
+.bc-felt-sides {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.bc-felt-mains {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 8px;
+}
+.bc-spot {
+  --sc: var(--accent);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 8px 6px 6px;
+  border-radius: var(--radius);
+  border: 1.5px solid color-mix(in srgb, var(--sc) 45%, transparent) !important;
+  background: color-mix(in srgb, var(--sc) 8%, rgba(0, 0, 0, 0.25));
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.3s ease, box-shadow 0.3s ease;
+}
+.bc-spot.player {
+  --sc: var(--bc-p);
+}
+.bc-spot.banker {
+  --sc: var(--bc-b);
+}
+.bc-spot.tie {
+  --sc: var(--bc-t);
+}
+.bc-spot.side {
+  --sc: color-mix(in srgb, var(--accent) 80%, #fff);
+}
+.bc-spot:not(:disabled):hover {
+  background: color-mix(in srgb, var(--sc) 16%, rgba(0, 0, 0, 0.25));
+  border-color: var(--sc) !important;
+}
+.bc-felt.locked .bc-spot:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.bc-spot-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sc);
+  line-height: 1.15;
+}
+.bc-spot.main .bc-spot-name {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+.bc-spot-name kbd {
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--sc) 45%, transparent);
+  font: inherit;
+  font-size: 10px;
+  color: var(--muted);
+}
+.bc-spot-pays {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.bc-spot.main .bc-spot-pays {
+  font-size: 13px;
+}
+.bc-spot-chance {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bc-spot-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  animation: bc-chip-in 0.18s ease-out both;
+}
+.bc-spot.side .bc-spot-chips {
+  height: 24px;
+}
+.bc-stack {
+  height: 100%;
+  width: auto;
+  overflow: visible;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.55));
+}
+.bc-spot.main {
+  min-height: 104px;
+}
+.bc-spot.side {
+  min-height: 82px;
+}
+.bc-spot.won {
+  border-color: var(--green) !important;
+  background: color-mix(in srgb, var(--green) 16%, rgba(0, 0, 0, 0.25));
+  box-shadow: 0 0 26px -8px var(--green);
+}
+.bc-spot.push.has {
+  border-color: var(--gold) !important;
+}
+.bc-spot.lost {
+  opacity: 0.55 !important;
+}
+.bc-spot.lost .bc-stack {
+  opacity: 0.4;
+}
+.bc-spot-gain {
+  position: absolute;
+  top: -9px;
+  right: 6px;
+  padding: 2px 7px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #06140a;
+  background: var(--green);
+  font-variant-numeric: tabular-nums;
+  animation: bc-pop 0.25s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+.bc-spot-gain.push {
+  color: #1a1204;
+  background: var(--gold);
+}
+@keyframes bc-chip-in {
+  from {
+    transform: translateY(-6px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+/* ---------- Bead road ---------- */
+.bc-road {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+.bc-road-grid {
+  --bead: 20px;
+  display: grid;
+  grid-template-rows: repeat(6, var(--bead));
+  grid-auto-columns: var(--bead);
+  grid-auto-flow: column;
+  gap: 3px;
+  flex: none;
+}
+.bc-bead {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #fff;
+}
+.bc-bead.empty {
+  background: color-mix(in srgb, var(--line) 50%, transparent);
+  transform: scale(0.42);
+}
+.bc-bead.P {
+  background: var(--bc-p);
+}
+.bc-bead.B {
+  background: var(--bc-b);
+}
+.bc-bead.T {
+  background: var(--bc-t);
+  color: #052e12;
+}
+.bc-bead.latest {
+  animation: bc-pop 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+  box-shadow: 0 0 0 2px var(--raised), 0 0 0 3.5px var(--text);
+}
+.bc-bead i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  border: 1.5px solid #fff;
+}
+.bc-bead i.pp {
+  top: -2px;
+  left: -2px;
+  background: var(--bc-p);
+}
+.bc-bead i.bp {
+  right: -2px;
+  bottom: -2px;
+  background: var(--bc-b);
+}
+.bc-road-tally {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 14px;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+.bc-road-tally > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.bc-road-tally dt {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.bc-road-tally dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.bc-road-tally .P dd {
+  color: var(--bc-p);
+}
+.bc-road-tally .B dd {
+  color: var(--bc-b);
+}
+.bc-road-tally .T dd {
+  color: var(--bc-t);
+}
+
+/* ---------- Info modal ---------- */
+.bc-paytable {
+  width: 100%;
+  margin: 0 0 10px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.bc-paytable th,
+.bc-paytable td {
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.bc-paytable th:first-child,
+.bc-paytable td:first-child {
+  text-align: left;
+}
+.bc-paytable th {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ---------- Narrow frames ---------- */
+@container (max-width: 760px) {
+  .bc-game {
+    --cw: clamp(38px, 10.4cqi, 64px);
+  }
+  .bc-board.og-board {
+    padding-top: 54px;
+  }
+  .bc-table {
+    gap: 6px;
+  }
+  .bc-hand {
+    padding: 10px 6px 12px;
+  }
+  .bc-cards {
+    gap: 4px;
+  }
+  .bc-vs span {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+  }
+  .bc-spot.main .bc-spot-name {
+    font-size: 14px;
+  }
+  .bc-spot-name kbd {
+    display: none;
+  }
+  .bc-spot.side .bc-spot-name {
+    font-size: 10px;
+    letter-spacing: 0.02em;
+  }
+  .bc-spot.side .bc-spot-pays {
+    font-size: 11px;
+  }
+  .bc-road {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bc-road-grid {
+    --bead: min(20px, calc((100cqi - 90px) / 14 - 3px));
+    align-self: center;
+  }
+  .bc-road-tally {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .bc-road-tally > div {
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 4px 6px;
+  }
+}
