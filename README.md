@@ -12,8 +12,10 @@ original-games/
 │   ├── crocodile-dentist/   Croc Dentist (vs House)
 │   ├── croc-dentist-solo/   Croc Dentist (Solo), reuses the croc from crocodile-dentist
 │   └── <id>/                One folder per game
-├── scripts/              eval runner, new-game scaffolder
+├── scripts/              eval runner, new-game scaffolder, headless play driver, report
 ├── docs/IDEAS.md         Concept backlog + eval rubric
+├── docs/CATALOGUE.md     Maths-first batch: theorem → game specs, uniqueness, results
+├── docs/BUILDING-GAMES.md   The build and pricing contract for kit-based games
 └── render.yaml           Render Blueprint (one static site)
 ```
 
@@ -65,6 +67,21 @@ Then replace `math.ts`, `eval.ts` and `Game.tsx`. Every game should:
 1. Keep the payout maths in pure functions (`math.ts`) with a test showing every cash-out point is worth exactly the RTP.
 2. Ship an `eval.ts` whose simulated player samples strategies (e.g. a random cash-out step). `npm run eval` fails CI if the measured RTP is more than 4 standard errors from the manifest RTP, or a payout exceeds `maxMultiplier`.
 3. Set `status`: `prototype` games appear under **Experimental**, and `beta` and `live` under **Core**. `template` games show only in dev, or in production when `VITE_SHOW_TEMPLATES=true`.
+
+### The shared UI kit
+
+`@originals/game-sdk/ui` gives React games the house template (controls on the left, board on the right, board first on narrow frames) and a single round flow: idle → live → over, where over offers **Bet again** (Space) or **Clear board** (Esc), and changing a setting clears a finished board back to a preview. It provides `GameLayout`, `BetField`, `Chips`, `Slider`, `Readouts`, `ChanceBar`, `StageTop`, `Board`, `InfoModal`, plus hooks for the bet input, the ticket (which settles at the resolved value if the player leaves mid-step), hotkeys, turbo, timers and history. Pass `kitStyles + styles` to `defineReactGame`. `games/half-moon` is the reference; `docs/BUILDING-GAMES.md` is the contract.
+
+### Checking a game end to end
+
+```bash
+npx tsx scripts/eval.ts --game <id>                     # Monte Carlo RTP per config
+node scripts/play.mjs <id> --steps "shot:idle;text:Bet;wait:1500;shot:live;key:c;wait:800;shot:over"
+npx tsx scripts/report.ts                               # markdown results table for every game
+node scripts/commit-game.mjs <id> "message"             # commit one game folder (safe in parallel)
+```
+
+`play.mjs` starts the game's standalone server, drives it in headless Chrome over the DevTools protocol (click by text or selector, keys, waits, screenshots, viewport sizes) and exits non-zero on any console error.
 
 ## Ratings
 

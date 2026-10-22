@@ -15,8 +15,7 @@ if (!id || !message || !existsSync(join(root, 'games', id))) {
   process.exit(1);
 }
 
-const TRAILER = 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>';
-const full = message.includes(TRAILER) ? message : `${message.trim()}\n\n${TRAILER}`;
+const full = message.trim();
 const path = `games/${id}`;
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);

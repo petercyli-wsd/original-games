@@ -1,10 +1,10 @@
 // Hooks shared by kit-based games: the bet input, the bet ticket's lifecycle,
 // keyboard shortcuts, turbo, cancellable timers and the result history.
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { formatAmount } from '../money';
 import { useBalance, useHost, useSettings } from '../react';
-import type { BetTicket } from '../types';
+import { createTicketLifecycle } from './ticket-lifecycle';
 
 export interface BetInput {
   /** What's in the input box. */
@@ -23,7 +23,7 @@ export interface BetInput {
 export function useBetInput(initial = 1): BetInput {
   const balance = useBalance();
   const [text, setText] = useState(formatAmount(initial, 2));
-  const parsed = parseFloat(text);
+  const parsed = Number(text.trim());
   const value = Number.isFinite(parsed) ? parsed : 0;
   const blocked = !(value > 0) ? 'Enter a valid bet' : value > balance + 1e-9 ? 'Not enough balance' : undefined;
   return {
@@ -42,7 +42,7 @@ export interface Ticket {
   place(amount: number): Promise<boolean>;
   /** Pays stake × multiplier and closes the ticket. Safe to call more than once. */
   settle(multiplier: number): void;
-  /** Whether a bet is open. */
+  /** Whether a bet is open or being placed. */
   active(): boolean;
 }
 
@@ -53,45 +53,14 @@ export interface Ticket {
  */
 export function useTicket(fairValue: () => number): Ticket {
   const { wallet } = useHost();
-  const ticket = useRef<BetTicket | null>(null);
-  const placing = useRef(false);
   const fair = useRef(fairValue);
   fair.current = fairValue;
-
-  useEffect(
-    () => () => {
-      const t = ticket.current;
-      ticket.current = null;
-      if (t) void t.settle(Math.max(0, fair.current() || 0));
-    },
-    [],
-  );
-
-  const place = useCallback(
-    async (amount: number) => {
-      if (placing.current || ticket.current) return false;
-      placing.current = true;
-      try {
-        ticket.current = await wallet.placeBet(amount);
-        return true;
-      } catch {
-        return false;
-      } finally {
-        placing.current = false;
-      }
-    },
-    [wallet],
-  );
-
-  const settle = useCallback((multiplier: number) => {
-    const t = ticket.current;
-    ticket.current = null;
-    if (t) void t.settle(Math.max(0, multiplier));
-  }, []);
-
-  const active = useCallback(() => ticket.current !== null, []);
-
-  return { place, settle, active };
+  const lifecycle = useMemo(() => createTicketLifecycle(wallet, () => fair.current()), [wallet]);
+  useEffect(() => {
+    lifecycle.activate();
+    return () => lifecycle.dispose();
+  }, [lifecycle]);
+  return lifecycle;
 }
 
 export interface Hotkeys {
