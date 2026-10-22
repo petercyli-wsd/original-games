@@ -5,6 +5,7 @@ import { createApp, type AppOptions } from './app.js';
 import { parseOrigins } from './config.js';
 import { ANCHORS } from './evaluator/anchors.js';
 import { evidenceFrom, measuredChecks, type GameEvidence } from './evaluator/evidence.js';
+import { DEFAULT_CRITERIA } from './evaluator/rubric.js';
 import type { JsonRequest, Llm } from './evaluator/llm.js';
 import { createEvaluator } from './evaluator/service.js';
 import { fitWeights, spearman } from './evaluator/stats.js';
@@ -25,6 +26,7 @@ const A = '11111111-1111-4111-8111-111111111111';
 const B = '22222222-2222-4222-8222-222222222222';
 const C = '33333333-3333-4333-8333-333333333333';
 const ADMIN = 'test-admin-key';
+const DEFAULT_WEIGHT_TOTAL = DEFAULT_CRITERIA.reduce((s, c) => s + c.weight, 0);
 
 let server: Server | undefined;
 afterEach(() => server?.close());
@@ -88,7 +90,7 @@ async function start(opts: Partial<AppOptions> & { scoreFor?: (name: string) => 
     llm: fake.llm,
     evals: createMemoryEvalStore(),
     ratings,
-    evidence: evidenceFrom(opts.games ?? [game('alpha'), game('beta'), game('gamma'), game('drift')]),
+    evidence: evidenceFrom(opts.games ?? [game('alpha'), game('beta'), game('gamma'), game('delta'), game('drift')]),
   });
   server = createServer(createApp({ ratings, evaluator, corsOrigins: '*', adminKey: ADMIN, ...opts }));
   await new Promise<void>((resolve) => server!.listen(0, resolve));
@@ -185,7 +187,7 @@ describe('evaluator API', () => {
   it('seeds version 1 and reports status', async () => {
     const { getJson } = await start();
     const status = await getJson<EvaluatorStatus>('/evaluator');
-    expect(status).toMatchObject({ aiEnabled: true, adminConfigured: true, evidenceGames: 4 });
+    expect(status).toMatchObject({ aiEnabled: true, adminConfigured: true, evidenceGames: 5 });
     expect(status.activeVersion?.id).toBe(1);
     expect(status.activeVersion?.criteria).toHaveLength(CRITERION_KEYS.length);
   });
@@ -216,22 +218,27 @@ describe('evaluator API', () => {
     expect(await getJson('/evaluations/beta')).toBeNull();
   });
 
-  it('refines from human reviews, backtests the candidate and promotes it', async () => {
+  it('refines from train games only, backtests the candidate and promotes it', async () => {
     const ratings = createMemoryStore();
-    // Humans love alpha and dislike the rest.
-    for (const [g, stars] of [['alpha', 5], ['beta', 2], ['gamma', 1]] as const) {
+    // Humans love alpha and dislike the rest. beta falls in the holdout split.
+    for (const [g, stars] of [['alpha', 5], ['beta', 2], ['gamma', 1], ['delta', 2]] as const) {
       await ratings.upsert(g, A, stars, `${g} review`, 'Peter');
       await ratings.upsert(g, B, stars);
     }
-    const { post, getJson, waitJob } = await start({ ratings });
+    const { post, getJson, waitJob, calls } = await start({ ratings });
 
     const job = await waitJob((await (await post('/evaluator/refine')).json()) as Job);
     expect(job.status).toBe('done');
     const { versionId, metrics, activeMetrics } = job.result as { versionId: number; metrics: PromptVersion['metrics']; activeMetrics: PromptVersion['metrics'] };
     expect(versionId).toBe(2);
-    expect(metrics).toMatchObject({ humanGames: 3, anchorsTotal: ANCHORS.length });
+    expect(metrics).toMatchObject({ humanGames: 4, anchorsTotal: ANCHORS.length, holdout: { games: 1 } });
     expect(metrics!.spearman).toBeGreaterThan(0.8);
     expect(activeMetrics!.anchorsPassed).toBe(ANCHORS.length);
+
+    // The refiner never sees the held-out game or its review.
+    const refineCall = calls.find((c) => 'changelog' in (c.schema.properties as object))!;
+    expect(refineCall.user).toContain('| alpha |');
+    expect(refineCall.user).not.toContain('beta');
 
     const candidate = await getJson<PromptVersion>('/evaluator/versions/2');
     expect(candidate).toMatchObject({ status: 'candidate', parentId: 1, guidance: 'New guidance.' });
@@ -241,7 +248,7 @@ describe('evaluator API', () => {
     const status = await getJson<EvaluatorStatus>('/evaluator');
     expect(status.activeVersion?.id).toBe(2);
     const agreement = await getJson<{ rows: unknown[]; spearman: number }>('/evaluator/agreement');
-    expect(agreement.rows).toHaveLength(3);
+    expect(agreement.rows).toHaveLength(4);
   });
 
   it('refuses to refine without enough reviewed games', async () => {
@@ -250,14 +257,102 @@ describe('evaluator API', () => {
     const { post, waitJob } = await start({ ratings });
     const job = await waitJob((await (await post('/evaluator/refine')).json()) as Job);
     expect(job.status).toBe('error');
-    expect(job.errors[0]).toMatch(/at least 3 games/);
+    expect(job.errors[0]).toMatch(/at least 3 training games/);
   });
 
   it('runs one paid job at a time', async () => {
     const { post, waitJob } = await start({ delayMs: 30 });
     const first = (await (await post('/evaluations', { target: 'all' })).json()) as Job;
     expect((await post('/evaluations', { target: 'alpha' })).status).toBe(409);
-    expect(await waitJob(first)).toMatchObject({ status: 'done', total: 4, done: 4 });
+    expect(await waitJob(first)).toMatchObject({ status: 'done', total: 5, done: 5 });
+  });
+});
+
+describe('calibration strategy', () => {
+  it('never shows a game its own reviews, and pins the scale with the top and bottom games', async () => {
+    const ratings = createMemoryStore();
+    for (const [g, stars] of [['alpha', 5], ['gamma', 1], ['delta', 3]] as const) await ratings.upsert(g, A, stars, `${g} comment`);
+    const { post, waitJob, calls } = await start({ ratings });
+    await waitJob((await (await post('/evaluations', { target: 'alpha' })).json()) as Job);
+    const judge = calls.find((c) => c.user.includes('Evaluate the game "ALPHA"'))!;
+    expect(judge.user).not.toContain('ALPHA (team');
+    expect(judge.user).toContain('GAMMA (team: 1.0/5 from 1 review)');
+    expect(judge.user).toMatch(/GAMMA[^\n]*lowest-rated game/);
+    expect(judge.user).toMatch(/DELTA[^\n]*highest-rated game/);
+    // References and per-game facts go in the user message; the system prompt is shared.
+    expect(judge.system).not.toContain('gamma comment');
+  });
+});
+
+describe('Claude Code path', () => {
+  const card = { concept: 'c', win_condition: 'w', odds_display: 'o', volatility_controls: 'v', checkpoints: 'k', round_flow: 'r', maths_family: 'm', dynamics: ['ladder'], theme_dependence: 't', closest_known_games: [] };
+  const review = {
+    criteria: CRITERION_KEYS.map((key) => ({ key, reasoning: 'r', score: key === 'odds_legibility' ? 5 : 3 })),
+    pros: ['p'],
+    cons: ['c'],
+    closest_existing: 'Mines',
+    duplicate_of: '',
+    verdict: 'v',
+    recommendation: 'iterate',
+  };
+
+  it('serves prompts and imports reviews made in Claude Code', async () => {
+    const { post, getJson, base } = await start();
+    const prompt = (await (await post('/evaluator/judge-prompt', { gameId: 'alpha', card })).json()) as { system: string; user: string; versionId: number };
+    expect(prompt.versionId).toBe(1);
+    expect(prompt.system).toContain('## Rubric');
+    expect(prompt.user).toContain('Evaluate the game "ALPHA"');
+
+    const imported = await post('/evaluations/import', { gameId: 'alpha', codeHash: 'hash-alpha', card, review, model: 'claude-code (Opus)' });
+    expect(imported.status).toBe(200);
+    const view = await getJson<EvaluationView>('/evaluations/alpha');
+    // Weighted: odds_legibility 5 at weight 3, the other eight criteria 3.
+    const others = DEFAULT_WEIGHT_TOTAL - 3;
+    expect(view.overall).toBeCloseTo((5 * 3 + 3 * others) / DEFAULT_WEIGHT_TOTAL, 5);
+    expect(view).toMatchObject({ model: 'claude-code (Opus)', recommendation: 'iterate', stale: false });
+    expect(view.rulesCard?.concept).toBe('c');
+    expect(await (await fetch(`${base}/evaluator/cards/alpha?hash=hash-alpha`)).json()).toMatchObject({ concept: 'c' });
+
+    const bad = await post('/evaluations/import', { gameId: 'alpha', codeHash: 'h', review: { ...review, criteria: review.criteria.slice(1) } });
+    expect(bad.status).toBe(400);
+    expect((await post('/evaluations/import', { gameId: 'alpha', codeHash: 'h', review }, null)).status).toBe(401);
+
+    const anchorPrompt = (await (await post('/evaluator/judge-prompt', { anchorId: ANCHORS[0].id })).json()) as { user: string };
+    expect(anchorPrompt.user).toContain(ANCHORS[0].name);
+  });
+
+  it('runs refine, calibration and scoring without in-app AI', async () => {
+    const ratings = createMemoryStore();
+    for (const [g, stars] of [['alpha', 5], ['beta', 2], ['gamma', 1], ['delta', 2]] as const) await ratings.upsert(g, A, stars, 'comment');
+    const { post, getJson, base } = await start({ ratings });
+
+    expect((await getJson<{ error?: string }>('/evaluator/refine-prompt')).error).toBe('Wrong admin key');
+    const rp = (await (await fetch(`${base}/evaluator/refine-prompt`, { headers: { 'x-admin-key': ADMIN } })).json()) as { train: string[]; holdout: string[]; missing: string[] };
+    expect([...rp.train].sort()).toEqual(['alpha', 'delta', 'gamma']);
+    expect(rp.holdout).toEqual(['beta']);
+    expect([...rp.missing].sort()).toEqual(['alpha', 'delta', 'gamma']);
+
+    const proposal = {
+      changelog: 'x',
+      guidance: 'g',
+      criteria: CRITERION_KEYS.map((key) => ({ key, weight: 2, descriptor_1: 'a', descriptor_3: 'b', descriptor_5: 'c' })),
+      exemplars: [
+        { gameId: 'beta', note: 'held out, so dropped' },
+        { gameId: 'gamma', note: 'ok' },
+      ],
+    };
+    const candidate = (await (await post('/evaluator/versions', { proposal })).json()) as PromptVersion;
+    expect(candidate).toMatchObject({ id: 2, status: 'candidate', parentId: 1 });
+    expect(candidate.exemplars.map((x) => x.gameId)).toEqual(['gamma']);
+
+    const cal = await getJson<{ todo: { games: string[]; anchors: unknown[] } }>('/evaluator/calibration?version=2');
+    expect(cal.todo.games).toHaveLength(4);
+    expect(cal.todo.anchors).toHaveLength(ANCHORS.length);
+    for (const g of ['alpha', 'beta', 'gamma', 'delta']) {
+      await post('/evaluations/import', { gameId: g, versionId: 2, codeHash: `hash-${g}`, review });
+    }
+    const scored = (await (await post('/evaluator/versions/2/score')).json()) as { metrics: PromptVersion['metrics'] };
+    expect(scored.metrics).toMatchObject({ humanGames: 4, holdout: { games: 1 } });
   });
 });
 

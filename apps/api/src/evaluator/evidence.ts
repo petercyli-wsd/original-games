@@ -118,11 +118,3 @@ export function evalTable(e: GameEvidence): string {
     .join('\n');
   return `${head}\n${body}`;
 }
-
-/** One line per game, for the uniqueness check. Stable order keeps the prompt cacheable. */
-export function catalogue(index: EvidenceIndex): string {
-  return index
-    .all()
-    .map((g) => `- ${g.id}: ${g.manifest.name}, "${g.manifest.tagline}" [${g.manifest.mechanic}]`)
-    .join('\n');
-}

@@ -18,7 +18,16 @@
 //   GET  /evaluator/jobs[/:id]
 //   GET  /evaluations                    -> { [gameId]: summary } under the active version
 //   GET  /evaluations/:gameId            -> full review or null
-//   POST /evaluations * { target: gameId | "all" | "missing" } -> job
+//   POST /evaluations * { target: gameId | "all" | "missing" } -> job (in-app, flagged)
+//
+// Claude Code path (scripts/evaluator.ts drives these; all need the admin key):
+//   GET  /evaluator/cards/:gameId?hash=  -> cached rules card or null
+//   POST /evaluator/judge-prompt *       { gameId|anchorId, card?, facts?, table?, versionId?, pool? } -> prompt
+//   POST /evaluations/import *           { gameId|anchorId, versionId?, codeHash, card?, review, checks?, model? }
+//   GET  /evaluator/refine-prompt *      -> refine prompt over train games, plus games still to review
+//   POST /evaluator/versions *           { proposal } -> candidate version
+//   GET  /evaluator/calibration?version= -> what to review to backtest a version
+//   POST /evaluator/versions/:id/score * -> recompute agreement metrics from stored reviews
 
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
@@ -29,6 +38,8 @@ import type { RatingsStore } from './store.js';
 const GAME_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BODY = 8 * 1024;
+// Rules cards, reviews and prompts are a few KB each.
+const MAX_EVALUATOR_BODY = 128 * 1024;
 const REVIEWS_SHOWN = 20;
 
 export interface AppOptions {
@@ -126,7 +137,7 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
     throw new HttpError(405, 'Method not allowed');
   }
 
-  async function evaluatorRoute(req: IncomingMessage, parts: string[]): Promise<unknown> {
+  async function evaluatorRoute(req: IncomingMessage, url: URL, parts: string[]): Promise<unknown> {
     const ev = requireEvaluator();
     const [section, id, action] = parts;
     const get = req.method === 'GET';
@@ -148,8 +159,32 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
       requireAdmin(req);
       return ev.startRefine();
     }
+    if (section === 'cards' && id && get) {
+      return ev.card(validGameId(id), url.searchParams.get('hash') ?? '');
+    }
+    if (section === 'judge-prompt' && post && !id) {
+      requireAdmin(req);
+      return ev.judgePrompt((await readJson(req, MAX_EVALUATOR_BODY)) as Parameters<Evaluator['judgePrompt']>[0]);
+    }
+    if (section === 'refine-prompt' && get && !id) {
+      requireAdmin(req);
+      return ev.refinePrompt();
+    }
+    if (section === 'calibration' && get && !id) {
+      const v = url.searchParams.get('version');
+      return ev.calibration(v ? versionId(v) : undefined);
+    }
     if (section === 'versions') {
       if (!id && get) return ev.versions();
+      if (!id && post) {
+        requireAdmin(req);
+        const body = (await readJson(req, MAX_EVALUATOR_BODY)) as { proposal?: unknown };
+        return ev.submitVersion(body.proposal as Parameters<Evaluator['submitVersion']>[0]);
+      }
+      if (id && action === 'score' && post) {
+        requireAdmin(req);
+        return ev.scoreVersion(versionId(id));
+      }
       if (id && !action && get) return ev.version(versionId(id));
       if (id && action === 'backtest' && post) {
         requireAdmin(req);
@@ -166,6 +201,10 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
   async function evaluationsRoute(req: IncomingMessage, gameId: string | undefined): Promise<unknown> {
     const ev = requireEvaluator();
     if (req.method === 'GET') return gameId ? ev.view(validGameId(gameId)) : ev.summaries();
+    if (req.method === 'POST' && gameId === 'import') {
+      requireAdmin(req);
+      return ev.importEvaluation((await readJson(req, MAX_EVALUATOR_BODY)) as Parameters<Evaluator['importEvaluation']>[0]);
+    }
     if (req.method === 'POST' && !gameId) {
       requireAdmin(req);
       const body = (await readJson(req)) as { target?: unknown };
@@ -180,7 +219,7 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
     const [resource, ...parts] = url.pathname.split('/').filter(Boolean);
     if (req.method === 'GET' && resource === 'health' && !parts.length) return { ok: true };
     if (resource === 'ratings' && parts.length <= 1) return ratingsRoute(req, url, parts[0]);
-    if (resource === 'evaluator' && parts.length <= 3) return evaluatorRoute(req, parts);
+    if (resource === 'evaluator' && parts.length <= 3) return evaluatorRoute(req, url, parts);
     if (resource === 'evaluations' && parts.length <= 1) return evaluationsRoute(req, parts[0]);
     throw new HttpError(404, 'Not found');
   }
@@ -220,12 +259,12 @@ function applyCors(req: IncomingMessage, res: ServerResponse, origins: string[] 
   res.setHeader('access-control-max-age', '86400');
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+async function readJson(req: IncomingMessage, limit = MAX_BODY): Promise<unknown> {
   let size = 0;
   const chunks: Buffer[] = [];
   for await (const chunk of req as AsyncIterable<Buffer>) {
     size += chunk.length;
-    if (size > MAX_BODY) throw new HttpError(413, 'Body too large');
+    if (size > limit) throw new HttpError(413, 'Body too large');
     chunks.push(chunk);
   }
   try {

@@ -42,8 +42,14 @@ function MetricsTable({ rows }: { rows: { label: string; metrics: BacktestMetric
         </tr>
       </thead>
       <tbody>
-        {line('Rank agreement', (m) => fmt(m.spearman), 'Spearman correlation between AI overall and the human average, -1 to 1. Higher is better.')}
-        {line('Average gap', (m) => (m.mae === null ? '—' : `${m.mae.toFixed(2)}★`), 'Mean absolute difference from the human average. Lower is better.')}
+        {line(
+          'Holdout agreement',
+          (m) => (m.holdout ? `${fmt(m.holdout.spearman)} (${m.holdout.games})` : '—'),
+          'Spearman correlation with the team on held-out games the refiner never saw. The number to compare versions on. Needs 3+ held-out games.',
+        )}
+        {line('Holdout gap', (m) => (m.holdout?.mae == null ? '—' : `${m.holdout.mae.toFixed(2)}★`), 'Mean absolute difference from the team on held-out games.')}
+        {line('Agreement, all games', (m) => fmt(m.spearman), 'Spearman correlation on every reviewed game, including those the refiner learned from (optimistic).')}
+        {line('Gap, all games', (m) => (m.mae === null ? '—' : `${m.mae.toFixed(2)}★`), 'Mean absolute difference from the team on every reviewed game.')}
         {line('Anchors passed', (m) => `${m.anchorsPassed}/${m.anchorsTotal}`, 'Proven games must score high and known reskins low.')}
         {line('Games compared', (m) => String(m.humanGames), 'Games with human reviews in the backtest.')}
       </tbody>
@@ -178,7 +184,9 @@ export function Evaluator() {
   const candidates = versions.filter((v) => v.status === 'candidate');
   const history = versions.filter((v) => v.status === 'retired');
   const running = job?.status === 'running';
-  const canAct = Boolean(key && status?.aiEnabled && !running);
+  // In-app runs are behind the server's IN_APP_AI_REVIEWS flag; when it's off the buttons are hidden.
+  const inApp = Boolean(status?.aiEnabled);
+  const canAct = Boolean(key && inApp && !running);
   const reviewedGames = agreement?.rows.length ?? 0;
 
   return (
@@ -195,11 +203,17 @@ export function Evaluator() {
       </div>
 
       {error && <p className="rankings-banner error">{error}</p>}
-      <p className="rankings-banner">
-        <b>In development.</b> The run buttons on this page call the Anthropic API with a billed key (ANTHROPIC_API_KEY on the API service). The
-        team's main path is moving to Claude Code on the subscription; reviews made either way are stored and shown here the same way.
-      </p>
-      {status && !status.aiEnabled && <p className="rankings-banner">In-app AI reviews are off: no ANTHROPIC_API_KEY on the API service.</p>}
+      {status && !inApp && (
+        <p className="rankings-banner">
+          In-app AI reviews are switched off. Reviews are run from Claude Code and stored here; this page shows them, tracks agreement with the
+          team and promotes prompt versions.
+        </p>
+      )}
+      {inApp && (
+        <p className="rankings-banner">
+          <b>In development.</b> In-app AI reviews are switched on (IN_APP_AI_REVIEWS): the run buttons call the Anthropic API with a billed key.
+        </p>
+      )}
       {status && !status.adminConfigured && <p className="rankings-banner">Admin actions are off: set ADMIN_KEY on the API service.</p>}
 
       <div className="ev-grid">
@@ -230,33 +244,35 @@ export function Evaluator() {
             <li>Refine: Claude studies where it disagrees with you and proposes a better prompt, which is backtested automatically.</li>
             <li>Promote the candidate if it agrees with the team better.</li>
           </ol>
-          <div className="ev-actions">
-            <button type="button" className="btn-primary" disabled={!canAct} onClick={() => void track(startEvaluate('missing'))}>
-              Review unreviewed games
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              disabled={!canAct}
-              onClick={() => {
-                if (window.confirm(`Re-review all ${status?.evidenceGames ?? ''} games with Claude Opus? Each takes one or two calls.`)) {
-                  void track(startEvaluate('all'));
-                }
-              }}
-            >
-              Review all games
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              disabled={!canAct || reviewedGames < 3}
-              title={reviewedGames < 3 ? 'Needs team reviews on at least 3 games' : undefined}
-              onClick={() => void track(startRefine())}
-            >
-              Refine prompt from reviews
-            </button>
-          </div>
-          {!key && <p className="rating-note">Unlock with the admin passphrase to run reviews.</p>}
+          {inApp && (
+            <div className="ev-actions">
+              <button type="button" className="btn-primary" disabled={!canAct} onClick={() => void track(startEvaluate('missing'))}>
+                Review unreviewed games
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!canAct}
+                onClick={() => {
+                  if (window.confirm(`Re-review all ${status?.evidenceGames ?? ''} games with Claude Opus? Each takes one or two calls.`)) {
+                    void track(startEvaluate('all'));
+                  }
+                }}
+              >
+                Review all games
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={!canAct || reviewedGames < 3}
+                title={reviewedGames < 3 ? 'Needs team reviews on at least 3 games' : undefined}
+                onClick={() => void track(startRefine())}
+              >
+                Refine prompt from reviews
+              </button>
+            </div>
+          )}
+          {inApp && !key && <p className="rating-note">Unlock with the admin passphrase to run reviews.</p>}
           {reviewedGames < 3 && <p className="rating-note">Refining needs team reviews on at least 3 games ({reviewedGames} so far).</p>}
           {job && <JobProgress job={job} />}
           {job?.kind === 'refine' && job.status === 'done' && <p className="rating-note">A candidate prompt is ready below.</p>}
@@ -272,9 +288,11 @@ export function Evaluator() {
                 Candidate v{c.id} <small>from v{c.parentId}</small>
               </h2>
               <div className="ev-actions">
-                <button type="button" className="btn-ghost" disabled={!canAct} onClick={() => void track(startBacktest(c.id))}>
-                  Backtest again
-                </button>
+                {inApp && (
+                  <button type="button" className="btn-ghost" disabled={!canAct} onClick={() => void track(startBacktest(c.id))}>
+                    Backtest again
+                  </button>
+                )}
                 <button type="button" className="btn-primary" disabled={!key || running} onClick={() => void doPromote(c.id)}>
                   Promote to active
                 </button>

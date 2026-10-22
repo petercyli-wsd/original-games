@@ -87,30 +87,66 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 **Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change.
 
-> **In development.** The in-app "Run AI review" and Refine buttons call the Anthropic API with a billed key (`ANTHROPIC_API_KEY`). The team's preferred path is moving to Claude Code on the subscription, with results still stored through the API in Neon. The rubric, prompts, storage and pages below are shared by both paths.
+**AI reviews** score each game against the Originals brief in two stages:
 
-**AI reviews.** Claude (Opus 5.5) reviews each game against the Originals brief in two stages:
+1. **Rules card**: read the game's source and write a factual card (concept, win condition, how odds appear, volatility controls, checkpoints, maths). Cached per code version.
+2. **Judge**: score nine criteria from 1 to 5 (odds on screen, clear win condition, simplicity, uniqueness, volatility control, checkpoints, pace, fun, geometry-first) from the card, the measured facts and a catalogue of every other game (for reskin detection). The overall score is a weighted mean computed in code.
 
-1. **Rules card**: it reads the game's source and writes a factual card (concept, win condition, how odds appear, volatility controls, checkpoints, maths). Cached per code version.
-2. **Judge**: it scores nine criteria from 1 to 5 (odds on screen, clear win condition, simplicity, uniqueness, volatility control, checkpoints, pace, fun, geometry-first) from the card, the measured eval facts and a catalogue of every other game (for reskin detection). The overall score is a weighted mean.
+Facts a machine can measure (RTP, volatility spread ≥ 5×, round length, checkpoints) are computed from Monte Carlo evals, not judged.
 
-Facts a machine can measure (RTP, volatility spread ≥ 5×, round length, checkpoints) are computed by `scripts/evidence.ts`, not judged.
+### Running reviews from Claude Code (the default)
 
-**Training loop** (`/evaluator` page):
+Reviews run in a Claude Code session on the team's subscription; results are stored through the API in Neon and show on the site like any other review.
 
-1. The team writes reviews.
-2. **Refine** sends Claude the disagreements between AI and team scores, the review comments and a least-squares weight fit, and gets back a candidate prompt (weights, score descriptions, guidance, reference games).
-3. The candidate is **backtested** automatically on the most-reviewed games plus calibration anchors (proven games like Mines and Russian roulette must score high, reskins like Frozen Lake low). The page shows rank agreement (Spearman) and average gap against the active prompt.
-4. You **promote** it if it agrees with the team better. Every review records the prompt version it used.
+1. Add to `.env.local` at the repo root (git-ignored):
+   ```
+   ORIGINALS_API_URL=https://<your-api>.onrender.com
+   ORIGINALS_ADMIN_KEY=<the ADMIN_KEY set on the API service>
+   ```
+2. In Claude Code at the repo root:
 
-**API** (`apps/api`): plain Node + Postgres (Neon's free tier). `npm run build -w @originals/api` first runs `scripts/evidence.ts`, which writes each game's manifest, gameplay source and eval stats to `apps/api/evidence/`, so the deployed API reviews exactly the code it was built from. Environment:
+| Skill | What it does |
+|---|---|
+| `/review-game drift slice` | Reviews specific games |
+| `/review-games` | Reviews every game that's new or changed since its last review (`/review-games all` for everything), in parallel |
+| `/refine-evaluator` | Proposes a better prompt from the team's reviews, backtests it, and recommends whether to promote |
+
+Each judgement runs in its own subagent that sees only its prompt file, so the judge scores from the rules card and facts, never from the code. The skills drive `npm run evaluator` (`scripts/evaluator.ts`), which builds prompts with the same code the API uses and validates every result before storing it. Working files go to `.evaluator/` (git-ignored).
+
+### How the prompt is calibrated
+
+Not every reviewed game goes into the prompt. Showing all of them would bloat the context, anchor the judge on near-duplicates, and leak the answer during backtests. Instead:
+
+- **The rubric does most of the calibration.** Each criterion defines what a 1, a 3 and a 5 look like. The judge writes its reasoning before each score, scores criteria independently, and the weighted overall is computed in code rather than guessed holistically.
+- **At most 6 reference games per review, chosen per game:** the team's highest- and lowest-rated games (to pin the scale), the refiner's curated exemplars, then the most similar reviewed games (same mechanic, dynamics or closest known games). Each comes with a one-line description and up to two review comments.
+- **Leave-one-out.** A game is never shown its own reviews.
+- **Train/holdout split.** About 30% of reviewed games are held out by a fixed hash. The refiner learns only from train games; versions are compared on holdout agreement (Spearman ρ and average gap in stars), which shows whether a change generalises rather than memorises.
+- **Anchors.** Proven games (Russian roulette, Mines, Crash, Dice) must score ≥ 3.6 and known-bad concepts (a Mines reskin, a theme-dependent concept, an unintuitive maths game) ≤ 2.6. They are never shown as examples, so they stay a fair test.
+- **The refiner writes principles, not verdicts.** It may change weights, score descriptions, guidance (capped at 350 words, consolidated rather than appended) and up to 4 curated exemplars, and it gets a least-squares weight fit as a hint. Nothing goes live until someone promotes it.
+- **Cache-friendly layout.** The rubric and catalogue form a stable system prompt; per-game references and facts go in the user message.
+
+### Training loop
+
+1. The team plays games and writes reviews (score plus pros and cons).
+2. `/review-games` reviews new or changed games.
+3. `/refine-evaluator` proposes a candidate prompt and backtests it on train and holdout games plus anchors.
+4. Promote the candidate (from Claude Code or the site's Evaluator page) if holdout agreement improves and the anchors pass. Every review records the prompt version it used.
+
+### In-app reviews (in development, off by default)
+
+The site can also run reviews through the billed Anthropic API. This is behind a feature flag: set `IN_APP_AI_REVIEWS=true` and `ANTHROPIC_API_KEY` on the API service to show the run buttons on the site. With the flag off, the site still shows every stored review, the agreement table and prompt versions, and can promote versions.
+
+### API
+
+`apps/api` is plain Node + Postgres (Neon's free tier). `npm run build -w @originals/api` first runs `scripts/evidence.ts`, which packs each game's manifest, gameplay source and eval stats into `apps/api/evidence/`. Environment:
 
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | Postgres connection string; in-memory if unset |
-| `ANTHROPIC_API_KEY` | Enables AI reviews |
-| `ADMIN_KEY` | Passphrase the site sends for anything that calls Claude (reviews, refine, backtest, promote) |
+| `ADMIN_KEY` | Passphrase for anything that writes evaluator data (Claude Code imports, promote, in-app runs) |
 | `CORS_ORIGINS` | The site's URL, or `*` |
+| `IN_APP_AI_REVIEWS` | `true` to enable in-app reviews (in development) |
+| `ANTHROPIC_API_KEY` | Only used when `IN_APP_AI_REVIEWS` is on |
 
 The site reads the API's address from `VITE_RATINGS_API_URL` at build time; if it's unset, reviews and the evaluator are hidden. Locally: `npm run dev:api` (in-memory, port 8787) alongside `npm run dev`.
 

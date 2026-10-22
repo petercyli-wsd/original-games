@@ -68,10 +68,14 @@ export const RULES_CARD_SCHEMA = {
 // Judge
 // ---------------------------------------------------------------------------
 
+/** A team-reviewed game shown to the judge as a calibration reference. */
 export interface ExemplarContext {
   name: string;
+  /** One line on what the game is, so the reference means something. */
+  concept: string;
   humanAverage: number;
   humanCount: number;
+  /** Why it was picked: a scale pin, a similar game, or the refiner's note. */
   note: string;
   comments: string[];
 }
@@ -85,18 +89,10 @@ function rubricText(criteria: CriterionDef[]): string {
     .join('\n\n');
 }
 
-export function judgeSystem(version: PromptVersion, catalogue: string, exemplars: ExemplarContext[]): string {
-  const exemplarText = exemplars.length
-    ? exemplars
-        .map(
-          (e) =>
-            `- ${e.name}: humans rated it ${e.humanAverage.toFixed(1)}/5 (${e.humanCount} ${e.humanCount === 1 ? 'review' : 'reviews'}). ${e.note}${
-              e.comments.length ? `\n  Reviewers said: ${e.comments.map((c) => `"${c}"`).join(' ')}` : ''
-            }`,
-        )
-        .join('\n')
-    : 'None yet.';
-
+// The system prompt depends only on the prompt version and the catalogue, so it
+// is identical for every game in a batch and caches; per-game material
+// (references, rules card, facts) goes in the user message.
+export function judgeSystem(version: PromptVersion, catalogue: string): string {
   return `You evaluate casino "Originals" game concepts for a studio that prototypes many of them and needs to pick the best. Your scores are compared with the team's own reviews, so be candid and consistent: most prototypes are mediocre, and a 5 must be earned.
 
 ${BRIEF}
@@ -109,9 +105,8 @@ ${rubricText(version.criteria)}
 ## Guidance from the team's reviews
 ${version.guidance}
 
-## Reference games the team has reviewed
-Use these to calibrate your scale.
-${exemplarText}
+## Reference games
+Each request includes a few games the team has already reviewed, with their scores and comments. Use them to calibrate the level of your scores (what the team considers a 2 or a 4), not as templates: judge the game in front of you on its own merits. The game under review is never among its own references.
 
 ## Catalogue of existing games
 Check uniqueness against these and against well-known market games (Dice, Limbo, Crash, Mines, Plinko, Keno, Blackjack, Baccarat, Coin Flip, HiLo, Tower, Chicken Road, Wheel). Set duplicate_of to a catalogue id only if the game under review is essentially the same maths and decision as that game with a different look; otherwise leave it empty.
@@ -121,8 +116,21 @@ ${catalogue}
 Return every criterion exactly once. Then list the strongest pros and the most important cons (two to four each), name the closest existing game, and give a one-sentence verdict with a recommendation: ship (strong as is), iterate (promising, fix the cons) or drop (not worth more work).`;
 }
 
-export function judgeUser(name: string, id: string, card: unknown, checks: string, evalTable: string): string {
-  return `Evaluate the game "${name}" (id: ${id}).
+function referencesText(refs: ExemplarContext[]): string {
+  if (!refs.length) return 'None yet: the team has not reviewed other games.';
+  return refs
+    .map((e) => {
+      const said = e.comments.length ? `\n  Reviewers said: ${e.comments.map((c) => `"${c}"`).join(' ')}` : '';
+      return `- ${e.name} (team: ${e.humanAverage.toFixed(1)}/5 from ${e.humanCount} ${e.humanCount === 1 ? 'review' : 'reviews'}). ${e.concept} [${e.note}]${said}`;
+    })
+    .join('\n');
+}
+
+export function judgeUser(name: string, id: string, card: unknown, checks: string, evalTable: string, references: ExemplarContext[]): string {
+  return `Reference games the team has reviewed, lowest score first:
+${referencesText(references)}
+
+Evaluate the game "${name}" (id: ${id}).
 
 Rules card:
 ${JSON.stringify(card, null, 2)}
@@ -172,10 +180,11 @@ ${BRIEF}
 You may change:
 - each criterion's weight (0 to 3) and its 1/3/5 descriptions; the criterion keys, names and questions are fixed;
 - the guidance text: the lessons the evaluator should apply. Rewrite and consolidate it; do not just append. Keep it under 350 words;
-- the exemplars: up to 6 reviewed games that best calibrate the scale. Prefer games spanning low to high human scores, and explain in each note what the evaluator should learn from it.
+- the curated exemplars: up to 4 reviewed games that teach something the rubric alone does not. The judge also sees the team's highest- and lowest-rated games and the most similar reviewed games, picked automatically, so don't spend exemplars on those. Explain in each note what the judge should learn from it.
 
 Rules:
 - Change only what the evidence supports. Where human reviews are few or conflict, keep the current wording.
+- Write lessons as general principles, never as facts about specific games ("odds shown only as a number cap odds_legibility at 3", not "Slice deserves a 3"). Some reviewed games are held out to test whether your changes generalise.
 - Explain the reason for each change in the changelog, citing the games and comments that motivated it.
 - Proven games (Mines, Crash, Dice, Russian roulette) must keep scoring highly, and theme reskins must keep scoring low.`;
 
@@ -185,6 +194,7 @@ export function refineUser(
   comments: Map<string, Review[]>,
   fittedWeights: Record<string, number> | null,
   anchorResults: string,
+  holdoutCount: number,
 ): string {
   const table = rows
     .map(
@@ -201,7 +211,7 @@ export function refineUser(
   return `Current version (id ${version.id}):
 ${JSON.stringify({ criteria: version.criteria, guidance: version.guidance, exemplars: version.exemplars }, null, 2)}
 
-Human average vs AI overall, with the AI's criterion scores:
+Training games (${rows.length}; another ${holdoutCount} reviewed ${holdoutCount === 1 ? 'game is' : 'games are'} held out to test your changes). Human average vs AI overall, with the AI's criterion scores:
 | game | human (n) | AI | AI criteria |
 |---|---|---|---|
 ${table}

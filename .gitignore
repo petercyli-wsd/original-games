@@ -5,4 +5,6 @@ dist
 .DS_Store
 # Built by scripts/evidence.ts during the API build
 apps/api/evidence/
+# Working files for Claude Code reviews (scripts/evaluator.ts)
+.evaluator/
 .qa/

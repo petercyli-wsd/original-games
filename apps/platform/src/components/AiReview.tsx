@@ -169,7 +169,7 @@ export function AiReview({ gameId }: { gameId: string }) {
       {job && <JobProgress job={job} />}
       <div className="ai-actions">
         {!aiEnabled ? (
-          <p className="rating-note">In-app AI reviews are off on the server (no ANTHROPIC_API_KEY).</p>
+          <p className="rating-note">AI reviews are run from Claude Code.</p>
         ) : key ? (
           <button type="button" className="btn-primary" disabled={running} onClick={() => void run()} title="In development: calls the billed Anthropic API">
             {running ? 'Reviewing… (about a minute)' : review ? 'Re-run AI review (API, beta)' : 'Run AI review (API, beta)'}

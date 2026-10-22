@@ -112,14 +112,25 @@ export interface PromptVersion {
   metrics: BacktestMetrics | null;
 }
 
-export interface BacktestMetrics {
-  ranAt: string;
-  /** Games with human reviews that were scored. */
-  humanGames: number;
+export interface AgreementStats {
+  games: number;
   /** Rank agreement with human averages, -1..1; null with under 3 games. */
   spearman: number | null;
   /** Mean absolute gap to the human average, in stars. */
   mae: number | null;
+}
+
+export interface BacktestMetrics {
+  ranAt: string;
+  /** Games with human reviews that were scored (train and holdout). */
+  humanGames: number;
+  spearman: number | null;
+  mae: number | null;
+  /**
+   * Agreement on held-out games: their reviews never reach the refiner, so
+   * this is the honest number to compare versions on.
+   */
+  holdout: AgreementStats;
   anchorsPassed: number;
   anchorsTotal: number;
   anchorFailures: string[];
@@ -181,6 +192,8 @@ export interface EvaluationView extends Evaluation {
 
 export interface EvaluationSummary {
   overall: number;
+  /** The code version that was reviewed; tools compare it with local code. */
+  codeHash: string;
   recommendation: Evaluation['recommendation'];
   stale: boolean;
   createdAt: string;
@@ -216,6 +229,17 @@ export interface AgreementRow {
   humanAverage: number;
   humanCount: number;
   aiOverall: number | null;
+}
+
+/**
+ * Deterministic train/holdout split of reviewed games (about 30% holdout).
+ * The refiner learns only from train games; holdout games measure whether a
+ * prompt change generalises instead of memorising the reviews it was shown.
+ */
+export function isHoldout(gameId: string): boolean {
+  let h = 2166136261;
+  for (let i = 0; i < gameId.length; i++) h = Math.imul(h ^ gameId.charCodeAt(i), 16777619);
+  return (h >>> 0) % 10 < 3;
 }
 
 /** Weighted mean of criterion scores under a version's weights, 1..5. */

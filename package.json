@@ -16,6 +16,7 @@
     "test": "vitest run",
     "eval": "tsx scripts/eval.ts",
     "evidence": "tsx scripts/evidence.ts",
+    "evaluator": "tsx scripts/evaluator.ts",
     "new-game": "node scripts/new-game.mjs",
     "check": "npm run typecheck && npm test && npm run eval -- --rounds 50000"
   },

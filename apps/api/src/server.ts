@@ -19,8 +19,10 @@ if (!config.databaseUrl) console.warn('DATABASE_URL not set: using in-memory sto
 // Evidence packs are built next to dist/ by `npm run build` (scripts/evidence.ts).
 const evidenceDir = config.evidenceDir ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'evidence');
 const evidence = loadEvidence(evidenceDir);
-const llm = config.anthropicApiKey ? createClaude(config.anthropicApiKey) : null;
-console.log(`Evaluator: ${evidence.all().length} games of evidence, AI reviews ${llm ? 'on' : 'off (no ANTHROPIC_API_KEY)'}, admin ${config.adminKey ? 'on' : 'off (no ADMIN_KEY)'}`);
+// In-app AI reviews are behind a feature flag while the Claude Code path is the default.
+const llm = config.inAppAiReviews && config.anthropicApiKey ? createClaude(config.anthropicApiKey) : null;
+const aiState = llm ? 'on' : config.inAppAiReviews ? 'off (no ANTHROPIC_API_KEY)' : 'off (IN_APP_AI_REVIEWS is not "true")';
+console.log(`Evaluator: ${evidence.all().length} games of evidence, in-app AI reviews ${aiState}, admin ${config.adminKey ? 'on' : 'off (no ADMIN_KEY)'}`);
 
 const evaluator = createEvaluator({ llm, evals: stores.evals, ratings: stores.ratings, evidence });
 await evaluator.activeVersion(); // seeds version 1 on first start
