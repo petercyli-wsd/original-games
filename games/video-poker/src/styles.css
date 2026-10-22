@@ -1,0 +1,482 @@
+/* Video Poker: paytable, five cards on the felt and the hold row. Layout and panel come from the kit. */
+
+.vp-board {
+  place-items: start center;
+  min-height: 0;
+}
+.vp-table {
+  --gap: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: min(100%, 700px);
+}
+
+/* ---------- Paytable ---------- */
+.vp-pay {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 14px;
+  padding: 8px 10px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 12%, var(--bg)), var(--bg));
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+}
+.vp-pay-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.vp-pay-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 46px 74px;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+.vp-pay-row span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.vp-pay-row span i {
+  font-style: normal;
+}
+.vp-pay-row span .short {
+  display: none;
+}
+.vp-pay-row b {
+  text-align: right;
+  font-weight: 800;
+  color: var(--gold);
+}
+.vp-pay-row em {
+  text-align: right;
+  font-size: 12px;
+  font-style: normal;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.vp-pay-row.head {
+  padding-bottom: 4px;
+}
+.vp-pay-row.head > * {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.vp-pay-row.royal span {
+  color: var(--gold);
+}
+.vp-pay-row.made {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.vp-pay-row.hit {
+  background: color-mix(in srgb, var(--green) 16%, transparent);
+  box-shadow: inset 0 0 0 1px var(--green);
+  animation: vp-hit 0.7s ease 2;
+}
+.vp-pay-row.hit span,
+.vp-pay-row.hit b,
+.vp-pay-row.hit em {
+  color: var(--green);
+}
+
+/* ---------- Cards ---------- */
+.vp-hand {
+  container-type: inline-size;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--gap);
+  padding-top: 22px;
+}
+.vp-slot {
+  --cw: calc((100cqi - 4 * var(--gap)) / 5);
+  --ink: #171a2b;
+  --ink-red: #d4204a;
+  position: relative;
+  min-width: 0;
+}
+.og-game .vp-slot-btn {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  aspect-ratio: 5 / 7;
+  background: none;
+  border-radius: calc(var(--cw) * 0.08);
+  perspective: 900px;
+}
+.og-game .vp-slot-btn:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.og-game .vp-slot-btn:not(:disabled):active {
+  transform: none;
+}
+.og-game .vp-slot-btn:not(:disabled):hover .vp-card {
+  filter: brightness(1.06);
+}
+.vp-card {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--cw) * 0.08);
+  transition: transform 0.18s cubic-bezier(0.3, 0.7, 0.3, 1.3), opacity 0.25s ease, filter 0.25s ease, outline-color 0.2s;
+  outline: 2px dashed transparent;
+  outline-offset: 4px;
+}
+.vp-flip {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+.vp-card.deal .vp-flip {
+  animation: vp-flip var(--ms) cubic-bezier(0.3, 0.7, 0.25, 1) var(--d) both;
+}
+.vp-card.down {
+  animation: vp-tuck 0.18s ease both;
+}
+.vp-face {
+  position: absolute;
+  inset: 0;
+  border-radius: calc(var(--cw) * 0.08);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+.vp-face.front {
+  color: var(--ink);
+  background: linear-gradient(165deg, #ffffff 0%, #eef0f7 100%);
+  box-shadow: 0 12px 30px -10px #000d, inset 0 0 0 1px #0000001f;
+  transition: box-shadow 0.25s ease;
+}
+.vp-card.red .vp-face.front {
+  color: var(--ink-red);
+}
+.vp-flip > .vp-face.back {
+  transform: rotateY(180deg);
+}
+.vp-face.back {
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--accent) 35%, #fff) 0 7%, transparent 7.5%),
+    repeating-linear-gradient(45deg, transparent 0 7px, #ffffff1a 7px 8px),
+    repeating-linear-gradient(-45deg, transparent 0 7px, #ffffff1a 7px 8px),
+    linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, #000) 0%, color-mix(in srgb, var(--accent) 52%, #000) 100%);
+  border: calc(var(--cw) * 0.045) solid #e7e8f3;
+  box-shadow: 0 12px 30px -12px #000d;
+}
+.vp-face.back::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 46%;
+  aspect-ratio: 1;
+  border: 2px solid #ffffff59;
+  border-radius: 4px;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.vp-corner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.vp-corner.tl {
+  top: 7%;
+  left: 8%;
+}
+.vp-corner.br {
+  right: 8%;
+  bottom: 7%;
+  transform: rotate(180deg);
+}
+.vp-corner b {
+  font-size: calc(var(--cw) * 0.2);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+.vp-corner i {
+  font-style: normal;
+  font-size: calc(var(--cw) * 0.16);
+}
+.vp-pip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  font-size: calc(var(--cw) * 0.5);
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+.vp-pip.ace {
+  font-size: calc(var(--cw) * 0.66);
+}
+.vp-court {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+.vp-court b {
+  position: relative;
+  font-size: calc(var(--cw) * 0.34);
+  font-weight: 800;
+}
+.vp-court i {
+  position: relative;
+  margin-top: calc(var(--cw) * 0.02);
+  font-style: normal;
+  font-size: calc(var(--cw) * 0.16);
+}
+.vp-court-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--cw) * 0.5);
+  aspect-ratio: 1;
+  border: 2px solid currentColor;
+  border-radius: 5px;
+  opacity: 0.22;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: color-mix(in srgb, currentColor 7%, transparent);
+}
+
+/* Held, best, scoring, dimmed */
+.vp-slot.held .vp-card {
+  transform: translateY(-12px);
+}
+.vp-held-tag,
+.vp-best-tag {
+  position: absolute;
+  left: 50%;
+  z-index: 3;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.vp-held-tag {
+  top: -22px;
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 4px 14px -4px var(--accent);
+  animation: vp-pop 0.18s ease both;
+}
+.vp-best-tag {
+  bottom: -9px;
+  color: #1a1204;
+  background: var(--gold);
+}
+.vp-slot.best .vp-card {
+  outline-color: var(--gold);
+}
+.vp-slot.score .vp-card {
+  transform: translateY(-8px);
+}
+.vp-slot.score .vp-face.front {
+  box-shadow: 0 0 0 3px var(--green), 0 0 30px -4px var(--green), 0 12px 30px -10px #000d;
+}
+.vp-slot.dim .vp-card,
+.vp-hand.lost .vp-card {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+/* ---------- Hold row / round over ---------- */
+.vp-foot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+}
+.vp-holds {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--gap);
+  width: 100%;
+}
+.og-game .vp-hold {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--hover);
+  border: 1px solid var(--line) !important;
+}
+.og-game .vp-hold:disabled {
+  opacity: 0.35;
+}
+.og-game .vp-hold.on {
+  color: #fff;
+  background: var(--accent);
+  border-color: transparent !important;
+  box-shadow: 0 0 22px -8px var(--accent);
+}
+.vp-hold kbd,
+.vp-kbd {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  background: var(--bg);
+}
+.vp-hold.on kbd {
+  color: #fff;
+  background: #0003;
+}
+.vp-kbd {
+  margin-left: 6px;
+}
+
+/* ---------- Panel ---------- */
+.vp-hint-toggle {
+  margin-top: 8px;
+}
+.vp-auto-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+.vp-auto-note b {
+  font-size: 13px;
+  color: var(--text);
+}
+.vp-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- Animations ---------- */
+@keyframes vp-flip {
+  0% {
+    transform: translateY(-16px) rotateY(180deg);
+  }
+  60% {
+    transform: translateY(-4px) rotateY(20deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes vp-tuck {
+  from {
+    transform: scale(0.94);
+    opacity: 0.4;
+  }
+}
+@keyframes vp-pop {
+  from {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes vp-hit {
+  50% {
+    background: color-mix(in srgb, var(--green) 34%, transparent);
+  }
+}
+
+/* ---------- Narrow frames ---------- */
+@container (max-width: 760px) {
+  .vp-table {
+    --gap: 8px;
+  }
+  .vp-pay {
+    gap: 0 8px;
+    padding: 6px 6px;
+  }
+  .vp-pay-row {
+    grid-template-columns: minmax(0, 1fr) 34px 58px;
+    gap: 4px;
+    padding: 2px 5px;
+    font-size: 11px;
+  }
+  .vp-pay-row em {
+    font-size: 10px;
+  }
+  .vp-pay-row span .full {
+    display: none;
+  }
+  .vp-pay-row span .short {
+    display: inline;
+  }
+  .vp-pay-row.head > * {
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+  .og-game .vp-hold {
+    height: 34px;
+    gap: 4px;
+    font-size: 11px;
+    letter-spacing: 0.02em;
+  }
+  .vp-hold kbd {
+    padding: 0 4px;
+    font-size: 10px;
+  }
+  .vp-held-tag,
+  .vp-best-tag {
+    padding: 1px 6px;
+    font-size: 9px;
+  }
+}
+
+/* ---------- Kit adjustments ---------- */
+/* The board's grid track must not grow to the cards' content width on narrow frames. */
+.vp-board {
+  grid-template-columns: minmax(0, 1fr);
+}
+.vp-table {
+  justify-self: center;
+}
+/* The Auto panel is long: let it scroll instead of squashing the bet field. */
+.vp-game .og-panel > * {
+  flex-shrink: 0;
+}
+.vp-chips2 .og-chips {
+  flex-wrap: wrap;
+}
+.vp-game .vp-chips2 .og-chips .og-chip {
+  flex: 1 0 calc(50% - 4px);
+  min-width: 0;
+  padding-left: 4px;
+  padding-right: 4px;
+  white-space: nowrap;
+}
