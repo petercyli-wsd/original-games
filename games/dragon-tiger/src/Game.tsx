@@ -117,7 +117,10 @@ export default function Game() {
   const baseRef = useRef(layout);
 
   const resolved = useRef(0);
-  const ticket = useTicket(() => (dealing ? resolved.current : 0));
+  // A ticket is only open between place() and settle(), and the outcome is drawn
+  // synchronously right after place() resolves, so resolved.current always holds
+  // this round's result while a ticket is open: leaving mid-deal pays exactly it.
+  const ticket = useTicket(() => resolved.current);
 
   const total = totalOf(layout);
   const stats = useMemo(() => layoutStats(layout), [layout]);
@@ -373,7 +376,7 @@ export default function Game() {
         </>
       }
     >
-      <StageTop status={status} tone={dealing ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
+      <StageTop status={status} tone={dealing ? 'live' : last ? (last.multiplier > 1 + 1e-9 ? 'won' : last.multiplier < 1 - 1e-9 ? 'lost' : 'idle') : 'idle'} history={history} />
 
       <Board className="dt-board">
         <InstantResult multiplier={revealed ? last!.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />

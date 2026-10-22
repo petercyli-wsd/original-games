@@ -256,7 +256,8 @@ export function Table({ layout, hits, halves, paid, disabled, onAdd, onRemove, o
             {chipText(amt)}
           </span>
         )}
-        {(won || (half && amt > 0)) && <span className={'dt-paid' + (half ? ' half' : '')}>+{money(paid[bet.id] ?? 0)}</span>}
+        {won && <span className="dt-paid">+{money(Math.max(0, (paid[bet.id] ?? 0) - amt))}</span>}
+        {half && amt > 0 && <span className="dt-paid half">{money(paid[bet.id] ?? 0)} back</span>}
       </button>
     );
   };

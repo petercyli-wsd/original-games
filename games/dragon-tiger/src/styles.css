@@ -9,6 +9,8 @@
 }
 
 /* ---------- Panel ---------- */
+/* The panel scrolls in Auto mode; keep its rows at their natural height instead of letting flex squash them (the chip input collapsed to a hairline). */
+.dt-game .og-panel > * { flex-shrink: 0; }
 .dt-denoms {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -663,12 +665,13 @@
 .dt-road-counts .t i { background: var(--tie); }
 .dt-beads {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 3px;
   height: calc(6 * 14px + 5 * 3px);
   overflow: hidden;
-  /* Empty bead slots: one faint dot per cell, on the same 17 px pitch, anchored right like the columns. */
-  background: radial-gradient(circle at 10px 7px, var(--line) 0 2px, transparent 2.5px) right top / 17px 17px;
+  /* Empty bead slots: one faint dot per cell, on the same 17 px pitch. The plate fills from the left like a
+     real bead road; it keeps at most 96 deals (17 columns, 286 px), which always fits the road's width. */
+  background: radial-gradient(circle at 7px 7px, var(--line) 0 2px, transparent 2.5px) left top / 17px 17px;
 }
 .dt-none {
   padding: 2px 6px;
