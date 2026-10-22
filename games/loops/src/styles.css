@@ -1,0 +1,300 @@
+/* Loops board. Layout, panel and readouts come from the kit. */
+
+.loops text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+}
+.loops .track {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 2;
+}
+
+/* Centre numerals, behind the arrows. */
+.loops .centre .big {
+  font-size: 56px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: color-mix(in srgb, var(--text) 16%, transparent);
+}
+.loops .centre .small {
+  font-size: 13px;
+  font-weight: 600;
+  fill: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.loops .centre.idle .big {
+  font-size: 64px;
+  fill: var(--accent);
+}
+.loops .centre.idle .small {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.loops .centre.over .big {
+  fill: color-mix(in srgb, var(--red) 45%, transparent);
+}
+
+/* Arrows. */
+.loops .arrow path {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.loops .arrow .head {
+  stroke: none;
+}
+.loops .arrow.chain path {
+  stroke: var(--accent);
+}
+.loops .arrow.chain .head {
+  fill: var(--accent);
+}
+.loops .arrow.closed path {
+  stroke: color-mix(in srgb, var(--green) 62%, transparent);
+  stroke-width: 1.8;
+}
+.loops .arrow.closed .head {
+  fill: color-mix(in srgb, var(--green) 75%, transparent);
+}
+.loops .arrow.bust path {
+  stroke: var(--red);
+  stroke-width: 2.6;
+}
+.loops .arrow.bust .head {
+  fill: var(--red);
+}
+.loops .arrow.ghost path {
+  stroke: color-mix(in srgb, var(--muted) 45%, transparent);
+  stroke-width: 1.3;
+  stroke-dasharray: 3 4;
+  animation: loops-fade 0.5s ease both;
+}
+.loops .arrow.ghost.long path {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.loops .arrow.ghost.long .head {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.loops .arrow.ghost .head {
+  fill: color-mix(in srgb, var(--muted) 45%, transparent);
+  stroke: none;
+  animation: loops-fade 0.5s ease both;
+}
+
+/* The arrow being drawn. */
+.loops .arrow.moving path {
+  stroke: #fff;
+  stroke-width: 2.8;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.loops .arrow.moving.close path {
+  filter: drop-shadow(0 0 6px var(--green));
+}
+.loops .arrow.moving.bust path {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px var(--red));
+}
+.loops .arrow.moving .draw {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: loops-draw var(--ms, 400ms) cubic-bezier(0.3, 0.6, 0.3, 1) forwards;
+}
+.loops .arrow.moving .head {
+  fill: #fff;
+  opacity: 0;
+  animation: loops-fade calc(var(--ms, 400ms) * 0.3) ease calc(var(--ms, 400ms) * 0.7) forwards;
+}
+.loops .arrow.moving.bust .head {
+  fill: var(--red);
+}
+
+/* Boxes. */
+.loops .box rect {
+  fill: var(--raised);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.loops .box text {
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.loops .box.closed rect {
+  fill: color-mix(in srgb, var(--green) 16%, var(--bg));
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+}
+.loops .box.closed text {
+  fill: var(--text);
+}
+.loops .box.chain rect {
+  fill: color-mix(in srgb, var(--accent) 28%, var(--bg));
+  stroke: var(--accent);
+}
+.loops .box.chain text {
+  fill: #fff;
+}
+.loops .box.bust rect {
+  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
+  stroke: var(--red);
+}
+.loops .box.bust text {
+  fill: #fff;
+}
+.loops .box.target rect {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+}
+.loops .box.target text {
+  fill: var(--text);
+}
+.loops .box.home rect {
+  stroke: var(--green);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 70%, transparent));
+}
+.loops .box.doom rect {
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-dasharray: 3 2;
+}
+.loops .box.doom text {
+  fill: color-mix(in srgb, var(--red) 70%, var(--text));
+}
+.loops .box.head rect {
+  animation: loops-breathe 1.4s ease-in-out infinite;
+}
+.loops .box.opening rect {
+  fill: #fff;
+  stroke: #fff;
+}
+.loops .box.opening text {
+  fill: var(--bg);
+}
+.loops .pop {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: loops-pop 0.45s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Ruler. */
+.loops .ruler .head-l,
+.loops .ruler .head-r {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--muted);
+}
+.loops .ruler .head-l {
+  text-anchor: start;
+}
+.loops .ruler .head-r {
+  text-anchor: end;
+  fill: color-mix(in srgb, var(--green) 70%, var(--muted));
+}
+.loops .ruler .head-l.red {
+  fill: var(--red);
+}
+.loops .ruler .head-l.green {
+  fill: var(--green);
+}
+.loops .ruler .cell {
+  fill: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+.loops .ruler .passed {
+  fill: color-mix(in srgb, var(--accent) 50%, var(--bg));
+}
+.loops .ruler .slot.fit .frame {
+  fill: color-mix(in srgb, var(--green) 10%, var(--bg));
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 1;
+}
+.loops .ruler .slot.fit .fill {
+  fill: var(--green);
+  transition: y 0.3s ease, height 0.3s ease;
+}
+.loops .ruler .slot.over {
+  fill: color-mix(in srgb, var(--red) 70%, var(--bg));
+}
+.loops .ruler .slot.sure {
+  fill: var(--green);
+}
+.loops .ruler .done rect {
+  fill: color-mix(in srgb, var(--green) 22%, var(--bg));
+  stroke: color-mix(in srgb, var(--green) 60%, transparent);
+  stroke-width: 1;
+}
+.loops .ruler .done text {
+  font-size: 11px;
+  font-weight: 800;
+  fill: var(--green);
+}
+.loops .ruler .caret {
+  fill: var(--accent);
+}
+.loops .ruler .caret.last {
+  fill: var(--red);
+}
+.loops .ruler .limit {
+  stroke: #fff;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.loops .ruler .limit-label {
+  font-size: 12px;
+  font-weight: 800;
+}
+.loops .ruler .lg {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-anchor: start;
+  fill: var(--muted);
+}
+.loops .ruler .lg.end {
+  text-anchor: end;
+}
+.loops .ruler .lg-p {
+  fill: var(--green);
+  font-weight: 800;
+}
+.loops .ruler .sw-green {
+  fill: var(--green);
+}
+.loops .ruler .sw-red {
+  fill: color-mix(in srgb, var(--red) 70%, var(--bg));
+}
+
+@keyframes loops-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes loops-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes loops-breathe {
+  50% {
+    stroke-width: 3.5;
+    stroke: #fff;
+  }
+}
+@keyframes loops-pop {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
