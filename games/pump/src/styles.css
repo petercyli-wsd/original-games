@@ -1,0 +1,416 @@
+/* Pump board: the balloon scene, the multiplier ladder and the panel extras. Layout comes from the kit. */
+
+/* The Auto panel is tall: let it scroll rather than squash its fields. */
+.og-panel > * {
+  flex-shrink: 0;
+}
+
+.pump-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.og-btn.pump-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent) !important;
+  background: color-mix(in srgb, var(--accent) 14%, var(--hover));
+}
+.og-btn.pump-btn small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pump-auto-hint b {
+  color: var(--green);
+}
+.pump-target {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.pump-target button {
+  height: 30px;
+  font-weight: 800;
+  background: var(--hover);
+}
+.pump-target > b {
+  text-align: center;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Board ---------- */
+.og-board.pump-board {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 12px;
+}
+.pump-scene {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+.pump-svg {
+  display: block;
+  width: 100%;
+  max-width: 700px;
+  max-height: 54vh;
+  margin: 0 auto;
+  overflow: visible;
+}
+.pump-svg text {
+  font-family: inherit;
+  text-anchor: middle;
+}
+.pump-svg .floor {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.pump-svg .max-outline {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 28%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 5 7;
+}
+.pump-svg .max-tag {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  fill: color-mix(in srgb, var(--accent) 55%, var(--muted));
+}
+.pump-svg .hose {
+  fill: none;
+  stroke: #2a303d;
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.pump-svg .puff {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-dasharray: 10 110;
+  stroke-dashoffset: 10;
+  filter: drop-shadow(0 0 6px var(--accent));
+  animation: pump-puff linear both;
+}
+@keyframes pump-puff {
+  0% { stroke-dashoffset: 10; opacity: 1; }
+  90% { opacity: 1; }
+  100% { stroke-dashoffset: -100; opacity: 0; }
+}
+.pump-svg .stand {
+  fill: #303746;
+}
+.pump-svg .pump-base {
+  fill: #303746;
+}
+.pump-svg .barrel {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.pump-svg .barrel-window {
+  fill: #0b0d13;
+  stroke: var(--line);
+}
+.pump-svg .barrel-level {
+  fill: var(--accent);
+  opacity: 0.85;
+  transition: y 0.3s ease, height 0.3s ease;
+}
+.pump-svg .rod {
+  fill: #8b93a5;
+}
+.pump-svg .handle {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, var(--accent) 50%, #fff);
+  stroke-width: 1.5;
+}
+.pump-svg .plunger.press {
+  animation: pump-press ease-in-out both;
+}
+@keyframes pump-press {
+  0% { transform: translateY(0); }
+  45% { transform: translateY(48px); }
+  100% { transform: translateY(0); }
+}
+
+.pump-svg .balloon {
+  transform-box: view-box;
+  transform-origin: 330px 348px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+.pump-svg .skin {
+  transform-box: view-box;
+  transform-origin: 330px 348px;
+}
+.pump-svg .skin.strain {
+  animation: pump-strain ease-in both;
+}
+@keyframes pump-strain {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.05, 0.98); }
+  55% { transform: scale(0.98, 1.06); }
+  80% { transform: scale(1.1, 1.04); }
+  100% { transform: scale(1.16); }
+}
+.pump-svg .body {
+  stroke: color-mix(in srgb, #fff 18%, transparent);
+  stroke-width: 2;
+  filter: drop-shadow(0 10px 28px color-mix(in srgb, var(--accent) 30%, transparent));
+}
+.pump-svg .shine {
+  fill: #fff;
+  opacity: 0.32;
+}
+.pump-svg .shine.dim {
+  opacity: 0.18;
+}
+.pump-svg .float-wrap {
+  transform-box: view-box;
+  transition: transform 1.2s cubic-bezier(0.3, 0.7, 0.3, 1), filter 0.4s ease;
+}
+.pump-svg.cashed .float-wrap,
+.pump-svg.max .float-wrap {
+  transform: translateY(-14px);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--gold) 70%, transparent));
+}
+.pump-svg.cashed .body,
+.pump-svg.max .body {
+  stroke: var(--gold);
+  stroke-width: 4;
+}
+
+.pump-svg .mult-tag {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.5, 1);
+}
+.pump-svg .mult {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 6px;
+}
+.pump-svg .mult.gold {
+  fill: var(--gold);
+}
+
+/* Pop */
+.pump-svg .ring {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 6;
+  animation: pump-ring 0.55s ease-out both;
+}
+@keyframes pump-ring {
+  from { transform: scale(0.9); opacity: 1; }
+  to { transform: scale(1.6); opacity: 0; }
+}
+.pump-svg .shard {
+  fill: var(--red);
+  animation: pump-shard 0.7s cubic-bezier(0.15, 0.8, 0.3, 1) both;
+}
+@keyframes pump-shard {
+  from { transform: translate(0, 0) rotate(0); opacity: 1; }
+  70% { opacity: 1; }
+  to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+.pump-svg .scrap {
+  fill: color-mix(in oklab, var(--red), #000 25%);
+  animation: og-fade 0.4s ease 0.15s both;
+}
+.pump-svg .pop-word {
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  fill: var(--red);
+  animation: pump-pop-word 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes pump-pop-word {
+  from { transform: scale(0.4); opacity: 0; }
+  60% { opacity: 1; }
+  to { transform: scale(1); opacity: 0.22; }
+}
+.pump-svg.popped {
+  animation: pump-shake 0.35s ease;
+}
+@keyframes pump-shake {
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+
+/* Gauge */
+.pump-svg .gauge path {
+  fill: none;
+  stroke-width: 12;
+}
+.pump-svg .g-track {
+  stroke: var(--hover);
+  stroke-linecap: round;
+}
+.pump-svg .g-safe {
+  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+}
+.pump-svg .g-risk {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.pump-svg .g-needle {
+  stroke: var(--text);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.pump-svg .g-hub {
+  fill: var(--text);
+}
+.pump-svg .g-value {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--red);
+}
+.pump-svg.popped .g-value,
+.pump-svg.cashed .g-value,
+.pump-svg.max .g-value {
+  fill: var(--muted);
+}
+.pump-svg .g-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+/* ---------- Ladder ---------- */
+.pump-ladder {
+  display: flex;
+  gap: 6px;
+  padding: 4px 28px 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+.pump-ladder::-webkit-scrollbar {
+  display: none;
+}
+.rung {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 82px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  transition: background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+}
+.rung .n {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.rung b {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rung.future b {
+  color: var(--muted);
+}
+.rung.passed {
+  background: color-mix(in srgb, var(--green) 10%, var(--bg));
+  border-color: color-mix(in srgb, var(--green) 30%, transparent);
+}
+.rung.passed b {
+  color: color-mix(in srgb, var(--green) 75%, var(--text));
+}
+.rung.current {
+  background: color-mix(in srgb, var(--gold) 16%, var(--bg));
+  border-color: var(--gold);
+  transform: translateY(-2px);
+}
+.rung.current b {
+  color: var(--gold);
+}
+.rung.next {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 18px -6px var(--accent);
+  animation: pump-next 1.4s ease-in-out infinite;
+}
+.rung.next b {
+  color: var(--text);
+}
+@keyframes pump-next {
+  50% { box-shadow: 0 0 0 1px var(--accent), 0 0 26px -4px var(--accent); }
+}
+.rung.pop,
+.rung.missed {
+  background: color-mix(in srgb, var(--red) 16%, var(--bg));
+  border-color: var(--red);
+}
+.rung.pop .n,
+.rung.missed .n {
+  color: var(--red);
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+.rung.missed {
+  border-style: dashed;
+}
+.rung.missed b,
+.rung.pop b {
+  color: color-mix(in srgb, var(--red) 70%, var(--muted));
+  text-decoration: line-through;
+}
+.rung.ghost {
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+}
+.rung.ghost b {
+  color: color-mix(in srgb, var(--green) 55%, var(--muted));
+}
+.rung.target {
+  border-color: var(--accent);
+  border-style: solid;
+}
+.rung.target .n::after {
+  content: ' · cash out';
+  color: var(--accent);
+}
+
+@container (max-width: 760px) {
+  .pump-svg {
+    max-height: none;
+  }
+  .rung {
+    min-width: 72px;
+    padding: 6px 8px;
+  }
+  .rung b {
+    font-size: 14px;
+  }
+}
