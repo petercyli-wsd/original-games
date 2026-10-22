@@ -121,10 +121,13 @@ export default function Game() {
   const [last, setLast] = useState<Last | null>(null);
   const seq = useRef(0);
 
-  // A pick is decided the moment the tile is clicked (the tower was built at
-  // bet time), so leaving mid-flip settles at its real result.
-  const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'revealing' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  // What an open bet is worth if the game unmounts. Set synchronously the
+  // moment it changes (not from render state, which can lag a tick): the
+  // stake's fair value 0.99 before any pick, the decided cash-out once a tile
+  // is clicked (the tower was built at bet time, so leaving mid-flip settles
+  // at the real result, 0 on a trap), and an auto bet's decided payout.
+  const fair = useRef(0);
+  const ticket = useTicket(() => fair.current);
 
   const flipMs = turbo.turbo ? 80 : 300;
   const autoStepMs = turbo.turbo ? 35 : 120;
@@ -134,6 +137,7 @@ export default function Game() {
   // ---------- Manual round ----------
 
   function finish(r: Round, outcome: Outcome, cash: number, bust: number | null = null) {
+    fair.current = 0;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash, bust });
@@ -145,6 +149,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    fair.current = RTP;
     timers.clearAll();
     setAutoView(null);
     setLast(null);
@@ -159,7 +164,7 @@ export default function Game() {
     if (row >= ROWS || col < 0 || col >= DIFFICULTY[round.difficulty].tiles) return;
     const safe = round.tower[row][col];
     const cash = safe ? multiplier(round.difficulty, row + 1) : 0;
-    resolved.current = cash;
+    fair.current = cash;
     setPending({ row, col });
     setPhase('revealing');
     timers.after(flipMs, () => {
@@ -180,7 +185,7 @@ export default function Game() {
   }
 
   function cashOut() {
-    if (phase !== 'live' || !round || round.picks.length === 0) return;
+    if (phase !== 'live' || !round || round.picks.length === 0 || !ticket.active()) return;
     finish(round, 'cashed', round.cash);
   }
 
@@ -205,7 +210,7 @@ export default function Game() {
     const tower = buildTower(d, (xs) => rng.shuffle(xs));
     const columns = patternColumns(pattern, d, tgt, custom, (n) => rng.int(n));
     const res = climb(tower, d, columns);
-    resolved.current = res.multiplier;
+    fair.current = res.multiplier;
     setAutoBusy(true);
     setRound(null);
     setPhase('idle');
@@ -224,6 +229,7 @@ export default function Game() {
     view.showAll = true;
     setAutoView({ ...view });
     if (res.bust !== null) setShake((s) => s + 1);
+    fair.current = 0;
     ticket.settle(res.multiplier);
     pushHistory(res.multiplier);
     setLast({ id: ++seq.current, multiplier: res.multiplier, stake });
@@ -380,7 +386,7 @@ export default function Game() {
           tone: 'chance',
         },
         {
-          label: 'Cash out now',
+          label: phase === 'over' ? (round?.outcome === 'bust' ? 'Paid' : OUTCOME_TITLE[round?.outcome ?? 'cashed']) : 'Cash out now',
           value: (live && cleared > 0) || phase === 'over' ? fmtMult(cash) : '—',
           sub: (live && cleared > 0) || phase === 'over' ? formatAmount(stake * cash, 2) : 'after row 1',
           tone: 'cash',
@@ -489,12 +495,6 @@ export default function Game() {
               <div className="tw-pattern">
                 <Chips label="Pick pattern" options={PATTERNS} value={pattern} disabled={autoLocked} onChange={(v) => editAuto(() => setPattern(v))} />
               </div>
-              <dl className="og-stats">
-                <dt>Win chance</dt>
-                <dd>{fmtChance(reachChance(difficulty, target))}</dd>
-                <dt>Profit per win</dt>
-                <dd>{formatAmount(bet.value * (multiplier(difficulty, target) - 1), 2)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="tw-blocked">{bet.blocked}</p>}

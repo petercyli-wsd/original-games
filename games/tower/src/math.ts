@@ -25,8 +25,8 @@
 // returns exactly 99%. Fixed targets show it directly: p^k · M(k) = 0.99.
 //
 // Exact paytables (summit = row 9):
-//   Easy    p = 3/4   M(9) = 0.99 · (4/3)^9 =      13.1832…×
-//   Medium  p = 2/3   M(9) = 0.99 · 1.5^9   =      38.0570…×
+//   Easy    p = 3/4   M(9) = 0.99 · (4/3)^9 =      13.1851…×
+//   Medium  p = 2/3   M(9) = 0.99 · 1.5^9   =      38.0589…×
 //   Hard    p = 1/2   M(9) = 0.99 · 2^9     =     506.88×
 //   Expert  p = 1/3   M(9) = 0.99 · 3^9     =  19,486.17×
 //   Master  p = 1/4   M(9) = 0.99 · 4^9     = 259,522.56×   (the honest max)
