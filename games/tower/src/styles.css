@@ -1,0 +1,559 @@
+/* Tower: the nine-row tower, crystal and trap art, difficulty picker and panel bits.
+   Layout, panel and readouts come from the kit. */
+
+/* ---------- Panel ---------- */
+.tw-diff {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.og-game .tw-diff-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px 0 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+.og-game .tw-diff-opt:not(:disabled):hover {
+  color: var(--text);
+}
+.og-game .tw-diff-opt.on {
+  color: var(--text);
+  background: var(--hover);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.tw-dots {
+  display: flex;
+  gap: 2px;
+}
+.tw-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+}
+.tw-dots i.s {
+  background: var(--green);
+}
+.tw-dots i.t {
+  background: var(--red);
+  opacity: 0.85;
+}
+.tw-profit {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.tw-profit.up {
+  color: var(--green);
+}
+.tw-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.tw-auto-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.tw-auto-pair > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.tw-auto-pair .og-label {
+  margin-top: 0;
+}
+.tw-stepper {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.og-game .tw-stepper button {
+  height: 100%;
+  border-radius: 0;
+  background: var(--raised);
+  font-size: 18px;
+  font-weight: 700;
+}
+.og-game .tw-stepper button:not(:disabled):hover {
+  background: var(--hover);
+}
+.tw-stepper span {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.tw-pays {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+}
+
+/* ---------- Board ---------- */
+.tw-game .og-panel > * {
+  flex-shrink: 0;
+}
+.tw-game .og-stage {
+  min-height: 0;
+}
+.tw-pattern .og-chip {
+  padding: 8px 0;
+  font-size: 12px;
+}
+.og-board.tw-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.og-board.tw-board.auto {
+  padding-top: 60px;
+}
+.tw-tower {
+  --rh: 50px;
+  --lw: 96px;
+  --gap: 6px;
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  gap: var(--gap);
+  width: min(100%, 560px);
+  padding: 10px;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 40%),
+    color-mix(in srgb, var(--bg) 78%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 60px -28px #000;
+}
+.tw-tower.shake {
+  animation: tw-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.tw-summit {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 30px;
+  margin-bottom: 2px;
+  border-radius: 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tw-summit b {
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.tw-flag {
+  width: 16px;
+  height: 16px;
+}
+.tw-flag line {
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.tw-flag polygon {
+  fill: var(--accent);
+}
+.tw-summit.targeted {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--gold) 60%, transparent);
+}
+.tw-summit.reached {
+  border-style: solid;
+  border-color: var(--gold);
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+  box-shadow: 0 0 30px -8px var(--gold);
+  animation: tw-glow 1.4s ease-in-out infinite alternate;
+}
+.tw-summit.reached b {
+  color: var(--gold);
+}
+.tw-summit.reached .tw-flag polygon {
+  fill: var(--gold);
+}
+
+.tw-row {
+  display: grid;
+  grid-template-columns: var(--lw) minmax(0, 1fr);
+  gap: var(--gap);
+  flex: 0 1 var(--rh);
+  min-height: 26px;
+}
+.tw-mult {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 0 10px 0 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--raised) 70%, transparent);
+  font-variant-numeric: tabular-nums;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.tw-rn {
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.tw-mult b {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tw-row.active .tw-mult {
+  background: color-mix(in srgb, var(--accent) 20%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.tw-row.active .tw-mult b,
+.tw-row.active .tw-rn {
+  color: var(--accent);
+}
+.tw-row.active .tw-mult::after {
+  content: '';
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  border: 5px solid transparent;
+  border-left-color: var(--accent);
+  border-right: 0;
+  transform: translateY(-50%);
+}
+.tw-row.done .tw-mult b {
+  color: var(--green);
+}
+.tw-tower.won .tw-row.done .tw-mult {
+  background: color-mix(in srgb, var(--gold) 12%, var(--raised));
+}
+.tw-tower.won .tw-row.done .tw-mult b {
+  color: var(--gold);
+}
+.tw-row.bust .tw-mult b {
+  color: var(--red);
+}
+.tw-row.target .tw-mult {
+  background: color-mix(in srgb, var(--gold) 14%, var(--raised));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, transparent);
+}
+.tw-row.target .tw-mult b,
+.tw-row.target .tw-rn {
+  color: var(--gold);
+}
+
+.tw-tiles {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  gap: var(--gap);
+  min-width: 0;
+}
+.tw-tiles.random::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 10px;
+  pointer-events: none;
+}
+.tw-random-tag {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  z-index: 1;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--card);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.og-game .tw-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2c2f3e 0%, #252734 100%);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: transform 0.14s ease, background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+.og-game .tw-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.tw-row.future .tw-tile,
+.tw-tower:not(.live) .tw-row:not(.done):not(.bust):not(.sel) .tw-tile:not(.open) {
+  opacity: 0.62;
+}
+.og-game .tw-row.active .tw-tile {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 22%, #2f3242) 0%, color-mix(in srgb, var(--accent) 12%, #282a38) 100%);
+  box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.28), inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 18px -8px var(--accent);
+  animation: tw-breathe 1.6s ease-in-out infinite alternate;
+}
+.og-game .tw-row.active .tw-tile:not(:disabled):hover {
+  transform: translateY(-2px);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 34%, #343849) 0%, color-mix(in srgb, var(--accent) 18%, #2c2f3e) 100%);
+}
+.og-game .tw-tile:not(:disabled):active {
+  transform: scale(0.96);
+}
+.og-game .tw-tower.live .tw-row.sel .tw-tile:not(:disabled):hover,
+.og-game .tw-tower.live:not(:has(.active)) .tw-tile:not(:disabled):hover {
+  background: linear-gradient(180deg, #363a4e 0%, #2d3042 100%);
+}
+
+.tw-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+.tw-face svg {
+  height: 76%;
+  max-width: 70%;
+}
+.tw-face kbd {
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--accent) 70%, var(--muted));
+  opacity: 0.75;
+}
+.tw-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.og-game .tw-tile.chosen:not(.open) {
+  background: color-mix(in srgb, var(--accent) 14%, #262836);
+  box-shadow: inset 0 0 0 2px var(--accent), 0 0 16px -8px var(--accent);
+}
+.tw-tower .tw-row:not(.sel) .tw-tile:not(.open) .tw-dot {
+  display: none;
+}
+
+/* Revealed tiles. */
+.og-game .tw-tile.open.is-safe.picked {
+  background: color-mix(in srgb, var(--green) 16%, #1d2620);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--green) 70%, transparent), 0 0 18px -6px color-mix(in srgb, var(--green) 70%, transparent);
+  animation: tw-pop 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.og-game .tw-tower.won .tw-tile.open.is-safe.picked {
+  box-shadow: inset 0 0 0 1.5px var(--gold), 0 0 20px -6px var(--gold);
+}
+.og-game .tw-tile.open.is-trap.picked {
+  background: color-mix(in srgb, var(--red) 22%, #2a1418);
+  box-shadow: inset 0 0 0 1.5px var(--red), 0 0 24px -4px var(--red);
+  animation: tw-pop 0.32s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.og-game .tw-tile.open.dim {
+  background: #1b1d27;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: tw-in 0.35s ease both;
+  animation-delay: calc(var(--row) * 35ms + var(--c) * 20ms);
+}
+.tw-tile.open.dim .tw-face {
+  opacity: 0.34;
+}
+.tw-tile.open.dim .tw-face svg {
+  height: 64%;
+}
+.og-game .tw-tile.flipping {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 45%, #33364a), color-mix(in srgb, var(--accent) 25%, #2a2c3a));
+  animation: tw-flip 0.3s ease-in-out infinite;
+}
+
+/* Crystal and trap art. */
+.tw-crystal .c-body {
+  fill: var(--green);
+}
+.tw-crystal .c-top {
+  fill: #fff;
+  opacity: 0.38;
+}
+.tw-crystal .c-side {
+  fill: #000;
+  opacity: 0.2;
+}
+.tw-crystal .c-edge {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.25);
+  stroke-width: 1;
+}
+.tw-crystal .c-glint {
+  fill: #fff;
+  opacity: 0.85;
+}
+.tw-trap .t-spikes {
+  fill: var(--red);
+}
+.tw-trap .t-core {
+  fill: #2b0a12;
+  stroke: color-mix(in srgb, var(--red) 60%, #000);
+  stroke-width: 1;
+}
+.tw-trap .t-x {
+  stroke: var(--red);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+/* Paytable in the info modal. */
+.tw-paytable {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.tw-paytable > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.tw-paytable span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tw-paytable b {
+  text-align: right;
+  color: var(--text);
+}
+.tw-paytable small {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@keyframes tw-pop {
+  0% {
+    transform: scale(0.82);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes tw-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes tw-flip {
+  0%,
+  100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.15);
+  }
+}
+@keyframes tw-breathe {
+  to {
+    box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.28), inset 0 0 0 1px var(--accent), 0 0 22px -6px var(--accent);
+  }
+}
+@keyframes tw-glow {
+  to {
+    box-shadow: 0 0 40px -4px var(--gold);
+  }
+}
+@keyframes tw-shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-6px);
+  }
+  40%,
+  60% {
+    transform: translateX(6px);
+  }
+}
+
+@container (max-width: 760px) {
+  .og-board.tw-board.auto {
+    padding-top: 58px;
+  }
+  .tw-tower {
+    --rh: 38px;
+    --lw: 80px;
+    --gap: 5px;
+    padding: 8px;
+  }
+  .tw-mult {
+    padding: 0 7px 0 6px;
+  }
+  .tw-mult b {
+    font-size: 12px;
+  }
+}
