@@ -36,11 +36,15 @@ function Die({ x, y, face, tumbling, flip }: { x: number; y: number; face: numbe
 /** A geometric snake: an S-curve body with a head. */
 function SnakeGlyph({ cx, cy }: { cx: number; cy: number }) {
   return (
-    <g transform={`translate(${cx} ${cy})`} className="snake-glyph">
-      <path d="M -26 10 C -18 -10, -8 -10, -2 2 S 12 14, 18 -2" className="body" />
-      <circle cx={21} cy={-6} r={7} className="head" />
-      <circle cx={23} cy={-8} r={1.8} className="eye" />
-      <path d="M 27 -9 l 6 -3 M 27 -9 l 6 1" className="tongue" />
+    // The strike animation sets a CSS transform, which would replace an SVG
+    // transform attribute on the same element: keep the placement on an outer group.
+    <g transform={`translate(${cx} ${cy})`}>
+      <g className="snake-glyph">
+        <path d="M -26 10 C -18 -10, -8 -10, -2 2 S 12 14, 18 -2" className="body" />
+        <circle cx={21} cy={-6} r={7} className="head" />
+        <circle cx={23} cy={-8} r={1.8} className="eye" />
+        <path d="M 27 -9 l 6 -3 M 27 -9 l 6 1" className="tongue" />
+      </g>
     </g>
   );
 }

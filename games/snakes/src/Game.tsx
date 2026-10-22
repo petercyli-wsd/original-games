@@ -236,6 +236,13 @@ export default function Game() {
     !infoOpen,
   );
 
+  // Switching between Manual and Auto clears a finished board, so a manual
+  // result card never lingers over the Auto panel (or vice versa).
+  useEffect(() => {
+    if (phase === 'over') clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto.mode]);
+
   // Keep the target text in step when it is set elsewhere (e.g. cleared).
   useEffect(() => setTargetText(autoTarget > 0 ? autoTarget.toFixed(2) : ''), [autoTarget]);
 
@@ -247,26 +254,28 @@ export default function Game() {
   const rolls = round?.rolls ?? [];
   const outcome = round?.outcome ?? null;
   const lastRoll = rolls[rolls.length - 1];
+  // A snake shows the moment the token lands on it, not only once the round settles.
+  const bitten = outcome === 'bitten' || (phase === 'rolling' && !!landed && !!lastRoll?.snake);
   const top = maxFactor(d);
   const safe = safeFactors(difficulty);
   const n = snakeCount(d);
 
-  const mode: BoardMode = outcome === 'bitten' ? 'bitten' : outcome ? 'cashed' : live ? 'live' : 'idle';
+  const mode: BoardMode = bitten ? 'bitten' : outcome ? 'cashed' : live ? 'live' : 'idle';
   const valueLabel =
-    outcome === 'bitten' ? 'BITTEN' : outcome ? 'CASHED OUT' : phase === 'checkpoint' ? 'CASH OUT NOW' : phase === 'rolling' ? 'ROLLING' : 'STARTS AT';
+    bitten ? 'BITTEN' : outcome ? 'CASHED OUT' : phase === 'checkpoint' ? 'CASH OUT NOW' : phase === 'rolling' ? 'ROLLING' : 'STARTS AT';
   let footer = 'Each opposite pair: 1 in 6';
   if (rolls.length > 0) footer = `Roll ${rolls.length} · rolled ${lastRoll.sum}`;
   if (phase === 'rolling' && !landed) footer = tumble.on ? 'Rolling…' : `Moving ${dice[0] + dice[1]} squares`;
 
   let status = `Ready · ${plural(n, 'snake')} on 12 squares`;
-  if (phase === 'rolling') status = `Roll ${rolls.length + 1}…`;
+  if (phase === 'rolling') status = landed ? (bitten ? `Snake on roll ${rolls.length}!` : `Roll ${rolls.length} · ${fmtMult(cash)}`) : `Roll ${rolls.length + 1}…`;
   if (phase === 'checkpoint') status = `Roll ${rolls.length} survived · ${fmtMult(cash)}`;
   if (phase === 'over' && outcome === 'bitten') status = `Bitten on roll ${rolls.length}`;
   if (phase === 'over' && outcome === 'cashed') status = `Cashed out after ${plural(rolls.length, 'roll')}`;
   if (phase === 'over' && outcome === 'max') status = `Max win · ${plural(rolls.length, 'roll')}`;
-  const tone = phase === 'over' ? (cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
+  const tone = phase === 'over' || bitten ? (cash > 0 && !bitten ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto;
+  const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto && auto.mode === 'manual';
   const autoChance = survival(difficulty, autoRolls);
 
   return (
@@ -378,11 +387,11 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Next roll safe', value: phase === 'over' ? '—' : fmtChance(1 - q), sub: `${n} snakes of 12`, tone: 'chance' },
+          { label: 'Next roll safe', value: phase === 'over' || bitten ? '—' : fmtChance(1 - q), sub: `${n} snakes of 12`, tone: 'chance' },
           {
             label: 'Cash out now',
-            value: rolls.length > 0 && outcome !== 'bitten' ? fmtMult(cash) : outcome === 'bitten' ? fmtMult(0) : '—',
-            sub: rolls.length > 0 ? formatAmount(stake * (outcome === 'bitten' ? 0 : cash), 2) : 'after the first roll',
+            value: bitten ? fmtMult(0) : rolls.length > 0 ? fmtMult(cash) : '—',
+            sub: rolls.length > 0 ? formatAmount(stake * (bitten ? 0 : cash), 2) : 'after the first roll',
             tone: 'cash',
           },
           {
@@ -408,7 +417,7 @@ export default function Game() {
             tumbling={tumble.on}
             frame={tumble.frame}
             landed={landed}
-            value={outcome === 'bitten' ? 0 : cash}
+            value={bitten ? 0 : cash}
             valueLabel={valueLabel}
             footer={footer}
           />
