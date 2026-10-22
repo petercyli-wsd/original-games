@@ -381,7 +381,7 @@ export default function Game() {
           max={MAX_MULTIPLIER}
           disabled={lock}
           tone="tp"
-          note={tpFill !== null && !lock ? `fills ${fmtMult(tpFill)}` : 'off'}
+          note={tpFill !== null ? `fills ${fmtMult(tpFill)}` : 'off'}
           onChange={(v) => change(() => setTp(v))}
         />
         <LimitField
@@ -391,7 +391,7 @@ export default function Game() {
           max={MAX_SL}
           disabled={lock}
           tone="sl"
-          note={slFill !== null && !lock ? `fills ${fmtMult(slFill)}` : 'bust only'}
+          note={slFill !== null ? `fills ${fmtMult(slFill)}` : 'bust only'}
           onChange={(v) => change(() => setSl(v))}
         />
       </div>
@@ -590,7 +590,7 @@ function OddsBar({ o, live, over, tpOn, slOn }: { o: Odds; live: boolean; over: 
 
 function LeverageField({ lev, disabled, onChange }: { lev: number; disabled: boolean; onChange(v: number): void }) {
   const [text, setText] = useState(String(lev));
-  useEffect(() => setText(String(lev)), [lev]);
+  useEffect(() => setText(String(lev)), [lev, disabled]);
   const commit = () => {
     const v = parseFloat(text);
     if (Number.isFinite(v) && v > 0) onChange(clampLeverage(v));
@@ -654,7 +654,8 @@ function LimitField({
   onChange(v: number | null): void;
 }) {
   const [text, setText] = useState(value === null ? '' : value.toFixed(2));
-  useEffect(() => setText(value === null ? '' : value.toFixed(2)), [value]);
+  // A lock (round start) also drops any half-typed text, so the field always shows the level in force.
+  useEffect(() => setText(value === null ? '' : value.toFixed(2)), [value, disabled]);
   const commit = () => {
     const v = parseFloat(text);
     const next = text.trim() === '' || !Number.isFinite(v) || v <= 0 ? null : Math.round(Math.min(max, Math.max(min, v)) * 100) / 100;

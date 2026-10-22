@@ -158,13 +158,55 @@ export default function Chart({ view, children }: { view: ChartView; children?: 
     ...shown.filter((l) => l.on && !(state === 'over' && Math.abs(l.price - nowPrice) < 1e-6)).map((l) => ({ key: l.kind, y: Y(l.price), cls: l.kind, text: fmtPrice(l.price) })),
     ...(state !== 'idle' ? [{ key: 'entry', y: Y(entry), cls: 'entry', text: fmtPrice(entry) }] : []),
   ].sort((a, b) => a.y - b.y);
+  // Stack the tags outward from the current-price tag (which never moves), so
+  // none of them can cover it or each other.
   const TAG_H = 19;
+  const NOW_GAP = 21;
+  const yMin = pad.t - 8;
+  const yMax = h - 12;
   const placed: { key: string; y: number; cls: string; text: string }[] = [];
-  for (const t of tags) {
-    if (Math.abs(t.y - tagY) < TAG_H) t.y = t.y < tagY ? tagY - TAG_H : tagY + TAG_H;
-    const prev = placed[placed.length - 1];
-    if (prev && t.y - prev.y < TAG_H) t.y = prev.y + TAG_H;
-    placed.push({ ...t, y: Math.min(pad.t + ph + 8, Math.max(pad.t - 8, t.y)) });
+  let cursor = tagY - NOW_GAP;
+  for (const t of tags.filter((t) => t.y <= tagY).reverse()) {
+    const y = Math.min(t.y, cursor);
+    placed.push({ ...t, y });
+    cursor = y - TAG_H;
+  }
+  cursor = tagY + NOW_GAP;
+  for (const t of tags.filter((t) => t.y > tagY)) {
+    const y = Math.max(t.y, cursor);
+    placed.push({ ...t, y });
+    cursor = y + TAG_H;
+  }
+  // If a stack runs off the chart, slide it back in (it may then overlap the
+  // grid labels, which are hidden under tags below).
+  const ups = placed.filter((t) => t.y < tagY).sort((a, b) => a.y - b.y);
+  if (ups.length && ups[0].y < yMin) {
+    let c = yMin;
+    for (const t of ups) {
+      t.y = Math.max(t.y, c);
+      c = t.y + TAG_H;
+    }
+  }
+  const downs = placed.filter((t) => t.y > tagY).sort((a, b) => b.y - a.y);
+  if (downs.length && downs[0].y > yMax) {
+    let c = yMax;
+    for (const t of downs) {
+      t.y = Math.min(t.y, c);
+      c = t.y - TAG_H;
+    }
+  }
+  // Grid labels hidden where a tag sits on top of them.
+  const tagYs = [tagY, ...placed.map((t) => t.y)];
+  const yLabels = yTicks.filter((v) => tagYs.every((ty) => Math.abs(Y(v) - ty) > 15));
+
+  // Level labels sit just past the entry; when two would collide, the later
+  // one moves to the expiry end of its line.
+  const labelX = (state === 'idle' ? xNow : xEntry) + 8;
+  const levelLabels: { l: (typeof shown)[number]; y: number; right: boolean }[] = [];
+  for (const l of shown.filter((l) => l.on).sort((a, b) => Y(a.price) - Y(b.price))) {
+    const y = l.price < entry ? Y(l.price) + 14 : Y(l.price) - 6;
+    const right = levelLabels.some((o) => !o.right && Math.abs(o.y - y) < 15);
+    levelLabels.push({ l, y, right });
   }
   const off = shown.filter((l) => !l.on);
 
@@ -186,7 +228,7 @@ export default function Chart({ view, children }: { view: ChartView; children?: 
           ))}
         </g>
         <g className="lev-ylabels">
-          {yTicks.map((v) => (
+          {yLabels.map((v) => (
             <text key={v} x={pad.l + pw + 8} y={Y(v) + 4}>
               {fmtPrice(v)}
             </text>
@@ -214,17 +256,11 @@ export default function Chart({ view, children }: { view: ChartView; children?: 
               <line key={l.kind} className={`lev-level ${l.kind}`} x1={state === 'idle' ? xNow : xEntry} x2={xExp} y1={Y(l.price)} y2={Y(l.price)} />
             ))}
           <line className="lev-level entry" x1={state === 'idle' ? pad.l : xEntry} x2={xExp} y1={Y(entry)} y2={Y(entry)} />
-          {shown
-            .filter((l) => l.on)
-            .map((l) => {
-              const y = Y(l.price);
-              const below = l.price < entry;
-              return (
-                <text key={'t' + l.kind} className={`lev-level-label ${l.kind}`} x={(state === 'idle' ? xNow : xEntry) + 8} y={below ? y + 14 : y - 6}>
-                  {l.label}
-                </text>
-              );
-            })}
+          {levelLabels.map(({ l, y, right }) => (
+            <text key={'t' + l.kind} className={`lev-level-label ${l.kind}`} x={right ? xExp - 8 : labelX} y={y} textAnchor={right ? 'end' : 'start'}>
+              {l.label}
+            </text>
+          ))}
 
           {/* Price */}
           {state === 'idle' ? (
