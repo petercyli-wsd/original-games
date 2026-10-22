@@ -18,6 +18,11 @@
 .sb-game .og-history {
   justify-content: flex-start;
 }
+/* Rows that run out of room fade at the right edge instead of cutting a chip in half. */
+.sb-rolls {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
 .sb-game .og-stage {
   gap: 12px;
 }
@@ -71,15 +76,11 @@
 .sb-blocked.err {
   color: var(--red);
 }
-.sb-auto-note {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--muted);
+/* Auto mode: the four stats in two rows, so Start autobet fits a 800 px frame. */
+.sb-game .og-stats.sb-stats-tight {
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 5px 8px;
+  font-size: 11.5px;
 }
 
 /* ---------- Dice tray ---------- */
@@ -294,7 +295,6 @@
   border-radius: 7px !important;
   background: color-mix(in srgb, var(--raised) 85%, transparent);
   border: 1px solid var(--line) !important;
-  overflow: hidden;
   user-select: none;
   transition: background 0.15s ease, border-color 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease !important;
 }
@@ -316,6 +316,8 @@
   background: color-mix(in srgb, var(--accent) 12%, var(--raised));
 }
 .sb-cell-body {
+  max-width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -370,6 +372,8 @@
   fill: var(--sb-pip-red);
 }
 .sb-pays {
+  max-width: 100%;
+  overflow: hidden;
   font-size: 11px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -380,7 +384,15 @@
 .sb-cell.k-anyTriple .sb-pays {
   color: var(--gold);
 }
-/* The cell's chance, drawn to scale along its foot. */
+/* The cell's chance, drawn to scale along its foot (clipped to the rounded cell,
+   so the cell itself can let a placed chip sit over its corner). */
+.sb-clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
 .sb-odds-bar {
   position: absolute;
   left: 0;
@@ -421,6 +433,20 @@
   left: auto;
   right: 5px;
   translate: none;
+}
+/* Narrow cells: the chip sits over the top-right corner, like a chip pushed
+   onto the cell's edge, so the dice, number and pay underneath stay readable. */
+.sb-row.r2 .sb-chip,
+.sb-row.r3 .sb-chip,
+.sb-row.r4 .sb-chip {
+  z-index: 2;
+  top: -7px;
+  left: auto;
+  right: -7px;
+  translate: none;
+  min-width: 21px;
+  height: 21px;
+  font-size: 9px;
 }
 .sb-chip.t2 { --c: #3b82f6; }
 .sb-chip.t3 { --c: #fb7185; }
@@ -600,18 +626,29 @@
   .sb-row.r1 { grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1.2fr; }
   .sb-row.r1 .sb-cell { height: 62px; }
   .sb-row.r1 .sb-chip {
-    top: auto;
-    bottom: 4px;
-    right: 2px;
+    z-index: 2;
+    top: -6px;
+    bottom: auto;
+    right: -6px;
+    min-width: 19px;
+    height: 19px;
+    font-size: 8.5px;
+  }
+  .sb-row.r5 .sb-chip {
+    top: 3px;
+    right: 3px;
     min-width: 18px;
     height: 18px;
     font-size: 8.5px;
   }
-  .sb-row.r5 .sb-chip {
-    top: 50%;
-    left: 50%;
-    right: auto;
-    translate: -50% -74%;
+  .sb-row.r2 .sb-chip,
+  .sb-row.r3 .sb-chip,
+  .sb-row.r4 .sb-chip {
+    top: -6px;
+    right: -6px;
+    min-width: 19px;
+    height: 19px;
+    font-size: 8.5px;
   }
   .sb-big-word { font-size: 14px; letter-spacing: 0.6px; }
   .sb-mid-word { font-size: 12px; letter-spacing: 0.3px; }
@@ -619,5 +656,9 @@
   .sb-cell { height: 50px; }
   .sb-row.r5 .sb-cell { flex-direction: column; gap: 2px; height: 54px; }
   .sb-recent { flex-wrap: wrap; }
+  .sb-game .og-history {
+    -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+  }
   .sb-rolls { order: 3; flex-basis: 100%; }
 }

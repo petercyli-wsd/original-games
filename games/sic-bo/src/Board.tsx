@@ -204,7 +204,9 @@ export function Table({ layout, hits, paid, disabled, onAdd, onRemove, onHover, 
           <CellBody bet={bet} />
         </span>
         <span className="sb-pays">{won ? `+${money(paid[bet.id] ?? 0)}` : paysLabel(bet)}</span>
-        <i className="sb-odds-bar" style={{ width: `${s.chance * 100}%` }} aria-hidden="true" />
+        <span className="sb-clip" aria-hidden="true">
+          <i className="sb-odds-bar" style={{ width: `${s.chance * 100}%` }} />
+        </span>
         {amt > 0 && (
           <span key={amt} className={`sb-chip ${chipTier(amt)}`}>
             {chipText(amt)}

@@ -111,8 +111,10 @@ export default function Game() {
   const rotsRef = useRef(rots);
   rotsRef.current = rots;
 
+  // The drawn outcome's multiplier, set the instant the dice are drawn. If the
+  // game unmounts mid-tumble, the open ticket settles at this value (win or loss).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (rolling ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const total = totalOf(layout);
   const stats = useMemo(() => layoutStats(layout), [layout]);
@@ -194,7 +196,8 @@ export default function Game() {
     setRolling(true);
     setHop((h) => h + 1);
     setRots(next);
-    await timers.wait(rollMs + 90);
+    // Unmounted mid-tumble: the ticket was already settled at the drawn result.
+    if (!(await timers.wait(rollMs + 90))) return null;
     ticket.settle(res.multiplier);
     setFaces(dice);
     setRebetLayout(lay);
@@ -329,7 +332,7 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className="og-stats">
+          <dl className={'og-stats' + (auto.mode === 'auto' ? ' sb-stats-tight' : '')}>
             <dt>Total bet</dt>
             <dd>{money(total)}</dd>
             <dt>Chance to win</dt>
@@ -345,22 +348,7 @@ export default function Game() {
               {rolling ? 'Rolling…' : total > 0 ? `Bet ${money(total)}` : 'Bet'}
             </ActionButton>
           ) : (
-            <AutoBetControls auto={auto} disabled={!!layoutBet.blocked || rolling}>
-              <p className="sb-auto-note">
-                {total > 0 ? (
-                  <>
-                    Each auto bet rolls your chips again:{' '}
-                    {placedIds(layout)
-                      .slice(0, 6)
-                      .map((id) => `${BET_BY_ID[id].name} ${money(layout[id])}`)
-                      .join(' · ')}
-                    {placedIds(layout).length > 6 ? ` · +${placedIds(layout).length - 6} more` : ''}. On win / on loss scale the whole layout.
-                  </>
-                ) : (
-                  'Place chips on the table first; every auto bet repeats that layout.'
-                )}
-              </p>
-            </AutoBetControls>
+            <AutoBetControls auto={auto} disabled={!!layoutBet.blocked || rolling} />
           )}
           {layoutBet.blocked && !busy && <p className={'sb-blocked' + (total > 0 ? ' err' : '')}>{layoutBet.blocked}</p>}
 
@@ -456,7 +444,7 @@ export default function Game() {
             <ol>
               <li>Pick a chip value (or a preset, keys 1–5), then click cells on the table to place chips. Click again to add more; right-click or Shift-click removes one.</li>
               <li>Back as many cells as you like in the same roll. Undo, ½, 2× and Clear edit the whole layout; Rebet puts back last round's chips.</li>
-              <li>Press Bet (or Space). Your chips stay on the table, so Space again rolls the same layout. Auto repeats it with your stop rules.</li>
+              <li>Press Bet (or Space). Your chips stay on the table, so Space again rolls the same layout. Auto repeats it for the number of bets you set; On win / On loss scale every chip together, and it stops early on your profit or loss limit.</li>
             </ol>
             <p>
               Keys: <b>Space</b> bet · <b>S B O E A</b> chip on Small, Big, Odd, Even, Any triple (Shift removes) · <b>Z</b> undo · <b>D</b> double · <b>H</b> halve ·{' '}
