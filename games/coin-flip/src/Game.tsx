@@ -77,6 +77,19 @@ const AUTO_CALLS: { value: AutoCall; label: string }[] = [
   { value: 'alternate', label: 'Alternate' },
 ];
 
+const CALL_KEY: Record<string, string> = { 0: SIDE_KEYS[0], 1: SIDE_KEYS[1], random: 'R', alternate: 'A' };
+
+/** The icon on a call button: one face, both faces stacked (random) or side by side (alternate). */
+function CallIcon({ c }: { c: AutoCall }) {
+  if (c === 0 || c === 1) return <CoinIcon side={c} />;
+  return (
+    <span className={c === 'random' ? 'cf-rand' : 'cf-alt'} aria-hidden="true">
+      <CoinIcon side={0} />
+      <CoinIcon side={1} />
+    </span>
+  );
+}
+
 const callName = (c: Call) => (c === 'random' ? 'Random' : SIDE_NAMES[c]);
 const needText = (n: number, need: number) => (n === 1 ? '1 coin' : `${need === n ? 'all' : `${need}+`} of ${n} coins`);
 const fitRots = (rots: number[], n: number) => Array.from({ length: n }, (_, i) => rots[i] ?? (rots[0] ?? 0));
@@ -157,6 +170,8 @@ export default function Game() {
   }
 
   function cashOut() {
+    // Auto rounds cash out at their target; the C key must not end one early mid-run.
+    if (auto.mode !== 'manual' || auto.running) return;
     if (phase !== 'live' || !round || round.s === 0) return;
     finish(round, 'cashed', round.cash);
   }
@@ -179,6 +194,11 @@ export default function Game() {
   function chooseCall(c: Call) {
     change(() => setCall(c));
     if (c !== 'random' && (phase === 'idle' || phase === 'over')) setRots((prev) => prev.map((x) => turnTo(x, c, 0)));
+  }
+
+  function chooseAutoCall(c: AutoCall) {
+    change(() => setAutoCall(c));
+    if (c === 0 || c === 1) setRots((prev) => prev.map((x) => turnTo(x, c, 0)));
   }
 
   function chooseCoins(n: number) {
@@ -236,10 +256,15 @@ export default function Game() {
   };
   useHotkeys({ space: mainAction, cashOut }, !infoOpen);
 
-  // H / T / R: pick that call, or flip with it while a round is live.
-  const keyRef = useRef<(c: Call) => void>(() => {});
-  keyRef.current = (c: Call) => {
-    if (!manual || auto.running || phase === 'flipping') return;
+  // H / T / R: pick that call, or flip with it while a round is live. In Auto, H / T / R / A pick the auto call.
+  const keyRef = useRef<(c: AutoCall) => void>(() => {});
+  keyRef.current = (c: AutoCall) => {
+    if (auto.running) return;
+    if (!manual) {
+      if (!live) chooseAutoCall(c);
+      return;
+    }
+    if (c === 'alternate' || phase === 'flipping') return;
     if (phase === 'live') flipWith(c);
     else chooseCall(c);
   };
@@ -251,7 +276,7 @@ export default function Game() {
       if (t?.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes((t as HTMLInputElement).type)) return;
       if (t?.tagName === 'TEXTAREA' || t?.isContentEditable) return;
       const k = e.key.toLowerCase();
-      const c: Call | null = k === 'h' ? 0 : k === 't' ? 1 : k === 'r' ? 'random' : null;
+      const c: AutoCall | null = k === 'h' ? 0 : k === 't' ? 1 : k === 'r' ? 'random' : k === 'a' ? 'alternate' : null;
       if (c !== null) {
         e.preventDefault();
         keyRef.current(c);
@@ -352,11 +377,13 @@ export default function Game() {
             </>
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
-              <Label hint="each flip">Call</Label>
-              <div className="cf-autocall">
-                <Chips label="Auto call" wrap options={AUTO_CALLS} value={autoCall} disabled={auto.running} onChange={(v) => change(() => setAutoCall(v))} />
-              </div>
-              <Label hint={<b className="cf-gold">{fmtMult(cashAfter(coins, need, autoTarget))}</b>}>
+              <Label
+                hint={
+                  <>
+                    <b className="cf-gold">{fmtMult(cashAfter(coins, need, autoTarget))}</b> · {fmtChance(reachChance(coins, need, autoTarget))}
+                  </>
+                }
+              >
                 Cash out at {autoTarget} {autoTarget === 1 ? 'win' : 'wins'}
               </Label>
               <Slider
@@ -367,10 +394,6 @@ export default function Game() {
                 disabled={auto.running}
                 onChange={(v) => change(() => setAutoTarget(v))}
               />
-              <dl className="og-stats">
-                <dt>Chance to reach</dt>
-                <dd>{fmtChance(reachChance(coins, need, autoTarget))}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && !live && <p className="cf-blocked">{bet.blocked}</p>}
@@ -418,7 +441,7 @@ export default function Game() {
         )}
       </Board>
 
-      {manual && (
+      {manual ? (
         <div className="cf-calls" role="group" aria-label={phase === 'live' ? 'Flip with a call' : 'Choose your call'}>
           {([0, 1, 'random'] as Call[]).map((c) => (
             <button
@@ -429,19 +452,29 @@ export default function Game() {
               aria-pressed={call === c}
               onClick={() => (phase === 'live' ? flipWith(c) : chooseCall(c))}
             >
-              {c === 'random' ? (
-                <span className="cf-rand" aria-hidden="true">
-                  <CoinIcon side={0} />
-                  <CoinIcon side={1} />
-                </span>
-              ) : (
-                <CoinIcon side={c} />
-              )}
+              <CallIcon c={c} />
               <span>
                 {phase === 'live' && <span className="cf-flipword">Flip </span>}
                 {callName(c)}
               </span>
-              <kbd>{c === 'random' ? 'R' : SIDE_KEYS[c]}</kbd>
+              <kbd>{CALL_KEY[String(c)]}</kbd>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="cf-calls four" role="group" aria-label="Auto call each flip">
+          {AUTO_CALLS.map(({ value: c, label }) => (
+            <button
+              key={String(c)}
+              type="button"
+              className={'cf-call' + (autoCall === c ? ' on' : '')}
+              disabled={auto.running}
+              aria-pressed={autoCall === c}
+              onClick={() => chooseAutoCall(c)}
+            >
+              <CallIcon c={c} />
+              <span>{label}</span>
+              <kbd>{CALL_KEY[String(c)]}</kbd>
             </button>
           ))}
         </div>

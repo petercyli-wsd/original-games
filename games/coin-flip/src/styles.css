@@ -29,8 +29,17 @@
 .cf-board.over .cf-arena {
   padding-top: 16px;
 }
-.cf-autocall .og-chips.wrap .og-chip {
-  flex: 1 0 calc(50% - 4px);
+/* Long auto panels (several coins) scroll; the Start / Stop button stays in view. */
+@container (min-width: 761px) {
+  .cf .og-autobet > .og-btn {
+    position: sticky;
+    bottom: 12px;
+    z-index: 2;
+    box-shadow: 0 0 24px -6px var(--og-green-glow, rgba(0, 231, 1, 0.45)), 0 0 0 12px var(--raised);
+  }
+  .cf .og-autobet > .og-btn.cash {
+    box-shadow: 0 0 24px -6px color-mix(in srgb, var(--gold) 60%, transparent), 0 0 0 12px var(--raised);
+  }
 }
 .cf-arena {
   display: flex;
@@ -191,6 +200,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
+.cf-calls.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
 .cf-game button.cf-call,
 .cf-call {
   position: relative;
@@ -240,6 +252,15 @@
 }
 .cf-rand .cf-icon:first-child { left: 0; }
 .cf-rand .cf-icon:last-child { left: 12px; top: 4px; }
+.cf-alt {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.cf-alt .cf-icon {
+  width: 22px;
+  height: 22px;
+}
 .cf-call kbd {
   position: absolute;
   top: 5px;
@@ -371,5 +392,12 @@
   .cf-rand .cf-icon:last-child { left: 10px; }
   .cf-call kbd { display: none; }
   .cf-flipword { display: none; }
+  .cf-calls.four { gap: 6px; }
+  .cf-calls.four .cf-call { flex-direction: column; gap: 2px; height: 56px; font-size: 12px; }
+  .cf-calls.four .cf-call > .cf-icon { width: 20px; height: 20px; }
+  .cf-calls.four .cf-rand { width: 28px; height: 20px; }
+  .cf-calls.four .cf-rand .cf-icon { width: 18px; height: 18px; }
+  .cf-calls.four .cf-rand .cf-icon:last-child { left: 10px; top: 2px; }
+  .cf-calls.four .cf-alt .cf-icon { width: 18px; height: 18px; }
   .cf-rung { min-width: 58px; font-size: 12px; }
 }
