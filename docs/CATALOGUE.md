@@ -343,3 +343,115 @@ Eval at 100k rounds per config (`npx tsx scripts/report.ts`). Spread is the std-
 | Sperner | combinatorics | 99.10%–101.11% (max \|z\| 1.7) | 0.46 → 6.23 | 13.7× | 5.3–6.5 | 51× | ✓ |
 | Tumble | process | 98.67%–101.79% (max \|z\| 0.9) | 0.60 → 9.93 | 16.7× | 3.0–5.0 | 260× | ✓ |
 | Two-Tone | graph | 98.98%–100.17% (max \|z\| 0.5) | 0.30 → 6.81 | 22.9× | 4.7–6.3 | 378× | ✓ |
+
+## Batch 2
+
+Twenty-one more concepts, drawn from areas of maths the first batch did not touch: coding theory, social choice, cooperative game theory, quantum optics, primality testing, permutation patterns, spanning trees and topology. They are checked against all 46 games already in `games/`, the reference-site list and the rejected list above. The build contract is unchanged (`docs/BUILDING-GAMES.md`).
+
+| id | Name | Theorem | Dyn. | Mechanic | Uniq. | Closest existing → fundamental difference |
+|---|---|---|---|---|---|---|
+| hamming | Hamming | Hamming(7,4) corrects one flip: P = (1−p)⁷ + 7p(1−p)⁶ | M | combinatorics | 5 | none → bits cross a noisy channel; the Venn-diagram code shows which flips it can absorb |
+| median | Median | Sample median ~ Beta(m+1, m+1) | M,C | geometry | 4 | Records → tug of war: the median is in your window iff neither side gets m+1 points |
+| mediant | Mediant | Stern–Brocot tree, Minkowski ?(x) | M,C | number-theory | 4 | Pascal → fair coin steps land very unevenly on the number line (mediants) |
+| thales | Thales | Acute triangle iff C is in the band and outside the Thales circle | S | geometry | 5 | Convex → the third point's winning region is a band minus a disc |
+| zigzag | Zigzag | André: P(alternating) = Eₙ/n! (sec + tan) | L | combinatorics | 4 | HiLo → direction forced; safe gap literal; exact boustrophedon polynomials |
+| connect | Connect | Erdős–Rényi connectivity within an edge budget | M | graph | 4 | Two-Tone → you need merges before the budget runs out (a race, not survival) |
+| spanning | Spanning | Kirchhoff: P(e ∈ UST) = effective resistance; transfer-current determinants | M,C | graph | 5 | Circuit → a uniform spanning tree is revealed edge by edge; edge widths are marginals |
+| euclid | Euclid | Euclid's algorithm / continued fractions, gcd density | M | number-theory | 4 | Line of Sight → squares are cut from a fogged rectangle; each cut reveals a quotient |
+| waldegrave | Waldegrave | Waldegrave's circulation problem (1713) | M,C | process | 5 | none → winner stays on; first to a streak takes the pot; seats have unequal odds |
+| bootstrap | Bootstrap | Bootstrap percolation; perimeter never grows (needs ≥ n seeds) | M | graph | 5 | none → seeds land, then infection spreads; the perimeter budget is a literal bar |
+| lasso | Lasso | Winding number of a lattice walk round a hole | M | random-walk | 4 | Drift / Halo → topology: the walk must loop the pole, not reach a wall |
+| serials | Serials | German tank problem: posterior ∝ 1/C(N, k) | M,C | inference | 3 | Bayes → a posterior over an unknown maximum, drawn as a histogram you cut at X |
+| shunt | Shunt | Knuth's stack sorting: P = Catalan(n)/n! (231-avoiding) | M | combinatorics | 5 | Patience → a railway siding; cars that would jam are red in the queue |
+| euler | Euler | Degree parity: the odd-node count is a Markov chain | M | graph | 4 | Two-Tone → parity, not cycles; odd nodes glow |
+| gossip | Gossip | Push rumour spreading, ≈ log₂n + ln n rounds | M | process | 4 | Full Set → exponential doubling then a coupon-style mop-up inside a round budget |
+| socks | Socks | Sock matching with a bounded table | L | combinatorics | 4 | Mismatch → twins clear pairs; the table fills; risk = tokens without a twin on the table |
+| condorcet | Condorcet | Condorcet paradox (≈ 8.8% cycles, Guilbaud) | M,C | inference | 5 | none → random voters; pairwise-majority arrows may form a cycle |
+| polarizer | Polarizer | Malus's law cos²Δ and the quantum Zeno effect | L,C | geometry | 4 | Arc Climb → you set each turn angle; the squared projection is the odds |
+| witness | Witness | Miller–Rabin strong liars, Bayesian primality | M | number-theory | 4 | Prime Time → random bases test a hidden number; composites survive at their liar rate |
+| pivot | Pivot | Shapley–Shubik power index | M,C | combinatorics | 5 | none → weighted voters join in random order; back the one who tips the quota |
+| homecoming | Homecoming | Pólya's recurrence theorem (return certain in 1D/2D, ≈ 34% in 3D) | M,C | random-walk | 3 | Pearson Walk → dimension is the volatility knob; return to the origin within T steps |
+
+### hamming
+**Hamming** · combinatorics · accent `#7bdff2` · M
+A 4-bit message is encoded as a Hamming(7,4) codeword and drawn as the three-circle Venn diagram (data bits in the overlaps, parity bits in the petals). The 7 bits cross a noisy channel one at a time, and each flips independently with probability p ∈ {2, 5, 10, 20, 30}%. The decoder corrects any single flip. Bet **Decoded** (P = (1−p)⁷ + 7p(1−p)⁶) or **Fooled** (the complement). Add 1–4 blocks in a series (P^k) for volatility. Live P from (flips so far, bits left) is exact. Board: the Venn diagram, flipped bits glowing, syndrome circles lighting, and a "flips absorbed f / 1" gauge.
+
+### median
+**Median** · geometry · accent `#f4d35e` · M, C
+n = 2m+1 points (n ∈ {3, 5, 9, 15, 25}) drop uniformly on [0, 1]. The player drags a window [a, b]. Win if the sample median lands inside. P = Beta(m+1, m+1) mass of [a, b]. The median is inside iff at most m points fall below a and at most m above b. Draw it as a tug of war: two tallies with their m-limits. Live P is an exact multinomial sum over the remaining points with probabilities (a, b−a, 1−b).
+
+### mediant
+**Mediant** · number-theory · accent `#c3f584` · M, C
+Descend the Stern–Brocot tree from 1/1 (bounds 0/1 and 1/0). Each step goes Left or Right with ½ each, and the value becomes the mediant of the new bounds. After n steps (n ∈ {4, 6, 8, 10}) the fraction is final. The player picks a window on the number line (presets plus drag). P = (#depth-n fractions in the window)/2ⁿ, exact. Live: count the reachable depth-n fractions under the current node that lie in the window. Draw every reachable final fraction as a dot on the number line; the lit dots in the window over all reachable dots are the odds. Mention Minkowski's ?(x) in the modal.
+
+### thales
+**Thales** · geometry · accent `#ff9b85` · S
+Three points land uniformly in an arena (square, disc or equilateral triangle). Back **Acute** or **Obtuse** (square: P(obtuse) = 97/150 + π/40; disc: P(acute) = 4/π² − 1/8). Stage 1: A and B land (checkpoint). The third point C makes the triangle acute iff C lies strictly between the perpendiculars to AB through A and B **and** outside the circle with diameter AB (Thales). Shade that band-minus-disc region clipped to the arena; its area is the odds, computed exactly. Stage 2: C lands. A series of 1–3 triangles (p^k) widens volatility.
+
+### zigzag
+**Zigzag** · combinatorics · accent `#f7aef8` · L
+Bars of uniform random height arrive and must alternate up, down, up, down. The next bar's safe zone is literal: above the last bar (chance 1 − x) when an up is due, below it (chance x) when a down is due. André: P(n values alternate starting with up) = Eₙ/n! (Euler zigzag numbers, sec x + tan x). Fixed prize RTP/P. Live P(survive the rest | last value x, next direction) is a polynomial in x (Entringer/boustrophedon), computed exactly by rational polynomial integration. Target length n ∈ {4, …, 12}; optional "either first direction".
+
+### connect
+**Connect** · graph · accent `#90f1ef` · M
+n nodes (6–10) on a circle. Uniformly random new edges (among non-edges) are added one at a time. Win if the graph is connected once E edges are placed (budget E ≥ n−1). Live P is exact by DP over (multiset of component sizes, number of edges inside components). The next edge merges two components with chance (cross pairs)/(non-edges); show that count literally. The budget relative to n is the volatility knob.
+
+### spanning
+**Spanning** · graph · accent `#b8c0ff` · M, C
+A uniform spanning tree of a small grid graph (from 3×3 to 4×5 vertices) is revealed edge by edge in a fixed sweep. Each edge is IN with its exact conditional probability: the effective resistance across it after contracting IN edges and deleting OUT edges (Kirchhoff), computed by Laplacian solves. That sequential procedure samples the UST exactly. The player picks 1–3 edges before betting; win if all are in the tree. P = det of the transfer-current matrix (Burton–Pemantle), live on the contracted/deleted graph. Edge widths show the current marginals.
+
+### euclid
+**Euclid** · number-theory · accent `#ffd6a5` · M
+A hidden pair 1 ≤ b < a ≤ N (uniform; N ∈ {30, 60, 100, 200}). Euclid's algorithm is drawn as squares cut from a rectangle. The unexplored remainder stays a fogged box, and each cut step reveals the next partial quotient. Bet **Coprime** (~6/π²), **Final square ≥ 2**, or **≥ k cuts**. Live P is exact over all pairs consistent with the quotients revealed so far.
+
+### waldegrave
+**Waldegrave** · process · accent `#e5989b` · M, C
+n players (3–5) wait in a ring queue. The first two play a fair duel. The winner stays and plays the next in the queue; the loser goes to the back. The first to win k duels in a row takes the pot (Waldegrave 1713; k = n−1 by default; for n = 3 the odds are 5/14, 5/14, 2/7). Back a seat. Live P is exact by solving the Markov chain over (champion, streak, queue order). Show streak pips and each seat's live odds; seat and k set volatility.
+
+### bootstrap
+**Bootstrap** · graph · accent `#caf0f8` · M
+An n×n grid (n ∈ {4, 5}). k seed cells are infected at random, revealed one at a time. Then infection spreads: any cell with ≥ 2 infected neighbours is infected. Bet **Full grid** or **Not full**. Live P is exact by enumerating the remaining seed placements with closure checks (memoise; < 50 ms per step). The perimeter of the infected set never grows and the full grid needs 4n, so show the perimeter budget as a literal bar. Animate the spread at the end.
+
+### lasso
+**Lasso** · random-walk · accent `#98f5e1` · M
+A simple random walk on an annular lattice (a square grid with a blocked central hole) for T steps (T ∈ {10, 20, 40, 60}). Bet the final winding number round the hole is ≠ 0 (or |w| ≥ k). Live P is exact by DP over (cell, winding). Draw the path, the accumulated angle sweep and a winding counter.
+
+### serials
+**Serials** · inference · accent `#ffafcc` · M, C
+The unknown top serial N is uniform on [10, 100]. Serials are drawn without replacement from 1..N and revealed one at a time (k ∈ {2, …, 6}), then N is revealed. Bet **N ≤ X** (the player picks X). Live P = posterior mass with P(N | draws) ∝ 1/C(N, k) for N ≥ the max seen. Board: the drawn serials on a number line and the posterior histogram over N; the mass left of X is the odds.
+
+### shunt
+**Shunt** · combinatorics · accent `#a2d2ff` · M
+Knuth's railway: cars 1..n (n ∈ {4, …, 9}) arrive in random order and are routed through a stack siding by the greedy rule. The exit must read 1, 2, 3, … Win if every car exits in order: P = Catalan(n)/n! (231-avoiding). Live P = the exact count of sortable completions of the arrival prefix. Highlight in red the remaining car numbers that would jam the siding next; their share is the next-car risk.
+
+### euler
+**Euler** · graph · accent `#fcbf49` · M
+n nodes (6–12). T random edges are drawn with repeats allowed (each a uniform random pair). Bet **All degrees even** at the end (or **≥ 4 odd nodes**). The odd-node count k is a Markov chain: both endpoints odd → k−2, one odd → k, none → k+2. Live P is exact. Odd nodes glow; a k-chain meter shows the state.
+
+### gossip
+**Gossip** · process · accent `#8ac926` · M
+n nodes (8–32); one knows a rumour. Each round every informed node calls a uniformly random other node and tells it. Win if everyone knows within R rounds. Live P is exact by DP over the informed count, using the occupancy distribution of the hits. Show the doubling phase and the mop-up phase.
+
+### socks
+**Socks** · combinatorics · accent `#ff99c8` · L
+n pairs of distinct coloured tokens (n ∈ {5, …, 12}) are shuffled and drawn one at a time. An unmatched token goes onto a table with k slots; its twin later clears the pair. Bust if a token without a twin on the table arrives while the table is full. When the table is full, the next draw is safe with chance (tokens on the table)/(tokens remaining); show it literally. Otherwise the draw is free. Exact DP over (untouched pairs, tokens on the table). n and k set volatility.
+
+### condorcet
+**Condorcet** · inference · accent `#bde0fe` · M, C
+Three candidates; n voters (odd, 5–25), each with a uniformly random ranking out of 6, revealed one at a time. The pairwise majorities form arrows on a triangle. Bet **Cycle** (Condorcet paradox: 1/18 for n = 3, rising to ≈ 8.8%), or that a chosen candidate is the Condorcet winner. Live P is exact by DP over the three pairwise margins with the remaining votes.
+
+### polarizer
+**Polarizer** · geometry · accent `#80ffdb` · L, C
+A photon polarised at 0° must reach 90°. At each checkpoint the player sets the next polarizer's turn Δ (5°–90°, never past 90°); the photon passes with P = cos²Δ (Malus). Draw it literally: the polarisation vector projected onto the new axis, with the squared projection as a bar. Per-step fair factor 1/cos²Δ; the choice of Δ is EV-neutral. Reaching 90° pays and ends the round. Presets show the quantum Zeno effect: cos^(2n)(90°/n) → 1. The max-win cap applies.
+
+### witness
+**Witness** · number-theory · accent `#e9ff70` · M
+A hidden odd N, uniform on an odd range (e.g. [101, 1999]). Each round runs a Miller–Rabin test with a uniformly random base. "Composite" ends it (certain); "probably prime" updates the odds. Bet **Prime** or **Composite**. Live P is the exact posterior: primes have likelihood 1, and composites have (strong liars / bases)^r. Precompute the strong-liar counts. Board: the candidates as weighted dots.
+
+### pivot
+**Pivot** · combinatorics · accent `#ffb703` · M, C
+Weighted voters (presets such as [5, 4, 3, 2, 1] with quota 9) join a coalition in uniformly random order. The pivot is the voter whose weight first takes the total to the quota or beyond. Back a voter: P = Shapley–Shubik index, exact by enumeration or subset DP. Live: the coalition bar fills towards the quota line, with your block marked and the gap where your joining would tip it shaded.
+
+### homecoming
+**Homecoming** · random-walk · accent `#e0aaff` · M, C
+A simple random walk on ℤ^d with d ∈ {1, 2, 3} (dimension is the volatility knob). Win if it returns to the origin within T steps (T ∈ {10, 20, 40}). Pólya: return is certain eventually in 1D and 2D, ≈ 34% in 3D. Live P is exact by DP over positions (use symmetry to reduce states). For 3D, draw the three coordinates as projections.
