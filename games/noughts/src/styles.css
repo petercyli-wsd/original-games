@@ -1,0 +1,308 @@
+/* Noughts board. Layout, panel and readouts come from the kit. */
+
+.nt {
+  --x: var(--accent);
+  --o: #f1edff;
+  --draw: 280ms;
+  --fade: 280ms;
+}
+.nt text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Header */
+.nt-head-text {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--muted) !important;
+  letter-spacing: 0.02em;
+}
+.nt-head-text.end {
+  text-anchor: end;
+}
+.nt-x-text {
+  fill: var(--x) !important;
+  font-weight: 800;
+}
+.nt-o-text {
+  fill: var(--o) !important;
+  font-weight: 800;
+}
+
+/* Series strip */
+.nt-mini rect {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.nt-mini.live rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.nt-mini.won rect {
+  stroke: var(--green);
+  fill: color-mix(in srgb, var(--green) 10%, var(--bg));
+}
+.nt-mini.lost rect {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 12%, var(--bg));
+}
+.nt-mini.next rect {
+  stroke-dasharray: 3 3;
+}
+.nt-mini-x line {
+  stroke: var(--x);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.nt-mini-o {
+  fill: none;
+  stroke: var(--o);
+  stroke-width: 1.6;
+}
+.nt-mini-line {
+  stroke: var(--green);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.nt-mini.lost .nt-mini-line {
+  stroke: var(--red);
+}
+.nt-mini-q {
+  font-size: 13px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--muted) !important;
+}
+
+/* Cells */
+.nt-cell {
+  fill: color-mix(in srgb, var(--bg) 82%, var(--card));
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.nt-tint {
+  transition: opacity var(--fade) ease;
+}
+.nt-tint.up {
+  fill: var(--green);
+}
+.nt-tint.down {
+  fill: var(--red);
+}
+.nt-val {
+  font-size: 22px;
+  font-weight: 800;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.nt-val.up {
+  fill: color-mix(in srgb, var(--green) 80%, #fff);
+}
+.nt-val.down {
+  fill: color-mix(in srgb, var(--red) 70%, #fff);
+}
+.nt-val.even {
+  fill: var(--text);
+}
+.nt-ends {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+.nt-ends.up {
+  fill: var(--green);
+}
+.nt-ends.down {
+  fill: color-mix(in srgb, var(--red) 75%, #fff);
+}
+.nt-val-g {
+  animation: nt-fade var(--fade) ease both;
+}
+
+/* Marks */
+.nt-x line {
+  stroke: var(--x);
+  stroke-width: 9;
+  stroke-linecap: round;
+}
+.nt-o circle {
+  fill: none;
+  stroke: var(--o);
+  stroke-width: 9;
+}
+.nt-fresh line,
+.nt-fresh circle {
+  stroke-dasharray: 1 1;
+  animation: nt-draw calc(var(--draw) * 0.6) cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+.nt-fresh.nt-o circle {
+  animation-duration: var(--draw);
+}
+.nt-fresh line:nth-child(2) {
+  animation-delay: calc(var(--draw) * 0.4);
+}
+
+/* Threat lines: two of a kind with the third cell open. */
+.nt-threat {
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 2 9;
+  opacity: 0.75;
+  animation: nt-fade var(--fade) ease both;
+}
+.nt-threat.x {
+  stroke: var(--x);
+}
+.nt-threat.o {
+  stroke: var(--o);
+}
+
+/* Scanner */
+.nt-cursor {
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  stroke: var(--accent);
+  stroke-width: 3;
+  transition: transform 70ms ease-out;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+
+/* Result */
+.nt-winline {
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+  animation: nt-draw calc(var(--fade) * 1.2) ease-out both;
+}
+.nt-winline.yours {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.nt-winline.theirs {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.nt-drawn rect {
+  fill: color-mix(in srgb, var(--bg) 88%, transparent);
+  stroke-width: 2;
+}
+.nt-drawn.yours rect {
+  stroke: var(--green);
+}
+.nt-drawn.theirs rect {
+  stroke: var(--red);
+}
+.nt-drawn text {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.nt-drawn.yours text {
+  fill: var(--green);
+}
+.nt-drawn.theirs text {
+  fill: var(--red);
+}
+.nt-drawn {
+  animation: nt-fade var(--fade) ease both;
+}
+
+/* Outcome bar */
+.nt-bar-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: var(--muted) !important;
+}
+.nt-bar-title.end {
+  text-anchor: end;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.nt-bar-track {
+  fill: var(--hover);
+}
+.nt-seg {
+  transition: x var(--fade) ease, width var(--fade) ease;
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.nt-seg.yours {
+  fill: var(--green);
+}
+.nt-seg.theirs {
+  fill: color-mix(in srgb, var(--red) 55%, var(--bg));
+}
+.nt-seg.theirs.s-D {
+  fill: color-mix(in srgb, var(--red) 32%, var(--bg));
+}
+.nt-key {
+  font-size: 11.5px;
+  text-anchor: middle;
+  fill: var(--muted) !important;
+}
+.nt-legend {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--muted) !important;
+}
+.nt-legend .nt-legend-p {
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+}
+.nt-legend.yours {
+  fill: var(--green) !important;
+}
+.nt-legend.yours .nt-legend-p {
+  fill: var(--green);
+}
+
+@keyframes nt-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes nt-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* The result card sits over the outcome bar at the bottom of the board. */
+.og-board.nt-stage {
+  grid-template-columns: minmax(0, 1fr);
+}
+.nt-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.nt-over > * {
+  pointer-events: auto;
+}
