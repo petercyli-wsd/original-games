@@ -1,0 +1,429 @@
+/* Crash: the graph, the big multiplier, the crash-point history and the target inputs. */
+
+.crash-game {
+  --curve: var(--accent);
+}
+
+/* ---------- Panel ---------- */
+/* The Auto panel is tall: let it scroll rather than squash its rows. */
+.crash-game .og-panel > *,
+.crash-game .og-autobet > * {
+  flex-shrink: 0;
+}
+.crash-target-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crash-target-field.off .crash-pair,
+.crash-target-field.off .crash-quick {
+  opacity: 0.45;
+}
+.crash-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 6px;
+}
+.crash-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  min-width: 0;
+}
+.crash-input:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.crash-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.crash-input input:disabled {
+  opacity: 0.6;
+}
+.crash-input b {
+  color: var(--muted);
+}
+.crash-quick {
+  flex-wrap: wrap;
+}
+.crash-quick .og-chip {
+  flex: 1 0 auto;
+  padding: 6px 6px;
+  font-size: 12px;
+}
+.crash-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.crash-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.crash-switch i {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  border-radius: 99px;
+  background: var(--hover);
+  border: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+.crash-switch i::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.crash-switch input:checked + i {
+  background: color-mix(in srgb, var(--accent) 45%, var(--bg));
+  border-color: var(--accent);
+}
+.crash-switch input:checked + i::after {
+  transform: translateX(14px);
+  background: #fff;
+}
+.crash-switch input:focus-visible + i {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.crash-switch input:disabled + i {
+  opacity: 0.5;
+}
+.crash-switch span {
+  min-width: 26px;
+  font-size: 12px;
+}
+.og-stats dd.crash-profit {
+  color: var(--green);
+}
+.crash-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- History of crash points (newest on the right, oldest fading out) ---------- */
+.crash-history {
+  flex: 1;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px);
+  mask-image: linear-gradient(90deg, transparent, #000 28px);
+}
+.crash-hist {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  animation: crash-hist-in 0.3s ease both;
+}
+.crash-hist.low {
+  color: var(--muted);
+  background: var(--raised);
+}
+.crash-hist.mid {
+  color: var(--green);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+}
+.crash-hist.high {
+  color: var(--gold);
+  background: color-mix(in srgb, var(--gold) 16%, transparent);
+}
+.crash-hist.moon {
+  color: #07070b;
+  background: var(--accent);
+}
+.crash-hist.won {
+  box-shadow: inset 0 -2px 0 var(--green);
+}
+@keyframes crash-hist-in {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+/* ---------- Board ---------- */
+.crash-board .og-instant {
+  top: 40px;
+}
+.crash-board {
+  place-items: stretch;
+  min-height: 300px;
+}
+.crash-chart {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 70%, transparent), color-mix(in srgb, var(--bg) 92%, transparent));
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.crash-chart > svg {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.crash-chart.crashed {
+  --curve: var(--red);
+}
+.crash-chart.max {
+  --curve: var(--gold);
+}
+.crash-grid line {
+  stroke: rgba(255, 255, 255, 0.055);
+  stroke-width: 1;
+}
+.crash-axis {
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1.5;
+}
+.crash-ylabels text,
+.crash-xlabels text {
+  fill: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.crash-plabels text {
+  fill: color-mix(in srgb, var(--accent) 75%, var(--muted));
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+.crash-plabels text.head {
+  fill: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.crash-target line {
+  stroke: var(--gold);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.85;
+}
+.crash-target text {
+  fill: var(--gold);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.crash-target.hit line {
+  stroke: var(--green);
+  stroke-dasharray: none;
+}
+.crash-target.hit text {
+  fill: var(--green);
+}
+.crash-preview {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 7;
+  stroke-linecap: round;
+}
+.crash-area {
+  transition: fill 0.2s ease;
+}
+.crash-line {
+  fill: none;
+  stroke: var(--curve);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.crash-line.glow {
+  stroke-width: 9;
+  opacity: 0.45;
+}
+.crash-tip .core {
+  fill: #fff;
+  stroke: var(--curve);
+  stroke-width: 3;
+}
+.crash-tip .aura {
+  fill: var(--curve);
+  opacity: 0.25;
+  animation: crash-pulse 0.9s ease-in-out infinite;
+}
+.crash-tip .tail {
+  fill: var(--curve);
+  opacity: 0.7;
+}
+.crash-tip .burst line {
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.crash-tip .burst {
+  animation: crash-burst 0.45s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+.crash-tip .burst circle {
+  fill: var(--red);
+  animation: crash-pop 0.35s ease-out both;
+}
+.crash-cash circle {
+  fill: var(--gold);
+  stroke: #fff;
+  stroke-width: 2;
+}
+.crash-cash circle.halo {
+  fill: var(--gold);
+  stroke: none;
+  opacity: 0.25;
+}
+.crash-cash rect {
+  fill: var(--gold);
+}
+.crash-cash text {
+  fill: #07070b;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+@keyframes crash-pulse {
+  50% {
+    transform: scale(1.35);
+    opacity: 0.12;
+  }
+}
+@keyframes crash-burst {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+}
+@keyframes crash-pop {
+  from {
+    transform: scale(2.2);
+  }
+}
+
+/* ---------- The big multiplier ---------- */
+.crash-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.crash-big {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 2px 18px #000c;
+}
+.crash-big b {
+  font-size: clamp(40px, 9cqi, 76px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.crash-big span {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.crash-big small {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.crash-big.idle b {
+  color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+.crash-big.live b {
+  color: var(--text);
+}
+.crash-big.live.cashed b {
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+}
+.crash-big.crashed b,
+.crash-big.crashed span {
+  color: var(--red);
+}
+.crash-big.crashed b {
+  animation: crash-shake 0.4s ease both;
+}
+.crash-big.max b,
+.crash-big.max span {
+  color: var(--gold);
+}
+.crash-tag {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 700;
+  color: #07070b;
+  background: var(--green);
+  text-shadow: none;
+  box-shadow: 0 0 22px -6px var(--green);
+  animation: crash-tag-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.3) both;
+}
+@keyframes crash-shake {
+  20% {
+    transform: translateX(-5px);
+  }
+  45% {
+    transform: translateX(4px);
+  }
+  70% {
+    transform: translateX(-2px);
+  }
+}
+@keyframes crash-tag-in {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+
+@container (max-width: 760px) {
+  .crash-board,
+  .crash-chart {
+    min-height: 310px;
+  }
+  .crash-big b {
+    font-size: 44px;
+  }
+  .crash-big small {
+    font-size: 12px;
+  }
+}
+.crash-tip .aura,
+.crash-tip .burst,
+.crash-tip .burst circle {
+  transform-box: fill-box;
+  transform-origin: center;
+}
