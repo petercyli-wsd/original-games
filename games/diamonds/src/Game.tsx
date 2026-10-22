@@ -81,13 +81,16 @@ export default function Game() {
   const seq = useRef(0);
 
   const resolved = useRef(0);
-  const ticket = useTicket(() => (dropping ? resolved.current : 0));
+  // The outcome is fixed the moment the stake is accepted; leaving mid-drop
+  // settles the open ticket at that outcome (resolved is reset before each bet).
+  const ticket = useTicket(() => resolved.current);
 
   const stagger = turbo.turbo ? 35 : 130;
   const dropMs = turbo.turbo ? 120 : 420;
   const totalMs = (GEMS - 1) * stagger + dropMs + (turbo.turbo ? 20 : 80);
 
   async function playOnce(stake: number): Promise<number | null> {
+    resolved.current = 0;
     if (!(await ticket.place(stake))) return null;
     const r = playRound(rng.next, risk);
     resolved.current = r.multiplier;
@@ -166,10 +169,10 @@ export default function Game() {
             <dd>{fmtChance(winChance(risk))}</dd>
             <dt>Pays something</dt>
             <dd>{fmtChance(returnChance(risk))}</dd>
-            <dt>Top prize</dt>
-            <dd>{fmtMult(top)}</dd>
             <dt>Max win</dt>
-            <dd>{formatAmount(bet.value * top, 2)}</dd>
+            <dd>
+              {formatAmount(bet.value * top, 2)} <span className="dm-stat-sub">({fmtMult(top)})</span>
+            </dd>
           </dl>
 
           {auto.mode === 'manual' ? (
@@ -177,11 +180,7 @@ export default function Game() {
               {dropping ? 'Dropping…' : 'Bet'}
             </ActionButton>
           ) : (
-            <AutoBetControls auto={auto} disabled={!!bet.blocked || dropping}>
-              <p className="dm-auto-note">
-                Each auto bet drops five gems on the <b>{RISK_NAMES[risk]}</b> table.
-              </p>
-            </AutoBetControls>
+            <AutoBetControls auto={auto} disabled={!!bet.blocked || dropping} />
           )}
           {bet.blocked && <p className="dm-blocked">{bet.blocked}</p>}
 
@@ -289,8 +288,11 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Set your bet and pick a risk table: Low, Classic or High (keys 1, 2, 3).</li>
-              <li>Press Bet (or Space). The gems drop one by one, matched gems light up and the paying hand is highlighted in the table.</li>
-              <li>Use Auto to run a series of bets with your own stop rules. Each colour also has its own cut, so matches are easy to spot.</li>
+              <li>
+                Press Bet (or Space). The gems drop one by one, matched gems light up and the hand is highlighted in the table. Each colour also has its
+                own cut, so matches are easy to spot.
+              </li>
+              <li>Use Auto to run a set number of bets, raise or reset the bet after a win or loss, and stop at a profit or loss limit.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">

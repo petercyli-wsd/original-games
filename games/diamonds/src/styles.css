@@ -11,14 +11,9 @@
   text-align: center;
   color: var(--red);
 }
-.dm-auto-note {
-  margin: 0 0 2px;
-  font-size: 12px;
-  line-height: 1.45;
+.dm-stat-sub {
+  font-weight: 500;
   color: var(--muted);
-}
-.dm-auto-note b {
-  color: var(--accent);
 }
 
 .dm-board {
@@ -246,13 +241,18 @@
 
 @container (max-width: 760px) {
   .dm-board {
-    min-height: 240px;
-    padding-top: 70px;
+    min-height: 220px;
+    padding-top: 62px;
+    gap: 10px;
   }
   .dm-paytable {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
-    padding: 8px;
+    padding: 6px;
+  }
+  .dm-pay {
+    gap: 2px;
+    padding: 6px 4px;
   }
   .dm-hand b {
     font-size: 19px;
