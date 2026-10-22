@@ -88,6 +88,13 @@ type Banner =
 
 const fmtMoney = (x: number) => formatAmount(x, 2);
 const fmtSmall = (x: number) => formatAmount(x, x > 0 && x < 0.1 ? 4 : 2);
+/** Feature-buy cost: the exact price × stake, kept to the wallet's 8 decimals (no cent rounding, which would move the RTP at small stakes). */
+/** Money to at least 2 decimals, more when needed (e.g. a 0.191 buy cost). */
+const fmtExact = (x: number) => {
+  const t = x.toFixed(8).replace(/0+$/, '');
+  return (t.split('.')[1] ?? '').length > 2 ? t : x.toFixed(2);
+};
+const buyCostOf = (stake: number, price: number) => Math.round(stake * price * 1e8) / 1e8;
 
 /** Counts up to `amount` for the big-win banner. */
 function CountUp({ amount, ms }: { amount: number; ms: number }) {
@@ -131,6 +138,7 @@ export default function Game() {
   const [buyArmed, setBuyArmed] = useState(false);
   const [stopOnFeature, setStopOnFeature] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
+  const [ptOpen, setPtOpen] = useState(false);
 
   const seq = useRef(0);
   const busyRef = useRef(false);
@@ -252,7 +260,7 @@ export default function Game() {
     if (busyRef.current) return null;
     const rs = set;
     const n = lines;
-    const paid = buy ? Math.round(stake * rs.buyPrice * 100) / 100 : stake;
+    const paid = buy ? buyCostOf(stake, rs.buyPrice) : stake;
     busyRef.current = true;
     if (!(await ticket.place(paid))) {
       busyRef.current = false;
@@ -324,7 +332,8 @@ export default function Game() {
     setLast({ id: ++seq.current, multiplier: mult, paid, won, freeSpins: round.freeSpins });
     setSpinWin(won);
     setBusy(false);
-    const tier = winTier(round.total);
+    // Tiers are multiples of what was paid, so a bought feature returning 1.7× is not a "Mega win".
+    const tier = winTier(round.multiplier);
     if (tier) setBanner({ kind: 'big', tier, amount: won, id: seq.current });
     return mult;
   }
@@ -339,7 +348,7 @@ export default function Game() {
     turbo: turbo.turbo,
   });
   const locked = busy || auto.running;
-  const buyCost = Math.round(bet.value * set.buyPrice * 100) / 100;
+  const buyCost = buyCostOf(bet.value, set.buyPrice);
   const buyBlocked = bet.blocked ?? (buyCost > balance + 1e-9 ? 'Not enough balance for the feature buy' : undefined);
 
   // The big-win banner clears itself.
@@ -369,7 +378,8 @@ export default function Game() {
     void play(bet.value);
   };
   const buy = () => {
-    if (locked || buyBlocked) return;
+    // The buy (and its confirm box) only exists on the Manual tab.
+    if (auto.mode !== 'manual' || locked || buyBlocked) return;
     if (!buyArmed) return setBuyArmed(true);
     void play(bet.value, true);
   };
@@ -531,6 +541,7 @@ export default function Game() {
             </button>
           </div>
 
+          {auto.mode === 'manual' && (
           <dl className="og-stats">
             <dt>Each line wins</dt>
             <dd>{fmtChance(set.lineHit)}</dd>
@@ -541,6 +552,7 @@ export default function Game() {
             <dt>RTP</dt>
             <dd>{(set.rtp * 100).toFixed(2)}%</dd>
           </dl>
+          )}
 
           {auto.mode === 'manual' ? (
             <>
@@ -550,7 +562,7 @@ export default function Game() {
               {buyArmed ? (
                 <div className="rl-buy-confirm" role="group" aria-label="Confirm feature buy">
                   <span>
-                    Buy {BUY_SPINS} free spins for <b>{fmtMoney(buyCost)}</b>?
+                    Buy {BUY_SPINS} free spins for <b>{fmtExact(buyCost)}</b>?
                   </span>
                   <div>
                     <ActionButton kind="secondary" onClick={() => setBuyArmed(false)}>
@@ -563,7 +575,7 @@ export default function Game() {
                 </div>
               ) : (
                 <ActionButton kind="secondary" className="rl-buy" disabled={locked || !!buyBlocked} onClick={buy}>
-                  Buy free spins <span>{set.buyPrice}× · {fmtMoney(buyCost)}</span>
+                  Buy free spins <span>{set.buyPrice}× · {fmtExact(buyCost)}</span>
                 </ActionButton>
               )}
             </>
@@ -676,9 +688,12 @@ export default function Game() {
 
       <Caption>{caption}</Caption>
 
-      <div className="rl-paytable" aria-label="Paytable">
+      <div className={'rl-paytable' + (ptOpen ? ' open' : '')} aria-label="Paytable">
         <div className="rl-pt-head">
-          <span>Pays × line bet</span>
+          <button type="button" className="rl-pt-toggle" aria-expanded={ptOpen} onClick={() => setPtOpen((o) => !o)}>
+            Paytable <i aria-hidden>▾</i>
+          </button>
+          <span className="rl-pt-title">Pays × line bet</span>
           <span>
             {VOL_LABEL[vol]} reels · line bet {fmtSmall(lineBet)}
           </span>

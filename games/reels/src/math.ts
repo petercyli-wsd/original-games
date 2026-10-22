@@ -408,7 +408,7 @@ export function playRound(set: ReelSet, lines: number, next: () => number, buy =
   return { spins, total, multiplier: buy ? total / set.buyPrice : total, freeSpins: played, bought: buy };
 }
 
-/** Win-size tier for the banner, by total win in stakes. */
+/** Win-size tier for the banner, by the round's payout multiplier on the amount paid. */
 export function winTier(total: number): 'big' | 'mega' | 'epic' | null {
   if (total >= 100) return 'epic';
   if (total >= 25) return 'mega';

@@ -689,3 +689,40 @@
     text-align: center;
   }
 }
+
+/* ---------- Paytable toggle: collapsed on narrow frames so the controls sit closer to the reels ---------- */
+.rl-pt-toggle {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.rl-pt-toggle i {
+  font-style: normal;
+  transition: transform 0.2s;
+}
+.rl-paytable.open .rl-pt-toggle i {
+  transform: rotate(180deg);
+}
+@container (max-width: 760px) {
+  .rl-pt-toggle {
+    display: inline-flex;
+  }
+  .rl-pt-title {
+    display: none;
+  }
+  .rl-paytable:not(.open) .rl-pt-grid {
+    display: none;
+  }
+  .rl-pt-head {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+}
