@@ -1,0 +1,163 @@
+/* Mediant board. Layout, panel and readouts come from the kit. */
+
+.md-win {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.md-presets .og-chips.wrap .og-chip {
+  flex: 1 0 calc(33.3% - 4px);
+}
+.md-hint {
+  margin: -4px 0 4px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.mediant {
+  touch-action: none;
+  user-select: none;
+}
+.mediant text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+}
+
+.mediant .win {
+  fill: color-mix(in srgb, var(--accent) 9%, transparent);
+}
+.mediant .win.grab {
+  cursor: grab;
+}
+.mediant .win-edge {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
+}
+.mediant .grip {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.mediant .grip-hit {
+  fill: transparent;
+  cursor: ew-resize;
+}
+.mediant .win-label {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+
+.mediant .edge {
+  fill: none;
+  pointer-events: none;
+}
+.mediant .edge.faint {
+  stroke: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke-width: 1;
+}
+.mediant .edge.reach {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.1;
+}
+.mediant .edge.walked {
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mediant .axis {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 2;
+}
+.mediant .tick {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+}
+.mediant .tick-label {
+  font-size: 13px;
+  fill: var(--muted);
+}
+
+.mediant .leaf {
+  pointer-events: none;
+  stroke: var(--bg);
+  stroke-width: 0.8;
+}
+.mediant.deep .leaf {
+  stroke: none;
+}
+.mediant.deep .edge.faint {
+  stroke-width: 0.6;
+}
+.mediant.deep .edge.reach {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 0.7;
+}
+.mediant .leaf.lit {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.mediant .leaf.dark {
+  fill: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.mediant .leaf.gone {
+  fill: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke: none;
+}
+
+.mediant .node-label {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  pointer-events: none;
+}
+.mediant .final {
+  fill: none;
+  stroke-width: 3;
+}
+.mediant .final.in {
+  stroke: var(--green);
+}
+.mediant .final.out {
+  stroke: var(--red);
+}
+.mediant .final-label {
+  font-size: 15px;
+}
+
+.mediant .walker {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  pointer-events: none;
+}
+.mediant .walker circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 7px var(--accent));
+}
+
+.mediant .count {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mediant .count .lit-n {
+  fill: var(--accent);
+  font-size: 22px;
+}
+.mediant .count .pct {
+  fill: var(--muted);
+  font-weight: 600;
+}
+.mediant .sub {
+  font-size: 13.5px;
+  fill: var(--muted);
+}
