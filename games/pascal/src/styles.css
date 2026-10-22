@@ -1,0 +1,232 @@
+/* Pascal board. Layout, panel and readouts come from the kit. */
+
+.pascal text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* ---------- Tiles ---------- */
+.pascal .tile > path {
+  fill: color-mix(in srgb, var(--text) 5%, transparent);
+  stroke: none;
+  transition: fill 0.25s ease, stroke 0.25s ease, opacity 0.25s ease;
+}
+.pascal .tile .heat {
+  fill: var(--accent);
+  pointer-events: none;
+}
+.pascal .tile.live > path:first-child {
+  fill: color-mix(in srgb, var(--accent) 4%, var(--card));
+  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke-width: 1;
+}
+.pascal .tile.dead > path,
+.pascal .tile.past > path {
+  fill: color-mix(in srgb, var(--text) 3%, transparent);
+}
+.pascal .tile.visited > path {
+  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.pascal .tile.after > path {
+  fill: color-mix(in srgb, var(--text) 3.5%, transparent);
+}
+.pascal .tile.gate > path:first-child {
+  fill: color-mix(in srgb, var(--green) 22%, var(--card));
+  stroke: var(--green);
+  stroke-width: 2;
+}
+.pascal .tile.miss > path:first-child {
+  fill: color-mix(in srgb, var(--red) 16%, var(--card));
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+  stroke-width: 1;
+}
+.pascal .tile.gate.dead > path:first-child {
+  fill: color-mix(in srgb, var(--green) 6%, var(--card));
+  stroke-dasharray: 3 3;
+}
+.pascal .tile.miss.dead > path:first-child {
+  fill: color-mix(in srgb, var(--red) 5%, var(--card));
+  stroke: color-mix(in srgb, var(--red) 25%, transparent);
+}
+.pascal .tile.hit > path:first-child {
+  fill: color-mix(in srgb, var(--green) 55%, var(--card));
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 70%, transparent));
+}
+.pascal .tile.fail > path:first-child {
+  fill: color-mix(in srgb, var(--red) 55%, var(--card));
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 70%, transparent));
+}
+.pascal .tile.pickable {
+  cursor: pointer;
+}
+.pascal .tile.pickable:hover > path:first-child {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.pascal .num {
+  text-anchor: middle;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.pascal .tile.after .num {
+  fill: var(--muted);
+  font-weight: 500;
+  opacity: 0.75;
+}
+.pascal .tile.gate .num {
+  fill: var(--green);
+  font-weight: 800;
+}
+.pascal .tile.miss .num {
+  fill: color-mix(in srgb, var(--red) 55%, var(--text));
+}
+.pascal .tile.hit .num,
+.pascal .tile.fail .num {
+  fill: #fff;
+}
+
+/* ---------- Gate markers ---------- */
+.pascal .gate-line line {
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+.pascal .gate-line path {
+  fill: var(--green);
+}
+
+/* ---------- Path ---------- */
+.pascal .trail {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.pascal .trail.fresh {
+  animation-name: pascal-draw;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-fill-mode: both;
+}
+.pascal .arrows line {
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.pascal .walker {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  pointer-events: none;
+}
+.pascal .walker circle {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.pascal .walker.through circle,
+.pascal .walker.locked circle {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 10px var(--green));
+}
+.pascal .walker.missed circle,
+.pascal .walker.unreachable circle {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px var(--red));
+}
+.pascal .walker.cashed circle {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 10px var(--gold));
+}
+
+/* ---------- Corner meters ---------- */
+.pascal .cap {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  fill: var(--muted);
+}
+.pascal .end,
+.pascal .deck.right text {
+  text-anchor: end;
+}
+.pascal .odds {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--accent);
+}
+.pascal .odds.quiet {
+  fill: var(--muted);
+}
+.pascal .small {
+  font-size: 11px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pascal .pip {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1;
+}
+.pascal .pip.on {
+  fill: var(--accent);
+  stroke: none;
+}
+
+/* ---------- Crossing bar ---------- */
+.pascal .bar .seg rect {
+  fill: color-mix(in srgb, var(--red) 45%, var(--card));
+  transition: x 0.25s ease, width 0.25s ease;
+}
+.pascal .bar .seg.g rect {
+  fill: var(--green);
+}
+.pascal .bar .seg text {
+  font-size: 10px;
+  font-weight: 700;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+  fill: #fff;
+}
+.pascal .bar .seg.g text {
+  fill: #062b06;
+}
+.pascal .bar .g {
+  fill: var(--green);
+}
+.pascal .share {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--green);
+}
+.pascal .share.zero {
+  fill: var(--red);
+}
+
+@keyframes pascal-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.pascal .legend text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.pascal .legend .k-in {
+  fill: color-mix(in srgb, var(--accent) 60%, var(--card));
+}
+.pascal .legend .k-gate {
+  fill: var(--green);
+}
+.pascal .legend .k-out {
+  fill: color-mix(in srgb, var(--text) 18%, var(--card));
+}
