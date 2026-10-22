@@ -1,0 +1,362 @@
+/* Quadrant board. Layout, panel and readouts come from the kit. */
+
+.og-board.quad-stage {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: start center;
+  align-content: start;
+  row-gap: 12px;
+}
+.og-board.quad-stage > svg.quad {
+  width: 100%;
+  height: auto;
+  max-height: 54vh;
+}
+.og-board.quad-stage .og-round-over.inline {
+  min-height: 62px;
+}
+@container (max-width: 760px) {
+  .og-board.quad-stage > svg.quad {
+    max-height: none;
+  }
+}
+
+/* ---------- the plot ---------- */
+.quad text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.quad .start {
+  text-anchor: start;
+}
+.quad .end {
+  text-anchor: end;
+}
+.quad .plot-bg {
+  fill: color-mix(in srgb, var(--bg) 78%, transparent);
+  stroke: var(--line);
+}
+.quad .zone {
+  fill: color-mix(in srgb, var(--green) 7%, transparent);
+}
+.quad .grid line {
+  stroke: var(--line);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+.quad .glow {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.quad .cloud {
+  transition: opacity var(--quad-ms, 380ms) ease;
+}
+.quad .cloud.dim {
+  opacity: 0.22;
+}
+.quad .slice {
+  stroke: none;
+}
+.quad .slice.win {
+  fill: color-mix(in srgb, var(--green) 52%, transparent);
+}
+.quad .slice.miss {
+  fill: color-mix(in srgb, var(--red) 36%, transparent);
+}
+.quad .spoke {
+  stroke: var(--card);
+  stroke-opacity: 0.75;
+  stroke-width: 1;
+}
+.quad .contour {
+  fill: none;
+  stroke: #fff;
+  stroke-opacity: 0.16;
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.quad .rim {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-opacity: 0.9;
+}
+
+.quad .axis {
+  stroke: #fff;
+  stroke-opacity: 0.78;
+  stroke-width: 1.6;
+}
+.quad .tick text {
+  font-size: 10px;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-opacity: 0.7;
+}
+.quad .axis-name {
+  font-size: 14px;
+  font-weight: 700;
+  font-style: italic;
+  fill: #fff;
+}
+
+.quad .quad-label text {
+  font-size: 16px;
+  font-weight: 800;
+  fill: var(--muted);
+  transition: opacity var(--quad-ms, 380ms) ease;
+}
+.quad .quad-label .sub {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.quad .quad-label.win text {
+  fill: var(--green);
+}
+.quad .quad-label.dim text {
+  opacity: 0.35;
+}
+
+/* ---------- the slice, the bell and the point ---------- */
+.quad .slice-line {
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.quad .bell {
+  stroke-width: 1.5;
+  transition: opacity var(--quad-ms, 380ms) ease;
+}
+.quad .bell.win {
+  fill: color-mix(in srgb, var(--green) 62%, transparent);
+  stroke: var(--green);
+}
+.quad .bell.miss {
+  fill: color-mix(in srgb, var(--red) 50%, transparent);
+  stroke: var(--red);
+}
+.quad .bell.faded {
+  opacity: 0.35;
+}
+.quad .bell-label {
+  font-size: 15px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+}
+.quad .bell-label.win {
+  fill: var(--green);
+}
+.quad .bell-label.miss {
+  fill: var(--red);
+  font-size: 12.5px;
+}
+
+.quad .landed circle {
+  fill: var(--green);
+  stroke: #fff;
+  stroke-width: 2;
+}
+.quad .landed text {
+  font-size: 11px;
+  font-weight: 800;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+}
+
+.quad .point .dot {
+  fill: #fff;
+  filter: drop-shadow(0 0 7px var(--accent));
+}
+.quad .point .ring {
+  fill: none;
+  stroke-width: 3;
+  animation: quad-ring calc(var(--quad-ms, 380ms) * 1.4) ease-out both;
+}
+.quad .point.hit .ring {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 8px var(--green));
+}
+.quad .point.miss .ring {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 8px var(--red));
+}
+.quad .point.hit .dot {
+  fill: var(--green);
+}
+.quad .point.miss .dot {
+  fill: var(--red);
+}
+@keyframes quad-ring {
+  from {
+    r: 4;
+    opacity: 0;
+  }
+  60% {
+    r: 17;
+    opacity: 1;
+  }
+}
+
+.quad .coord rect {
+  fill: var(--raised);
+  stroke: var(--accent);
+  stroke-width: 1.2;
+}
+.quad .coord text {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.quad .y-label {
+  font-size: 12.5px;
+  font-weight: 800;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+}
+.quad .y-label.win {
+  fill: var(--green);
+}
+.quad .y-label.miss {
+  fill: var(--red);
+}
+
+.quad .caption {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.quad .caption .em {
+  fill: var(--text);
+  font-weight: 700;
+}
+.quad .caption .em-g {
+  fill: var(--green);
+  font-weight: 800;
+}
+.quad .caption .em-r {
+  fill: var(--red);
+  font-weight: 800;
+}
+
+/* ---------- points strip ---------- */
+.quad-points {
+  width: 100%;
+  max-width: 520px;
+  display: grid;
+  grid-template-columns: repeat(var(--n, 1), minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quad-points.n1 {
+  --n: 1;
+  max-width: 220px;
+}
+.quad-points.n2 {
+  --n: 2;
+  max-width: 400px;
+}
+.quad-points.n3 {
+  --n: 3;
+}
+.quad-points .pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 8px 5px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  text-align: center;
+  min-width: 0;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.quad-points .pill > span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.quad-points .pill > b {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.quad-points .pill > small {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.quad-points .pill.todo {
+  border-style: dashed;
+}
+.quad-points .pill.todo > b {
+  color: var(--muted);
+}
+.quad-points .pill.now {
+  border-color: var(--accent);
+  box-shadow: 0 0 14px -5px var(--accent);
+}
+.quad-points .pill.now > b {
+  color: var(--accent);
+}
+.quad-points .pill.in {
+  border-color: color-mix(in srgb, var(--green) 60%, transparent);
+}
+.quad-points .pill.in > b {
+  color: var(--green);
+}
+.quad-points .pill.out {
+  border-color: color-mix(in srgb, var(--red) 60%, transparent);
+}
+.quad-points .pill.out > b {
+  color: var(--red);
+}
+
+/* ---------- panel bits ---------- */
+.quad-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.quad-glyph {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.quad-glyph rect {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.55;
+  stroke-width: 1.2;
+}
+.quad-glyph rect.on {
+  fill: var(--green);
+  stroke: var(--green);
+  stroke-opacity: 1;
+}
+.quad-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -2px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
