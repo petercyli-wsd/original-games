@@ -1,0 +1,447 @@
+/* Mines: the 5×5 tile grid, gem and mine art, payout ladder and panel bits.
+   Layout, panel and readouts come from the kit. */
+
+/* ---------- Panel ---------- */
+/* The Auto panel is tall: let it scroll instead of squashing its fields. */
+.og-panel > * {
+  flex-shrink: 0;
+}
+.mines-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.mines-pair > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.mines-stepper {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.mines-stepper button {
+  border-radius: 0 !important;
+  background: var(--raised);
+  font-size: 18px;
+  font-weight: 700;
+}
+.mines-stepper button:not(:disabled):hover {
+  background: var(--hover);
+}
+.mines-stepper select {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  text-align: center;
+  text-align-last: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.mines-stepper select option {
+  background: var(--card);
+}
+.mines-stepper select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.mines-gems-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mines-ico {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+}
+.mines-ico svg {
+  width: 100%;
+  height: 100%;
+}
+.mines-profit {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.mines-profit.up {
+  color: var(--green);
+}
+.mines-sel-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mines-sel-row button {
+  font-size: 13px;
+  font-weight: 600;
+}
+.mines-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* ---------- Board ---------- */
+.mines-board {
+  min-height: 0;
+}
+.mines-grid {
+  --sel: #a78bfa;
+  --gap: clamp(6px, 1.6cqi, 12px);
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+  gap: var(--gap);
+  width: min(100%, 540px, max(270px, calc(100vh - 380px)));
+  aspect-ratio: 1;
+  padding: var(--gap);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg) 75%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line), 0 20px 50px -24px #000;
+}
+.mines-grid.shake {
+  animation: mines-shake 0.42s cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+.og-game .mines-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  padding: 0;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #2d3040 0%, #262836 100%);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: transform 0.14s ease, background 0.2s ease, box-shadow 0.2s ease, filter 0.15s ease;
+}
+.og-game .mines-tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.og-game .mines-grid.live .mines-tile:not(:disabled):hover {
+  transform: translateY(-3px);
+  background: linear-gradient(180deg, #363a4e 0%, #2d3042 100%);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.28), 0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.og-game .mines-tile:not(:disabled):active {
+  transform: translateY(0) scale(0.96);
+}
+
+.mines-face {
+  position: absolute;
+  inset: 19%;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.mines-face svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Flip in progress: the tile pulses while the result is drawn. */
+.og-game .mines-tile.pending {
+  animation: mines-pulse 0.26s ease-in-out infinite alternate;
+  background: linear-gradient(180deg, #3b3f55 0%, #30344a 100%);
+}
+
+/* Revealed tiles sink into the board. */
+.og-game .mines-tile.gem:not(.ghost),
+.og-game .mines-tile.mine:not(.ghost) {
+  background: #12131b;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.og-game .mines-tile.gem:not(.ghost) {
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), inset 0 0 0 1.5px color-mix(in srgb, var(--green) 45%, transparent);
+}
+.mines-tile.gem:not(.ghost) .mines-face {
+  animation: mines-pop 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.35) both;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.mines-tile.gem:not(.ghost) .g-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: mines-spark 1.6s ease-in-out 0.3s infinite;
+}
+.og-game .mines-tile.mine.hit {
+  background: color-mix(in srgb, var(--red) 26%, #12131b);
+  box-shadow: inset 0 0 0 2px var(--red), 0 0 26px -4px var(--red);
+}
+.mines-tile.mine.hit .mines-face {
+  animation: mines-boom 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+.mines-tile.hit::after {
+  content: '';
+  position: absolute;
+  inset: 10%;
+  border-radius: 50%;
+  border: 3px solid var(--red);
+  animation: mines-ring 0.6s ease-out both;
+  pointer-events: none;
+}
+
+/* End of round: everything else is shown, dimmed. */
+.og-game .mines-tile.ghost {
+  background: #191a24;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.mines-tile.ghost .mines-face {
+  opacity: 0.32;
+  transform: scale(0.82);
+  animation: mines-ghost 0.35s ease both;
+  animation-delay: var(--d, 0ms);
+}
+
+.m-stud {
+  stroke: #b30d30;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.m-eye {
+  fill: #7a0820;
+}
+.g-edge {
+  fill: #15803d;
+}
+
+/* Auto selection: violet, so a marked tile never reads as a gem. */
+.og-game .mines-tile.sel {
+  background: linear-gradient(180deg, #4a3d7a 0%, #3d3266 100%);
+  box-shadow: inset 0 -5px 0 rgba(0, 0, 0, 0.28), inset 0 0 0 2px var(--sel);
+}
+.og-game .mines-grid.live .mines-tile.sel:not(:disabled):hover {
+  background: linear-gradient(180deg, #554690 0%, #463a75 100%);
+}
+.og-game .mines-tile.sel.gem:not(.ghost),
+.og-game .mines-tile.sel.mine:not(.ghost) {
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), inset 0 0 0 2px var(--sel);
+}
+.og-game .mines-tile.sel.mine.hit {
+  box-shadow: inset 0 0 0 2px var(--red), 0 0 26px -4px var(--red);
+}
+.og-game .mines-tile.sel.ghost {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--sel) 70%, transparent);
+}
+.mines-order {
+  position: absolute;
+  top: 6%;
+  left: 9%;
+  font-size: clamp(10px, 1.6cqi, 13px);
+  font-style: normal;
+  font-weight: 800;
+  color: color-mix(in srgb, var(--text) 75%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Payout ladder ---------- */
+.mines-ladder {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  width: min(100%, 640px);
+  margin: 0 auto;
+}
+.mines-rung {
+  flex: 0 1 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 6px 2px;
+  border-radius: var(--radius);
+  background: var(--raised);
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.mines-rung b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.mines-rung span {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.mines-rung.done {
+  background: color-mix(in srgb, var(--green) 12%, var(--raised));
+}
+.mines-rung.done b {
+  color: var(--green);
+}
+.mines-rung.next {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--raised));
+  box-shadow: 0 0 18px -8px var(--accent);
+}
+
+/* ---------- Info paytable ---------- */
+.mines-paytable {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.mines-paytable > div {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--og-bg-raised, #15151c);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.mines-paytable b {
+  text-align: right;
+  color: var(--og-green, #00e701);
+}
+.mines-paytable small {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+@container (max-width: 760px) {
+  .mines-grid {
+    width: min(100%, 460px);
+  }
+  .og-history {
+    justify-content: flex-start;
+    -webkit-mask-image: linear-gradient(90deg, #000 80%, transparent);
+    mask-image: linear-gradient(90deg, #000 80%, transparent);
+  }
+  .mines-rung:nth-child(n + 7) {
+    display: none;
+  }
+  .mines-rung b {
+    font-size: 12px;
+  }
+}
+
+/* Auto result: a card centred on the grid, as on the big casinos. */
+.mines-board .og-instant {
+  top: 50%;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 28px;
+  border-radius: 16px;
+  border-width: 2px;
+  background: rgba(12, 13, 19, 0.92);
+  backdrop-filter: blur(4px);
+  transform: translate(-50%, -50%);
+  animation-name: mines-instant-in;
+}
+.mines-board .og-instant b {
+  font-size: 30px;
+}
+@keyframes mines-instant-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+@keyframes mines-pulse {
+  from {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  to {
+    transform: scale(0.93);
+    filter: brightness(1.35);
+  }
+}
+@keyframes mines-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.2) rotate(-18deg);
+  }
+}
+@keyframes mines-boom {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  60% {
+    transform: scale(1.25);
+  }
+}
+@keyframes mines-ring {
+  from {
+    opacity: 1;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes mines-ghost {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+}
+@keyframes mines-spark {
+  0%,
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  80% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+@keyframes mines-shake {
+  10%,
+  90% {
+    transform: translateX(-2px);
+  }
+  20%,
+  80% {
+    transform: translateX(4px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-7px);
+  }
+  40%,
+  60% {
+    transform: translateX(7px);
+  }
+}
