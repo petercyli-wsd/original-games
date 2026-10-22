@@ -1,0 +1,211 @@
+/* Plinko board. Layout, panel and readouts come from the kit. */
+
+.pk-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin: -4px 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+}
+.pk-ticks span {
+  width: 14px;
+  text-align: center;
+}
+.pk-ticks span.on {
+  color: var(--accent);
+}
+.pk-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+.pk-note.center {
+  text-align: center;
+}
+.pk-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+
+/* A long Auto panel scrolls; its fields must never be squashed. */
+.plinko .og-panel > * {
+  flex-shrink: 0;
+}
+/* Newest result first, fading out on the right instead of clipping the newest. */
+.plinko .og-history {
+  justify-content: flex-start;
+  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
+  mask-image: linear-gradient(90deg, #000 85%, transparent);
+}
+
+/* ---------- Board ---------- */
+.pk-board {
+  min-height: 340px;
+}
+.pk-board > svg.pk-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+/* The result pill sits in the empty top-left corner, clear of the drop point. */
+.pk-board .og-instant {
+  left: 4px;
+  top: 4px;
+  transform: none;
+  animation-name: pk-pill-in;
+}
+@keyframes pk-pill-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.92);
+  }
+}
+
+.pk-peg {
+  fill: #b9b8c8;
+  opacity: 0.85;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.pk-bucket {
+  cursor: pointer;
+}
+.pk-bucket-body {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.pk-bucket-body rect {
+  fill: var(--b);
+  stroke: transparent;
+  stroke-width: 2.5;
+  transition: stroke 0.15s ease;
+}
+.pk-bucket-body text {
+  fill: #12091a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.pk-bucket.landed .pk-bucket-body rect {
+  stroke: #fff;
+}
+.pk-bucket.focus .pk-bucket-body rect {
+  stroke: color-mix(in srgb, #fff 70%, var(--b));
+}
+.pk-bar {
+  fill: color-mix(in srgb, var(--b) 45%, transparent);
+  transition: fill 0.15s ease;
+}
+.pk-bucket.focus .pk-bar,
+.pk-bucket.landed .pk-bar {
+  fill: var(--b);
+}
+.pk-hit {
+  fill: transparent;
+}
+
+.pk-ball {
+  pointer-events: none;
+}
+
+/* ---------- Bucket detail strip ---------- */
+.pk-detail {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.pk-detail > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 9px 14px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+.pk-detail span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.pk-detail b {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pk-detail b.up {
+  color: var(--green);
+}
+.pk-detail b.down {
+  color: var(--red);
+}
+.pk-detail small {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.pk-swatch {
+  color: var(--b);
+}
+
+/* ---------- Info modal paytable ---------- */
+.pk-paytable {
+  width: 100%;
+  margin: 4px 0 10px;
+  border-collapse: collapse;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.pk-paytable th {
+  padding: 4px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.pk-paytable td {
+  padding: 4px 6px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+}
+.pk-paytable small {
+  color: var(--muted);
+}
+
+@container (max-width: 760px) {
+  .pk-board {
+    min-height: 0;
+  }
+  .pk-board > svg.pk-svg {
+    position: static;
+    height: auto;
+  }
+  .pk-detail > div {
+    padding: 7px 10px;
+  }
+  .pk-detail b {
+    font-size: 16px;
+  }
+  .pk-board .og-instant {
+    padding: 5px 11px;
+  }
+  .pk-board .og-instant b {
+    font-size: 17px;
+  }
+}
