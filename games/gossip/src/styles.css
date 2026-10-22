@@ -1,0 +1,215 @@
+/* Gossip board. Layout, panel and readouts come from the kit. */
+
+.gossip text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.gossip .ring {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 2;
+  stroke-dasharray: 2 6;
+}
+
+/* Nodes. */
+.gossip .node {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 2;
+}
+.gossip .node.on {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, var(--accent) 70%, #fff);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+.gossip .node.on.fresh {
+  animation: gs-light 0.35s ease backwards;
+}
+.gossip .node.seed {
+  stroke-width: 3;
+}
+.gossip.over.out .node:not(.on) {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 15%, var(--bg));
+}
+.gossip.over.all .node.on {
+  fill: var(--green);
+  stroke: color-mix(in srgb, var(--green) 70%, #fff);
+}
+
+/* Calls: a line grows from caller to callee, then a dot marks the arrival. */
+.gossip .call path {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  animation-name: gs-call;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-fill-mode: backwards;
+}
+.gossip .call circle {
+  animation: gs-arrive 0.15s ease backwards;
+}
+.gossip .call.new path {
+  stroke: var(--accent);
+}
+.gossip .call.new circle {
+  fill: var(--accent);
+}
+.gossip .call.waste path {
+  stroke: color-mix(in srgb, var(--text) 28%, transparent);
+  stroke-width: 1.5;
+}
+.gossip .call.waste circle {
+  fill: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+/* Centre readout. */
+.gossip .big {
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.gossip .big .of {
+  font-size: 22px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.gossip .small {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.gossip .phase {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  fill: var(--accent);
+}
+.gossip .phase.mop-up {
+  fill: var(--gold);
+}
+.gossip .hub {
+  fill: color-mix(in srgb, var(--bg) 82%, transparent);
+}
+.gossip .phase.late {
+  fill: var(--red);
+}
+.gossip .phase.done {
+  fill: var(--green);
+}
+
+/* Rounds row and finish chart. */
+.gossip .cap {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.gossip .cap.left {
+  text-anchor: start;
+}
+.gossip .cap.right {
+  text-anchor: end;
+}
+.gossip .win-t {
+  fill: var(--green);
+  font-weight: 700;
+}
+.gossip .lose-t {
+  fill: var(--red);
+  font-weight: 700;
+}
+.gossip .cell {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+.gossip .cell.played {
+  fill: var(--accent);
+  stroke: none;
+}
+.gossip .cell.full {
+  fill: var(--green);
+}
+.gossip .cell.next {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+.gossip .cell-t {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.gossip .cell-t.played {
+  fill: var(--bg);
+}
+.gossip .axis {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1;
+}
+.gossip .bar {
+  transition:
+    y 0.3s ease,
+    height 0.3s ease;
+}
+.gossip .bar.g {
+  fill: var(--green);
+}
+.gossip .bar.r {
+  fill: var(--red);
+}
+.gossip .tick {
+  font-size: 11px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.gossip .tick.past {
+  opacity: 0.45;
+}
+.gossip .tick.over {
+  fill: color-mix(in srgb, var(--red) 70%, var(--muted));
+}
+.gossip .budget-line {
+  stroke: var(--gold);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.gossip .strip-r {
+  fill: color-mix(in srgb, var(--red) 45%, var(--bg));
+}
+.gossip .strip-g {
+  fill: var(--green);
+  transition: width 0.3s ease;
+}
+
+.gossip-board.over {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+.gossip-board.over > svg {
+  min-height: 0;
+}
+
+@keyframes gs-call {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes gs-arrive {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes gs-light {
+  from {
+    fill: var(--bg);
+    stroke: color-mix(in srgb, var(--text) 35%, transparent);
+    filter: none;
+  }
+}
