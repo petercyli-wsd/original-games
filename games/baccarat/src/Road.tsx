@@ -1,7 +1,7 @@
 // The bead road: the classic baccarat scoreboard. Each round is one bead,
 // filled top to bottom, column by column: P (blue), B (red), T (green), with
 // small corner dots for a Player pair (top left) and a Banker pair (bottom
-// right). The tallies beside it count the beads on the road.
+// right). The tallies beside it count the beads shown on the road.
 
 export interface Bead {
   id: number;
@@ -20,7 +20,7 @@ export function Road({ beads }: { beads: Bead[] }) {
   const drop = beads.length > cap ? Math.ceil((beads.length - cap) / ROAD_ROWS) * ROAD_ROWS : 0;
   const shown = beads.slice(drop);
   const n = { P: 0, B: 0, T: 0, pp: 0, bp: 0 };
-  for (const b of beads) {
+  for (const b of shown) {
     n[b.win]++;
     if (b.pp) n.pp++;
     if (b.bp) n.bp++;
@@ -59,7 +59,7 @@ export function Road({ beads }: { beads: Bead[] }) {
           <dd>{n.T}</dd>
         </div>
         <div className="pairs">
-          <dt>Pairs</dt>
+          <dt>P / B pairs</dt>
           <dd>
             {n.pp} / {n.bp}
           </dd>

@@ -125,13 +125,16 @@ export default function Game() {
   const variantRef = useRef(variant);
   variantRef.current = variant;
 
-  // The deal is decided when the bet is placed; leaving mid-deal settles at it.
+  // The deal is decided the moment the bet is accepted and its multiplier is
+  // stored synchronously, before any animation; a ticket is only open between
+  // place and settle, so leaving mid-deal always settles at the dealt result
+  // (reading a ref, never render state that may not have committed yet).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (dealing ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const total = stakeOf(layout);
   const stats = useMemo(() => layoutStats(layout, variant), [layout, variant]);
-  const step = turbo.turbo ? 150 : 520;
+  const step = turbo.turbo ? 120 : 440;
 
   // ---------- Layout editing (any change clears the last result off the board) ----------
   const clearBoard = useCallback(() => {
@@ -226,7 +229,7 @@ export default function Game() {
       else view.br++;
       setTable({ ...view });
     }
-    if (!(await timers.wait(turbo.turbo ? 60 : 220))) return null;
+    if (!(await timers.wait(turbo.turbo ? 50 : 180))) return null;
 
     ticket.settle(s.multiplier);
     const id = ++seq.current;
@@ -420,7 +423,7 @@ export default function Game() {
             <AutoBetControls auto={auto} disabled={!!layoutBet.blocked || dealing}>
               <p className="bc-note">
                 {total > 0
-                  ? `Each auto bet deals a round on the chips on the table (${betsOf(layout).map((id) => BET_NAME[id]).join(', ')}: ${money(total)}). On win / on loss scale the whole layout.`
+                  ? `Repeats ${betsOf(layout).map((id) => BET_NAME[id]).join(' + ')} (${money(total)}); on win / on loss scale every chip.`
                   : 'Place chips on the table first; every auto bet repeats that layout.'}
               </p>
             </AutoBetControls>
