@@ -181,3 +181,40 @@ The standard pass/don't pass flow: come-out roll, point, roll until point or 7. 
 ### leverage
 **Leverage** · accent `#22c55e`
 A **simulated** price (clearly labelled, no real market data) follows a fair random walk (geometric, mean-zero drift). Pick Up or Down and leverage 2×–1000×; the bust price is where the loss equals the stake. The position's value is the martingale stake × (1 + leverage·return), clamped at 0 when busted. Close any time; an auto close sets take-profit and stop-loss levels. RTP is set exactly by an entry fee (value starts at 0.99·stake). Use a price lattice where every step moves the value by an exact amount and the bust level is hit exactly, never jumped past. A discrete step that overshoots the bust and gets clamped to 0 would leak value to the player. Chart with entry, bust and current price lines.
+
+## Results
+
+All 30 are built, each reviewed by a separate agent acting as casino product lead, and committed. Every one passes typecheck, its unit tests (964 across the repo), `npm run eval`, a second 200k-round eval on a fresh seed, desktop and 420 px smoke tests with no console errors, and the platform build. Table games keep their real edges through per-config RTP targets, so their RTP range below spans the bets.
+
+| Game | Mechanic | RTP range (z) | Std dev low → high | Spread | Avg steps | Max seen | ok |
+|---|---|---|---|---|---|---|---|
+| Dice | dice | 95.88%–100.25% (max \|z\| 1.3) | 0.34 → 9.71 | 28.8× | 1.0–1.0 | 110× | ✓ |
+| Range Dice | dice | 94.15%–100.28% (max \|z\| 1.6) | 0.33 → 9.63 | 28.8× | 1.0–1.0 | 110× | ✓ |
+| Limbo | crash | 98.84%–101.82% (max \|z\| 2.0) | 0.59 → 18.07 | 30.5× | 1.0–1.0 | 965× | ✓ |
+| Crash | crash | 96.29%–99.86% (max \|z\| 1.8) | 0.72 → 15.06 | 20.8× | 1.0–1.0 | 1215× | ✓ |
+| Crash Colours | crash | 98.46%–100.82% (max \|z\| 1.4) | 0.35 → 23.23 | 65.6× | 1.0–1.0 | 1000× | ✓ |
+| Mines | mines | 96.61%–101.11% (max \|z\| 1.9) | 1.35 → 7.66 | 5.7× | 1.1–7.0 | 358× | ✓ |
+| Plinko | other | 97.50%–101.13% (max \|z\| 1.7) | 0.44 → 4.73 | 10.8× | 1.0–1.0 | 620× | ✓ |
+| Keno | other | 96.33%–99.52% (max \|z\| 1.5) | 0.82 → 11.85 | 14.5× | 1.0–1.0 | 789× | ✓ |
+| HiLo | table | 98.07%–114.98% (max \|z\| 2.2) | 1.36 → 54.83 | 40.2× | 2.5–4.5 | 8296× | ✓ |
+| Tower | mines | 98.31%–101.23% (max \|z\| 1.5) | 1.97 → 11.48 | 5.8× | 1.3–2.6 | 722× | ✓ |
+| Chicken | mines | 95.82%–99.55% (max \|z\| 1.2) | 0.73 → 12.42 | 17.1× | 2.1–7.5 | 758× | ✓ |
+| Pump | mines | 97.72%–102.25% (max \|z\| 1.1) | 3.10 → 9.15 | 3.0× | 2.0–10.9 | 228× | ✓ |
+| Blackjack | table | 96.75%–99.67% (max \|z\| 0.8) | 1.15 → 6.41 | 5.6× | 1.4–1.5 | 130× | ✓ |
+| Baccarat | table | 89.03%–98.60% (max \|z\| 1.2) | 0.87 → 5.13 | 5.9× | 1.0–1.0 | 201× | ✓ |
+| Roulette | table | 96.98%–99.34% (max \|z\| 1.2) | 0.88 → 5.57 | 6.3× | 1.0–1.0 | 36× | ✓ |
+| Strip Roulette | other | 97.57%–99.57% (max \|z\| 1.7) | 0.97 → 7.25 | 7.5× | 1.0–1.0 | 54× | ✓ |
+| Wheel | other | 98.63%–100.73% (max \|z\| 1.5) | 0.50 → 6.19 | 12.3× | 1.0–1.0 | 50× | ✓ |
+| Diamonds | other | 98.41%–100.12% (max \|z\| 2.0) | 1.02 → 5.75 | 5.6× | 1.0–1.0 | 223× | ✓ |
+| Video Poker | table | 99.16%–100.51% (max \|z\| 0.8) | 4.24 → 6.44 | 1.5× | 2.0–2.0 | 800× | ✓ |
+| Coin Flip | other | 97.38%–102.20% (max \|z\| 0.9) | 1.53 → 26.43 | 17.3× | 1.0–3.3 | 1014× | ✓ |
+| Rock Paper Scissors | duel | 84.46%–101.26% (max \|z\| 1.8) | 2.34 → 24.90 | 10.6× | 1.4–2.6 | 2165× | ✓ |
+| Darts | geometry | 98.96%–102.37% (max \|z\| 1.7) | 0.69 → 10.66 | 15.6× | 1.0–1.0 | 200× | ✓ |
+| Cases | other | 97.40%–101.35% (max \|z\| 1.0) | 0.75 → 12.38 | 16.5× | 1.0–1.0 | 1000× | ✓ |
+| Snakes | other | 96.68%–103.18% (max \|z\| 1.2) | 1.95 → 13.28 | 6.8× | 1.1–3.8 | 1208× | ✓ |
+| Tarot | other | 91.80%–98.93% (max \|z\| 1.2) | 0.90 → 19.55 | 21.7× | 1.0–1.0 | 3375× | ✓ |
+| Reels | slots | 94.00%–100.19% (max \|z\| 1.7) | 0.72 → 9.27 | 12.9× | 1.0–10.6 | 2000× | ✓ |
+| Sic Bo | table | 81.99%–97.70% (max \|z\| 1.6) | 0.93 → 12.15 | 13.0× | 1.0–1.0 | 181× | ✓ |
+| Dragon Tiger | table | 71.97%–96.67% (max \|z\| 1.6) | 0.97 → 5.71 | 5.9× | 1.0–1.0 | 51× | ✓ |
+| Craps | table | 88.02%–99.14% (max \|z\| 1.3) | 0.84 → 4.44 | 5.3× | 1.0–3.4 | 31× | ✓ |
+| Leverage | other | 98.93%–99.09% (max \|z\| 0.7) | 0.02 → 0.98 | 40.6× | 1.3–1.4 | 13× | ✓ |
