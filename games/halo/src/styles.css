@@ -1,0 +1,175 @@
+/* Halo board. Layout, panel and readouts come from the kit. */
+
+.halo-board .disc {
+  stroke: none;
+}
+
+/* Iso-odds arcs through the ends of the green arc. */
+.halo-board .levels path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 42%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 6 5;
+}
+.halo-board .level-labels text {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: color-mix(in srgb, var(--accent) 80%, var(--text));
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Checkpoint rings: thin solid circles; the next one is lit. */
+.halo-board .rings circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 11%, transparent);
+  stroke-width: 1;
+  transition: stroke 0.25s ease, stroke-width 0.25s ease;
+}
+.halo-board .rings circle.done {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.halo-board .rings circle.next {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 1.6;
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+}
+
+/* The fan of curved paths from the particle to the green arc. */
+.halo-board .fan {
+  fill: color-mix(in srgb, var(--green) 11%, transparent);
+  stroke: color-mix(in srgb, var(--green) 50%, transparent);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+/* The rim. */
+.halo-board .rim-lose {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 45%, var(--hover));
+  stroke-width: 9;
+}
+.halo-board .rim-win {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 12;
+  stroke-linecap: butt;
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.halo-board.win .rim-win {
+  animation: halo-flash 0.5s ease 3;
+}
+.halo-board .arc-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-anchor: middle;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The path walked so far. */
+.halo-board .trail path {
+  fill: none;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.halo-board .trail .old {
+  stroke: color-mix(in srgb, var(--text) 28%, transparent);
+  stroke-width: 1.2;
+}
+.halo-board .trail .now {
+  stroke: color-mix(in srgb, var(--accent) 85%, var(--text));
+  stroke-width: 1.6;
+}
+.halo-board .stop {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 1.5;
+}
+
+/* The halo: green share = chance to win. */
+.halo-board .halo path {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: butt;
+}
+.halo-board .halo-back {
+  fill: color-mix(in srgb, var(--card) 70%, transparent);
+  stroke: var(--card);
+  stroke-width: 10;
+}
+.halo-board .halo-win {
+  stroke: var(--green);
+}
+.halo-board .halo-lose {
+  stroke: var(--red);
+  opacity: 0.85;
+}
+.halo-board .chance-label {
+  font-size: 14px;
+  font-weight: 800;
+  text-anchor: middle;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 5px;
+  stroke-linejoin: round;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The release pointer. */
+.halo-board .pointer line {
+  stroke: var(--text);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.halo-board .pointer circle {
+  stroke: var(--card);
+  stroke-width: 1.5;
+}
+.halo-board .pointer.in circle {
+  fill: var(--green);
+}
+.halo-board .pointer.out circle {
+  fill: var(--red);
+}
+
+.halo-board .particle {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+/* Where it left the disc. */
+.halo-board .exit {
+  fill: none;
+  stroke-width: 3;
+  animation: halo-ping 0.9s ease-out 2;
+}
+.halo-board .exit.win {
+  stroke: var(--green);
+}
+.halo-board .exit.lose {
+  stroke: var(--red);
+}
+
+@keyframes halo-flash {
+  50% {
+    stroke-width: 18;
+  }
+}
+@keyframes halo-ping {
+  0% {
+    r: 4;
+    opacity: 1;
+  }
+  100% {
+    r: 18;
+    opacity: 0.2;
+  }
+}
