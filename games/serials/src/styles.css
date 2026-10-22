@@ -1,0 +1,210 @@
+/* Serials board. Layout, panel and readouts come from the kit. */
+
+.og-board.serials-stage {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  align-content: center;
+  row-gap: 10px;
+}
+.og-board.serials-stage .og-round-over.inline {
+  min-height: 62px;
+}
+
+.serials text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.serials .hdr {
+  text-anchor: start;
+  font-size: 17px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.serials .hdr-p {
+  text-anchor: end;
+  font-size: 20px;
+  font-weight: 800;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.serials .hdr-p.zero {
+  fill: var(--red);
+}
+.serials .hdr-p .muted {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+.serials .ruled rect {
+  fill: color-mix(in srgb, var(--text) 4%, transparent);
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-dasharray: 4 5;
+}
+.serials .ruled text {
+  font-size: 15px;
+  fill: var(--muted);
+}
+
+.serials .bar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform var(--ms, 450ms) cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.3s ease, fill 0.2s ease;
+}
+.serials .bar.win {
+  fill: var(--green);
+}
+.serials .bar.lose {
+  fill: color-mix(in srgb, var(--red) 80%, transparent);
+}
+.serials .bar.dim {
+  opacity: 0.35;
+}
+.serials .bar.truth {
+  fill: #fff;
+}
+
+.serials .cut {
+  stroke: var(--accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.serials .cut-label {
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+
+.serials .truth-mark line {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+.serials .truth-mark text {
+  font-size: 17px;
+  font-weight: 800;
+  text-anchor: start;
+}
+.serials .truth-mark text.flip {
+  text-anchor: end;
+}
+.serials .truth-mark.win text {
+  fill: var(--green);
+}
+.serials .truth-mark.lose text {
+  fill: var(--red);
+}
+
+.serials .axis {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 2;
+}
+.serials .tick {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+}
+.serials .tick-label {
+  font-size: 15px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.serials .dot-rail {
+  stroke: var(--hover);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.serials .rail-hint {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.serials .max-link {
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+.serials .serial {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+}
+.serials .serial.over {
+  fill: var(--red);
+  stroke: #fff;
+}
+.serials .serial.last {
+  animation: serials-pop 0.45s ease;
+}
+.serials .max-label {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.serials .max-label.over {
+  fill: var(--red);
+}
+
+.serials .slot rect {
+  fill: var(--hover);
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-width: 1.5;
+}
+.serials .slot text {
+  font-size: 21px;
+  font-weight: 800;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.serials .slot.seen rect {
+  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--accent) 14%, var(--hover));
+}
+.serials .slot.seen text {
+  fill: var(--text);
+}
+.serials .slot.over rect {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 22%, var(--hover));
+}
+.serials .slot.over text {
+  fill: #fff;
+}
+.serials .slot.rolling rect {
+  stroke: var(--accent);
+  animation: serials-pulse 0.45s ease-in-out infinite alternate;
+}
+.serials .slot.rolling text {
+  fill: var(--accent);
+}
+.serials .n-slot text {
+  font-size: 19px;
+}
+.serials .n-slot.win rect {
+  stroke: var(--green);
+  fill: color-mix(in srgb, var(--green) 18%, var(--hover));
+}
+.serials .n-slot.win text {
+  fill: var(--green);
+}
+.serials .n-slot.lose rect {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 18%, var(--hover));
+}
+.serials .n-slot.lose text {
+  fill: var(--red);
+}
+
+@keyframes serials-pop {
+  0% {
+    r: 2;
+  }
+  60% {
+    r: 13;
+  }
+}
+@keyframes serials-pulse {
+  to {
+    stroke-width: 4;
+  }
+}
