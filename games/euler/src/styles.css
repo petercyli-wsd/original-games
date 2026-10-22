@@ -1,0 +1,220 @@
+/* Euler board. Layout, panel and readouts come from the kit. */
+
+.eu-board {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(8px, 2.5cqi, 28px);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.eu-graph {
+  display: block;
+  flex: 1.25 1 0;
+  min-width: 0;
+  height: auto;
+  max-height: 60vh;
+  overflow: visible;
+}
+.eu-chain {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  height: auto;
+  max-height: 56vh;
+  overflow: visible;
+}
+
+/* ---------- Graph ---------- */
+.eu-graph .guide {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 6;
+}
+.eu-graph .edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 38%, transparent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.eu-graph .edge.last {
+  stroke: color-mix(in srgb, var(--accent) 80%, var(--text));
+  stroke-width: 3;
+}
+.eu-graph .edge.drawing {
+  stroke: #fff;
+  stroke-width: 3.5;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px var(--accent));
+  animation-name: eu-draw;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-fill-mode: forwards;
+}
+.eu-graph .node .dot {
+  fill: var(--hover);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.eu-graph .node text {
+  text-anchor: middle;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--muted);
+  pointer-events: none;
+}
+.eu-graph .node.odd .dot {
+  fill: var(--accent);
+  stroke: #fff3;
+}
+.eu-graph .node.odd text {
+  fill: #1d1503;
+}
+.eu-graph .node .halo {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 8px var(--accent));
+  animation: eu-glow 1.8s ease-in-out infinite alternate;
+}
+.eu-graph .node.bad .dot {
+  fill: var(--red);
+}
+.eu-graph .node.bad text {
+  fill: #fff;
+}
+.eu-graph .node.bad .halo {
+  fill: color-mix(in srgb, var(--red) 22%, transparent);
+  stroke: color-mix(in srgb, var(--red) 60%, transparent);
+  filter: none;
+}
+.eu-graph .node.hit .dot {
+  stroke: #fff;
+  stroke-width: 3;
+}
+
+/* ---------- Chain ---------- */
+.eu-chain text {
+  fill: var(--text);
+  font-family: inherit;
+}
+.eu-chain .title {
+  font-size: 16px;
+  font-weight: 800;
+}
+.eu-chain .sub {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.eu-chain .end {
+  text-anchor: end;
+}
+.eu-chain .slot {
+  fill: color-mix(in srgb, var(--text) 4%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.eu-chain .zone .slot {
+  fill: color-mix(in srgb, var(--green) 9%, transparent);
+  stroke: color-mix(in srgb, var(--green) 45%, transparent);
+}
+.eu-chain .bar {
+  fill: color-mix(in srgb, var(--text) 28%, transparent);
+  transition: y 0.35s ease, height 0.35s ease;
+}
+.eu-chain .on .slot {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.eu-chain .on .bar {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.eu-chain .pct {
+  text-anchor: middle;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.eu-chain .on .pct {
+  fill: var(--accent);
+}
+.eu-chain .k {
+  text-anchor: middle;
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--muted);
+}
+.eu-chain .zone .k {
+  fill: var(--green);
+}
+.eu-chain .on .k {
+  fill: var(--accent);
+}
+.eu-chain .legend {
+  font-size: 11.5px;
+  fill: var(--muted);
+}
+.eu-chain .zone-key {
+  fill: var(--green);
+}
+.eu-chain .on-key {
+  fill: var(--accent);
+}
+.eu-chain .seg.up {
+  fill: var(--green);
+}
+.eu-chain .seg.down {
+  fill: var(--red);
+}
+.eu-chain .seg.flat {
+  fill: color-mix(in srgb, var(--text) 30%, transparent);
+}
+.eu-chain .key {
+  font-weight: 700;
+}
+.eu-chain .key.up {
+  fill: var(--green);
+}
+.eu-chain .key.down {
+  fill: var(--red);
+}
+.eu-chain .key.flat {
+  fill: var(--muted);
+}
+
+@container (max-width: 760px) {
+  .eu-board {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .eu-graph {
+    flex: none;
+    width: min(100%, 340px);
+    max-height: 40vh;
+  }
+  .eu-chain {
+    flex: none;
+    width: min(100%, 380px);
+    max-height: none;
+  }
+}
+
+@keyframes eu-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes eu-glow {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
