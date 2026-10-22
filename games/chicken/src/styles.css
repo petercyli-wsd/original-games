@@ -1,0 +1,750 @@
+/* Chicken: the road, token and car art, difficulty picker and panel bits.
+   Layout, panel and readouts come from the kit. */
+
+/* ---------- Panel ---------- */
+.ck-game .og-panel > * {
+  flex-shrink: 0;
+}
+.ck-diff {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.og-game .ck-diff-opt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 7px 0 6px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.ck-diff-opt span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ck-diff-opt small {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--red) 70%, var(--muted));
+  font-variant-numeric: tabular-nums;
+}
+.og-game .ck-diff-opt:not(:disabled):hover {
+  color: var(--text);
+}
+.og-game .ck-diff-opt.on {
+  color: var(--text);
+  background: var(--hover);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.ck-odds {
+  display: grid;
+  grid-template-columns: repeat(25, minmax(0, 1fr));
+  gap: 2px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.ck-odds i {
+  height: 10px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--green) 55%, var(--bg));
+  transition: background 0.2s ease;
+}
+.ck-odds i.h {
+  background: var(--red);
+}
+.ck-profit {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.ck-profit.up {
+  color: var(--green);
+}
+.ck-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.ck-auto-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 8px;
+}
+.ck-auto-pair > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.ck-auto-pair .og-label {
+  margin-top: 0;
+}
+.ck-stepper {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) 36px;
+  align-items: center;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  overflow: hidden;
+}
+.og-game .ck-stepper button {
+  height: 100%;
+  border-radius: 0;
+  background: var(--raised);
+  font-size: 18px;
+  font-weight: 700;
+}
+.og-game .ck-stepper button:not(:disabled):hover {
+  background: var(--hover);
+}
+.ck-stepper span {
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ck-pays {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  overflow: hidden;
+}
+.ck-presets .og-chip {
+  padding: 7px 0;
+  font-size: 12px;
+}
+
+/* ---------- Board ---------- */
+.ck-game .og-stage {
+  min-height: 0;
+}
+.og-board.ck-board {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 10px;
+  min-height: 0;
+}
+.og-board.ck-board.auto {
+  padding-top: 56px;
+}
+
+.ck-road {
+  --kw: 104px;
+  --lw: 92px;
+  position: relative;
+  flex: 1 1 360px;
+  width: 100%;
+  min-height: 280px;
+  max-height: 440px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-radius: 16px;
+  background: #15161f;
+  box-shadow: inset 0 0 0 1px var(--line), 0 24px 60px -28px #000;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent) 35%, transparent) transparent;
+  overscroll-behavior-x: contain;
+}
+.ck-road::-webkit-scrollbar {
+  height: 6px;
+}
+.ck-road::-webkit-scrollbar-thumb {
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.ck-road.busted {
+  animation: ck-shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) var(--slam) both;
+}
+.ck-strip {
+  position: relative;
+  display: flex;
+  width: max-content;
+  height: 100%;
+}
+
+/* Kerbs. */
+.ck-kerb {
+  position: relative;
+  flex: none;
+  width: var(--kw);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding-bottom: 16px;
+  box-sizing: border-box;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 26px 26px,
+    linear-gradient(0deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px) 0 0 / 26px 26px,
+    #262836;
+}
+.ck-kerb.start {
+  box-shadow: inset -6px 0 0 #3a3d4f;
+}
+.ck-kerb.finish {
+  justify-content: center;
+  padding-bottom: 0;
+  box-shadow: inset 6px 0 0 #3a3d4f;
+}
+.ck-kerb.finish::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 0;
+  bottom: 0;
+  width: 14px;
+  background: repeating-conic-gradient(#e5e7eb 0 25%, #1f2130 0 50%) 0 0 / 14px 14px;
+  opacity: 0.55;
+}
+.ck-kerb-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ck-kerb.finish b {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.ck-flag {
+  width: 22px;
+  height: 22px;
+}
+.ck-flag line {
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+.ck-flag polygon {
+  fill: var(--accent);
+}
+.ck-kerb.finish.targeted {
+  box-shadow: inset 6px 0 0 #3a3d4f, inset 0 0 0 2px color-mix(in srgb, var(--gold) 55%, transparent);
+}
+.ck-kerb.finish.reached {
+  background: color-mix(in srgb, var(--gold) 16%, #262836);
+  box-shadow: inset 6px 0 0 #3a3d4f, inset 0 0 40px -10px var(--gold);
+}
+.ck-kerb.finish.reached b,
+.ck-kerb.finish.reached .ck-kerb-label {
+  color: var(--gold);
+}
+.ck-kerb.finish.reached .ck-flag polygon {
+  fill: var(--gold);
+}
+
+/* Lanes. */
+.ck-lane {
+  position: relative;
+  flex: none;
+  width: var(--lw);
+  height: 100%;
+  overflow: hidden;
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.2) 50%, transparent 50%), linear-gradient(180deg, #1c1e29 0%, #191a24 100%);
+  background-size: 2px 30px, 100% 100%;
+  background-position: right top, 0 0;
+  background-repeat: repeat-y, no-repeat;
+}
+.ck-lane[data-lane='20'] {
+  background-image: linear-gradient(180deg, #1c1e29 0%, #191a24 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+}
+.ck-lane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: background 0.3s ease;
+}
+.ck-lane.crossed::after {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--green) 8%, transparent), transparent 70%);
+}
+.ck-road.won .ck-lane.crossed::after {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 10%, transparent), transparent 70%);
+}
+.ck-lane.hit::after {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--red) 22%, transparent), color-mix(in srgb, var(--red) 6%, transparent));
+}
+.ck-lane.rv-hit::after {
+  background: color-mix(in srgb, var(--red) 7%, transparent);
+}
+.ck-lane.sel::after {
+  background: linear-gradient(180deg, transparent 30%, color-mix(in srgb, var(--gold) 7%, transparent));
+}
+.ck-lane-no {
+  position: absolute;
+  left: 0;
+  right: 2px;
+  bottom: 8px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--muted) 55%, transparent);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.ck-lane.next .ck-lane-no,
+.ck-lane.target .ck-lane-no {
+  color: var(--accent);
+}
+
+/* Pads: one per lane, showing the cash-out for standing on it. */
+.og-game .ck-pad {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: 50%;
+  width: min(calc(var(--lw) - 16px), 78px);
+  height: 46px;
+  margin-left: -1px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 35%, #34374a 0%, #282a3a 70%);
+  box-shadow: inset 0 0 0 2px #3c3f54, inset 0 -4px 0 rgba(0, 0, 0, 0.3), 0 6px 14px -8px #000;
+  transform: translate(-50%, -50%);
+  transition: background 0.25s ease, box-shadow 0.25s ease, opacity 0.25s ease;
+}
+.og-game .ck-pad:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.ck-pad b {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #c9c7d3;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+.ck-pad-tag {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--gold);
+  color: #1a1407;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+.og-game .ck-lane.next .ck-pad {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--accent) 30%, #34374a) 0%, color-mix(in srgb, var(--accent) 12%, #282a3a) 75%);
+  box-shadow: inset 0 0 0 2px var(--accent), 0 0 22px -6px var(--accent);
+  cursor: pointer;
+  animation: ck-breathe 1.3s ease-in-out infinite alternate;
+}
+.ck-lane.next .ck-pad b {
+  color: var(--accent);
+}
+.og-game .ck-lane.next .ck-pad:not(:disabled):hover {
+  filter: brightness(1.15);
+}
+.og-game .ck-lane.crossed .ck-pad {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--green) 18%, #2b2f2e) 0%, color-mix(in srgb, var(--green) 8%, #22252a) 75%);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--green) 65%, transparent);
+}
+.ck-lane.crossed .ck-pad b {
+  color: var(--green);
+}
+.og-game .ck-road.won .ck-lane.crossed .ck-pad {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--gold) 22%, #2f2c25) 0%, color-mix(in srgb, var(--gold) 9%, #25241f) 75%);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--gold) 80%, transparent);
+}
+.ck-road.won .ck-lane.crossed .ck-pad b {
+  color: var(--gold);
+}
+.og-game .ck-lane.hit .ck-pad {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--red) 30%, #2d2024) 0%, color-mix(in srgb, var(--red) 14%, #241a1e) 75%);
+  box-shadow: inset 0 0 0 2px var(--red), 0 0 24px -4px var(--red);
+}
+.ck-lane.hit .ck-pad b {
+  color: var(--red);
+}
+.og-game .ck-lane.rv-hit .ck-pad,
+.og-game .ck-lane.rv-safe .ck-pad {
+  opacity: 0.55;
+}
+.og-game .ck-lane.rv-hit .ck-pad {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--red) 60%, transparent);
+}
+.og-game .ck-lane.rv-safe .ck-pad {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--green) 40%, transparent);
+}
+.og-game .ck-lane.sel:not(.crossed):not(.hit) .ck-pad {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.og-game .ck-lane.sel .ck-pad:not(:disabled) {
+  cursor: pointer;
+}
+.og-game .ck-lane.target:not(.crossed):not(.hit) .ck-pad {
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--gold) 20%, #34374a) 0%, color-mix(in srgb, var(--gold) 8%, #282a3a) 75%);
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 20px -6px var(--gold);
+}
+.ck-lane.target:not(.crossed):not(.hit) .ck-pad b {
+  color: var(--gold);
+}
+.og-game .ck-pad:not(:disabled):hover {
+  filter: brightness(1.15);
+}
+
+/* Barriers drop onto lanes already crossed. */
+.ck-barrier {
+  position: absolute;
+  z-index: 1;
+  left: 9px;
+  right: 11px;
+  top: 22%;
+  height: 16px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(135deg, var(--accent) 0 9px, #1d1f2a 9px 18px);
+  box-shadow: 0 0 0 2px #1d1f2a, 0 8px 16px -6px #000;
+  animation: ck-drop 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.25) both;
+}
+.ck-road.won .ck-barrier {
+  background: repeating-linear-gradient(135deg, var(--gold) 0 9px, #1d1f2a 9px 18px);
+}
+
+/* Cars. */
+.ck-car {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  width: 40px;
+  height: 64px;
+  margin-left: -21px;
+  pointer-events: none;
+}
+.ck-car-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.5));
+}
+.cr-body {
+  fill: var(--car);
+}
+.cr-glass {
+  fill: #0f1118;
+  opacity: 0.82;
+}
+.cr-roof {
+  fill: color-mix(in srgb, var(--car) 70%, #000);
+}
+.cr-light {
+  fill: #fff7d6;
+}
+.ck-car.ambient {
+  top: -80px;
+  opacity: 0.9;
+  animation: ck-drive var(--dur) linear var(--delay) infinite;
+}
+.ck-car.slam {
+  top: calc(50% - 112px);
+  z-index: 5;
+  animation: ck-slam var(--slam) cubic-bezier(0.55, 0, 0.9, 0.6) both;
+}
+.ck-car.parked {
+  top: calc(50% - 98px);
+  opacity: 0.38;
+  animation: og-fade-in 0.3s ease both;
+}
+
+/* The token. */
+.ck-token {
+  position: absolute;
+  z-index: 4;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -74px 0 0 -28px;
+  pointer-events: none;
+  transition: left var(--hop) cubic-bezier(0.45, 0, 0.3, 1);
+}
+.ck-token.snap {
+  transition: none;
+}
+.ck-hop {
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 100%;
+}
+.ck-hop.go {
+  animation: ck-hop var(--hop) cubic-bezier(0.3, 0, 0.4, 1);
+}
+.ck-token-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+}
+.tk-shadow {
+  fill: rgba(0, 0, 0, 0.4);
+}
+.tk-body {
+  fill: var(--accent);
+}
+.tk-wing {
+  fill: color-mix(in srgb, var(--accent) 72%, #a16207);
+}
+.tk-comb {
+  fill: #ef4444;
+}
+.tk-beak {
+  fill: #fb923c;
+}
+.tk-leg {
+  stroke: #fb923c;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+.tk-eye {
+  fill: #111318;
+}
+.tk-glint {
+  fill: #fff;
+}
+.ck-token.squash .ck-hop {
+  animation: ck-squash 0.3s ease-out var(--slam) both;
+}
+.ck-token.squash .tk-body {
+  fill: color-mix(in srgb, var(--accent) 55%, #6b7280);
+}
+.ck-token.won .ck-token-art {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gold) 80%, transparent)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+}
+.ck-impact {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 70px;
+  height: 70px;
+  margin: -35px 0 0 -35px;
+  border-radius: 50%;
+  border: 3px solid var(--red);
+  opacity: 0;
+  animation: ck-impact 0.5s ease-out var(--slam) both;
+}
+
+/* Progress pips. */
+.ck-progress {
+  display: grid;
+  grid-template-columns: repeat(20, minmax(0, 1fr));
+  gap: 3px;
+}
+.ck-progress i {
+  height: 5px;
+  border-radius: 99px;
+  background: var(--hover);
+  transition: background 0.2s ease;
+}
+.ck-progress i.sel {
+  background: color-mix(in srgb, var(--gold) 35%, var(--hover));
+}
+.ck-progress i.target {
+  background: var(--gold);
+}
+.ck-progress i.ok {
+  background: var(--green);
+}
+.ck-progress i.bad {
+  background: var(--red);
+}
+.ck-progress i.rv-hit {
+  background: color-mix(in srgb, var(--red) 40%, var(--hover));
+}
+.ck-progress i.rv-safe {
+  background: color-mix(in srgb, var(--green) 22%, var(--hover));
+}
+
+/* Paytable in the info modal. */
+.ck-paytable {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+.ck-paytable > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+.ck-paytable span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.ck-paytable b {
+  font-size: 14px;
+  color: #facc15;
+}
+.ck-paytable small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ---------- Animation ---------- */
+@keyframes ck-drive {
+  0% {
+    top: -80px;
+  }
+  58% {
+    top: calc(100% + 16px);
+  }
+  100% {
+    top: calc(100% + 16px);
+  }
+}
+@keyframes ck-slam {
+  from {
+    top: -90px;
+  }
+  to {
+    top: calc(50% - 112px);
+  }
+}
+@keyframes ck-hop {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(2px) scale(1.08, 0.9);
+  }
+  55% {
+    transform: translateY(-22px) scale(0.95, 1.06);
+  }
+  85% {
+    transform: translateY(0) scale(1.06, 0.92);
+  }
+  100% {
+    transform: translateY(0) scale(1, 1);
+  }
+}
+@keyframes ck-squash {
+  to {
+    transform: scale(1.18, 0.58);
+  }
+}
+@keyframes ck-impact {
+  0% {
+    opacity: 0.95;
+    transform: scale(0.3);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+@keyframes ck-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-26px);
+  }
+}
+@keyframes ck-breathe {
+  from {
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 12px -6px var(--accent);
+  }
+  to {
+    box-shadow: inset 0 0 0 2px var(--accent), 0 0 26px -4px var(--accent);
+  }
+}
+@keyframes ck-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(3px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-5px);
+  }
+  40%,
+  60% {
+    transform: translateX(5px);
+  }
+}
+@keyframes og-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---------- Narrow frames ---------- */
+@container (max-width: 760px) {
+  .ck-road {
+    --kw: 76px;
+    --lw: 78px;
+    flex-basis: 280px;
+    min-height: 260px;
+    max-height: 300px;
+  }
+  .og-game .ck-pad {
+    height: 40px;
+    border-radius: 10px;
+  }
+  .ck-pad b {
+    font-size: 11.5px;
+  }
+  .ck-token {
+    width: 48px;
+    height: 48px;
+    margin: -64px 0 0 -24px;
+  }
+  .ck-car {
+    width: 34px;
+    height: 55px;
+    margin-left: -18px;
+  }
+  .og-board.ck-board.auto {
+    padding-top: 52px;
+  }
+}
