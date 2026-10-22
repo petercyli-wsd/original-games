@@ -1,0 +1,431 @@
+/* Chords board. Layout, panel and readouts come from the kit. */
+
+.ch-stage.og-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ch-board {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(196px, 31%, 248px);
+  gap: 18px;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+}
+.ch-rimwrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.ch-rim {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 66vh;
+  overflow: visible;
+}
+.ch-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ---------- The circle ---------- */
+.ch-rim .disc {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.ch-rim .face {
+  fill: color-mix(in srgb, var(--c) 18%, transparent);
+  transition: fill 0.25s ease;
+}
+.ch-rim .face.safe {
+  fill: color-mix(in srgb, var(--green) 16%, transparent);
+}
+.ch-rim .face.dim {
+  fill: color-mix(in srgb, var(--c) 5%, transparent);
+}
+.ch-rim .rim-arc {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 14;
+  transition: stroke 0.25s ease, opacity 0.25s ease;
+}
+.ch-rim .rim-arc.safe {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--green) 70%, transparent));
+}
+.ch-rim .rim-arc.risk {
+  stroke: color-mix(in srgb, var(--red) 75%, var(--bg));
+}
+.ch-rim .safe-guide {
+  fill: none;
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 3;
+  stroke-dasharray: 3 5;
+}
+.ch-rim .chord {
+  stroke: color-mix(in srgb, var(--text) 82%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.ch-rim .chord.newest {
+  stroke: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+/* A chord the new one crossed: turns red once the line reaches it. */
+.ch-rim .chord.hit {
+  animation: ch-hit 0.2s ease both;
+}
+.ch-rim .chord.drawing {
+  stroke: #fff;
+  stroke-dasharray: var(--len) var(--len);
+  stroke-dashoffset: 0;
+  animation-name: ch-draw;
+  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-fill-mode: both;
+}
+.ch-rim .chord.drawing.bad {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 8px var(--red));
+}
+.ch-rim .end {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+}
+.ch-rim .end.first {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.ch-rim .end.second.ok {
+  fill: var(--green);
+}
+.ch-rim .end.second.bad {
+  fill: var(--red);
+  stroke: #fff;
+}
+.ch-rim .first-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ch-ring 1.6s ease-out infinite;
+}
+.ch-rim .cross-mark {
+  fill: color-mix(in srgb, var(--red) 25%, transparent);
+  stroke: var(--red);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ch-pop 0.45s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.ch-rim text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: inherit;
+  fill: var(--text);
+}
+.ch-rim .share {
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--c);
+  font-variant-numeric: tabular-nums;
+}
+.ch-rim .share.safe {
+  fill: var(--green);
+  font-size: 17px;
+}
+.ch-rim .preview .big {
+  font-size: 64px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.ch-rim .preview .small {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.ch-rim .preview .pace {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  fill: color-mix(in srgb, var(--accent) 75%, var(--muted));
+}
+.ch-rim .comet {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.25, 0.7, 0.25, 1);
+  opacity: 0;
+}
+.ch-rim .comet.on {
+  opacity: 1;
+}
+.ch-rim .comet circle {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px var(--accent)) drop-shadow(0 0 3px #fff);
+}
+
+/* ---------- The pairs square ---------- */
+.ch-odds {
+  display: grid;
+  grid-template-areas: 'head' 'square' 'legend';
+  gap: 6px;
+}
+.ch-odds-head {
+  grid-area: head;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.ch-odds-head span {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.ch-odds-head b {
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.ch-odds-head.safe b {
+  color: var(--green);
+}
+.ch-odds-head.idle b {
+  color: var(--text);
+}
+.ch-square {
+  grid-area: square;
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.ch-square .sq-bg {
+  fill: color-mix(in srgb, var(--red) 22%, var(--bg));
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.ch-square .sq-column {
+  fill: color-mix(in srgb, var(--red) 62%, var(--bg));
+}
+.ch-square .sq-block {
+  fill: color-mix(in srgb, var(--c) 78%, transparent);
+  stroke: var(--card);
+  stroke-width: 1;
+  transition: opacity 0.25s ease, fill 0.25s ease;
+}
+.ch-square .sq-block.safe {
+  fill: var(--green);
+}
+.ch-square .sq-block.dim {
+  opacity: 0.28;
+}
+.ch-square .sq-axis rect {
+  fill: var(--c);
+}
+.ch-square .sq-axis.dim {
+  opacity: 0.3;
+}
+.ch-square .sq-line {
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.ch-square .sq-pointer {
+  fill: #fff;
+}
+.ch-square .sq-label {
+  font-family: inherit;
+  font-size: 11px;
+  fill: var(--muted);
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.ch-square .sq-dot {
+  stroke: #fff;
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: ch-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.ch-square .sq-dot.ok {
+  fill: var(--green);
+}
+.ch-square .sq-dot.bad {
+  fill: var(--red);
+}
+.ch-legend {
+  grid-area: legend;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ch-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ch-legend .sw {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.ch-legend .sw.clear {
+  background: linear-gradient(135deg, #4cc9f0 0 50%, #a78bfa 50% 100%);
+}
+.ch-legend .sw.safe {
+  background: var(--green);
+}
+.ch-legend .sw.cross {
+  background: color-mix(in srgb, var(--red) 62%, var(--bg));
+}
+
+/* ---------- The chord ladder ---------- */
+.ch-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ch-ladder-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ch-ladder-head b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ch-ladder ol {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ch-ladder li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+.ch-ladder li i {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--muted);
+  border: 1.5px solid var(--line-strong);
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+.ch-ladder li span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ch-ladder li.done i {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ch-ladder li.now i {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.ch-ladder li.now span {
+  color: var(--text);
+}
+.ch-ladder li.bust i {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+.ch-ladder li.bust span {
+  color: var(--red);
+}
+
+@keyframes ch-draw {
+  from {
+    stroke-dashoffset: var(--len);
+  }
+}
+@keyframes ch-hit {
+  to {
+    stroke: color-mix(in srgb, var(--red) 70%, #fff);
+    stroke-dasharray: 7 5;
+  }
+}
+@keyframes ch-ring {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+@keyframes ch-pop {
+  from {
+    transform: scale(0);
+  }
+}
+
+/* ---------- Narrow frames ---------- */
+@container (max-width: 600px) {
+  .ch-board {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .ch-rim {
+    height: auto;
+    aspect-ratio: 1;
+    max-height: 380px;
+  }
+  .ch-odds {
+    grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-areas: 'square head' 'square legend';
+    align-items: start;
+    column-gap: 14px;
+  }
+  .ch-odds-head {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ch-legend {
+    flex-direction: column;
+  }
+  .ch-square .sq-label {
+    display: none;
+  }
+}
