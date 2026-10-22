@@ -1,0 +1,166 @@
+/* Hamming board. Layout, panel and readouts come from the kit. */
+
+.ham text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.ham .ring {
+  fill: color-mix(in srgb, var(--accent) 7%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 3;
+  transition: stroke 0.25s ease, fill 0.25s ease;
+}
+.ham .ring.idle {
+  stroke-dasharray: 7 6;
+  stroke: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+.ham .ring.broken {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 10%, transparent);
+  filter: drop-shadow(0 0 8px rgba(233, 17, 60, 0.45));
+}
+.ham .ring-label {
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.ham .ring-label.broken {
+  fill: var(--red);
+}
+
+.ham .cell rect {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 2;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.ham .cell.wait rect {
+  stroke-dasharray: 4 4;
+}
+.ham .cell.in rect {
+  stroke: var(--accent);
+}
+.ham .cell.in.data rect {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--bg));
+}
+.ham .cell.flip rect {
+  fill: color-mix(in srgb, var(--red) 35%, var(--bg));
+  stroke: var(--red);
+  filter: drop-shadow(0 0 9px rgba(233, 17, 60, 0.7));
+}
+.ham .cell.arrive .pop {
+  animation: ham-pop 0.35s ease;
+}
+.ham .fix-ring {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3;
+  stroke-dasharray: 5 4;
+}
+.ham .cell.miss .fix-ring {
+  stroke: var(--red);
+}
+.ham .bit {
+  font-size: 19px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.ham .cell.wait .bit {
+  fill: var(--muted);
+}
+.ham .pos {
+  text-anchor: end;
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.ham .lbl {
+  font-size: 12px;
+  fill: var(--muted);
+  text-anchor: start;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.ham .end {
+  text-anchor: end;
+}
+.ham .val {
+  font-size: 14px;
+  font-weight: 700;
+  text-anchor: start;
+}
+.ham .val.end {
+  text-anchor: end;
+}
+.ham .val.bad {
+  fill: var(--red);
+}
+.ham .val.gold {
+  fill: var(--gold);
+}
+.ham .pip {
+  fill: var(--hover);
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.5;
+}
+.ham .pip.fatal {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+  stroke-dasharray: 3 3;
+}
+.ham .pip.used {
+  fill: var(--gold);
+  stroke: var(--gold);
+}
+.ham .pip.over {
+  fill: var(--red);
+  stroke: var(--red);
+  stroke-dasharray: none;
+}
+
+.ham .bar .track {
+  fill: var(--hover);
+}
+.ham .bar .fill {
+  fill: color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: width 0.3s ease;
+}
+.ham .bar.live .fill {
+  fill: var(--accent);
+}
+.ham .bar.ok .fill {
+  fill: var(--green);
+}
+.ham .bar.fail .track {
+  fill: color-mix(in srgb, var(--red) 45%, transparent);
+}
+.ham .pct {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.ham .bar.ok .pct {
+  fill: var(--green);
+}
+.ham .bar.fail .pct {
+  fill: var(--red);
+}
+.ham .eq {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+
+@keyframes ham-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0.2;
+  }
+  70% {
+    transform: scale(1.15);
+  }
+}
+.ham .pop {
+  transform-box: fill-box;
+  transform-origin: center;
+}
