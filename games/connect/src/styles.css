@@ -1,0 +1,129 @@
+/* Connect board. Layout, panel and readouts come from the kit. */
+
+.cx {
+  --swing: var(--green);
+  width: 100%;
+  max-width: 520px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.cx.bad {
+  --swing: var(--red);
+}
+.cx text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Open pairs: every possible next edge. */
+.cx .open line {
+  stroke-width: 1.2;
+  stroke-linecap: round;
+}
+.cx .open .cross {
+  stroke: color-mix(in srgb, var(--swing) 38%, transparent);
+  stroke-dasharray: 3 4;
+}
+.cx .open .inner {
+  stroke: color-mix(in srgb, var(--muted) 22%, transparent);
+  stroke-dasharray: 2 5;
+}
+.cx .open .picked {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: none;
+}
+
+.cx .edges line {
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.cx .edges .new {
+  stroke: #fff;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: cx-draw linear forwards;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+
+.cx .node {
+  fill: var(--hover);
+  stroke: var(--bg);
+  stroke-width: 3;
+  transition: r 0.2s ease;
+}
+.cx .node.hot {
+  stroke: #fff;
+}
+
+.cx .big {
+  text-anchor: middle;
+  font-size: 38px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 6px;
+}
+.cx .small {
+  text-anchor: middle;
+  font-size: 13px;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 5px;
+}
+
+.cx .lbl {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.cx .lbl.end {
+  text-anchor: end;
+}
+.cx .lbl.strong {
+  font-weight: 700;
+  fill: var(--swing);
+}
+.cx .lbl.tight {
+  fill: var(--red);
+  font-weight: 700;
+}
+
+/* The strip: one cell per open pair. */
+.cx .strip-bg {
+  fill: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+.cx .cell.cross {
+  fill: var(--swing);
+}
+.cx .cell.inner {
+  fill: color-mix(in srgb, var(--muted) 35%, transparent);
+}
+.cx .cell.picked {
+  fill: #fff;
+}
+.cx .cursor {
+  fill: #fff;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.cx .pip {
+  fill: var(--hover);
+}
+.cx .pip.used {
+  fill: var(--accent);
+}
+.cx .pip.next {
+  fill: #fff;
+}
+
+@keyframes cx-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.cx .cursor.off {
+  opacity: 0;
+}
