@@ -414,3 +414,17 @@
     font-size: 14px;
   }
 }
+
+/* Manual's Bet / Pump / Cash out stack. On narrow frames the board comes first,
+   so lift the actions to the top of the panel (as casino mobile layouts do)
+   instead of leaving them below the fold mid-round. */
+.pump-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@container (max-width: 760px) {
+  .og-panel > .pump-actions {
+    order: -1;
+  }
+}

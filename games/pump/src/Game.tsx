@@ -22,7 +22,6 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
-  fmtOneIn,
   useAutoBet,
   useBetInput,
   useHistory,
@@ -77,6 +76,8 @@ interface LastAuto {
 
 const OUTCOME_TITLE: Record<Outcome, string> = { popped: 'Popped!', cashed: 'Cashed out', max: 'Fully pumped' };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+const hide = (n: number) => `${plural(n, 'pop')} ${n === 1 ? 'hides' : 'hide'}`;
+const oneIn = (p: number) => `1 in ${Math.round(1 / p).toLocaleString('en-US')}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -131,6 +132,7 @@ export default function Game() {
 
   function newRound(stake: number, auto: boolean): Round {
     const r: Round = { d, stake, positions: drawPositions(rng, d), k: 0, cash: RTP, popping: false, outcome: null, auto };
+    fair.current = RTP; // never carry the last round's cash-out into this ticket
     timers.clearAll();
     setLastAuto(null);
     setRound(r);
@@ -249,7 +251,7 @@ export default function Game() {
   if (phase === 'over' && outcome === 'max') status = `Fully pumped · ${plural(k, 'pump')}`;
   const tone = phase === 'over' ? (cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto;
+  const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto && auto.mode === 'manual';
   const pumpLabel = q > 0 ? `${fmtChance(1 - q)} safe` : '';
 
   return (
@@ -282,18 +284,20 @@ export default function Game() {
 
           {auto.mode === 'manual' ? (
             phase === 'checkpoint' || (phase === 'pumping' && k > 0) ? (
-              <>
+              <div className="pump-actions">
                 <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                   Cash out <span>{formatAmount(stake * cash, 2)}</span>
                 </ActionButton>
                 <ActionButton kind="secondary" className="pump-btn" disabled={phase !== 'checkpoint'} onClick={() => void pumpOnce()}>
                   {phase === 'pumping' ? 'Pumping…' : <>Pump <small>{fmtMult(multiplier(rd, k + 1))} · {pumpLabel}</small></>}
                 </ActionButton>
-              </>
+              </div>
             ) : (
-              <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-                {phase === 'pumping' ? 'Pumping…' : phase === 'over' ? 'Bet again' : 'Bet'}
-              </ActionButton>
+              <div className="pump-actions">
+                <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
+                  {phase === 'pumping' ? 'Pumping…' : phase === 'over' ? 'Bet again' : 'Bet'}
+                </ActionButton>
+              </div>
             )
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
@@ -328,7 +332,9 @@ export default function Game() {
             sub: phase === 'over' ? `${plural(k, 'safe pump')}` : `${plural(rd, 'pop')} in ${POSITIONS - k} left`,
             tone: 'chance',
           },
-          { label: 'Cash out now', value: k > 0 ? fmtMult(cash) : '—', sub: k > 0 ? formatAmount(stake * cash, 2) : 'after the first pump', tone: 'cash' },
+          phase === 'over'
+            ? { label: 'Payout', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' as const }
+            : { label: 'Cash out now', value: k > 0 ? fmtMult(cash) : '—', sub: k > 0 ? formatAmount(stake * cash, 2) : 'after the first pump', tone: 'cash' as const },
           {
             label: phase === 'over' ? 'Top of the ladder' : 'Next pump pays',
             value: phase === 'over' || k >= rTop ? fmtMult(rungs[rTop - 1]) : fmtMult(rungs[k]),
@@ -360,7 +366,7 @@ export default function Game() {
       </Board>
 
       {live ? (
-        <ChanceBar p={1 - q} label="Next pump is safe" note={`${plural(rd, 'pop')} hide among the ${POSITIONS - k} positions left, so the next pump pops ${rd} times in ${POSITIONS - k}: the red share of the gauge.`} />
+        <ChanceBar p={1 - q} label="Next pump is safe" note={`${hide(rd)} among the ${POSITIONS - k} positions left, so the next pump pops ${rd === 1 ? '1 time' : `${rd} times`} in ${POSITIONS - k}: the red share of the gauge.`} />
       ) : phase === 'over' && outcome === 'cashed' ? (
         <Caption>
           {popAt <= rTop ? `This balloon would have popped on pump ${popAt} (${fmtMult(rungs[popAt - 1])} was out of reach).` : 'This balloon would have made it all the way.'}{' '}
@@ -368,8 +374,8 @@ export default function Game() {
         </Caption>
       ) : (
         <Caption>
-          {plural(d, 'pop')} hide among {POSITIONS} pump positions. After k safe pumps you can cash out {RTP} × C(25, k) / C({POSITIONS - d}, k). Pumping
-          all {top} pays {fmtMult(multiplier(d, top))} ({fmtOneIn(survival(d, top))}). RTP {(RTP * 100).toFixed(0)}%.
+          {hide(d)} among {POSITIONS} pump positions. After k safe pumps you can cash out {RTP} × C(25, k) / C({POSITIONS - d}, k). Pumping
+          all {top} pays {fmtMult(multiplier(d, top))} ({oneIn(survival(d, top))}). RTP {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
 
