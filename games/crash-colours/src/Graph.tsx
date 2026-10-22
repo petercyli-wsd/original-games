@@ -102,8 +102,8 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
           {compact ? 'RED' : `RED · under ${fmtLine(split)}`}
         </text>
       )}
-      {ySplit - yMoon > (moonOn ? 34 : 52) && (
-        <text className="cc-region-label green start" x={X0 + 12} y={yMoon + (moonOn ? 22 : 40)}>
+      {ySplit - yMoon > (moonOn ? 34 : 62) && (
+        <text className="cc-region-label green start" x={X0 + 12} y={yMoon + (moonOn ? 22 : 50)}>
           {compact ? 'GREEN' : `GREEN · ${fmtLine(split)}+`}
         </text>
       )}
@@ -140,8 +140,9 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
         </g>
       ) : (
         <g className="cc-moon-tag">
-          <rect x={X1 - 142} y={Y0 + 4} width={134} height={24} rx={12} />
-          <text x={X1 - 75} y={Y0 + 20.5}>
+          {/* Top-left, where the convex curve never reaches, so the head can't cover it. */}
+          <rect x={X0 + 8} y={Y0 + 4} width={134} height={24} rx={12} />
+          <text x={X0 + 75} y={Y0 + 20.5}>
             ▲ MOON {fmtLine(moon)}
           </text>
         </g>
