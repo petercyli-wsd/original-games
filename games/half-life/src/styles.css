@@ -1,0 +1,373 @@
+/* Half-Life board. Layout, panel and readouts come from the kit. */
+
+/* The SVG sits in a frame of its own aspect ratio, so the result card can be
+   pinned over the board's bottom strip (in flow below it on narrow frames). */
+.og-board.hl-board {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+}
+.hl-frame {
+  position: relative;
+  width: min(100%, calc(62vh * var(--ar, 1.19)));
+}
+.hl-frame > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.hl-result {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+}
+@container (max-width: 760px) {
+  .hl-result {
+    position: static;
+    margin-top: 10px;
+  }
+}
+
+.hl {
+  font-variant-numeric: tabular-nums;
+}
+.hl text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.hl .head {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.hl .mid {
+  text-anchor: middle;
+}
+.hl .end {
+  text-anchor: end;
+}
+.hl .clock {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.hl .clock-k {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.hl .now-line {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
+/* ---------- Rows ---------- */
+.hl .mine-band {
+  fill: color-mix(in srgb, var(--accent) 7%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke-width: 1;
+}
+.hl .row.won .mine-band {
+  fill: color-mix(in srgb, var(--green) 12%, transparent);
+  stroke: color-mix(in srgb, var(--green) 60%, transparent);
+}
+.hl .row.lost .mine-band {
+  fill: color-mix(in srgb, var(--red) 12%, transparent);
+  stroke: color-mix(in srgb, var(--red) 60%, transparent);
+}
+.hl .lane {
+  stroke: var(--hover);
+  stroke-width: 2;
+}
+.hl .life {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+.hl .row.mine .life {
+  stroke: var(--accent);
+}
+.hl .row.dead .life {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.hl .row.mine.dead .life {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.hl .tail {
+  fill: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1;
+}
+.hl .row.mine .tail {
+  fill: color-mix(in srgb, var(--accent) 20%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.hl .half-mark {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1;
+}
+.hl .row.mine .half-mark {
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.hl .head-dot {
+  fill: var(--text);
+}
+.hl .row.mine .head-dot {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+.hl.running .head-dot {
+  animation: hl-tick 0.6s ease-in-out infinite alternate;
+}
+
+/* Nucleus */
+.hl .nucleus {
+  fill: #2a2d38;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
+.hl .row.mine .nucleus {
+  fill: var(--accent);
+  stroke: #fff;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.hl .row.mine.won .nucleus {
+  fill: var(--green);
+  filter: drop-shadow(0 0 12px var(--green));
+}
+.hl .row.dead .nucleus {
+  fill: transparent;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-dasharray: 3 3;
+  filter: none;
+}
+.hl .row.mine.dead .nucleus {
+  stroke: var(--red);
+}
+.hl .orbit {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 2 4;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.hl .row.mine .orbit {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.hl.running .orbit {
+  animation: hl-spin var(--spin, 2s) linear infinite;
+}
+.hl .flash {
+  fill: #fff;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hl-flash var(--burst, 500ms) ease-out 1;
+}
+.hl .row.mine .flash {
+  fill: var(--red);
+}
+.hl .hl-label {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-weight: 800;
+  fill: var(--text);
+}
+.hl .row.mine.alive .hl-label {
+  fill: #07070b;
+}
+.hl .row.dead .hl-label {
+  fill: var(--muted);
+}
+
+/* Decay burst on the lane, where the clock stood when it went. */
+.hl .burst .shock {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 1.5;
+  opacity: 0.55;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hl-shock var(--burst, 500ms) ease-out 1;
+}
+.hl .burst .spoke {
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.hl .burst .core {
+  fill: var(--text);
+}
+.hl .row.mine .burst .shock,
+.hl .row.mine .burst .spoke {
+  stroke: var(--red);
+  opacity: 1;
+}
+.hl .row.mine .burst .core {
+  fill: var(--red);
+}
+.hl .burst {
+  animation: hl-pop var(--burst, 500ms) ease-out 1;
+}
+
+/* Chance to be last */
+.hl .bar-track {
+  fill: var(--hover);
+}
+.hl .bar {
+  fill: color-mix(in srgb, var(--text) 45%, transparent);
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 0.45s var(--og-ease, ease);
+}
+.hl .row.mine .bar {
+  fill: var(--green);
+}
+.hl .pct {
+  text-anchor: end;
+  font-size: 14px;
+  font-weight: 800;
+}
+.hl .row.mine .pct {
+  fill: var(--green);
+  font-size: 16px;
+}
+.hl .row.dead .pct {
+  fill: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.hl .row.mine.dead .pct {
+  fill: var(--red);
+}
+.hl .sub {
+  text-anchor: end;
+  font-size: 11.5px;
+  fill: var(--muted);
+}
+.hl .row.mine .sub {
+  fill: var(--gold);
+  font-weight: 700;
+}
+.hl .row.mine.dead .sub {
+  fill: var(--muted);
+  font-weight: 500;
+}
+.hl .row.dead .lane,
+.hl .row.dead .bar-track {
+  opacity: 0.5;
+}
+
+/* Picking */
+.hl .pick {
+  fill: transparent;
+  cursor: pointer;
+}
+.hl .row.can-pick:hover .mine-band,
+.hl .row.can-pick:hover .lane {
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.hl .row.can-pick:hover .nucleus {
+  stroke: var(--accent);
+}
+
+/* ---------- Axis and next-decay race ---------- */
+.hl .axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.hl .tick {
+  text-anchor: middle;
+  font-size: 12px;
+  fill: var(--muted);
+}
+.hl .next-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.hl .next-yours {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.hl .next-yours .red {
+  fill: var(--red);
+  font-weight: 800;
+}
+.hl .seg {
+  fill: #343846;
+  transition:
+    x 0.4s ease,
+    width 0.4s ease;
+}
+.hl .seg.mine {
+  fill: var(--red);
+  filter: drop-shadow(0 0 8px var(--og-red-glow, rgba(233, 17, 60, 0.45)));
+}
+.hl .seg.empty {
+  fill: var(--hover);
+}
+.hl .seg-label {
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-size: 11.5px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.hl .seg-label.mine {
+  fill: #fff;
+}
+.hl .next-note {
+  font-size: 11.5px;
+  fill: var(--muted);
+}
+
+@keyframes hl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes hl-tick {
+  to {
+    opacity: 0.45;
+  }
+}
+@keyframes hl-flash {
+  0% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+@keyframes hl-shock {
+  0% {
+    transform: scale(0.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes hl-pop {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+}
