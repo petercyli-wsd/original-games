@@ -249,3 +249,55 @@ export function autoRound(
     if (maxWinReached(cash)) return { frames, multiplier: cash, outcome: 'max', wins: won };
   }
 }
+
+/**
+ * P(an Auto "cash out at ×target" round reaches its target) for a rule.
+ * An exact answer needs every reachable cash value (millions of states at
+ * big targets), so this solves the same recursion on a fine grid in log-cash:
+ * V_r(y) = Σ_call w · (1/13) Σ_{winning r'} V_{r'}(y + log factor), with
+ * V = 1 once y reaches log(target / RTP) or the max win, and skipped ranks
+ * taking the average over the callable ones. Every factor is at least 13/12,
+ * so each grid point depends only on higher ones (solved top-down, linear
+ * interpolation between points). With a step of 5e-4 in log-cash (6,000 to
+ * 24,000 points) it matches the exact
+ * enumeration to within about 0.5% (relative; the readout shows "≈") and runs in
+ * a few milliseconds. It also gives the average payout of a win: RTP / P.
+ */
+export function targetChance(pick: AutoPick, skip: SkipRule, target: number, start: number | null = null): number {
+  const top = Math.log(target / RTP);
+  if (top <= 0) return 1;
+  const capTop = Math.log(((MAX_WIN * (RANKS - 1)) / RANKS) * (1 + 1e-12) / RTP);
+  const bins = Math.min(24_000, Math.max(6_000, Math.ceil(top / 5e-4)));
+  const h = top / bins;
+  const skipping = skipSet(pick, skip);
+  const callable = range(1, RANKS).filter((r) => !skipping.has(r));
+  const V = Array.from({ length: RANKS + 1 }, () => new Float64Array(bins + 1));
+  const at = (r: number, y: number) => {
+    if (y >= top * (1 - 1e-12) || y > capTop) return 1;
+    const t = y / h;
+    const j = Math.floor(t);
+    const a = V[r][j];
+    // Just below the target, hold the last grid value: the jump to 1 is exactly at the target.
+    const b = j + 1 >= bins ? a : V[r][j + 1];
+    return a + (b - a) * (t - j);
+  };
+  const plan = callable.map((r) => ({
+    r,
+    calls: ruleCalls(pick, r, skip).map(({ guess, w }) => ({ w: w / RANKS, step: Math.log(factor(guess, r)), to: winningRanks(guess, r) })),
+  }));
+  for (let i = bins - 1; i >= 0; i--) {
+    const y = i * h;
+    let sum = 0;
+    for (const { r, calls } of plan) {
+      let v = 0;
+      for (const { w, step, to } of calls) for (const r2 of to) v += w * at(r2, y + step);
+      V[r][i] = v;
+      sum += v;
+    }
+    for (const r of skipping) V[r][i] = sum / callable.length;
+  }
+  if (start !== null) return V[start][0];
+  let p = 0;
+  for (let r = 1; r <= RANKS; r++) p += V[r][0] / RANKS;
+  return p;
+}

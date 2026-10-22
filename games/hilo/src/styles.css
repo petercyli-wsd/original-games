@@ -276,6 +276,11 @@
 .hl-slot.lose {
   animation: hl-shake 0.42s ease;
 }
+/* The glow snaps on (no green-to-red blend between quick Auto calls) and fades off. */
+.hl-slot.win::after,
+.hl-slot.lose::after {
+  transition: none;
+}
 
 .hl-board.auto .hl-table {
   padding-top: 72px;

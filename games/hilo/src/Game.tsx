@@ -30,7 +30,7 @@ import {
   useTurbo,
   type ReadoutItem,
 } from '@originals/game-sdk/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CallButton, Deck, Ladder, PlayingCard, Trail, type Shown, type TrailItem } from './Cards';
 import {
   MAX_WIN,
@@ -49,6 +49,7 @@ import {
   mainPair,
   maxWinReached,
   streakChance,
+  targetChance,
   wins,
   withinCap,
   type AutoPick,
@@ -123,10 +124,13 @@ export default function Game() {
   const [last, setLast] = useState<Last | null>(null);
   const lastSeq = useRef(0);
 
-  // A call is decided the moment it is made, so leaving mid-flip settles at
-  // its real result. At a checkpoint the fair value is the cash-out itself.
+  // What the open bet is worth right now, kept in a ref and updated in the
+  // same tick as every transition (not on the next render): RTP once the bet
+  // is placed, the drawn result the moment a call is made (so leaving
+  // mid-flip settles at the real result), the cash-out at a checkpoint, and
+  // the whole Auto round's result as soon as it is played.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dealing' || autoBusy ? resolved.current : phase === 'live' && round ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const dealMs = turbo.turbo ? 130 : 520;
   const live = phase === 'live' || phase === 'dealing';
@@ -172,6 +176,7 @@ export default function Game() {
     setCard(c);
     setIncoming(null);
     setTrail([trailItem(c, 'start', null, RTP)]);
+    resolved.current = RTP;
     setRound({ stake: bet.value, cash: RTP, won: 0, outcome: null });
     setPhase('live');
   }
@@ -367,8 +372,16 @@ export default function Game() {
   // The next round's first card: the fixed start card, or (random) the card showing.
   const nextRank = !live && typeof startPref === 'number' ? startPref : rank;
   const nextBest = likelier(nextRank);
+  // After a round with a fixed start card, the call readouts preview the next round's first card.
+  const rr = live ? rank : nextRank;
+  const [rUp, rDown] = mainPair(rr);
+  const from = rr !== rank ? ` · next from ${RANK_LABEL[rr]}` : '';
 
-  const autoP = stopKind === 'streak' ? streakChance(pick, skipRule, streak, startPref === 'random' ? null : startPref) : Math.min(1, RTP / target);
+  const autoStart = startPref === 'random' ? null : startPref;
+  const autoP = useMemo(
+    () => (stopKind === 'streak' ? streakChance(pick, skipRule, streak, autoStart) : targetChance(pick, skipRule, target, autoStart)),
+    [stopKind, pick, skipRule, streak, target, autoStart],
+  );
   const autoVol = volatilityOf(autoP);
 
   let status = `Ready · start card ${cardName(card.card)}`;
@@ -396,27 +409,27 @@ export default function Game() {
     ? [
         {
           label: 'Win chance',
-          value: stopKind === 'streak' ? fmtChance(autoP) : `≤ ${fmtChance(autoP)}`,
+          value: stopKind === 'streak' ? fmtChance(autoP) : `≈ ${fmtChance(autoP)}`,
           sub: stopKind === 'streak' ? `${streak} right in a row` : `reach ${fmtMult(target)}`,
           tone: 'chance',
         },
         {
-          label: stopKind === 'streak' ? 'Average payout' : 'Payout',
-          value: stopKind === 'streak' ? fmtMult(RTP / autoP) : `≥ ${fmtMult(target)}`,
-          sub: formatAmount(bet.value * (stopKind === 'streak' ? RTP / autoP : target), 2),
+          label: 'Average win',
+          value: `${stopKind === 'streak' ? '' : '≈ '}${fmtMult(RTP / autoP)}`,
+          sub: stopKind === 'streak' ? formatAmount(bet.value * (RTP / autoP), 2) : `never below ${fmtMult(target)}`,
           tone: 'cash',
         },
         { label: 'Rule', value: PICK_LABEL[pick], sub: skipRule === 'off' ? 'no skips' : `skips ${SKIP_LABEL[skipRule]}`, tone: 'prize' },
       ]
     : [
-        { label: `▲ ${guessLabel(up, rank)}`, value: fmtChance(pUp), sub: `wins ${fmtMult(base * factor(up, rank))}`, tone: 'chance' },
+        { label: `▲ ${guessLabel(rUp, rr)}`, value: fmtChance(chance(rUp, rr)), sub: `wins ${fmtMult(base * factor(rUp, rr))}${from}`, tone: 'chance' },
         {
           label: phase === 'over' ? 'Result' : 'Cash out now',
           value: (live && won > 0) || phase === 'over' ? fmtMult(cash) : '—',
           sub: (live && won > 0) || phase === 'over' ? formatAmount(stake * cash, 2) : live ? 'after a right call' : `round starts at ${fmtMult(RTP)}`,
           tone: 'cash',
         },
-        { label: `▼ ${guessLabel(down, rank)}`, value: fmtChance(pDown), sub: `wins ${fmtMult(base * factor(down, rank))}`, tone: 'chance' },
+        { label: `▼ ${guessLabel(rDown, rr)}`, value: fmtChance(chance(rDown, rr)), sub: `wins ${fmtMult(base * factor(rDown, rr))}${from}`, tone: 'chance' },
       ];
 
   const overCap = (g: Guess) => phase === 'live' && available(g, rank, calls) && !withinCap(base, g, rank);
@@ -505,16 +518,16 @@ export default function Game() {
       )}
 
       <div className="hl-calls">
-        <CallButton dir="up" guess={up} rank={rank} pays={base * factor(up, rank)} p={pUp} disabled={!canCall(up)} keyHint="↑" onClick={() => call(up)} title={capTitle(up)} />
-        <CallButton dir="down" guess={down} rank={rank} pays={base * factor(down, rank)} p={pDown} disabled={!canCall(down)} keyHint="↓" onClick={() => call(down)} title={capTitle(down)} />
+        <CallButton dir="up" guess={rUp} rank={rr} pays={base * factor(rUp, rr)} p={chance(rUp, rr)} disabled={!canCall(up)} keyHint="↑" onClick={() => call(up)} title={capTitle(up)} />
+        <CallButton dir="down" guess={rDown} rank={rr} pays={base * factor(rDown, rr)} p={chance(rDown, rr)} disabled={!canCall(down)} keyHint="↓" onClick={() => call(down)} title={capTitle(down)} />
       </div>
       {calls === 'extended' && (
         <div className="hl-calls three">
-          {rank !== 1 && rank !== RANKS && (
-            <CallButton dir="same" guess="same" rank={rank} pays={base * factor('same', rank)} p={chance('same', rank)} disabled={!canCall('same')} keyHint="E" onClick={() => call('same')} title={capTitle('same')} compact />
+          {rr !== 1 && rr !== RANKS && (
+            <CallButton dir="same" guess="same" rank={rr} pays={base * factor('same', rr)} p={chance('same', rr)} disabled={!canCall('same')} keyHint="E" onClick={() => call('same')} title={capTitle('same')} compact />
           )}
-          <CallButton dir="red" guess="red" rank={rank} pays={base * 2} p={0.5} disabled={!canCall('red')} keyHint="R" onClick={() => call('red')} title={capTitle('red')} compact />
-          <CallButton dir="black" guess="black" rank={rank} pays={base * 2} p={0.5} disabled={!canCall('black')} keyHint="B" onClick={() => call('black')} title={capTitle('black')} compact />
+          <CallButton dir="red" guess="red" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('red')} keyHint="R" onClick={() => call('red')} title={capTitle('red')} compact />
+          <CallButton dir="black" guess="black" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('black')} keyHint="B" onClick={() => call('black')} title={capTitle('black')} compact />
         </div>
       )}
       <button

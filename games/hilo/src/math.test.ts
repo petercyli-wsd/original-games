@@ -20,6 +20,7 @@ import {
   maxWinReached,
   skipSet,
   streakChance,
+  targetChance,
   winningRanks,
   wins,
   withinCap,
@@ -157,6 +158,47 @@ describe('HiLo pricing', () => {
     // One call of the likelier side from a random card: (Σ max(14 − r, r)) / 169 with the ends at 12/13.
     const one = ranks.reduce((a, r) => a + chance(likelier(r), r), 0) / RANKS;
     expect(streakChance('likelier', 'off', 1)).toBeCloseTo(one, 14);
+  });
+
+  it('target chance (log-cash grid) matches an exact enumeration of reachable cash values', () => {
+    // Exact: memoise V(rank, cash) over every reachable cash value (feasible for small targets).
+    const exact = (pick: AutoPick, skip: SkipRule, target: number, start: number | null) => {
+      const skipping = skipSet(pick, skip);
+      const callable = ranks.filter((r) => !skipping.has(r));
+      const memo = new Map<string, number>();
+      const V = (r: number, c: number): number => {
+        if (c >= target * (1 - 1e-12)) return 1;
+        if (skipping.has(r)) return callable.reduce((a, r2) => a + V(r2, c), 0) / callable.length;
+        const key = r + ':' + c.toPrecision(12);
+        const hit = memo.get(key);
+        if (hit !== undefined) return hit;
+        const [up, down] = mainPair(r);
+        const plays: [Guess, number][] = pick === 'random' ? [[up, 0.5], [down, 0.5]] : [[autoChoice(pick, r, skip, 0) as Guess, 1]];
+        let v = 0;
+        for (const [g, w] of plays) for (const r2 of winningRanks(g, r)) v += (w / RANKS) * V(r2, afterWin(c, g, r));
+        memo.set(key, v);
+        return v;
+      };
+      return start === null ? ranks.reduce((a, r) => a + V(r, RTP) / RANKS, 0) : V(start, RTP);
+    };
+    for (const pick of AUTO_PICKS)
+      for (const skip of ['off', '6-8'] as SkipRule[])
+        for (const [target, start] of [[1.5, null], [2, null], [3.7, 7], [6, null]] as [number, number | null][]) {
+          const e = exact(pick, skip, target, start);
+          expect(Math.abs(targetChance(pick, skip, target, start) / e - 1)).toBeLessThan(5e-3);
+          expect(targetChance(pick, skip, target, start)).toBeLessThanOrEqual(RTP / target + 1e-9);
+        }
+  });
+
+  it('target chance matches a simulation of the Auto round at a large target', () => {
+    const sim = createRng(seededSource(23));
+    for (const [pick, target] of [['likelier', 50], ['random', 200]] as [AutoPick, number][]) {
+      const p = targetChance(pick, 'off', target);
+      const rounds = 150_000;
+      let ok = 0;
+      for (let i = 0; i < rounds; i++) if (autoRound({ pick, skip: 'off', stop: { kind: 'target', value: target }, start: null }, sim).multiplier > 0) ok++;
+      expect(Math.abs(ok / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds));
+    }
   });
 });
 
