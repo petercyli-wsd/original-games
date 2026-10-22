@@ -87,6 +87,8 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 **Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change.
 
+> **In development.** The in-app "Run AI review" and Refine buttons call the Anthropic API with a billed key (`ANTHROPIC_API_KEY`). The team's preferred path is moving to Claude Code on the subscription, with results still stored through the API in Neon. The rubric, prompts, storage and pages below are shared by both paths.
+
 **AI reviews.** Claude (Opus 5.5) reviews each game against the Originals brief in two stages:
 
 1. **Rules card**: it reads the game's source and writes a factual card (concept, win condition, how odds appear, volatility controls, checkpoints, maths). Cached per code version.

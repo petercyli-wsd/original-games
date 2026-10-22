@@ -195,7 +195,11 @@ export function Evaluator() {
       </div>
 
       {error && <p className="rankings-banner error">{error}</p>}
-      {status && !status.aiEnabled && <p className="rankings-banner">AI reviews are off: set ANTHROPIC_API_KEY on the API service.</p>}
+      <p className="rankings-banner">
+        <b>In development.</b> The run buttons on this page call the Anthropic API with a billed key (ANTHROPIC_API_KEY on the API service). The
+        team's main path is moving to Claude Code on the subscription; reviews made either way are stored and shown here the same way.
+      </p>
+      {status && !status.aiEnabled && <p className="rankings-banner">In-app AI reviews are off: no ANTHROPIC_API_KEY on the API service.</p>}
       {status && !status.adminConfigured && <p className="rankings-banner">Admin actions are off: set ADMIN_KEY on the API service.</p>}
 
       <div className="ev-grid">
