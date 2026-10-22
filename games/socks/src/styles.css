@@ -1,0 +1,125 @@
+/* Socks board. Layout, panel and readouts come from the kit. */
+
+.socks text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.socks .zone,
+.socks .zone-r {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--muted);
+}
+.socks .zone-r {
+  text-anchor: end;
+  letter-spacing: 0.02em;
+}
+.socks .zone-r.risk,
+.socks .r {
+  fill: var(--red);
+}
+.socks .g {
+  fill: var(--green);
+}
+.socks .dim {
+  fill: var(--muted);
+}
+
+.socks .slot {
+  fill: color-mix(in srgb, var(--accent) 8%, var(--hover));
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 2;
+  transition: stroke 0.25s ease;
+}
+.socks .slot.empty {
+  stroke-dasharray: 5 5;
+}
+.socks .slot.full {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px var(--og-red-glow, rgba(233, 17, 60, 0.4)));
+}
+
+.socks .msg {
+  text-anchor: middle;
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.socks .msg.start {
+  text-anchor: start;
+}
+.socks .msg.risk {
+  fill: var(--red);
+}
+.socks .msg.safe,
+.socks .msg.win {
+  fill: var(--green);
+}
+
+.socks .strip-bad {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.socks .strip-good {
+  fill: var(--green);
+}
+.socks .match-track {
+  stroke: var(--hover);
+  stroke-width: 2;
+  stroke-dasharray: 4 6;
+}
+
+/* Tokens: each one glides between pile, hand, table and matched row. */
+.socks .tok {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.25, 0.8, 0.3, 1);
+}
+.socks .tok circle {
+  stroke: var(--bg);
+  stroke-width: 3;
+  transition: stroke 0.2s ease, opacity 0.2s ease;
+}
+.socks .tok text {
+  text-anchor: middle;
+  font-size: 19px;
+  font-weight: 800;
+  fill: #1a1320;
+  pointer-events: none;
+}
+.socks .tok.waiting circle {
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 4;
+}
+.socks .tok.safe circle {
+  stroke: var(--green);
+  stroke-width: 6;
+}
+.socks .tok.danger circle {
+  stroke: var(--red);
+  stroke-width: 6;
+  opacity: 0.55;
+}
+.socks .tok.danger text {
+  opacity: 0.7;
+}
+.socks .tok.drawn circle {
+  stroke: #fff;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.socks .tok.busted circle {
+  stroke: var(--red);
+  stroke-width: 5;
+  filter: drop-shadow(0 0 10px var(--og-red-glow, rgba(233, 17, 60, 0.6)));
+  animation: socks-pop 0.45s ease 2;
+}
+.socks .tok.done circle {
+  stroke-width: 2;
+}
+
+@keyframes socks-pop {
+  50% {
+    r: 25px;
+  }
+}
