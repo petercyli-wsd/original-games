@@ -1,0 +1,349 @@
+/* Crash Colours: stake rows, the crash graph and the three band cards. */
+
+.cc-game {
+  --c-red: var(--red);
+  --c-green: var(--green);
+  --c-moon: #fbbf24;
+}
+
+/* ---------- panel: one stake row per colour ---------- */
+.cc-stake {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cc-stake.red { --band: var(--c-red); }
+.cc-stake.green { --band: var(--c-green); }
+.cc-stake.moon { --band: var(--c-moon); }
+.cc-stake-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.cc-stake-head i {
+  align-self: center;
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--band);
+  box-shadow: 0 0 8px -1px var(--band);
+}
+.cc-stake-head b {
+  font-size: 13px;
+  color: var(--text);
+}
+.cc-stake-head span {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-stake-head em {
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--band);
+}
+.og-bet-row.cc-stake-row {
+  grid-template-columns: minmax(0, 1fr) 38px 38px 34px;
+  border-left: 3px solid var(--band);
+}
+.cc-stake-row input {
+  padding: 9px 10px;
+}
+.cc-stake-row button {
+  font-size: 13px;
+}
+.cc-stake-row button:last-child {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.cc-moons .og-chips.wrap .og-chip {
+  flex: 1 0 calc(33.3% - 4px);
+}
+
+.cc-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.cc-auto-note {
+  margin: 0 0 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.og-btn.cc-skip {
+  margin-top: 10px;
+}
+
+/* ---------- history ---------- */
+/* Newest first, so clip the oldest (right) end when the row is too long. */
+.cc-game .og-history { justify-content: flex-start; }
+.og-hist.cc-hist.red { color: var(--c-red); background: color-mix(in srgb, var(--c-red) 15%, transparent); }
+.og-hist.cc-hist.green { color: var(--c-green); background: color-mix(in srgb, var(--c-green) 14%, transparent); }
+.og-hist.cc-hist.moon { color: #1a1300; background: var(--c-moon); }
+
+/* ---------- graph ---------- */
+.cc-board {
+  min-height: 250px;
+  /* Room for the result pill above the graph. */
+  padding-top: 50px;
+}
+.cc-graph-wrap {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-width: 0;
+}
+.cc-graph-wrap > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 64vh;
+  overflow: visible;
+}
+.cc-graph text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.cc-stop.red { stop-color: var(--c-red); }
+.cc-stop.green { stop-color: var(--c-green); }
+.cc-stop.moon { stop-color: var(--c-moon); }
+
+.cc-region { transition: y 0.12s linear, height 0.12s linear; }
+.cc-region.red { fill: color-mix(in srgb, var(--c-red) 9%, transparent); }
+.cc-region.green { fill: color-mix(in srgb, var(--c-green) 6%, transparent); }
+.cc-region.moon { fill: color-mix(in srgb, var(--c-moon) 9%, transparent); }
+.cc-region-label {
+  text-anchor: end;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  opacity: 0.55;
+}
+.cc-region-label.start { text-anchor: start; }
+.cc-region-label.red { fill: var(--c-red); }
+.cc-region-label.green { fill: var(--c-green); }
+.cc-region-label.moon { fill: var(--c-moon); }
+
+.cc-tick line {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+.cc-tick text {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.cc-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.cc-bandline line {
+  stroke-width: 1.5;
+  stroke-dasharray: 6 6;
+  opacity: 0.75;
+}
+.cc-bandline.green line { stroke: var(--c-green); }
+.cc-bandline.moon line { stroke: var(--c-moon); }
+.cc-bandline rect { opacity: 0.95; }
+.cc-bandline.green rect { fill: var(--c-green); }
+.cc-bandline.moon rect { fill: var(--c-moon); }
+.cc-bandline text {
+  font-size: 13px;
+  font-weight: 800;
+  text-anchor: middle;
+  fill: #07070b;
+}
+.cc-bandline.hit line {
+  stroke-dasharray: none;
+  stroke-width: 2.5;
+  opacity: 1;
+  animation: cc-line-hit 0.6s ease-out;
+}
+@keyframes cc-line-hit {
+  0% { stroke-width: 8; opacity: 1; }
+  100% { stroke-width: 2.5; }
+}
+.cc-moon-tag rect {
+  fill: color-mix(in srgb, var(--c-moon) 16%, var(--card));
+  stroke: var(--c-moon);
+  stroke-width: 1;
+}
+.cc-moon-tag text {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-anchor: middle;
+  fill: var(--c-moon);
+}
+
+.cc-curve {
+  fill: none;
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.cc-curve.red { stroke: var(--c-red); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c-red) 70%, transparent)); }
+.cc-curve.green { stroke: var(--c-green); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--c-green) 60%, transparent)); }
+.cc-curve.moon { stroke: var(--c-moon); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--c-moon) 80%, transparent)); }
+
+.cc-head .cc-dot { fill: #fff; }
+.cc-head .cc-glow { opacity: 0.35; }
+.cc-head.red .cc-glow, .cc-head.red .cc-burst { fill: var(--c-red); }
+.cc-head.green .cc-glow, .cc-head.green .cc-burst { fill: var(--c-green); }
+.cc-head.moon .cc-glow, .cc-head.moon .cc-burst { fill: var(--c-moon); }
+.cc-head:not(.crashed) .cc-glow { animation: cc-pulse 0.7s ease-in-out infinite alternate; }
+.cc-head.crashed .cc-dot { fill: var(--red); stroke: #fff; stroke-width: 2; }
+.cc-burst { opacity: 0; animation: cc-burst 0.55s ease-out; transform-origin: center; }
+@keyframes cc-pulse {
+  from { opacity: 0.2; }
+  to { opacity: 0.55; }
+}
+@keyframes cc-burst {
+  0% { opacity: 0.8; transform: scale(0.6); }
+  100% { opacity: 0; transform: scale(4); }
+}
+
+.cc-readout text { text-anchor: middle; }
+.cc-readout-num {
+  font-size: 68px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 8px;
+  stroke-linejoin: round;
+}
+.cc-readout.idle .cc-readout-num { fill: color-mix(in srgb, var(--text) 75%, transparent); }
+.cc-readout.red .cc-readout-num { fill: var(--c-red); }
+.cc-readout.green .cc-readout-num { fill: var(--c-green); }
+.cc-readout.moon .cc-readout-num { fill: var(--c-moon); }
+.cc-readout.crashed .cc-readout-num { animation: cc-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.3); transform-origin: 0 0; transform-box: fill-box; }
+.cc-readout-top {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  fill: var(--muted);
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 5px;
+}
+.cc-readout-sub {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.cc-readout.compact .cc-readout-num { font-size: 50px; stroke-width: 6px; }
+.cc-readout.compact .cc-readout-top { font-size: 12px; }
+.cc-readout.compact .cc-readout-sub { font-size: 13px; }
+@keyframes cc-pop {
+  from { transform: scale(1.12); }
+}
+
+/* ---------- band cards under the graph ---------- */
+.cc-bands {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.cc-band {
+  --band: var(--c-red);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 10px 12px 11px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  border: 1.5px solid color-mix(in srgb, var(--band) 30%, transparent);
+  border-top: 3px solid var(--band);
+  transition: opacity 0.25s ease, box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+}
+.cc-band.green { --band: var(--c-green); }
+.cc-band.moon { --band: var(--c-moon); }
+.cc-band-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+}
+.cc-band-head b {
+  font-size: 15px;
+  color: var(--band);
+}
+.cc-band-head span {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.cc-band-cond {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cc-band-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--hover);
+  overflow: hidden;
+}
+.cc-band-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--band);
+  transition: width 0.2s ease;
+}
+.cc-band-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cc-band-foot b {
+  color: var(--text);
+  white-space: nowrap;
+}
+.cc-band:not(.staked) .cc-band-foot b { color: var(--muted); font-weight: 600; }
+.cc-band.won {
+  background: color-mix(in srgb, var(--band) 16%, var(--raised));
+  border-color: var(--band);
+  box-shadow: 0 0 26px -8px var(--band);
+  animation: cc-light 0.45s ease-out;
+}
+.cc-band.won.staked .cc-band-foot b { color: var(--band); }
+.cc-band.lost { opacity: 0.42; }
+.cc-band.lost.staked .cc-band-foot b { color: var(--red); }
+@keyframes cc-light {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@container (max-width: 760px) {
+  .cc-game .og-history { mask-image: linear-gradient(90deg, #000 80%, transparent); }
+  .cc-bands { gap: 6px; }
+  .cc-band { padding: 8px 9px 9px; gap: 4px; }
+  .cc-band-head b { font-size: 14px; }
+  .cc-band-head span, .cc-band-cond, .cc-band-foot { font-size: 11px; }
+  .cc-band-foot { flex-direction: column; gap: 1px; }
+}
