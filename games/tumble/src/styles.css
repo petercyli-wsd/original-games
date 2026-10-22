@@ -1,0 +1,160 @@
+/* Tumble board. Layout, panel and readouts come from the kit. */
+
+.tumble-board {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.tumble {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.tumble text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Roll counter */
+.tumble .pips .todo {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 2;
+}
+.tumble .pips .done {
+  fill: var(--accent);
+}
+.tumble .pips .now {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.tumble .pip-label {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+/* The cross of cells around each cube */
+.tumble .cell rect {
+  fill: var(--hover);
+  stroke: transparent;
+  stroke-width: 2.5;
+  transition: fill 0.25s ease;
+}
+.tumble .cell text {
+  font-weight: 700;
+  fill: var(--muted);
+}
+.tumble .cell.up rect {
+  fill: color-mix(in srgb, var(--green) 20%, var(--card));
+}
+.tumble .cell.up text {
+  fill: var(--green);
+}
+.tumble .cell.down rect {
+  fill: color-mix(in srgb, var(--red) 18%, var(--card));
+}
+.tumble .cell.down text {
+  fill: color-mix(in srgb, var(--red) 80%, var(--text));
+}
+.tumble .cell.off rect {
+  fill: color-mix(in srgb, var(--hover) 50%, transparent);
+}
+.tumble .cell.hit rect {
+  stroke: var(--accent);
+}
+.tumble .home {
+  fill: color-mix(in srgb, var(--accent) 12%, var(--card));
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+/* The cube, seen from above: top face in the middle, four sides around it */
+.tumble .mover {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+}
+.tumble .tip {
+  animation-name: tumble-tip;
+  animation-timing-function: ease-in-out;
+}
+.tumble .face {
+  stroke: var(--bg);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.tumble .face.top {
+  fill: color-mix(in srgb, var(--accent) 70%, #fff);
+}
+.tumble .face.ew {
+  fill: color-mix(in srgb, var(--accent) 60%, var(--card));
+}
+.tumble .face.ns {
+  fill: color-mix(in srgb, var(--accent) 42%, var(--card));
+}
+.tumble .face.red {
+  fill: var(--red);
+}
+.tumble .under {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+  filter: drop-shadow(0 0 8px var(--red));
+}
+
+/* Forecast bars */
+.tumble .seg rect {
+  fill: color-mix(in srgb, var(--text) 14%, var(--card));
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  transition: width 0.3s ease, x 0.3s ease;
+}
+.tumble .seg text {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.tumble .seg.target rect {
+  fill: var(--green);
+}
+.tumble .seg.target text {
+  fill: #0b0d12;
+  font-weight: 800;
+}
+.tumble .bar-frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1;
+}
+.tumble .bar-mark {
+  fill: var(--green);
+}
+.tumble .bar-mark.zero {
+  fill: var(--red);
+}
+.tumble .bar-val {
+  font-size: 19px;
+  font-weight: 700;
+  fill: var(--green);
+}
+.tumble .bar-val.zero {
+  fill: var(--red);
+}
+.tumble .prod {
+  font-size: 21px;
+  font-weight: 800;
+  fill: var(--text);
+}
+.tumble .prod.one {
+  fill: var(--green);
+}
+.tumble .prod.zero {
+  fill: var(--red);
+}
+
+@keyframes tumble-tip {
+  50% {
+    transform: scale(0.82);
+  }
+}
