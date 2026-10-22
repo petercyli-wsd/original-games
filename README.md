@@ -108,14 +108,30 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 |---|---|
 | **Lobby** `/` | Every game as a tile with RTP, max win and its team rating; filter by maths family. `prototype` games are under Experimental. |
 | **Game** `/play/<id>` | The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (write a score with pros and cons, read others') and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
-| **Rankings** `/rankings` | Every game ranked by team rating (weighted by vote count), with the AI score alongside; rate any game inline. |
+| **Rankings** `/rankings` | Every game ranked overall or on any one facet (pace, volatility control, win condition…), by the team (weighted by vote count) or by the AI; classics are tagged. Rate any game inline. |
 | **Evaluator** `/evaluator` | The active prompt (weights, guidance, reference games, agreement metrics), candidate versions side by side with the active one, the team-vs-AI table, and **Promote**. Unlock with the admin passphrase. |
 
 The play balance is a demo wallet stored in the browser; **Refill** resets it.
 
 ## Reviews and the AI evaluator
 
-**Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change.
+**Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change. Reviewers can also score each facet (below); facet scores are optional and the overall star stays the headline metric.
+
+**Facets.** Every metric has a team version and an AI version, on the same 1–5 scale:
+
+| Facet | Question |
+|---|---|
+| Pace | Can it be played both fast (turbo/auto) and slowly, step by step? |
+| Volatility control | Can you choose your risk, with a control that really changes it? |
+| Win condition | Is it obvious what wins and what loses? |
+| Odds clarity | Can you see your chance of winning on the board as the round plays out? |
+| Checkpoints | Are there natural pauses where cashing out is a real decision? |
+| Simplicity | Could a new player explain it in one sentence? |
+| Uniqueness | Is it more than a reskin of an existing game? |
+| Fun | Does it build tension and make you want another round? |
+| Geometry-first | Does it work as plain shapes, without its theme? |
+
+**Hide AI reviews.** The ✦ AI toggle in the header hides every AI score, review and the AI sort, so reviewers form their own view first. It's remembered per browser.
 
 **AI reviews** score each game against the Originals brief in two stages:
 
@@ -151,6 +167,8 @@ Not every reviewed game goes into the prompt. Showing all of them would bloat th
 - **At most 6 reference games per review, chosen per game:** the team's highest- and lowest-rated games (to pin the scale), the refiner's curated exemplars, then the most similar reviewed games (same mechanic, dynamics or closest known games). Each comes with a one-line description and up to two review comments.
 - **Leave-one-out.** A game is never shown its own reviews.
 - **Train/holdout split.** About 30% of reviewed games are held out by a fixed hash. The refiner learns only from train games; versions are compared on holdout agreement (Spearman ρ and average gap in stars), which shows whether a change generalises rather than memorises.
+- **Classics are the benchmark.** The catalogue marks the 30 live classics, and the judge is told when the game in front of it is one. A well-made classic should land around 4 or above, with the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the top. Check this with `results` after a prompt change.
+- **References need a pool.** Until at least 3 games have team reviews, no reference games are shown at all, so one or two test ratings can't skew the scale.
 - **Anchors.** Proven games (Russian roulette, Mines, Crash, Dice) must score ≥ 3.6 and known-bad concepts (a Mines reskin, a theme-dependent concept, an unintuitive maths game) ≤ 2.6. They are never shown as examples, so they stay a fair test.
 - **The refiner writes principles, not verdicts.** It may change weights, score descriptions, guidance (capped at 350 words, consolidated rather than appended) and up to 4 curated exemplars, and it gets a least-squares weight fit as a hint. Nothing goes live until someone promotes it.
 - **Cache-friendly layout.** The rubric and catalogue form a stable system prompt; per-game references and facts go in the user message.
@@ -177,6 +195,8 @@ The skills call these for you; they're also handy on their own. All need `ORIGIN
 | `calibration [--version N]` | Lists the games and anchors to review to backtest a version |
 | `score <version>` | Recomputes holdout and overall agreement plus anchor passes, for the version and the active one |
 | `promote <version>` | Makes a version active |
+| `seed-version ["changelog"]` | Stores the rubric in `apps/api/src/evaluator/rubric.ts` as a candidate version (promote it after) |
+| `results [--json]` | Every AI-reviewed game ranked by overall, with facet scores and the classics vs prototypes mean |
 
 ### Where things live
 
