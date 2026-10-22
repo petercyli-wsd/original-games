@@ -1,0 +1,196 @@
+/* Waldegrave board. Layout, panel and readouts come from the kit. */
+
+.og-board.wg-stage {
+  grid-template-columns: minmax(0, 1fr);
+}
+.wg text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+}
+.wg text.start {
+  text-anchor: start;
+}
+.wg text.end {
+  text-anchor: end;
+}
+.wg .role {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.wg .vs {
+  font-size: 18px;
+  font-weight: 800;
+  fill: var(--muted);
+}
+.wg .small,
+.wg .lab {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.wg .lab .key {
+  fill: var(--green);
+  font-weight: 700;
+}
+.wg .branch {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.wg .branch.up {
+  fill: var(--green);
+}
+.wg .branch.down {
+  fill: var(--red);
+}
+
+/* Players */
+.wg .tok circle {
+  fill: var(--hover);
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 2;
+  transition: stroke 0.2s, fill 0.2s, opacity 0.2s;
+}
+.wg .tok text {
+  font-size: 26px;
+  font-weight: 800;
+}
+.wg .tok {
+  animation: wg-in 0.3s ease both;
+}
+.wg .small-tok text {
+  font-size: 14px;
+}
+.wg .tok.mine circle {
+  fill: color-mix(in srgb, var(--accent) 30%, var(--hover));
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.wg .tok.won circle {
+  stroke: var(--green);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.wg .tok.lost {
+  opacity: 0.45;
+}
+.wg .tok.lost circle {
+  stroke: var(--red);
+}
+.wg .tok.pot circle {
+  stroke: var(--gold);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--gold) 55%, transparent));
+}
+.wg .tok.faded {
+  opacity: 0.45;
+}
+.wg .slot {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
+/* Streak pips: the last pip is the pot. */
+.wg .pip {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 2;
+}
+.wg .pip.last {
+  stroke: var(--gold);
+}
+.wg .pip.on {
+  fill: var(--accent);
+  stroke: var(--accent);
+}
+.wg .pip.last.on {
+  fill: var(--gold);
+  stroke: var(--gold);
+}
+
+.wg .coin {
+  fill: var(--gold);
+  stroke: #fff;
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.wg .coin.spin {
+  animation: wg-flip linear infinite;
+}
+
+.wg .rule {
+  stroke: var(--hover);
+  stroke-width: 1.5;
+}
+
+/* Odds bars: height = exact chance of taking the pot. */
+.wg .col .track {
+  fill: color-mix(in srgb, var(--hover) 70%, transparent);
+}
+.wg .col .fill {
+  transition: y 0.35s ease, height 0.35s ease;
+}
+.wg .col.good .fill {
+  fill: var(--green);
+}
+.wg .col.bad .fill {
+  fill: color-mix(in srgb, var(--text) 28%, transparent);
+}
+.wg .col.bad.mine .fill {
+  fill: var(--red);
+}
+.wg .col .pct {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition: y 0.35s ease;
+}
+.wg .col.good .pct {
+  fill: var(--green);
+}
+.wg .tag {
+  font-size: 10.5px;
+  fill: var(--muted);
+}
+.wg .tag.you {
+  fill: var(--accent);
+  font-weight: 700;
+}
+
+/* The result card sits over the duel at the top of the board. */
+.wg-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.wg-over > * {
+  pointer-events: auto;
+}
+
+@keyframes wg-flip {
+  0% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.1);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+@keyframes wg-in {
+  from {
+    opacity: 0;
+  }
+}
