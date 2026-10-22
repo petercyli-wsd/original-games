@@ -118,10 +118,10 @@ export default function Game() {
   }, []);
 
   const t = turbo.turbo;
-  const flipMs = t ? 110 : 360;
-  const stagger = t ? 25 : 85;
-  const tuckMs = t ? 40 : 150;
-  const autoHoldMs = t ? 120 : 420;
+  const flipMs = t ? 110 : 300;
+  const stagger = t ? 25 : 70;
+  const tuckMs = t ? 40 : 120;
+  const autoHoldMs = t ? 100 : 280;
 
   const live = phase === 'dealing' || phase === 'holding' || phase === 'drawing';
   const pt = PAYTABLES[round?.table ?? table];
@@ -274,7 +274,12 @@ export default function Game() {
 
   let status = `Ready · ${pt.name} ${pt.schedule.split(' ')[0]} · ${(pt.rtp * 100).toFixed(2)}% RTP`;
   if (phase === 'dealing') status = 'Dealing…';
-  if (phase === 'holding') status = madeCat && madeCat !== NOTHING ? `Dealt ${madeName} · choose holds` : 'Choose cards to hold';
+  if (phase === 'holding')
+    status = !manual
+      ? 'Auto · holding the best cards'
+      : madeCat && madeCat !== NOTHING
+        ? `Dealt ${madeName} · choose holds`
+        : 'Choose cards to hold';
   if (phase === 'drawing') status = 'Drawing…';
   if (phase === 'over' && round) status = round.cat ? `${handName(pt, round.cat)} · ${fmtMult(round.multiplier)}` : 'No win';
   const tone = phase === 'over' ? (round && round.multiplier >= 1 ? 'won' : 'lost') : live ? 'live' : 'idle';
@@ -326,6 +331,7 @@ export default function Game() {
             onChange={(v) => change(() => setTable(v))}
           />
           </div>
+          {manual && (
           <dl className="og-stats">
             <dt>Return (best play)</dt>
             <dd>{(PAYTABLES[table].rtp * 100).toFixed(2)}%</dd>
@@ -334,6 +340,7 @@ export default function Game() {
             <dt>Top prize</dt>
             <dd>{fmtMult(MAX_MULTIPLIER)}</dd>
           </dl>
+          )}
 
           {manual ? (
             <>
@@ -358,20 +365,15 @@ export default function Game() {
             </>
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || (live && !auto.running)}>
-              <div className="vp-auto-note">
-                <b>Holds: best play, every hand</b>
-                <span>The exact solver's top hold, the strategy behind the {(PAYTABLES[table].rtp * 100).toFixed(2)}% RTP.</span>
-              </div>
-              <Label hint="ends the run on the hand">Stop on hand</Label>
-              <div className="vp-chips2">
-              <Chips<StopOn>
-                wrap
-                label="Stop on hand"
-                options={(Object.keys(STOP_LABEL) as StopOn[]).map((k) => ({ value: k, label: STOP_LABEL[k] }))}
-                value={stopOn}
-                disabled={auto.running}
-                onChange={(v) => setStopOn(v)}
-              />
+              <Label hint="holds: best play">Stop on hand</Label>
+              <div className="vp-select">
+                <select aria-label="Stop on hand" value={stopOn} disabled={auto.running} onChange={(e) => setStopOn(e.target.value as StopOn)}>
+                  {(Object.keys(STOP_LABEL) as StopOn[]).map((k) => (
+                    <option key={k} value={k}>
+                      {STOP_LABEL[k]}
+                    </option>
+                  ))}
+                </select>
               </div>
             </AutoBetControls>
           )}
@@ -461,7 +463,9 @@ export default function Game() {
       </Board>
 
       <Caption>
-        {phase === 'holding'
+        {phase === 'holding' && !manual
+          ? `Auto holds the solver's best cards every hand, the strategy behind the ${(pt.rtp * 100).toFixed(2)}% return.`
+          : phase === 'holding'
           ? `Odds column: exact counts over all ${DRAWS[popcount5(hold)].toLocaleString('en-US')} possible draws for the cards you hold. 1–5 hold · H best hold · Space draws.`
           : phase === 'over' && round
             ? onBest

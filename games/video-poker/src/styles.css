@@ -360,21 +360,46 @@
 .vp-hint-toggle {
   margin-top: 8px;
 }
-.vp-auto-note {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--muted);
-  background: var(--bg);
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+.vp-select {
+  position: relative;
 }
-.vp-auto-note b {
-  font-size: 13px;
+.vp-select select {
+  width: 100%;
+  height: 42px;
+  padding: 0 34px 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
   color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.vp-select::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+}
+.vp-select select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.vp-select select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.vp-select select option {
+  background: var(--card);
 }
 .vp-blocked {
   margin: 0;
