@@ -1,0 +1,109 @@
+/* Bootstrap board. Layout, panel and readouts come from the kit. */
+
+.bs .cell {
+  fill: var(--hover);
+  transition: fill 0.18s ease;
+}
+.bs .cell.sick {
+  fill: color-mix(in srgb, var(--accent) 55%, var(--hover));
+}
+.bs .cell.seed {
+  fill: var(--accent);
+}
+.bs .cell.fresh {
+  animation: bs-flash 0.35s ease;
+}
+.bs .cell.landing {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--hover));
+}
+.bs .drop {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px var(--accent));
+  animation: bs-drop 0.5s ease both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.bs .seed-no {
+  text-anchor: middle;
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--bg);
+}
+.bs .perim {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.bs .frame.won {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 4;
+}
+.bs text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.bs .lbl {
+  font-size: 13px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bs .lbl.end {
+  text-anchor: end;
+}
+.bs .lbl.mid {
+  text-anchor: middle;
+  font-size: 11px;
+}
+.bs .lbl.bad {
+  fill: var(--red);
+  font-weight: 700;
+}
+.bs .lbl.you {
+  fill: var(--text);
+  font-weight: 700;
+}
+.bs .track {
+  fill: var(--hover);
+}
+.bs .b-now {
+  fill: var(--gold);
+}
+.bs .b-left {
+  fill: color-mix(in srgb, var(--gold) 35%, transparent);
+}
+.bs .b-now.bad,
+.bs .b-left.bad {
+  fill: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.bs .tick {
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.bs .need {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.bs .split.win {
+  fill: var(--green);
+}
+.bs .split.lose {
+  fill: color-mix(in srgb, var(--red) 75%, transparent);
+}
+.bs .cut {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+@keyframes bs-flash {
+  0% {
+    fill: #fff;
+  }
+}
+@keyframes bs-drop {
+  from {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
