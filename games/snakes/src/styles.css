@@ -1,0 +1,408 @@
+/* Snakes board: a 12-square loop round the dice. Layout, panel and readouts come from the kit. */
+
+.snk-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.og-btn.snk-roll-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent) !important;
+  background: color-mix(in srgb, var(--accent) 14%, var(--hover));
+}
+.og-btn.snk-roll-btn small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.og-panel .og-chips .og-chip {
+  font-size: 12px;
+  padding-left: 2px;
+  padding-right: 2px;
+}
+.snk-auto-hint {
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.snk-stepper {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px 30px;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.snk-stepper button {
+  height: 30px;
+  font-weight: 800;
+  background: var(--hover);
+}
+.snk-stepper > b {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.snk-boards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.snk-boards b {
+  display: inline-block;
+  min-width: 56px;
+}
+
+/* ---------- Stage ---------- */
+.snk-board {
+  min-height: 0;
+}
+.snk-scene {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(100%, 540px);
+}
+.snk {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  overflow: visible;
+  font-family: inherit;
+}
+
+.snk .sq-bg {
+  fill: var(--raised);
+  stroke: var(--line);
+  stroke-width: 1.5;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.snk .sq.up .sq-bg {
+  fill: color-mix(in srgb, var(--accent) 9%, var(--raised));
+  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.snk .sq.hot .sq-bg {
+  fill: color-mix(in srgb, var(--gold) 12%, var(--raised));
+  stroke: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.snk .sq.down .sq-bg {
+  fill: color-mix(in srgb, var(--bg) 50%, var(--raised));
+}
+.snk .sq.snake .sq-bg {
+  fill: color-mix(in srgb, var(--red) 16%, var(--raised));
+  stroke: color-mix(in srgb, var(--red) 50%, transparent);
+}
+.snk text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+}
+.snk .factor {
+  font-size: 21px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.snk .sq.up .factor {
+  fill: var(--accent);
+}
+.snk .sq.hot .factor {
+  fill: var(--gold);
+}
+.snk .sq.down .factor {
+  fill: var(--muted);
+}
+.snk .start {
+  text-anchor: start;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  fill: var(--muted);
+}
+
+.snk .snake-glyph .body {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.snk .snake-glyph .head {
+  fill: var(--red);
+}
+.snk .snake-glyph .eye {
+  fill: var(--bg);
+}
+.snk .snake-glyph .tongue {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.snk .ways circle {
+  fill: color-mix(in srgb, var(--text) 12%, transparent);
+  transition: fill 0.2s ease;
+}
+.snk .ways circle.on {
+  fill: var(--accent);
+}
+.snk .sq.hot .ways circle.on {
+  fill: var(--gold);
+}
+.snk .sq.down .ways circle.on {
+  fill: var(--muted);
+}
+.snk .sq.snake .ways circle.on {
+  fill: var(--red);
+}
+
+/* The landed square flashes; a safe square floats its factor. */
+.snk .flash {
+  fill: none;
+  stroke-width: 4;
+  stroke: var(--accent);
+  animation: snk-flash 0.7s ease-out both;
+}
+.snk .sq.snake .flash {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 28%, transparent);
+  animation: snk-bite 0.6s ease-out both;
+}
+.snk .sq.hot .flash {
+  stroke: var(--gold);
+}
+.snk .pop {
+  font-size: 15px;
+  font-weight: 800;
+  fill: var(--accent);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  animation: snk-pop 0.9s ease-out both;
+}
+.snk .sq.hot .pop {
+  fill: var(--gold);
+}
+.snk .sq.down .pop {
+  fill: var(--muted);
+}
+.snk .sq.snake.landed .snake-glyph {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: snk-strike 0.45s ease-out 2;
+}
+
+/* Centre panel. */
+.snk .centre {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.snk .c-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  fill: var(--muted);
+}
+.snk .c-value {
+  font-size: 34px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--gold);
+}
+.snk.mode-idle .c-value {
+  fill: var(--text);
+}
+.snk.mode-bitten .c-value,
+.snk.mode-bitten .c-label {
+  fill: var(--red);
+}
+.snk.mode-cashed .c-value {
+  fill: var(--green);
+}
+.snk .c-foot {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.snk .die-body {
+  fill: #f4f4f6;
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 2;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.45));
+}
+.snk .pip {
+  fill: #12131a;
+}
+.snk .die {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.snk .die.tumbling {
+  animation: snk-tumble 0.14s ease-in-out infinite alternate;
+}
+.snk .die.tumbling.flip {
+  animation-direction: alternate-reverse;
+}
+
+/* The token frame hops square to square. */
+.snk .token {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1.2);
+  pointer-events: none;
+}
+.snk .token-frame {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.snk .token-puck {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+.snk.mode-bitten .token-frame {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 70%, transparent));
+}
+.snk.mode-bitten .token-puck {
+  fill: var(--red);
+}
+.snk.mode-cashed .token-frame {
+  stroke: var(--gold);
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gold) 60%, transparent));
+}
+.snk.mode-cashed .token-puck {
+  fill: var(--gold);
+}
+
+/* Roll log under the board. */
+.snk-log {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  min-height: 28px;
+  max-width: 100%;
+}
+.snk-log-empty {
+  align-self: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.snk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px 4px 4px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  animation: snk-chip-in 0.25s ease-out both;
+}
+.snk-chip i {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--bg);
+  background: var(--muted);
+}
+.snk-chip.up {
+  color: var(--accent);
+}
+.snk-chip.up i {
+  background: var(--accent);
+}
+.snk-chip.down {
+  color: var(--muted);
+}
+.snk-chip.bad {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+}
+.snk-chip.bad i {
+  background: var(--red);
+  color: #fff;
+}
+
+@keyframes snk-flash {
+  0% {
+    opacity: 1;
+    stroke-width: 6;
+  }
+  100% {
+    opacity: 0.85;
+    stroke-width: 3;
+  }
+}
+@keyframes snk-bite {
+  0%,
+  40% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes snk-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes snk-strike {
+  50% {
+    transform: scale(1.18) rotate(-6deg);
+  }
+}
+@keyframes snk-tumble {
+  from {
+    transform: rotate(-14deg) translateY(-4px);
+  }
+  to {
+    transform: rotate(16deg) translateY(3px);
+  }
+}
+@keyframes snk-chip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+}
+
+/* Auto shows each round's result pill above the board, not over it. */
+.snk-board.auto {
+  padding-top: 50px;
+}
+@container (max-width: 760px) {
+  .snk-board.auto {
+    padding-top: 46px;
+  }
+}
