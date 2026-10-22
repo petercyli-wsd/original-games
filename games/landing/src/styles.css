@@ -1,0 +1,225 @@
+/* Landing board. Layout, panel and readouts come from the kit. */
+
+.landing text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The serpentine path the token follows, showing through the gaps. */
+.landing .track {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 12;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.landing .track.runoff {
+  opacity: 0.35;
+}
+
+.landing .sq {
+  transition: opacity 0.25s ease;
+}
+.landing .cell {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.landing .bar {
+  fill: color-mix(in srgb, var(--accent) 78%, transparent);
+  transition: y 0.3s ease, height 0.3s ease;
+}
+.landing .num {
+  font-size: 11.5px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.landing .sq.passed {
+  opacity: 0.42;
+}
+.landing .sq.runoff {
+  opacity: 0.3;
+}
+
+/* The squares the next roll can reach, one per face. */
+.landing .reach {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 60%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.landing .reach.gate {
+  stroke: var(--green);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--green) 14%, transparent);
+}
+.landing .reach.over {
+  stroke: color-mix(in srgb, var(--red) 80%, transparent);
+  stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--red) 26%, transparent);
+}
+
+/* Gates. */
+.landing .gate .bar {
+  fill: var(--accent);
+}
+.landing .gate-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.landing .gate-flag {
+  fill: var(--accent);
+}
+.landing .gate-label {
+  text-anchor: middle;
+  font-size: 13px;
+  font-weight: 800;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.landing .gate-label.long {
+  font-size: 10.5px;
+}
+.landing .gate.next .gate-ring {
+  filter: drop-shadow(0 0 6px var(--accent));
+  animation: landing-pulse 1.6s ease-in-out infinite;
+}
+.landing .gate.cleared .gate-ring {
+  stroke: var(--green);
+}
+.landing .gate.cleared .gate-flag {
+  fill: var(--green);
+}
+.landing .gate.cleared .gate-label {
+  fill: var(--green);
+  font-size: 16px;
+}
+.landing .gate.cleared {
+  animation: landing-cleared 0.5s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.landing .gate.missed .gate-ring {
+  stroke: var(--red);
+}
+.landing .gate.missed .gate-flag {
+  fill: var(--red);
+}
+.landing .gate.missed .gate-label {
+  fill: var(--red);
+  font-size: 16px;
+}
+
+.landing .dot {
+  fill: var(--accent);
+}
+
+.landing .pickable {
+  cursor: pointer;
+}
+.landing .pickable:hover .cell {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+/* The token hops square by square. */
+.landing .token {
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+  pointer-events: none;
+}
+.landing .token .hop {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  filter: drop-shadow(0 0 7px var(--accent));
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: landing-hop;
+  animation-timing-function: ease-out;
+}
+.landing .token.bust .hop {
+  fill: var(--red);
+  stroke: #fff;
+  filter: drop-shadow(0 0 8px var(--red));
+}
+.landing .token.off .hop {
+  opacity: 0.55;
+}
+
+/* The die: one cell per face. */
+.landing .die-name {
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.landing .face rect {
+  fill: var(--hover);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: opacity 0.12s ease;
+}
+.landing .face text {
+  text-anchor: middle;
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--text);
+}
+.landing .face.gate rect {
+  fill: var(--green);
+}
+.landing .face.gate text {
+  fill: #07070b;
+}
+.landing .face.over rect {
+  fill: color-mix(in srgb, var(--red) 78%, var(--bg));
+}
+.landing .face.lit rect {
+  stroke: #fff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+}
+.landing .face.dim {
+  opacity: 0.3;
+}
+.landing .die-sum {
+  text-anchor: end;
+  font-size: 13px;
+  font-weight: 800;
+}
+.landing .die-sum.risk {
+  fill: var(--red);
+}
+.landing .die-sum.safe {
+  fill: var(--green);
+}
+.landing .die-sub {
+  text-anchor: end;
+  font-size: 11px;
+  fill: var(--muted);
+}
+.landing .die-sub.hit {
+  fill: var(--green);
+}
+
+@keyframes landing-hop {
+  40% {
+    transform: scale(1.3);
+  }
+}
+@keyframes landing-pulse {
+  50% {
+    stroke-width: 4.5;
+  }
+}
+@keyframes landing-cleared {
+  40% {
+    transform: scale(1.12);
+  }
+}
