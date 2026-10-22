@@ -1,0 +1,240 @@
+/* Ramsey board. Layout, panel and readouts come from the kit. */
+
+.ramsey-swatches {
+  display: flex;
+  gap: 6px;
+  padding: 7px 8px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.ramsey-swatches span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  justify-content: center;
+}
+.ramsey-swatches i {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.ramsey .frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 1 9;
+  stroke-linecap: round;
+}
+
+/* Edges */
+.ramsey .edge {
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.ramsey .edge.open {
+  stroke: color-mix(in srgb, var(--text) 26%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 6;
+  transition: stroke 0.15s ease, stroke-width 0.15s ease;
+}
+.ramsey .edge.open.focus {
+  stroke: color-mix(in srgb, var(--text) 85%, transparent);
+  stroke-width: 2.5;
+  stroke-dasharray: none;
+}
+.ramsey .edge.open.locked {
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+  stroke-dasharray: 2 5;
+}
+.ramsey .edge.open.capped {
+  stroke: color-mix(in srgb, var(--gold) 45%, transparent);
+}
+.ramsey .edge.col {
+  stroke-width: 5;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, currentColor 45%, transparent));
+}
+.ramsey .edge.col.fresh {
+  stroke-dasharray: 1;
+  animation: ramsey-draw var(--draw-ms, 260ms) ease-out both;
+}
+.ramsey .edge.col.witness {
+  stroke-width: 7;
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+/* Triangles */
+.ramsey .danger {
+  fill-opacity: 0.13;
+  stroke: var(--red);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  pointer-events: none;
+}
+.ramsey .bust-tri {
+  fill: color-mix(in srgb, var(--red) 30%, transparent);
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  pointer-events: none;
+  animation: ramsey-flash 0.45s ease 3;
+}
+
+/* Dots */
+.ramsey .dot {
+  fill: var(--card);
+  stroke: var(--accent);
+  stroke-width: 3;
+  pointer-events: none;
+}
+.ramsey .dot.busted {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 40%, var(--card));
+}
+
+/* Hit areas */
+.ramsey .hit {
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+  pointer-events: stroke;
+}
+
+/* Risk discs */
+.ramsey .disc {
+  outline: none;
+}
+.ramsey .disc-body {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.15s ease;
+}
+.ramsey .disc-hit {
+  fill: transparent;
+}
+.ramsey .disc-ring {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-width: 1;
+}
+.ramsey .slice {
+  stroke: var(--card);
+  stroke-width: 1.2;
+}
+.ramsey .slice.fatal {
+  fill: var(--red);
+}
+.ramsey .disc.risky .disc-ring {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+  stroke-width: 1.5;
+}
+.ramsey .disc.free,
+.ramsey .disc.risky {
+  cursor: pointer;
+}
+.ramsey .disc.free:hover .disc-body,
+.ramsey .disc.risky:hover .disc-body,
+.ramsey .disc.focus .disc-body,
+.ramsey .disc:focus-visible .disc-body {
+  transform: scale(1.3);
+}
+.ramsey .disc:focus-visible .disc-ring {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.ramsey .disc.free .disc-body {
+  opacity: 0.78;
+}
+.ramsey .disc.free:hover .disc-body,
+.ramsey .disc.free.focus .disc-body {
+  opacity: 1;
+}
+.ramsey .disc.locked .disc-body {
+  opacity: 0.7;
+}
+.ramsey .disc.locked.end .disc-body {
+  opacity: 1;
+  animation: ramsey-pop 0.4s ease both;
+}
+.ramsey .disc.capped .disc-body {
+  opacity: 0.45;
+}
+.ramsey .disc.capped .disc-ring {
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+.ramsey .disc.spinning .disc-body {
+  transform: scale(1.7);
+}
+.ramsey .disc.spinning .disc-ring {
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+.ramsey .needle {
+  animation: ramsey-spin var(--spin-ms, 780ms) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.ramsey .needle line {
+  stroke: #fff;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 3px #000);
+}
+.ramsey .needle circle {
+  fill: #fff;
+}
+
+/* Legend */
+.ramsey .legend text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-family: inherit;
+}
+
+@keyframes ramsey-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes ramsey-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--end));
+  }
+}
+@keyframes ramsey-flash {
+  50% {
+    fill: color-mix(in srgb, var(--red) 55%, transparent);
+  }
+}
+@keyframes ramsey-pop {
+  from {
+    transform: scale(1.5);
+  }
+}
+
+/* The end card sits over the legend and caption, not over the graph. */
+.og-board > .og-round-over.bottom {
+  bottom: -36px;
+}
+@container (max-width: 760px) {
+  .og-board > .og-round-over.bottom {
+    bottom: -60px;
+  }
+  .og-board > .og-round-over .og-ro-hint {
+    display: none;
+  }
+}
+/* ...and the caption it overlaps keeps its space but is hidden, so nothing shifts. */
+.og-board:has(> .og-round-over.bottom) + .og-caption {
+  visibility: hidden;
+}
