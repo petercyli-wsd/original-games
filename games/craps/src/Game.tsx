@@ -94,6 +94,8 @@ interface Entry {
   parts: Layout;
   /** Settlement multiplier once decided (set the moment the dice are drawn). */
   value: number | null;
+  /** Whether the dice for this ticket's first roll have been drawn. */
+  drawn: boolean;
 }
 
 interface RecentRoll {
@@ -184,7 +186,9 @@ export default function Game() {
       alive.current = false;
       for (const e of book.current) {
         let v = e.value;
-        if (v === null) {
+        // Placed but the dice were never drawn (left while the bet was going in): a refund.
+        if (!e.drawn) v = 1;
+        else if (v === null) {
           let sum = 0;
           for (const id of ALL_IDS) {
             const a = e.parts[id] ?? 0;
@@ -207,7 +211,7 @@ export default function Game() {
         void ticket.settle(1);
         return null;
       }
-      const e: Entry = { ticket, amount, parts, value: null };
+      const e: Entry = { ticket, amount, parts, value: null, drawn: false };
       book.current.push(e);
       return e;
     } catch {
@@ -225,7 +229,7 @@ export default function Game() {
   const phase = st.phase;
   const rolling = phase === 'rolling';
   const live = phase === 'rolling' || phase === 'point';
-  const rollMs = turbo.turbo ? 360 : 1150;
+  const rollMs = turbo.turbo ? 360 : 950;
 
   const charges = chargesOf(st);
   const tableTotal = totalOf(st.table);
@@ -364,6 +368,7 @@ export default function Game() {
     const d: [number, number] = [1 + rng.int(6), 1 + rng.int(6)];
     const r = resolveRoll(s0, d, settingsRef.current.field, settingsRef.current.propsStay);
     truthPoint.current = r.next.point;
+    for (const e of placed) e.drawn = true;
     if (propsEntry) propsEntry.value = ticketValue(propsEntry.parts, r.returnOf);
     if (r.decided) for (const e of book.current) if (e !== propsEntry) e.value = ticketValue(e.parts, r.returnOf);
 
@@ -510,8 +515,9 @@ export default function Game() {
   // What the line pays if it wins from here (stake back included).
   const linePays = (() => {
     if (phase !== 'point' || shownPoint === null) {
+      // Pass and Don't Pass can't both win: show the side the readouts follow.
       const l = comeOutTable;
-      return (l.pass ?? 0) * 2 + (l.dontPass ?? 0) * 2;
+      return (l[lineSide] ?? 0) * 2;
     }
     const t = st.table;
     return lineSide === 'pass'
@@ -579,7 +585,7 @@ export default function Game() {
   else if (phase === 'point') status = `Point ${st.point} · roll it before a 7`;
   else if (phase === 'over') status = `${titleOf(st)} · ${st.rolls} roll${st.rolls === 1 ? '' : 's'}`;
   else if (tableTotal > 0) status = `Come-out · ${money(tableTotal)} on the table`;
-  const tone = rolling || phase === 'point' ? 'live' : phase === 'over' ? (st.returned >= st.wagered ? 'won' : 'lost') : 'idle';
+  const tone = rolling || phase === 'point' ? 'live' : phase === 'over' ? (Math.abs(st.returned - st.wagered) < 1e-9 ? 'idle' : st.returned > st.wagered ? 'won' : 'lost') : 'idle';
 
   const oddsMax: Partial<Record<BetId, number>> = {};
   if (phase === 'point') for (const id of ODDS_IDS) if (st.working[LINE_OF[id]]) oddsMax[id] = capOf(st, id);
