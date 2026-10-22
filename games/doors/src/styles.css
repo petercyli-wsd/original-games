@@ -1,0 +1,178 @@
+/* Doors board. Layout, panel and readouts come from the kit. */
+
+.doors {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  user-select: none;
+}
+.doors text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.doors .legend {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+/* Chance bars */
+.doors .track {
+  fill: var(--hover);
+}
+.doors .fill {
+  fill: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform var(--flow) cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.doors .fill.mine {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.doors .start {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 2;
+}
+.doors .pct {
+  font-weight: 700;
+}
+.doors .pct.mine {
+  fill: var(--accent);
+}
+.doors .pct.gone {
+  fill: var(--muted);
+  font-weight: 500;
+}
+.doors .door.prize .pct {
+  fill: var(--gold);
+}
+
+/* Doors */
+.doors .frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 2;
+}
+.doors .door.held .frame {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.doors .door.win .frame {
+  stroke: var(--green);
+}
+.doors .door.lose .frame {
+  stroke: var(--red);
+}
+.doors .inside {
+  fill: color-mix(in srgb, var(--bg) 70%, #000);
+}
+.doors .leaf {
+  transform-box: fill-box;
+  transform-origin: 0% 50%;
+  transition: transform var(--swing) cubic-bezier(0.4, 0.1, 0.2, 1);
+}
+.doors .slab {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--hover));
+  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke-width: 1;
+}
+.doors .door.held .slab {
+  fill: color-mix(in srgb, var(--accent) 34%, var(--hover));
+}
+.doors .door.open .num,
+.doors .door.open .knob {
+  opacity: 0;
+}
+.doors .knob {
+  fill: var(--text);
+  opacity: 0.6;
+}
+.doors .num {
+  font-weight: 800;
+  transition: opacity calc(var(--swing) / 2);
+}
+.doors .you {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  fill: var(--accent);
+}
+.doors .door.win .you {
+  fill: var(--green);
+}
+.doors .door.lose .you {
+  fill: var(--red);
+}
+.doors .empty {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.doors .gem {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 8px var(--gold));
+  animation: doors-pop 0.5s ease 1;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.doors .prize-label {
+  fill: var(--muted);
+  font-weight: 600;
+}
+.doors .prize-label.mine {
+  fill: var(--gold);
+  font-weight: 800;
+}
+
+/* Picking and switching */
+.doors.picking .door.pick {
+  cursor: pointer;
+}
+.doors.picking .door.pick:hover .frame {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 3;
+}
+.doors.picking .door.pick:hover .slab {
+  fill: color-mix(in srgb, var(--accent) 26%, var(--hover));
+}
+
+/* Prize strip */
+.doors .strip-title {
+  text-anchor: start;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  fill: var(--muted);
+}
+.doors .strip-track {
+  fill: var(--hover);
+}
+.doors .seg {
+  fill: color-mix(in srgb, var(--accent) 40%, transparent);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+.doors .seg.mine {
+  fill: var(--accent);
+}
+.doors .strip-mine {
+  text-anchor: start;
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.doors .strip-rest {
+  text-anchor: end;
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+@keyframes doors-pop {
+  0% {
+    transform: scale(0.2);
+  }
+  70% {
+    transform: scale(1.25);
+  }
+}
