@@ -1,4 +1,3 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
@@ -83,16 +82,20 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
-  const resolved = useRef(0);
-  const ticket = useTicket(() => (revealing ? resolved.current : 0));
+  // The fair value on unmount is the drawn reading itself, read from a ref (not
+  // render state), so leaving at any instant after the bet settles the true result.
+  // Before the cards are drawn it is a refund.
+  const resolved = useRef(1);
+  const ticket = useTicket(() => resolved.current);
 
   const t = turbo.turbo;
   const flipMs = t ? 150 : 520;
-  const dealMs = t ? 90 : 360;
-  const gapMs = t ? 170 : 640;
-  const suspenseMs = t ? 90 : 520;
+  const dealMs = t ? 90 : 300;
+  const gapMs = t ? 170 : 540;
+  const suspenseMs = t ? 90 : 480;
 
   async function playOnce(stake: number): Promise<number | null> {
+    resolved.current = 1;
     if (!(await ticket.place(stake))) return null;
     const r = playRound(rng.next, risk);
     resolved.current = r.multiplier;
@@ -207,7 +210,7 @@ export default function Game() {
             <dt>Top prize</dt>
             <dd>{fmtMult(top)}</dd>
             <dt>Max win</dt>
-            <dd>{formatAmount(bet.value * top, 2)}</dd>
+            <dd>{(bet.value * top).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd>
           </dl>
 
           {auto.mode === 'manual' ? (
