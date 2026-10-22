@@ -1,0 +1,255 @@
+/* Bayes board. Layout, panel and readouts come from the kit. */
+
+.og-board.bayes-stage {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  align-content: center;
+  row-gap: 10px;
+}
+.og-board.bayes-stage .og-round-over.inline {
+  min-height: 62px;
+}
+
+.bayes {
+  --gold-coin: #f2c94c;
+  --gold-deep: #8f6b16;
+  --gold-soft: #ffe7a0;
+  --silver-coin: #c4ccd8;
+  --silver-deep: #5d6676;
+  --silver-soft: #eef2f7;
+  --ink: #15151c;
+  --t: 320ms;
+}
+
+.bayes text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+}
+.bayes text.start { text-anchor: start; }
+.bayes text.end { text-anchor: end; }
+
+/* ---------- legend coins (the heads wedge is the heads chance) ---------- */
+.bayes .legend .rim {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.bayes .legend.gold .heads-part { fill: var(--gold-coin); }
+.bayes .legend.gold .tails-part { fill: var(--gold-deep); }
+.bayes .legend.silver .heads-part { fill: var(--silver-coin); }
+.bayes .legend.silver .tails-part { fill: var(--silver-deep); }
+.bayes .legend-h,
+.bayes .legend-t {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--ink);
+  opacity: 0.6;
+}
+.bayes .legend-t {
+  fill: #fff;
+  opacity: 0.75;
+}
+.bayes .legend-name {
+  font-size: 20px;
+  font-weight: 800;
+}
+.bayes .legend.gold .legend-name { fill: var(--gold-coin); }
+.bayes .legend.silver .legend-name { fill: var(--silver-coin); }
+.bayes .legend-sub {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+
+/* ---------- the hidden coin ---------- */
+.bayes .mystery .disc {
+  fill: var(--raised);
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 3;
+  transition: fill var(--t) ease, stroke var(--t) ease;
+}
+.bayes .mystery .disc.landed {
+  fill: var(--hover);
+  stroke: var(--accent);
+}
+.bayes .mystery .disc.truth.gold { fill: var(--gold-coin); stroke: var(--gold-soft); }
+.bayes .mystery .disc.truth.silver { fill: var(--silver-coin); stroke: var(--silver-soft); }
+.bayes .mystery .inner-rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+.bayes .mystery .glyph {
+  font-size: 48px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.bayes .mystery .glyph.q {
+  fill: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.bayes .mystery .glyph.truth-name {
+  font-size: 19px;
+  letter-spacing: 1px;
+  fill: var(--ink);
+}
+.bayes .mystery .halo {
+  fill: none;
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bayes-halo 0.5s ease-out both;
+}
+.bayes .mystery .halo.won { stroke: var(--green); }
+.bayes .mystery .halo.lost { stroke: var(--red); }
+
+.bayes .mystery .toss,
+.bayes .mystery .flip {
+  transform-box: view-box;
+  transform-origin: 260px 70px;
+}
+.bayes .mystery.spinning .toss {
+  animation: bayes-toss var(--spin) cubic-bezier(0.3, 0.6, 0.4, 1) both;
+}
+.bayes .mystery.spinning .flip {
+  animation: bayes-flip calc(var(--spin) / 3) linear 3;
+}
+.bayes .mystery.spinning .disc {
+  fill: var(--hover);
+}
+
+@keyframes bayes-toss {
+  0% { transform: translateY(0) scale(1); }
+  45% { transform: translateY(-14px) scale(1.12); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes bayes-flip {
+  0% { transform: scaleY(1); }
+  50% { transform: scaleY(0.06); }
+  100% { transform: scaleY(1); }
+}
+@keyframes bayes-halo {
+  from { opacity: 0; transform: scale(0.9); }
+}
+
+/* ---------- the tape of flips ---------- */
+.bayes .bead circle {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.bayes .bead.h circle {
+  fill: var(--gold-coin);
+  stroke: var(--gold-soft);
+  stroke-dasharray: none;
+}
+.bayes .bead.t circle {
+  fill: var(--silver-coin);
+  stroke: var(--silver-soft);
+  stroke-dasharray: none;
+}
+.bayes .bead.last circle {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.bayes .bead text {
+  font-weight: 800;
+  fill: var(--ink);
+}
+.bayes .bead.h,
+.bayes .bead.t {
+  animation: bayes-bead 0.25s ease-out;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes bayes-bead {
+  from { opacity: 0; transform: scale(0.4); }
+}
+.bayes .tape-legend {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.bayes .tape-legend .h { fill: var(--gold-coin); font-weight: 800; }
+.bayes .tape-legend .t { fill: var(--silver-coin); font-weight: 800; }
+
+/* ---------- the Bayes box ---------- */
+.bayes .box-bg {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.bayes .ghost {
+  fill: url(#bayes-hatch);
+  stroke: none;
+  opacity: 0;
+  transition: x var(--t) ease, width var(--t) ease, opacity var(--t) ease;
+}
+.bayes .ghost.on { opacity: 1; }
+.bayes .ghost.gold { color: var(--gold-coin); }
+.bayes .ghost.silver { color: var(--silver-coin); }
+.bayes .hatch-line {
+  stroke: color-mix(in srgb, var(--text) 26%, transparent);
+  stroke-width: 2;
+}
+.bayes .col,
+.bayes .mine,
+.bayes .winbar {
+  transition: x var(--t) cubic-bezier(0.3, 0.7, 0.3, 1), y var(--t) cubic-bezier(0.3, 0.7, 0.3, 1), width var(--t) cubic-bezier(0.3, 0.7, 0.3, 1),
+    height var(--t) cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.bayes .col.gold { fill: var(--gold-coin); }
+.bayes .col.silver { fill: var(--silver-coin); }
+.bayes .col { stroke: var(--bg); stroke-width: 2; }
+.bayes .mine {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+}
+.bayes .col-label {
+  transition: transform var(--t) cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.2s ease;
+}
+.bayes .col-label.compact .lab-big { font-size: 19px; }
+.bayes .col-label.compact .lab-small { font-size: 13px; }
+.bayes .col-label text { fill: var(--ink); }
+.bayes .lab-big {
+  font-size: 30px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.bayes .lab-small {
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.bayes .ticks .now {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.bayes .tick path { fill: var(--accent); }
+.bayes .tick text {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+
+.bayes .winbar.win { fill: var(--green); }
+.bayes .winbar.lose { fill: var(--red); opacity: 0.85; }
+.bayes .bar-label {
+  font-size: 18px;
+  font-weight: 700;
+}
+.bayes .bar-label.win { fill: var(--green); }
+.bayes .bar-label.lose { fill: var(--red); }
+.bayes .bar-label .v { font-weight: 800; font-variant-numeric: tabular-nums; }
+.bayes .bar-mid {
+  font-size: 15px;
+  fill: var(--muted);
+}
+.bayes .ruler {
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
