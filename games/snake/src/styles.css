@@ -1,0 +1,328 @@
+/* Snake board. Layout, panel and readouts come from the kit. */
+
+.snk {
+  --spin: 620ms;
+  --move: 200ms;
+}
+.snk .frame {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.snk .cell {
+  fill: color-mix(in srgb, var(--hover) 75%, var(--bg));
+  transition: fill 0.25s ease;
+}
+.snk .cell.body {
+  fill: color-mix(in srgb, var(--accent) 16%, var(--bg));
+}
+.snk.won .cell.body {
+  fill: color-mix(in srgb, var(--green) 22%, var(--bg));
+}
+
+/* The odds around the head: free cells and blockers. */
+.snk .hints {
+  animation: snk-fade 0.18s ease both;
+}
+.snk .tile-safe {
+  fill: color-mix(in srgb, var(--green) 13%, transparent);
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 1.5;
+}
+.snk .tile-risk {
+  fill: color-mix(in srgb, var(--red) 22%, transparent);
+  stroke: color-mix(in srgb, var(--red) 60%, transparent);
+  stroke-width: 1.5;
+}
+.snk .mark-safe {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.snk .mark-risk {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.snk .wall-hit {
+  stroke: var(--red);
+  stroke-width: 5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 70%, transparent));
+}
+
+/* The snake. */
+.snk .body-glow {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 14%, transparent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.snk .body-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.snk .body-line.grow {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: snk-grow var(--move) ease-out forwards;
+}
+.snk.won .body-line {
+  stroke: var(--green);
+}
+.snk.crashed .body-line {
+  stroke: color-mix(in srgb, var(--accent) 50%, var(--bg));
+}
+.snk.crashed .body-glow {
+  stroke: transparent;
+}
+.snk .tail {
+  fill: var(--bg);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+
+/* The head, its compass ring and the spinner needle. */
+.snk .head-pos {
+  transition: transform var(--move) cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.snk .head {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.snk.won .head {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 12px var(--green));
+}
+.snk.crashed .head {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px var(--red));
+}
+.snk .ring-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.snk .hub {
+  fill: var(--bg);
+  stroke: #fff;
+  stroke-width: 2;
+}
+.snk .q {
+  fill: none;
+  stroke-linecap: round;
+  transition: stroke 0.2s ease;
+}
+.snk .q.safe {
+  stroke: var(--green);
+}
+.snk .q.risk {
+  stroke: var(--red);
+  opacity: 0.85;
+}
+.snk .q.hit {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px var(--red));
+}
+.snk .needle {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform var(--spin) cubic-bezier(0.15, 0.6, 0.2, 1);
+}
+.snk .needle path {
+  fill: #fff;
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.snk .needle.resting path {
+  fill: color-mix(in srgb, #fff 55%, var(--bg));
+}
+.snk .needle-box {
+  fill: none;
+  stroke: none;
+}
+
+/* The crash. */
+.snk .burst circle {
+  fill: var(--red);
+  stroke: #fff;
+  stroke-width: 2;
+  animation: snk-burst 0.4s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
+}
+.snk .burst path {
+  stroke: #fff;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+/* The length band under the grid. */
+.snk text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.snk .band-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  fill: var(--muted);
+}
+.snk .band-label.end {
+  text-anchor: end;
+}
+.snk .band-value {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--text);
+}
+.snk .band-win {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0;
+  fill: var(--accent);
+}
+.snk .slot {
+  fill: var(--hover);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: fill 0.2s ease;
+}
+.snk .slot.on {
+  fill: var(--accent);
+  stroke: none;
+}
+.snk .slot.goal {
+  stroke: var(--green);
+  stroke-width: 2;
+}
+.snk.won .slot.on {
+  fill: var(--green);
+}
+.snk.crashed .slot.on {
+  fill: color-mix(in srgb, var(--accent) 45%, var(--bg));
+}
+
+@keyframes snk-grow {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes snk-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes snk-burst {
+  from {
+    r: 2;
+    opacity: 0.2;
+  }
+}
+
+/* The result card sits over the length band (in flow on narrow frames). */
+.og-board.snk-board {
+  grid-template-columns: minmax(0, 1fr);
+}
+.snk-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.snk-over > * {
+  pointer-events: auto;
+}
+/* The stage's last row has one height whether it holds the chance bar or the caption, so the board never jumps. */
+.snk-foot {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+/* On wide frames the result card covers the length band, so the band steps aside. */
+@container (min-width: 761px) {
+  .snk.over .band {
+    visibility: hidden;
+  }
+}
+@container (max-width: 760px) {
+  .snk-over {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 4px;
+  }
+  .snk-foot {
+    min-height: 0;
+  }
+}
+
+/* Panel bits: grid icons in the chips, the odds table in the modal. */
+.snk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.snk-chip svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  opacity: 0.8;
+}
+.snk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.snk-table th,
+.snk-table td {
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.snk-table th:first-child,
+.snk-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+
+/* The factor a safe step paid, floating up from the head. */
+.snk .gain {
+  text-anchor: middle;
+  font-weight: 800;
+  fill: var(--gold);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+  animation: snk-gain calc(var(--move) * 4 + 300ms) ease-out forwards;
+}
+@keyframes snk-gain {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  25% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
