@@ -1,0 +1,224 @@
+/* Last Light board. Layout, panel and readouts come from the kit. */
+
+.og-board.ll-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.og-board.ll-board > svg {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-height: 62vh;
+}
+
+/* ---------- The odds band ---------- */
+.ll-ring .slot {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 13%, transparent);
+  transition: stroke 0.12s ease;
+}
+.ll-ring .slot-g.flow .slot {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.ll-ring .slot-g.mine .slot {
+  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+}
+.ll-ring .slot-g.mine.flow .slot {
+  stroke: var(--green);
+}
+.ll-ring .walker-slot {
+  fill: none;
+  stroke: color-mix(in srgb, #fff 8%, transparent);
+  stroke-dasharray: 2 3;
+}
+.ll-ring .chev {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.ll-ring .slot-g.mine .chev {
+  stroke: color-mix(in srgb, var(--bg) 80%, transparent);
+}
+
+/* ---------- Lamps and light ---------- */
+.ll-ring .wire {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 2;
+}
+.ll-ring .light {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 5;
+  stroke-linecap: round;
+  opacity: 0.75;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.ll-ring .lamp {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 32%, transparent);
+  stroke-width: 2;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+.ll-ring .lamp.lit {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, var(--accent) 60%, #fff);
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--accent) 75%, transparent));
+  animation: ll-pop var(--pop, 450ms) cubic-bezier(0.2, 0.8, 0.3, 1.2);
+}
+.ll-ring .lamp.end {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-dasharray: 3 3;
+}
+.ll-ring .lamp.pick {
+  stroke: var(--green);
+  stroke-width: 3.5;
+  stroke-dasharray: none;
+}
+.ll-ring .lamp.pick.lost {
+  stroke: var(--red);
+}
+.ll-ring .lamp.pick.won {
+  fill: var(--green);
+  filter: drop-shadow(0 0 12px var(--green));
+  animation: ll-glow 1.2s ease-in-out infinite alternate;
+}
+.ll-ring .cross {
+  stroke: var(--red);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.ll-ring .danger {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2.5;
+  stroke-dasharray: 4 3;
+  animation: ll-pulse 0.9s ease-in-out infinite alternate;
+}
+.ll-ring .pin {
+  fill: var(--green);
+}
+.ll-ring .pin.lost {
+  fill: var(--red);
+}
+.ll-ring .hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.ll-ring .hit:hover {
+  fill: color-mix(in srgb, var(--green) 16%, transparent);
+}
+
+/* ---------- Walker ---------- */
+.ll-ring .walker {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  pointer-events: none;
+}
+.ll-ring .walker-halo {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  opacity: 0.85;
+}
+.ll-ring .walker-dot {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px #fff);
+}
+
+/* ---------- Text ---------- */
+.ll-ring text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+}
+.ll-ring .big {
+  font-size: 46px;
+  font-weight: 800;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.ll-ring .big.none {
+  fill: var(--muted);
+}
+.ll-ring .big .of {
+  font-size: 26px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.ll-ring .small {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.ll-ring .risk {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--red);
+}
+.ll-ring .risk.free {
+  fill: var(--green);
+  font-weight: 600;
+}
+.ll-ring .hint {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.ll-ring .start {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.ll-ring .verdict {
+  font-size: 20px;
+  font-weight: 800;
+}
+.ll-ring .verdict.won {
+  fill: var(--green);
+}
+.ll-ring .verdict.lost {
+  fill: var(--red);
+}
+.ll-ring .verdict.cashed {
+  fill: var(--gold);
+}
+.ll-ring .legend text {
+  font-size: 11px;
+  text-anchor: start;
+  fill: var(--muted);
+}
+.ll-ring .legend .end-text {
+  text-anchor: end;
+}
+.ll-ring .legend .key {
+  fill: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.ll-ring .legend .key.mine {
+  fill: var(--green);
+}
+
+@keyframes ll-pop {
+  from {
+    transform: scale(1.7);
+  }
+}
+@keyframes ll-pulse {
+  from {
+    opacity: 0.35;
+  }
+}
+@keyframes ll-glow {
+  to {
+    filter: drop-shadow(0 0 4px var(--green));
+  }
+}
+.ll-ring .risk.soft {
+  fill: var(--gold);
+}
