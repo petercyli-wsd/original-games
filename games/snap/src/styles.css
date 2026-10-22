@@ -1,0 +1,329 @@
+/* Snap board. Layout, panel and readouts come from the kit. */
+
+.snap-brk {
+  margin-left: 6px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.snap-hint {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: -4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.snap-hint span:nth-child(2) {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.snap-board.narrow {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 10px;
+}
+
+.snap {
+  --win: var(--green);
+  --lose: color-mix(in srgb, var(--red) 30%, var(--card));
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+}
+.snap text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Header */
+.snap .hdr {
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.snap .hdr.right {
+  text-anchor: end;
+  fill: var(--text);
+}
+.snap .hdr.right.polygon {
+  fill: var(--green);
+}
+.snap .hdr.right.stuck {
+  fill: var(--red);
+}
+.snap .cut-icons .todo {
+  fill: var(--text);
+}
+.snap .cut-icons .used {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke-width: 1.5;
+}
+
+/* The chance box */
+.snap .box {
+  fill: var(--lose);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.snap .box.empty {
+  fill: none;
+  stroke-dasharray: 4 6;
+}
+.snap .chart {
+  animation: snap-fade 0.25s ease both;
+}
+.snap .chart.frozen {
+  opacity: 0.55;
+}
+.snap .zone.win {
+  fill: var(--win);
+}
+.snap .zone.trim {
+  fill: color-mix(in srgb, var(--win) 62%, var(--card));
+}
+.snap .zone.waste {
+  fill: color-mix(in srgb, var(--win) 38%, var(--card));
+}
+.snap .curve {
+  fill: none;
+  stroke: var(--win);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.snap .zone-label {
+  font-size: 15px;
+  font-weight: 800;
+  text-anchor: middle;
+  fill: #07130a;
+  letter-spacing: 0.3px;
+  paint-order: stroke;
+  stroke: var(--win);
+  stroke-width: 4px;
+}
+.snap .level {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+  opacity: 0.85;
+}
+.snap .level-label {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.snap .axis {
+  font-size: 12px;
+  text-anchor: end;
+  fill: var(--muted);
+}
+
+/* Landing marker */
+.snap .marker {
+  animation: snap-fade 0.15s ease both;
+}
+.snap .marker line {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+.snap .marker circle {
+  fill: #fff;
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+.snap .marker text {
+  font-size: 18px;
+  font-weight: 800;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 5px;
+}
+
+/* The stick */
+.snap .stick .ghost {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 10%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.snap .piece {
+  transition: fill 0.2s ease;
+}
+.snap .piece.short {
+  fill: color-mix(in srgb, var(--text) 72%, var(--card));
+}
+.snap .piece.long {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 45%, transparent));
+}
+.snap .piece.won {
+  fill: var(--green);
+}
+.snap.over .piece {
+  opacity: 0.35;
+}
+.snap.over.cashed .piece {
+  opacity: 1;
+}
+.snap .cutmark {
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.snap .flash {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+  animation: snap-flash 0.45s ease-out forwards;
+}
+.snap .yours {
+  fill: var(--accent);
+}
+.snap .handle circle {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+.snap .handle path {
+  fill: none;
+  stroke: #1b1206;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.snap .drag-zone {
+  fill: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+}
+
+.snap .lengths text {
+  font-size: 16px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.snap .lengths text.long {
+  fill: var(--accent);
+}
+
+/* The two ½ rulers and the green overlap */
+.snap .rulers {
+  animation: snap-fade 0.25s ease both;
+}
+.snap .overlap {
+  fill: color-mix(in srgb, var(--win) 22%, transparent);
+}
+.snap .ruler line {
+  stroke: color-mix(in srgb, var(--text) 70%, transparent);
+  stroke-width: 2;
+}
+.snap .ruler .tag {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--text) 40%, transparent);
+}
+.snap .ruler text {
+  font-size: 14px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+.snap .caption {
+  font-size: 16px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+
+/* The blade */
+.snap .blade {
+  opacity: 0;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1), ease;
+  pointer-events: none;
+}
+.snap .blade.on {
+  opacity: 1;
+}
+.snap .blade .plumb {
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 5;
+  opacity: 0.7;
+}
+.snap .blade .head {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.6, 0, 1, 1);
+}
+.snap .blade .head path {
+  fill: #fff;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+
+/* Result figures: the pieces fly up from the stick. */
+.snap .fold {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  stroke-linecap: round;
+  stroke-width: 8px;
+  vector-effect: non-scaling-stroke;
+  animation-name: snap-fold;
+  animation-timing-function: cubic-bezier(0.25, 0.8, 0.25, 1);
+  animation-fill-mode: both;
+}
+.snap .fold.side {
+  stroke: var(--green);
+}
+.snap .fold.long {
+  stroke: var(--red);
+}
+.snap .fold.short {
+  stroke: color-mix(in srgb, var(--text) 72%, var(--card));
+}
+.snap .poly-fill {
+  fill: color-mix(in srgb, var(--green) 18%, transparent);
+  animation: snap-fade 0.3s ease both;
+}
+.snap .fig-label {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.snap .shortfall {
+  animation: snap-fade 0.3s ease both;
+}
+.snap .shortfall line {
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-dasharray: 4 5;
+}
+.snap .shortfall text {
+  font-size: 15px;
+  font-weight: 800;
+  text-anchor: middle;
+  fill: var(--red);
+}
+
+@keyframes snap-fold {
+  from {
+    transform: var(--from);
+  }
+  to {
+    transform: var(--to);
+  }
+}
+@keyframes snap-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes snap-flash {
+  to {
+    r: 24px;
+    opacity: 0;
+  }
+}
