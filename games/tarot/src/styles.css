@@ -1,0 +1,486 @@
+/* Tarot: a three-card spread with 3D flips, the running product and the deck strip. */
+
+/* Keep every panel row at full height; the panel scrolls instead. */
+.og-panel > * {
+  flex-shrink: 0;
+}
+
+.og-game {
+  --t-ruin: var(--red);
+  --t-low: #8193bd;
+  --t-even: #e7e5ee;
+  --t-up: var(--accent);
+  --t-gold: var(--gold);
+}
+.t-ruin { --tone: var(--t-ruin); }
+.t-low { --tone: var(--t-low); }
+.t-even { --tone: var(--t-even); }
+.t-up { --tone: var(--t-up); }
+.t-gold { --tone: var(--t-gold); }
+
+.tr-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.tr-auto-note {
+  margin: 0 0 2px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.tr-auto-note b {
+  color: var(--accent);
+}
+
+/* Newest result first, clipping the oldest when the row is full. */
+.og-history {
+  justify-content: flex-start;
+  margin-left: auto;
+}
+
+/* ---------- Board ---------- */
+.tr-board {
+  min-height: 300px;
+  padding: 58px 0 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.tr-spread {
+  display: flex;
+  justify-content: center;
+  gap: clamp(10px, 2.6cqi, 26px);
+  width: 100%;
+}
+.tr-slot {
+  flex: 0 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tr-pos {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.tr-pos b {
+  color: var(--accent);
+  margin-right: 2px;
+}
+
+.tr-card {
+  position: relative;
+  aspect-ratio: 5 / 8;
+  perspective: 1100px;
+  container-type: inline-size;
+}
+.tr-card.dealt {
+  animation: tr-deal var(--deal, 360ms) cubic-bezier(0.25, 0.9, 0.3, 1.1) both;
+  animation-delay: calc(var(--i) * var(--deal, 360ms) * 0.18);
+}
+@keyframes tr-deal {
+  from {
+    opacity: 0;
+    transform: translateY(-34px) rotate(-7deg) scale(0.9);
+  }
+}
+
+.tr-inner {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform var(--flip, 520ms) cubic-bezier(0.35, 0.1, 0.2, 1);
+}
+.tr-card.up .tr-inner {
+  transform: rotateY(180deg);
+}
+.tr-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 7cqi;
+  overflow: hidden;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Back */
+.tr-back {
+  background:
+    radial-gradient(ellipse at 50% 50%, color-mix(in srgb, var(--accent) 26%, #1a1026) 0%, #120b1c 70%),
+    #120b1c;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 10px 26px -12px #000c;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.tr-back-art {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.tr-b-frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 1.2;
+}
+.tr-b-frame.thin {
+  stroke-width: 0.6;
+  stroke-dasharray: 2 2.5;
+}
+.tr-b-line {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 80%, #fff);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.tr-b-line.thin {
+  stroke-width: 0.7;
+  opacity: 0.6;
+}
+.tr-b-dot {
+  fill: color-mix(in srgb, var(--accent) 80%, #fff);
+}
+.tr-card.next .tr-back {
+  animation: tr-next 1.1s ease-in-out infinite;
+}
+@keyframes tr-next {
+  50% {
+    border-color: var(--accent);
+    box-shadow: 0 0 26px -6px var(--accent), 0 10px 26px -12px #000c;
+  }
+}
+.tr-card.charged {
+  animation: tr-charge 0.18s ease-in-out infinite alternate;
+}
+.tr-card.charged .tr-back {
+  border-color: var(--gold);
+  box-shadow: 0 0 34px -4px var(--gold), 0 0 0 1px var(--gold);
+}
+@keyframes tr-charge {
+  from {
+    transform: translateY(-3px) rotate(-0.6deg);
+  }
+  to {
+    transform: translateY(-5px) rotate(0.6deg);
+  }
+}
+
+/* Front */
+.tr-front {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9cqi 6cqi 8cqi;
+  color: var(--tone, var(--text));
+  background:
+    radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--tone, var(--accent)) 20%, transparent) 0%, transparent 62%),
+    linear-gradient(170deg, #1a1724 0%, #0e0d14 100%);
+  border: 1.5px solid color-mix(in srgb, var(--tone, var(--accent)) 70%, transparent);
+  box-shadow: inset 0 0 0 4cqi #0e0d14, inset 0 0 0 calc(4cqi + 1px) color-mix(in srgb, var(--tone, var(--accent)) 30%, transparent);
+}
+.tr-num {
+  font-size: 8cqi;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  opacity: 0.85;
+}
+.tr-front .tr-glyph {
+  width: 58%;
+  height: auto;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--tone, var(--accent)) 50%, transparent));
+}
+.tr-name {
+  font-size: 7.4cqi;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.tr-mult {
+  font-size: 17cqi;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--tone, var(--text));
+}
+
+/* Glyph strokes */
+.tr-glyph {
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tr-glyph .tr-g-thin {
+  stroke-width: 2;
+  opacity: 0.7;
+}
+.tr-glyph .tr-g-fill {
+  fill: currentColor;
+  stroke: none;
+}
+.tr-glyph .tr-g-soft {
+  fill: color-mix(in srgb, currentColor 22%, transparent);
+}
+.tr-glyph .tr-g-bolt {
+  stroke: var(--gold);
+  stroke-width: 4.2;
+}
+
+/* Outcomes */
+.tr-card.up.t-ruin {
+  animation: tr-shake 0.42s ease-in-out both;
+  animation-delay: var(--flip, 520ms);
+}
+@keyframes tr-shake {
+  20% { transform: translateX(-5px) rotate(-1.5deg); }
+  40% { transform: translateX(5px) rotate(1.5deg); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+.tr-card.dim {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+.tr-card.up.t-gold .tr-front::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, color-mix(in srgb, var(--gold) 35%, transparent) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: tr-shine 1.1s ease-out both;
+  animation-delay: var(--flip, 520ms);
+  pointer-events: none;
+}
+@keyframes tr-shine {
+  to { transform: translateX(120%); }
+}
+.tr-card.glow .tr-front {
+  animation: tr-glow 1.6s ease-in-out infinite;
+}
+@keyframes tr-glow {
+  50% {
+    box-shadow: inset 0 0 0 4cqi #0e0d14, inset 0 0 0 calc(4cqi + 1px) var(--tone), 0 0 30px -6px var(--tone);
+  }
+}
+
+/* ---------- Equation ---------- */
+.tr-equation {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--bg) 80%, transparent);
+  border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.tr-eq-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tr-op {
+  font-style: normal;
+  font-weight: 700;
+  color: var(--muted);
+}
+.tr-term {
+  min-width: 52px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--muted);
+  background: var(--raised);
+}
+.tr-term[class*=' t-'] {
+  color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, transparent);
+  animation: tr-pop 0.25s ease-out both;
+}
+.tr-total {
+  min-width: 72px;
+  text-align: center;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  animation: tr-pop 0.25s ease-out both;
+}
+@keyframes tr-pop {
+  from {
+    transform: scale(0.8);
+    opacity: 0.3;
+  }
+}
+.tr-equation.r-win {
+  border-color: color-mix(in srgb, var(--green) 60%, transparent);
+  box-shadow: 0 0 24px -10px var(--green);
+}
+.tr-equation.r-win .tr-total {
+  color: var(--green);
+}
+.tr-equation.r-even .tr-total,
+.tr-equation.r-part .tr-total {
+  color: var(--gold);
+}
+.tr-equation.r-lose {
+  border-color: color-mix(in srgb, var(--red) 50%, transparent);
+}
+.tr-equation.r-lose .tr-total {
+  color: var(--red);
+}
+
+/* ---------- Deck strip ---------- */
+.tr-deck {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+}
+.tr-deck-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.tr-deck-mean {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tr-deck-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(66px, 1fr));
+  gap: 6px;
+}
+.tr-pip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px 9px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+.tr-pip .tr-glyph {
+  width: 24px;
+  height: 24px;
+  color: var(--tone);
+  stroke-width: 5;
+}
+.tr-pip b {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--tone);
+  font-variant-numeric: tabular-nums;
+}
+.tr-pip small {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.tr-pip-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--tone);
+  opacity: 0.7;
+}
+.tr-pip.hit {
+  border-color: var(--tone);
+  background: color-mix(in srgb, var(--tone) 14%, var(--bg));
+  transform: translateY(-2px);
+}
+.tr-pip-count {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  color: var(--tone);
+}
+
+/* ---------- Info table ---------- */
+.tr-info-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.tr-info-table th,
+.tr-info-table td {
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.tr-info-table th:first-child,
+.tr-info-table td:first-child {
+  text-align: left;
+}
+.tr-info-table th {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+@container (max-width: 760px) {
+  .tr-board {
+    min-height: 0;
+    padding-top: 66px;
+  }
+  .tr-term {
+    min-width: 0;
+    font-size: 13px;
+    padding: 3px 6px;
+  }
+  .tr-total {
+    min-width: 0;
+    font-size: 17px;
+  }
+  .tr-equation {
+    gap: 4px;
+    padding: 6px 10px;
+  }
+  .tr-eq-group {
+    gap: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-card.dealt,
+  .tr-card.charged,
+  .tr-card.up.t-ruin,
+  .tr-card.glow .tr-front,
+  .tr-card.next .tr-back {
+    animation: none;
+  }
+}
