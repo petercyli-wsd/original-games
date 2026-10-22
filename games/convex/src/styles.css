@@ -1,0 +1,402 @@
+/* Convex board. Layout, panel and readouts come from the kit. */
+
+.cvx {
+  --cross-ms: 760ms;
+  --fade-ms: 280ms;
+}
+.cvx text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cvx text.start {
+  text-anchor: start;
+}
+.cvx text.end {
+  text-anchor: end;
+}
+
+/* Arena and its 1% grid. */
+.cvx .arena {
+  fill: color-mix(in srgb, var(--bg) 85%, transparent);
+}
+.cvx .arena-edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+.cvx .grid line {
+  stroke: color-mix(in srgb, var(--text) 8%, transparent);
+  stroke-width: 1;
+}
+
+/* Risk: red is the bust area (hull + swallow cones), green caps are safe. */
+.cvx .zones {
+  animation: cvx-fade var(--fade-ms) ease both;
+}
+.cvx .bust-area {
+  fill: color-mix(in srgb, var(--red) 26%, transparent);
+}
+.cvx .bust-hatch {
+  fill: url(#cvx-hatch);
+}
+.cvx .hatch-line {
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+  stroke-width: 1.5;
+}
+.cvx .cap {
+  fill: color-mix(in srgb, var(--green) 9%, transparent);
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+.cvx .ext {
+  stroke: color-mix(in srgb, var(--text) 26%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+.cvx .cap-label {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--green);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  animation: cvx-fade var(--fade-ms) ease both;
+}
+.cvx.over .zones,
+.cvx.over .cap-label {
+  opacity: 0.5;
+  animation: none;
+}
+
+/* Your shape. */
+.cvx .hull {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.cvx .hull.over-red {
+  fill: none;
+}
+.cvx .hull.hit {
+  stroke: var(--red);
+  fill: color-mix(in srgb, var(--red) 30%, transparent);
+  animation: cvx-flash calc(var(--fade-ms) * 2) ease 2;
+}
+.cvx .hull.complete {
+  fill: color-mix(in srgb, var(--green) 20%, transparent);
+  stroke: var(--green);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--green) 55%, transparent));
+  animation: cvx-fade calc(var(--fade-ms) * 1.6) ease both;
+}
+.cvx .wedge {
+  fill: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke: none;
+  animation: cvx-wedge calc(var(--fade-ms) * 3) ease-out both;
+}
+.cvx .would-be {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: round;
+  animation: cvx-fade var(--fade-ms) ease both;
+}
+
+/* Points. */
+.cvx .pt {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+  animation: cvx-pop calc(var(--fade-ms) * 1.2) cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cvx .pt.last {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2;
+}
+.cvx .pt.busted {
+  fill: var(--red);
+  stroke: #fff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 8px var(--red));
+}
+.cvx .ripple {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: cvx-ripple calc(var(--fade-ms) * 2.4) ease-out both;
+  pointer-events: none;
+}
+.cvx .ripple.bad {
+  stroke: var(--red);
+}
+.cvx .swallow-ring {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+  animation: cvx-ring 0.9s ease-in-out infinite alternate;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Crosshair to the landing spot. */
+.cvx .cross line {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+  transform-box: view-box;
+  transition: transform var(--cross-ms) cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.cvx .cross {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.cvx .reticle {
+  opacity: 0;
+  transform-box: view-box;
+  transition:
+    transform var(--cross-ms) cubic-bezier(0.25, 0.8, 0.25, 1),
+    opacity 0.15s ease;
+}
+.cvx .cross.on,
+.cvx .reticle.on {
+  opacity: 1;
+}
+.cvx .reticle circle {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.cvx .reticle .dot {
+  fill: #fff;
+  stroke: none;
+}
+
+/* Idle preview of the target shape. */
+.cvx .ghost {
+  animation: cvx-fade 0.25s ease both;
+}
+.cvx .ghost polygon {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 7 6;
+  stroke-linejoin: round;
+}
+.cvx .ghost circle {
+  fill: var(--card);
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+  stroke-width: 2;
+}
+.cvx .ghost circle.free {
+  fill: var(--accent);
+}
+.cvx .ghost-n {
+  font-size: 40px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.cvx .ghost-sub {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.cvx .ghost-odds {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+/* Corner progress above the arena. */
+.cvx .pip {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.cvx .pip.free {
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-dasharray: 2 2;
+}
+.cvx .pip.on {
+  fill: var(--accent);
+  stroke: var(--accent);
+  stroke-dasharray: none;
+}
+.cvx .pip.on.done {
+  fill: var(--green);
+  stroke: var(--green);
+}
+.cvx .pip-label,
+.cvx .pip-count {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--muted);
+  letter-spacing: 0.04em;
+}
+.cvx .pip-label {
+  text-transform: uppercase;
+}
+.cvx .pip-count {
+  fill: var(--text);
+}
+
+/* Legend under the arena. */
+.cvx .lg {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+.cvx .lg.bust {
+  fill: var(--red);
+}
+.cvx .lg.safe {
+  fill: var(--green);
+}
+.cvx .lg-sub {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.cvx .lg-note {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--text);
+}
+.cvx .sw.bust {
+  fill: color-mix(in srgb, var(--red) 45%, transparent);
+  stroke: var(--red);
+  stroke-width: 1.5;
+}
+.cvx .sw.safe {
+  fill: color-mix(in srgb, var(--green) 25%, transparent);
+  stroke: var(--green);
+  stroke-width: 1.5;
+}
+.cvx .legend {
+  animation: cvx-fade 0.2s ease both;
+}
+
+/* The result card sits over the legend band at the bottom of the board. */
+.og-board.cvx-board {
+  /* A fixed-width track, so the inline card wraps instead of widening the board. */
+  grid-template-columns: minmax(0, 1fr);
+}
+.cvx-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.cvx-over > * {
+  pointer-events: auto;
+}
+/* The stage's last row has one height whether it holds the chance bar or the caption, so the board never jumps. */
+.cvx-foot {
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+@container (max-width: 760px) {
+  .cvx-over {
+    position: static;
+    /* A definite width, so the card's max-width: 100% applies and it wraps instead of overflowing. */
+    width: 100%;
+    min-width: 0;
+    margin-top: 4px;
+  }
+  .cvx-foot {
+    min-height: 0;
+  }
+}
+
+/* Panel bits: arena icons in the chips, the odds table in the modal. */
+.cvx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cvx-chip svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+.og-chip.on .cvx-chip svg {
+  stroke: var(--accent);
+}
+.cvx-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4px 0 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.cvx-table th,
+.cvx-table td {
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.cvx-table th:first-child,
+.cvx-table td:first-child {
+  text-align: left;
+  color: var(--muted);
+}
+
+@keyframes cvx-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cvx-pop {
+  from {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+}
+@keyframes cvx-ripple {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+@keyframes cvx-wedge {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes cvx-ring {
+  to {
+    transform: scale(1.25);
+    opacity: 0.55;
+  }
+}
+@keyframes cvx-flash {
+  50% {
+    fill: color-mix(in srgb, var(--red) 55%, transparent);
+  }
+}
