@@ -18,10 +18,10 @@ export interface ChartProps {
 const PAD = { l: 50, r: 58, t: 30, b: 30 };
 
 /** A "nice" step (1, 2, 2.5, 5 × 10^n) giving at most `max` ticks over a span. */
-function niceStep(span: number, max: number) {
+function niceStep(span: number, max: number, steps = [1, 2, 2.5, 5, 10]) {
   const raw = span / max;
   const mag = 10 ** Math.floor(Math.log10(raw));
-  for (const s of [1, 2, 2.5, 5, 10]) if (s * mag >= raw) return s * mag;
+  for (const s of steps) if (s * mag >= raw) return s * mag;
   return 10 * mag;
 }
 
@@ -80,7 +80,7 @@ export default function Chart({ state, tau, target, cash, children }: ChartProps
     const y = Math.round(i * yStep * 1000) / 1000;
     if (y > 1 + yStep * 0.4) yTicks.push(y);
   }
-  const xStep = niceStep(xTop / 1000, narrow ? 4 : 6) * 1000;
+  const xStep = niceStep(xTop / 1000, narrow ? 4 : 6, [1, 2, 5, 10]) * 1000;
   const xTicks: number[] = [];
   for (let t = 0; t <= xTop + 1e-6; t += xStep) xTicks.push(t);
 

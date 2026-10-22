@@ -72,11 +72,13 @@ export const targetTime = (target: number) => timeTo(target / 100);
 
 /**
  * What a cash-out at flight time tau pays, in cents, or 0 if the curve had
- * already crashed. Rounded down to the cent shown, and never above C.
+ * already crashed. Rounded down to the cent shown; 0 if C is below it.
  */
 export function cashAt(tau: number, crash: number): number {
   if (tau >= endTime(crash)) return crash >= CAP ? CAP : 0;
-  return Math.min(crash, centsAt(tau));
+  // Wins exactly when C ≥ the cent shown, so a click is the same bet as a target.
+  const k = centsAt(tau);
+  return k <= crash ? k : 0;
 }
 
 export type RoundEnd = { kind: 'cashed'; cents: number } | { kind: 'crashed' } | { kind: 'max'; cents: number };

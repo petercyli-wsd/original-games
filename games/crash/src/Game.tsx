@@ -562,7 +562,7 @@ function TargetField({
           ½
         </button>
         <button type="button" className="og-chip" disabled={disabled} onClick={() => commit(clampTarget(target / 50))} title="Double the target">
-          2×
+          ×2
         </button>
       </div>
     </div>
