@@ -97,9 +97,12 @@ export default function Game() {
   // The throw in flight is decided when it starts: leaving mid-animation
   // settles at its real result, never at the pre-throw value.
   const resolved = useRef(0);
+  const inFlight = useRef(false);
+  const autoModeRef = useRef<'manual' | 'auto'>('manual');
   const ticket = useTicket(() => (phase === 'throwing' ? resolved.current : round?.cash ?? 0));
 
-  const throwMs = turbo.turbo ? 260 : 900;
+  // Snappy by default, quicker still in Auto, near-instant with Turbo.
+  const throwMs = turbo.turbo ? 220 : autoModeRef.current === 'auto' ? 480 : 640;
   const live = phase === 'throwing' || phase === 'live';
 
   function finish(r: Round, end: End, cash: number) {
@@ -113,6 +116,9 @@ export default function Game() {
 
   /** Throws one hand; resolves to the round after it (ended when it busts or tops out), or null if cancelled. */
   async function throwOnce(r: Round, h: Hand): Promise<Round | null> {
+    // One throw at a time: a second key press in the same frame must not draw a second house hand.
+    if (inFlight.current) return null;
+    inFlight.current = true;
     const th = playThrow(r.risk, h, rng);
     const k = r.k + (th.effect === 'advance' ? 1 : 0);
     const cash = th.effect === 'bust' ? 0 : cashAfter(r.risk, k);
@@ -120,7 +126,9 @@ export default function Game() {
     setPending(th);
     setSeq((s) => s + 1);
     setPhase('throwing');
-    if (!(await timers.wait(throwMs))) return null;
+    const landed = await timers.wait(throwMs);
+    inFlight.current = false;
+    if (!landed) return null;
     const next: Round = { ...r, k, cash, throws: [...r.throws, th] };
     setPending(null);
     setSeq((s) => s + 1);
@@ -138,6 +146,7 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
+    inFlight.current = false;
     const r = fresh(bet.value);
     setRound(r);
     void throwOnce(r, h);
@@ -156,6 +165,7 @@ export default function Game() {
   function clear() {
     if (live) return;
     timers.clearAll();
+    inFlight.current = false;
     setRound(null);
     setPending(null);
     setPhase('idle');
@@ -177,11 +187,12 @@ export default function Game() {
       if (next.end) return next.cash;
       if (next.k >= autoTarget) return finish(next, 'cashed', next.cash).cash;
       r = next;
-      if (!(await timers.wait(turbo.turbo ? 60 : 220))) return null;
+      if (!(await timers.wait(turbo.turbo ? 50 : 160))) return null;
     }
   }
 
   const auto = useAutoBet({ bet, play: playAuto, turbo: turbo.turbo });
+  autoModeRef.current = auto.mode;
   const manual = auto.mode === 'manual';
   const busy = live || auto.running;
 
@@ -282,7 +293,7 @@ export default function Game() {
             disabled={busy}
             onChange={(v) => change(() => setRisk(v))}
           />
-          <p className="rps-blurb">{RISKS[risk].blurb}</p>
+          {manual && <p className="rps-blurb">{RISKS[risk].blurb}</p>}
 
           {manual ? (
             <>
@@ -324,7 +335,13 @@ export default function Game() {
                 disabled={auto.running}
                 onChange={(v) => change(() => setAutoPick(v))}
               />
-              <Label hint={<b>{fmtMult(cashAfter(risk, autoTarget))}</b>}>
+              <Label
+                hint={
+                  <span title="Chance to reach the target streak">
+                    <b>{fmtMult(cashAfter(risk, autoTarget))}</b> · {fmtChance(autoChance)}
+                  </span>
+                }
+              >
                 Cash out at {autoTarget} {autoTarget === 1 ? 'win' : 'wins'}
               </Label>
               <Slider
@@ -335,10 +352,6 @@ export default function Game() {
                 disabled={auto.running}
                 onChange={(v) => change(() => setAutoTarget(v))}
               />
-              <dl className="og-stats">
-                <dt>Chance to reach</dt>
-                <dd>{fmtChance(autoChance)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && !live && <p className="rps-blocked">{bet.blocked}</p>}
@@ -396,6 +409,21 @@ export default function Game() {
               <kbd>{HAND_KEYS[h]}</kbd>
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Phone frames stack the panel under the stage, so the round's main action is docked by the hands too. */}
+      {manual && !auto.running && phase !== 'over' && (
+        <div className="rps-dock">
+          {live ? (
+            <ActionButton kind="cash" disabled={phase !== 'live' || k === 0} onClick={cashOut}>
+              {k === 0 ? 'Win once to cash out' : <>Cash out <span>{formatAmount(stake * cash, 2)}</span></>}
+            </ActionButton>
+          ) : (
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              Bet {HAND_NAMES[hand]}
+            </ActionButton>
+          )}
         </div>
       )}
 

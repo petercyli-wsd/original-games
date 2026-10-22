@@ -302,3 +302,17 @@
   /* Room for the Auto result pill above the hands. */
   .rps-board.auto { padding-top: 52px; }
 }
+
+@container (max-width: 560px) {
+  /* Phone widths: the duel scales down, so the verdict word grows and its small line (also in the status pill) drops out. */
+  .rps-duel .verdict .word { font-size: 32px; }
+  .rps-duel .verdict .sub { display: none; }
+  .rps-duel .verdict .word { transform: translateY(8px); }
+}
+
+/* The docked action only shows on narrow frames, where the panel sits below the stage. */
+.rps-dock { display: none; }
+@container (max-width: 760px) {
+  .rps-dock { display: block; }
+  .rps-dock .og-btn { width: 100%; }
+}
