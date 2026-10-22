@@ -3,4 +3,6 @@ dist
 *.tsbuildinfo
 .env*.local
 .DS_Store
+# Built by scripts/evidence.ts during the API build
+apps/api/evidence/
 .qa/

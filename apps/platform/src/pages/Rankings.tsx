@@ -4,6 +4,7 @@ import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { Emblem } from '../components/Emblem';
 import { StarInput } from '../components/StarInput';
+import { RECOMMENDATION_LABEL, evaluationSummaries } from '../lib/evaluator';
 import { rate, ratingSummaries, ratingsEnabled, ratingsStatus } from '../lib/ratings';
 import { games } from '../registry';
 
@@ -13,6 +14,7 @@ const UNRATED: RatingRow = { average: 0, count: 0, mine: null };
 export function Rankings() {
   const summaries = useStore(ratingSummaries);
   const status = useStore(ratingsStatus);
+  const ai = useStore(evaluationSummaries);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -80,6 +82,16 @@ export function Rankings() {
                 </>
               ) : (
                 <small>Not rated yet</small>
+              )}
+            </span>
+            <span className="rank-ai">
+              {ai[manifest.id] ? (
+                <>
+                  <b className={`rec-${ai[manifest.id].recommendation}`}>✦ {ai[manifest.id].overall.toFixed(1)}</b>
+                  <small>AI · {RECOMMENDATION_LABEL[ai[manifest.id].recommendation]}</small>
+                </>
+              ) : (
+                <small>No AI review</small>
               )}
             </span>
             <span className="rank-mine">

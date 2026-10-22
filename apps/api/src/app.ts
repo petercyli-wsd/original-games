@@ -1,22 +1,43 @@
-// HTTP routes for game ratings. Plain node:http keeps the service tiny and
-// fast to cold-start on Render's free tier.
+// HTTP routes for game ratings, reviews and the AI evaluator. Plain node:http
+// keeps the service tiny and fast to cold-start on Render's free tier.
 //
+// Ratings and reviews (public):
 //   GET  /health
 //   GET  /ratings[?voter=<uuid>]        -> { [gameId]: { average, count, mine? } }
-//   GET  /ratings/:gameId?voter=<uuid>  -> { average, count, distribution, mine }
-//   PUT  /ratings/:gameId  { voterId, stars } -> same as GET
+//   GET  /ratings/:gameId?voter=<uuid>  -> RatingDetail (incl. reviews)
+//   PUT  /ratings/:gameId  { voterId, stars, comment?, reviewer? } -> RatingDetail
+//
+// AI evaluator (reads public; actions marked * need the x-admin-key header):
+//   GET  /evaluator                      -> status and active prompt version
+//   POST /evaluator/admin-check *        -> { ok } to verify a key
+//   GET  /evaluator/versions[/:id]
+//   POST /evaluator/refine *             -> job: propose a candidate version and backtest it
+//   POST /evaluator/versions/:id/backtest *
+//   POST /evaluator/versions/:id/promote *
+//   GET  /evaluator/agreement            -> human vs AI per game, Spearman, MAE
+//   GET  /evaluator/jobs[/:id]
+//   GET  /evaluations                    -> { [gameId]: summary } under the active version
+//   GET  /evaluations/:gameId            -> full review or null
+//   POST /evaluations * { target: gameId | "all" | "missing" } -> job
 
+import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, RequestListener, ServerResponse } from 'node:http';
-import { summarize, type RatingDetail, type RatingRow } from './shared.js';
+import { EvaluatorError, type Evaluator } from './evaluator/service.js';
+import { MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, summarize, type RatingDetail, type RatingRow } from './shared.js';
 import type { RatingsStore } from './store.js';
 
 const GAME_ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_BODY = 1024;
+const MAX_BODY = 8 * 1024;
+const REVIEWS_SHOWN = 20;
 
 export interface AppOptions {
+  ratings: RatingsStore;
+  evaluator?: Evaluator;
   /** Allowed browser origins, or '*' for any. */
   corsOrigins: string[] | '*';
+  /** Secret for actions that spend money (AI reviews, refinement). Unset disables them. */
+  adminKey?: string;
   /** Writes allowed per client IP per window. */
   writeLimit?: { max: number; windowMs: number };
 }
@@ -30,29 +51,59 @@ class HttpError extends Error {
   }
 }
 
-export function createApp(store: RatingsStore, { corsOrigins, writeLimit = { max: 60, windowMs: 10 * 60_000 } }: AppOptions): RequestListener {
+/** Trims, strips control characters (keeping newlines) and caps length. */
+function cleanText(value: unknown, max: number): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') throw new HttpError(400, 'Text fields must be strings');
+  return value.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, max);
+}
+
+export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimit = { max: 60, windowMs: 10 * 60_000 } }: AppOptions): RequestListener {
   const allowWrite = createRateLimiter(writeLimit.max, writeLimit.windowMs);
 
   async function detail(gameId: string, voterId: string | null): Promise<RatingDetail> {
-    const [distribution, mine] = await Promise.all([store.distribution(gameId), voterId ? store.stars(gameId, voterId) : null]);
-    return { ...summarize(distribution), distribution, mine };
+    const [distribution, mine, myReview, reviews] = await Promise.all([
+      ratings.distribution(gameId),
+      voterId ? ratings.stars(gameId, voterId) : null,
+      voterId ? ratings.review(gameId, voterId) : null,
+      ratings.reviews(gameId, REVIEWS_SHOWN),
+    ]);
+    return { ...summarize(distribution), distribution, mine, myReview, reviews };
   }
 
-  async function route(req: IncomingMessage, url: URL): Promise<unknown> {
-    const [resource, gameId, ...rest] = url.pathname.split('/').filter(Boolean);
-    if (req.method === 'GET' && resource === 'health' && !gameId) return { ok: true };
-    if (resource !== 'ratings' || rest.length) throw new HttpError(404, 'Not found');
+  function requireAdmin(req: IncomingMessage) {
+    if (!adminKey) throw new HttpError(403, 'Admin actions are off: set ADMIN_KEY on the API service.');
+    const given = req.headers['x-admin-key'];
+    const a = Buffer.from(typeof given === 'string' ? given : '');
+    const b = Buffer.from(adminKey);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) throw new HttpError(401, 'Wrong admin key');
+  }
 
+  function requireEvaluator(): Evaluator {
+    if (!evaluator) throw new HttpError(503, 'The evaluator is not configured on this server.');
+    return evaluator;
+  }
+
+  const validGameId = (id: string) => {
+    if (id.length > 64 || !GAME_ID.test(id)) throw new HttpError(400, 'Invalid game id');
+    return id;
+  };
+  const versionId = (raw: string) => {
+    const id = Number(raw);
+    if (!Number.isInteger(id) || id < 1) throw new HttpError(400, 'Invalid version id');
+    return id;
+  };
+
+  async function ratingsRoute(req: IncomingMessage, url: URL, gameId: string | undefined): Promise<unknown> {
     if (!gameId) {
       if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
       const voter = url.searchParams.get('voter');
-      const [all, mine] = await Promise.all([store.distributions(), voter && UUID.test(voter) ? store.votesBy(voter) : null]);
+      const [all, mine] = await Promise.all([ratings.distributions(), voter && UUID.test(voter) ? ratings.votesBy(voter) : null]);
       return Object.fromEntries(
         [...all].map(([id, d]): [string, RatingRow] => [id, mine ? { ...summarize(d), mine: mine.get(id) ?? null } : summarize(d)]),
       );
     }
-
-    if (gameId.length > 64 || !GAME_ID.test(gameId)) throw new HttpError(400, 'Invalid game id');
+    validGameId(gameId);
 
     if (req.method === 'GET') {
       const voter = url.searchParams.get('voter');
@@ -61,16 +112,77 @@ export function createApp(store: RatingsStore, { corsOrigins, writeLimit = { max
 
     if (req.method === 'PUT') {
       if (!allowWrite(clientIp(req))) throw new HttpError(429, 'Too many ratings, try again later');
-      const body = (await readJson(req)) as Partial<{ voterId: unknown; stars: unknown }>;
+      const body = (await readJson(req)) as Partial<{ voterId: unknown; stars: unknown; comment: unknown; reviewer: unknown }>;
       if (typeof body.voterId !== 'string' || !UUID.test(body.voterId)) throw new HttpError(400, 'Invalid voterId');
       if (!Number.isInteger(body.stars) || (body.stars as number) < 1 || (body.stars as number) > 5) {
         throw new HttpError(400, 'stars must be an integer from 1 to 5');
       }
-      await store.upsert(gameId, body.voterId, body.stars as number);
+      const comment = cleanText(body.comment, MAX_COMMENT_LENGTH);
+      const reviewer = cleanText(body.reviewer, MAX_REVIEWER_LENGTH);
+      await ratings.upsert(gameId, body.voterId, body.stars as number, comment, reviewer);
       return detail(gameId, body.voterId);
     }
 
     throw new HttpError(405, 'Method not allowed');
+  }
+
+  async function evaluatorRoute(req: IncomingMessage, parts: string[]): Promise<unknown> {
+    const ev = requireEvaluator();
+    const [section, id, action] = parts;
+    const get = req.method === 'GET';
+    const post = req.method === 'POST';
+
+    if (!section && get) return { ...(await ev.status()), adminConfigured: Boolean(adminKey) };
+    if (section === 'admin-check' && post) {
+      requireAdmin(req);
+      return { ok: true };
+    }
+    if (section === 'agreement' && get) return ev.agreement();
+    if (section === 'jobs' && get) {
+      if (!id) return ev.jobs();
+      const job = ev.job(id);
+      if (!job) throw new HttpError(404, 'No such job');
+      return job;
+    }
+    if (section === 'refine' && post && !id) {
+      requireAdmin(req);
+      return ev.startRefine();
+    }
+    if (section === 'versions') {
+      if (!id && get) return ev.versions();
+      if (id && !action && get) return ev.version(versionId(id));
+      if (id && action === 'backtest' && post) {
+        requireAdmin(req);
+        return ev.startBacktest(versionId(id));
+      }
+      if (id && action === 'promote' && post) {
+        requireAdmin(req);
+        return ev.promote(versionId(id));
+      }
+    }
+    throw new HttpError(404, 'Not found');
+  }
+
+  async function evaluationsRoute(req: IncomingMessage, gameId: string | undefined): Promise<unknown> {
+    const ev = requireEvaluator();
+    if (req.method === 'GET') return gameId ? ev.view(validGameId(gameId)) : ev.summaries();
+    if (req.method === 'POST' && !gameId) {
+      requireAdmin(req);
+      const body = (await readJson(req)) as { target?: unknown };
+      const target = typeof body.target === 'string' ? body.target : '';
+      if (target !== 'all' && target !== 'missing') validGameId(target);
+      return ev.startEvaluate(target);
+    }
+    throw new HttpError(405, 'Method not allowed');
+  }
+
+  async function route(req: IncomingMessage, url: URL): Promise<unknown> {
+    const [resource, ...parts] = url.pathname.split('/').filter(Boolean);
+    if (req.method === 'GET' && resource === 'health' && !parts.length) return { ok: true };
+    if (resource === 'ratings' && parts.length <= 1) return ratingsRoute(req, url, parts[0]);
+    if (resource === 'evaluator' && parts.length <= 3) return evaluatorRoute(req, parts);
+    if (resource === 'evaluations' && parts.length <= 1) return evaluationsRoute(req, parts[0]);
+    throw new HttpError(404, 'Not found');
   }
 
   return async (req, res) => {
@@ -82,7 +194,7 @@ export function createApp(store: RatingsStore, { corsOrigins, writeLimit = { max
     try {
       send(res, 200, await route(req, new URL(req.url ?? '/', 'http://localhost')));
     } catch (err) {
-      if (err instanceof HttpError) {
+      if (err instanceof HttpError || err instanceof EvaluatorError) {
         send(res, err.status, { error: err.message });
       } else {
         console.error(err);
@@ -103,8 +215,8 @@ function applyCors(req: IncomingMessage, res: ServerResponse, origins: string[] 
     res.setHeader('access-control-allow-origin', origin);
     res.setHeader('vary', 'origin');
   }
-  res.setHeader('access-control-allow-methods', 'GET, PUT, OPTIONS');
-  res.setHeader('access-control-allow-headers', 'content-type');
+  res.setHeader('access-control-allow-methods', 'GET, PUT, POST, OPTIONS');
+  res.setHeader('access-control-allow-headers', 'content-type, x-admin-key');
   res.setHeader('access-control-max-age', '86400');
 }
 
@@ -117,7 +229,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
     chunks.push(chunk);
   }
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
   } catch {
     throw new HttpError(400, 'Body must be JSON');
   }

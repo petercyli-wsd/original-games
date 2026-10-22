@@ -1,6 +1,6 @@
 # Render Blueprint. New → Blueprint in Render and pick this repo.
 #   original-games  static site: the lobby + every game
-#   originals-api   tiny Node service for game star ratings
+#   originals-api   Node service for ratings, reviews and the AI evaluator
 # Ratings live in any Postgres; we use Neon's free tier (doesn't expire).
 services:
   - type: web
@@ -40,6 +40,9 @@ services:
     buildFilter:
       paths:
         - apps/api/**
+        - games/**
+        - packages/**
+        - scripts/evidence.ts
         - package.json
         - package-lock.json
     envVars:
@@ -53,3 +56,9 @@ services:
       # URL (comma-separated list) once you know it.
       - key: CORS_ORIGINS
         value: "*"
+      # Enables AI reviews (Claude Opus 5.5). Secret.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Passphrase the site sends for actions that call Claude. Secret.
+      - key: ADMIN_KEY
+        sync: false

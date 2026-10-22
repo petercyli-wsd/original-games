@@ -1,27 +1,67 @@
-// Storage behind the ratings API. Postgres in production; an in-memory
-// store for tests and for running locally without a database.
+// Storage behind the API. Postgres in production; in-memory stores for tests
+// and for running locally without a database.
+
+import type { Evaluation, PromptVersion, Review, RulesCard } from './shared.js';
 
 export interface RatingsStore {
   /** Star distribution per game id (index 0 = 1 star). */
   distributions(): Promise<Map<string, number[]>>;
   distribution(gameId: string): Promise<number[]>;
   stars(gameId: string, voterId: string): Promise<number | null>;
+  review(gameId: string, voterId: string): Promise<Review | null>;
+  /** Reviews with a written comment, newest first. */
+  reviews(gameId: string, limit: number): Promise<Review[]>;
+  /** Every review with a comment, grouped by game; feeds the evaluator's refiner. */
+  allReviews(): Promise<Map<string, Review[]>>;
   /** Every game this voter has rated, with their stars. */
   votesBy(voterId: string): Promise<Map<string, number>>;
-  /** One rating per voter per game; rating again replaces it. */
-  upsert(gameId: string, voterId: string, stars: number): Promise<void>;
+  /**
+   * One rating per voter per game; rating again replaces it. A comment or
+   * reviewer left undefined keeps the stored one, so quick star votes don't
+   * wipe a written review.
+   */
+  upsert(gameId: string, voterId: string, stars: number, comment?: string, reviewer?: string): Promise<void>;
   close(): Promise<void>;
+}
+
+export type NewVersion = Omit<PromptVersion, 'id' | 'createdAt' | 'metrics'>;
+export type NewEvaluation = Omit<Evaluation, 'id' | 'createdAt'>;
+
+export interface EvalStore {
+  versions(): Promise<PromptVersion[]>;
+  version(id: number): Promise<PromptVersion | null>;
+  activeVersion(): Promise<PromptVersion | null>;
+  createVersion(v: NewVersion): Promise<PromptVersion>;
+  setMetrics(id: number, metrics: PromptVersion['metrics']): Promise<void>;
+  /** Makes `id` the active version and retires the previous one. */
+  promote(id: number): Promise<void>;
+  rulesCard(gameId: string, codeHash: string): Promise<RulesCard | null>;
+  saveRulesCard(gameId: string, codeHash: string, card: RulesCard, model: string): Promise<void>;
+  saveEvaluation(e: NewEvaluation): Promise<Evaluation>;
+  /** Latest evaluation of each game under a version. */
+  latestEvaluations(versionId: number): Promise<Map<string, Evaluation>>;
 }
 
 export const emptyDistribution = () => [0, 0, 0, 0, 0];
 
+interface Vote {
+  stars: number;
+  comment: string;
+  reviewer: string;
+  updatedAt: Date;
+}
+
+const toReview = (v: Vote): Review => ({ stars: v.stars, comment: v.comment, reviewer: v.reviewer, updatedAt: v.updatedAt.toISOString() });
+const newestFirst = (a: Vote, b: Vote) => b.updatedAt.getTime() - a.updatedAt.getTime();
+
 export function createMemoryStore(): RatingsStore {
-  const games = new Map<string, Map<string, number>>();
-  const tally = (votes: Map<string, number>) => {
+  const games = new Map<string, Map<string, Vote>>();
+  const tally = (votes: Map<string, Vote>) => {
     const d = emptyDistribution();
-    for (const stars of votes.values()) d[stars - 1]++;
+    for (const v of votes.values()) d[v.stars - 1]++;
     return d;
   };
+  const commented = (votes: Map<string, Vote> | undefined) => [...(votes?.values() ?? [])].filter((v) => v.comment).sort(newestFirst);
 
   return {
     async distributions() {
@@ -32,17 +72,86 @@ export function createMemoryStore(): RatingsStore {
       return votes ? tally(votes) : emptyDistribution();
     },
     async stars(gameId, voterId) {
-      return games.get(gameId)?.get(voterId) ?? null;
+      return games.get(gameId)?.get(voterId)?.stars ?? null;
+    },
+    async review(gameId, voterId) {
+      const v = games.get(gameId)?.get(voterId);
+      return v ? toReview(v) : null;
+    },
+    async reviews(gameId, limit) {
+      return commented(games.get(gameId)).slice(0, limit).map(toReview);
+    },
+    async allReviews() {
+      return new Map([...games].map(([id, votes]) => [id, commented(votes).map(toReview)]).filter(([, r]) => r.length) as [string, Review[]][]);
     },
     async votesBy(voterId) {
       const out = new Map<string, number>();
-      for (const [id, votes] of games) if (votes.has(voterId)) out.set(id, votes.get(voterId)!);
+      for (const [id, votes] of games) {
+        const v = votes.get(voterId);
+        if (v) out.set(id, v.stars);
+      }
       return out;
     },
-    async upsert(gameId, voterId, stars) {
+    async upsert(gameId, voterId, stars, comment, reviewer) {
       if (!games.has(gameId)) games.set(gameId, new Map());
-      games.get(gameId)!.set(voterId, stars);
+      const votes = games.get(gameId)!;
+      const prev = votes.get(voterId);
+      votes.set(voterId, {
+        stars,
+        comment: comment ?? prev?.comment ?? '',
+        reviewer: reviewer ?? prev?.reviewer ?? '',
+        updatedAt: new Date(),
+      });
     },
     async close() {},
+  };
+}
+
+export function createMemoryEvalStore(): EvalStore {
+  const versions: PromptVersion[] = [];
+  const cards = new Map<string, RulesCard>();
+  const evaluations: Evaluation[] = [];
+
+  return {
+    async versions() {
+      return [...versions].reverse();
+    },
+    async version(id) {
+      return versions.find((v) => v.id === id) ?? null;
+    },
+    async activeVersion() {
+      return versions.find((v) => v.status === 'active') ?? null;
+    },
+    async createVersion(v) {
+      const created: PromptVersion = { ...v, id: versions.length + 1, createdAt: new Date().toISOString(), metrics: null };
+      versions.push(created);
+      return created;
+    },
+    async setMetrics(id, metrics) {
+      const v = versions.find((x) => x.id === id);
+      if (v) v.metrics = metrics;
+    },
+    async promote(id) {
+      for (const v of versions) {
+        if (v.status === 'active') v.status = 'retired';
+        if (v.id === id) v.status = 'active';
+      }
+    },
+    async rulesCard(gameId, codeHash) {
+      return cards.get(`${gameId}@${codeHash}`) ?? null;
+    },
+    async saveRulesCard(gameId, codeHash, card) {
+      cards.set(`${gameId}@${codeHash}`, card);
+    },
+    async saveEvaluation(e) {
+      const saved: Evaluation = { ...e, id: evaluations.length + 1, createdAt: new Date().toISOString() };
+      evaluations.push(saved);
+      return saved;
+    },
+    async latestEvaluations(versionId) {
+      const out = new Map<string, Evaluation>();
+      for (const e of evaluations) if (e.versionId === versionId) out.set(e.gameId, e);
+      return out;
+    },
   };
 }

@@ -788,7 +788,7 @@ button:disabled {
 }
 .rank-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) 120px 150px;
+  grid-template-columns: 40px minmax(0, 1fr) 110px 110px 150px;
   align-items: center;
   gap: 16px;
   padding: 12px 18px;

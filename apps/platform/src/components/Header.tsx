@@ -27,6 +27,9 @@ export function Header() {
           <NavLink to="/rankings" className="nav-link">
             ★ Rankings
           </NavLink>
+          <NavLink to="/evaluator" className="nav-link">
+            ✦ Evaluator
+          </NavLink>
           <button
             className={`toggle ${turbo ? 'on' : ''}`}
             aria-pressed={turbo}

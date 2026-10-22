@@ -2,9 +2,11 @@ import { useEffect, useMemo, type CSSProperties } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BRAND } from '../brand';
 import { GameFrame } from '../components/GameFrame';
-import { RatingPanel } from '../components/RatingPanel';
+import { AiReview } from '../components/AiReview';
+import { HumanReviews } from '../components/HumanReviews';
 import { StatsPanel } from '../components/StatsPanel';
 import { createHost } from '../host/session';
+import { ratingsEnabled } from '../lib/ratings';
 import { findGame } from '../registry';
 import { NotFound } from './NotFound';
 
@@ -39,9 +41,17 @@ export function GamePage() {
       <div className="game-layout">
         <GameFrame entry={entry} host={host} />
         <div className="side-col">
-          <RatingPanel gameId={manifest.id} />
+          {ratingsEnabled && (
+            <a href="#reviews" className="review-jump">
+              ★ Review this game
+            </a>
+          )}
           <StatsPanel manifest={manifest} />
         </div>
+      </div>
+      <div className="review-grid">
+        <HumanReviews gameId={manifest.id} />
+        <AiReview gameId={manifest.id} />
       </div>
     </main>
   );

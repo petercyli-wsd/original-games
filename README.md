@@ -83,13 +83,34 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 `play.mjs` starts the game's standalone server, drives it in headless Chrome over the DevTools protocol (click by text or selector, keys, waits, screenshots, viewport sizes) and exits non-zero on any console error.
 
-## Ratings
+## Reviews and the AI evaluator
 
-Each game can be rated 1–5 stars. The average shows on lobby tiles, and the game page has a rating panel. Ratings are anonymous: each browser gets a random voter id and keeps one rating per game, which it can change.
+**Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change.
 
-- `apps/api` is a small Node service: `GET /ratings`, `GET /ratings/:gameId?voter=…`, `PUT /ratings/:gameId { voterId, stars }`. It stores ratings in Postgres (we use Neon's free tier) when `DATABASE_URL` is set, and in memory otherwise. The `ratings` table is created on first start.
-- The site reads the API's address from `VITE_RATINGS_API_URL` at build time. If it's unset, ratings are hidden.
-- Locally: run `npm run dev:api` (in-memory, port 8787) alongside `npm run dev`. `apps/platform/.env.development` already points at it.
+**AI reviews.** Claude (Opus 5.5) reviews each game against the Originals brief in two stages:
+
+1. **Rules card**: it reads the game's source and writes a factual card (concept, win condition, how odds appear, volatility controls, checkpoints, maths). Cached per code version.
+2. **Judge**: it scores nine criteria from 1 to 5 (odds on screen, clear win condition, simplicity, uniqueness, volatility control, checkpoints, pace, fun, geometry-first) from the card, the measured eval facts and a catalogue of every other game (for reskin detection). The overall score is a weighted mean.
+
+Facts a machine can measure (RTP, volatility spread ≥ 5×, round length, checkpoints) are computed by `scripts/evidence.ts`, not judged.
+
+**Training loop** (`/evaluator` page):
+
+1. The team writes reviews.
+2. **Refine** sends Claude the disagreements between AI and team scores, the review comments and a least-squares weight fit, and gets back a candidate prompt (weights, score descriptions, guidance, reference games).
+3. The candidate is **backtested** automatically on the most-reviewed games plus calibration anchors (proven games like Mines and Russian roulette must score high, reskins like Frozen Lake low). The page shows rank agreement (Spearman) and average gap against the active prompt.
+4. You **promote** it if it agrees with the team better. Every review records the prompt version it used.
+
+**API** (`apps/api`): plain Node + Postgres (Neon's free tier). `npm run build -w @originals/api` first runs `scripts/evidence.ts`, which writes each game's manifest, gameplay source and eval stats to `apps/api/evidence/`, so the deployed API reviews exactly the code it was built from. Environment:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | Postgres connection string; in-memory if unset |
+| `ANTHROPIC_API_KEY` | Enables AI reviews |
+| `ADMIN_KEY` | Passphrase the site sends for anything that calls Claude (reviews, refine, backtest, promote) |
+| `CORS_ORIGINS` | The site's URL, or `*` |
+
+The site reads the API's address from `VITE_RATINGS_API_URL` at build time; if it's unset, reviews and the evaluator are hidden. Locally: `npm run dev:api` (in-memory, port 8787) alongside `npm run dev`.
 
 ## Deploying (Render)
 

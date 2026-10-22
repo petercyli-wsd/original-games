@@ -1,19 +1,33 @@
 import { createServer } from 'node:http';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
-import { createPgStore } from './pg-store.js';
-import { createMemoryStore } from './store.js';
+import { loadEvidence } from './evaluator/evidence.js';
+import { createClaude } from './evaluator/llm.js';
+import { createEvaluator } from './evaluator/service.js';
+import { createPgStores } from './pg-store.js';
+import { createMemoryEvalStore, createMemoryStore } from './store.js';
 
 const config = loadConfig(process.env);
 
-const store = config.databaseUrl
-  ? await createPgStore(config.databaseUrl, { ssl: config.databaseSsl })
-  : createMemoryStore();
-if (!config.databaseUrl) console.warn('DATABASE_URL not set: using an in-memory store, ratings reset on restart');
+const stores = config.databaseUrl
+  ? await createPgStores(config.databaseUrl, { ssl: config.databaseSsl })
+  : { ratings: createMemoryStore(), evals: createMemoryEvalStore(), close: async () => {} };
+if (!config.databaseUrl) console.warn('DATABASE_URL not set: using in-memory stores, data resets on restart');
 
-const server = createServer(createApp(store, { corsOrigins: config.corsOrigins }));
-server.listen(config.port, () => console.log(`Ratings API listening on :${config.port}`));
+// Evidence packs are built next to dist/ by `npm run build` (scripts/evidence.ts).
+const evidenceDir = config.evidenceDir ?? join(dirname(fileURLToPath(import.meta.url)), '..', 'evidence');
+const evidence = loadEvidence(evidenceDir);
+const llm = config.anthropicApiKey ? createClaude(config.anthropicApiKey) : null;
+console.log(`Evaluator: ${evidence.all().length} games of evidence, AI reviews ${llm ? 'on' : 'off (no ANTHROPIC_API_KEY)'}, admin ${config.adminKey ? 'on' : 'off (no ADMIN_KEY)'}`);
 
-const shutdown = () => server.close(() => void store.close().then(() => process.exit(0)));
+const evaluator = createEvaluator({ llm, evals: stores.evals, ratings: stores.ratings, evidence });
+await evaluator.activeVersion(); // seeds version 1 on first start
+
+const server = createServer(createApp({ ratings: stores.ratings, evaluator, corsOrigins: config.corsOrigins, adminKey: config.adminKey }));
+server.listen(config.port, () => console.log(`API listening on :${config.port}`));
+
+const shutdown = () => server.close(() => void stores.close().then(() => process.exit(0)));
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);
