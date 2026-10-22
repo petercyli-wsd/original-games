@@ -1,0 +1,181 @@
+/* Euclid board. Layout, panel and readouts come from the kit. */
+
+.eu-views {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  width: 100%;
+}
+.eu-views > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 58vh;
+  overflow: visible;
+}
+@container (max-width: 640px) {
+  .eu-views {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+  .eu-views > .eu-pairs {
+    max-width: 340px;
+  }
+}
+
+.eu-views text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.eu-rect text {
+  text-anchor: middle;
+}
+
+/* ---------- Rectangle ---------- */
+.eu-rect .cf {
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.eu-rect .cf-sub {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.eu-rect .zoom {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.eu-rect rect {
+  vector-effect: non-scaling-stroke;
+  transition: x 0.45s ease, y 0.45s ease, width 0.45s ease, height 0.45s ease;
+}
+.eu-rect .outer {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.eu-rect .sq {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 80%, transparent);
+  stroke-width: 1.5;
+}
+.eu-rect .cut.newest .sq {
+  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.eu-rect .sq.final {
+  fill: color-mix(in srgb, var(--gold) 45%, transparent);
+  stroke: var(--gold);
+  stroke-width: 2.5;
+}
+.eu-rect .cut.ghost .sq {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-dasharray: 4 4;
+}
+.eu-rect .cut.ghost .sq.final {
+  fill: color-mix(in srgb, var(--gold) 18%, transparent);
+  stroke: color-mix(in srgb, var(--gold) 70%, transparent);
+}
+.eu-rect .cut.fresh {
+  animation: eu-in ease both;
+}
+.eu-rect .q {
+  font-weight: 800;
+  fill: var(--accent);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}
+.eu-rect .cut.ghost .q {
+  fill: var(--muted);
+}
+.eu-rect .gtag {
+  font-weight: 700;
+  fill: var(--gold);
+}
+.eu-rect .fog rect {
+  fill: url(#eu-fog);
+  stroke: color-mix(in srgb, var(--text) 40%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.eu-rect .fog text {
+  font-weight: 800;
+  fill: var(--muted);
+}
+
+/* ---------- Pairs ---------- */
+.eu-pairs .head {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.eu-pairs .axis {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.eu-pairs .dot {
+  transition: opacity 0.3s ease;
+}
+.eu-pairs .dot.dim {
+  fill: var(--muted);
+  opacity: 0.16;
+}
+.eu-pairs .dot.win {
+  fill: var(--green);
+}
+.eu-pairs .dot.lose {
+  fill: var(--red);
+  opacity: 0.85;
+}
+.eu-pairs .wedge {
+  fill: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.eu-pairs .ray {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+.eu-pairs .hidden-pair {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.eu-pairs .tick {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.eu-pairs .pct {
+  font-size: 26px;
+  font-weight: 800;
+  fill: var(--green);
+  font-variant-numeric: tabular-nums;
+}
+.eu-pairs .frac {
+  font-size: 13px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.eu-pairs .frac .w {
+  fill: var(--green);
+  font-weight: 700;
+}
+.eu-pairs .legend {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+@keyframes eu-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
