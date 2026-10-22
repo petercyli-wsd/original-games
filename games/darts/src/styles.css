@@ -8,29 +8,36 @@
 .og-game {
   --board-base: #0d0f15;
 }
-.t-zero { --c: #3a3f50; }
-.t-part { --c: #c24b63; }
-.t-top { --c: #f5a623; }
-.t-second { --c: #f472b6; }
-.t-third { --c: #a78bfa; }
-.t-fourth { --c: #38bdf8; }
-.t-fifth { --c: #84cc16; }
-.t-sixth { --c: #2dd4bf; }
+.t-zero {
+  --c: #3a3f50;
+}
+.t-part {
+  --c: #c24b63;
+}
+.t-top {
+  --c: #f5a623;
+}
+.t-second {
+  --c: #f472b6;
+}
+.t-third {
+  --c: #a78bfa;
+}
+.t-fourth {
+  --c: #38bdf8;
+}
+.t-fifth {
+  --c: #84cc16;
+}
+.t-sixth {
+  --c: #2dd4bf;
+}
 
 .dt-blocked {
   margin: 0;
   font-size: 12px;
   text-align: center;
   color: var(--red);
-}
-.dt-auto-note {
-  margin: 0 0 2px;
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-.dt-auto-note b {
-  color: var(--accent);
 }
 
 /* ---------- Board ---------- */
@@ -50,7 +57,9 @@
   fill: none;
   stroke: color-mix(in srgb, var(--accent) 22%, transparent);
   stroke-width: 1;
-  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 35%, transparent));
+  filter: drop-shadow(
+    0 0 12px color-mix(in srgb, var(--accent) 35%, transparent)
+  );
 }
 .dt-rim {
   stroke: #2c3040;
@@ -215,7 +224,10 @@
   background: var(--bg);
   border: 1px solid var(--line);
   overflow: hidden;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 .dt-pay i {
   position: absolute;
@@ -246,7 +258,9 @@
 }
 .dt-pay.hit {
   border-color: var(--c);
-  box-shadow: 0 0 18px -6px var(--c), inset 0 0 0 1px var(--c);
+  box-shadow:
+    0 0 18px -6px var(--c),
+    inset 0 0 0 1px var(--c);
   transform: translateY(-2px);
 }
 .dt-pay.hit.t-zero {
@@ -269,6 +283,11 @@
 }
 
 /* ---------- Info table ---------- */
+.dt-info-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .dt-info-table {
   width: 100%;
   border-collapse: collapse;
@@ -292,6 +311,19 @@
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--muted);
+}
+
+@media (max-width: 520px) {
+  .dt-info-table {
+    font-size: 12px;
+  }
+  .dt-info-table th,
+  .dt-info-table td {
+    padding: 4px 4px;
+  }
+  .dt-info-table th {
+    letter-spacing: 0.2px;
+  }
 }
 
 @container (max-width: 760px) {
