@@ -1,0 +1,176 @@
+/* Probe board. Layout, panel and readouts come from the kit. */
+
+.probe-board.narrow {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 10px;
+}
+
+.probe .track {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 3;
+}
+.probe .window {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 38%, transparent);
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+.probe .window.bust {
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+}
+
+.probe .slot {
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  transition: fill 0.25s ease, stroke 0.25s ease;
+}
+.probe .slot.empty {
+  fill: color-mix(in srgb, var(--bg) 80%, var(--card));
+  stroke: var(--line);
+}
+.probe .slot.key {
+  fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.probe .slot.red {
+  fill: color-mix(in srgb, var(--red) 52%, var(--bg));
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px var(--og-red-glow, rgba(233, 17, 60, 0.45)));
+}
+.probe .slot.new {
+  stroke: #fff;
+  stroke-width: 2.2;
+}
+.probe .slot.probed {
+  stroke: #fff;
+  stroke-width: 2.2;
+}
+.probe .slot.overflow {
+  stroke: #fff;
+  stroke-width: 2.6;
+  fill: var(--red);
+}
+
+.probe text {
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--text);
+  font-family: inherit;
+  pointer-events: none;
+}
+.probe .num {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: color-mix(in srgb, var(--text) 82%, var(--accent));
+}
+.probe .num.red {
+  fill: #fff;
+}
+
+.probe .reach {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-dasharray: 4 5;
+  stroke-linecap: round;
+}
+.probe .miss circle {
+  fill: var(--bg);
+  stroke: var(--red);
+  stroke-width: 2;
+}
+.probe .miss path {
+  stroke: var(--red);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.probe .probe-dot {
+  fill: var(--accent);
+}
+.probe .probe-dot.bust {
+  fill: var(--red);
+}
+.probe .home-mark {
+  fill: var(--accent);
+}
+.probe .home-mark.bust {
+  fill: var(--red);
+}
+
+.probe .token {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition-property: transform;
+}
+.probe .token.spin {
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.probe .token.hop {
+  transition-timing-function: ease-in-out;
+}
+.probe .key-token {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 7px var(--accent));
+}
+.probe .key-token.placed {
+  fill: var(--accent);
+  stroke: #fff;
+}
+.probe .key-token.bust {
+  fill: var(--red);
+  stroke: #fff;
+  filter: drop-shadow(0 0 9px var(--red));
+  animation: probe-pop 0.45s ease 2;
+}
+
+.probe .goal {
+  fill: none;
+  stroke: var(--hover);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke 0.25s ease;
+}
+.probe .goal.on {
+  stroke: var(--accent);
+}
+
+.probe .big {
+  font-size: 40px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.probe .big .of {
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.probe .small {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.probe .risk {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--red);
+}
+.probe .risk.free {
+  fill: var(--green);
+}
+.probe .mini {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+.probe .mini.home {
+  fill: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+@keyframes probe-pop {
+  50% {
+    r: 12;
+  }
+}
