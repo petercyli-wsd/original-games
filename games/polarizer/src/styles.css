@@ -1,0 +1,239 @@
+/* Polarizer board. Layout, panel and readouts come from the kit. */
+
+.polar {
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.polar text {
+  fill: var(--text);
+  font-family: inherit;
+}
+.polar .dial {
+  fill: color-mix(in srgb, var(--accent) 5%, transparent);
+  stroke: var(--hover);
+  stroke-width: 2;
+}
+.polar .tick {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.5;
+}
+.polar .tick.big {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 2;
+}
+.polar .lbl {
+  font-size: 13px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.polar .goal {
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  opacity: 0.8;
+}
+.polar .goal.hit {
+  stroke: var(--green);
+  stroke-dasharray: none;
+  stroke-width: 4;
+  opacity: 1;
+}
+.polar .goal-lbl {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--gold);
+}
+.polar .goal-lbl.hit {
+  fill: var(--green);
+}
+
+.polar .passed {
+  stroke: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke-width: 1.5;
+}
+.polar .passed-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.polar .planned {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+
+.polar .construction {
+  transition: opacity 0.3s ease;
+}
+.polar .construction.fade {
+  opacity: 0.35;
+}
+.polar .axis {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 8 6;
+}
+.polar .axis-dot {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.polar .axis-dot.fail {
+  stroke: var(--red);
+}
+.polar .delta-arc {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.polar .delta-lbl {
+  font-size: 13px;
+  font-weight: 700;
+  fill: var(--accent);
+  text-anchor: middle;
+}
+.polar .perp {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+.polar .shadow {
+  stroke: var(--green);
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.polar .foot {
+  fill: var(--green);
+}
+
+.polar .photon.emit {
+  transform-box: view-box;
+  transform-origin: 56px 336px;
+  animation: polar-emit 0.45s ease-out;
+}
+.polar .rot {
+  transform-box: view-box;
+  transform-origin: 56px 336px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.25, 1);
+}
+.polar .vec {
+  stroke: var(--text);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.polar .head {
+  fill: var(--text);
+}
+.polar .photon.live .vec {
+  stroke: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.polar .photon.live .head {
+  fill: #fff;
+}
+.polar .photon.ghost {
+  opacity: 0.6;
+}
+.polar .photon.dead .vec {
+  stroke: var(--red);
+}
+.polar .photon.dead .head {
+  fill: var(--red);
+}
+.polar .photon.dead {
+  animation: polar-fade 0.9s ease forwards;
+}
+.polar .photon.won .vec {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 8px var(--green));
+}
+.polar .photon.won .head {
+  fill: var(--green);
+}
+.polar .hub {
+  fill: var(--hover);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.polar .big {
+  font-size: 38px;
+  font-weight: 800;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.polar .small {
+  font-size: 13px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.polar .shadow-lbl {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--green);
+  text-anchor: middle;
+}
+
+.polar .bar .pass {
+  fill: color-mix(in srgb, var(--green) 75%, transparent);
+}
+.polar .bar .absorb {
+  fill: color-mix(in srgb, var(--red) 55%, transparent);
+}
+.polar .bar .frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.polar .bar-val {
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--green);
+  text-anchor: middle;
+}
+.polar .bar-cap {
+  font-size: 12px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.polar .marker {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.5, 0, 0.6, 1.2);
+}
+.polar .marker line {
+  stroke: #fff;
+  stroke-width: 3;
+}
+.polar .marker circle {
+  fill: #fff;
+}
+.polar .marker.pass line {
+  stroke: var(--green);
+}
+.polar .marker.pass circle {
+  fill: var(--green);
+}
+.polar .marker.fail line {
+  stroke: var(--red);
+}
+.polar .marker.fail circle {
+  fill: var(--red);
+}
+
+@keyframes polar-emit {
+  from {
+    transform: scale(0.05);
+    opacity: 0;
+  }
+}
+@keyframes polar-fade {
+  to {
+    opacity: 0.45;
+  }
+}
