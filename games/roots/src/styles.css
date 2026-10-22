@@ -1,0 +1,410 @@
+/* Roots board. Layout, panel and readouts come from the kit. */
+
+.og-board.roots-stage {
+  grid-template-columns: minmax(0, 1fr);
+  place-items: start center;
+  align-content: start;
+  row-gap: 14px;
+}
+.og-board.roots-stage .og-round-over.inline {
+  min-height: 62px;
+}
+
+/* ---------- round progress ---------- */
+.roots-steps {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.roots-steps .step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 4px 4px;
+  text-align: center;
+}
+/* The connector to the previous node. */
+.roots-steps .step + .step::before {
+  content: '';
+  position: absolute;
+  top: 31px;
+  right: calc(50% + 34px);
+  left: calc(-50% + 34px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.roots-steps .step.done + .step::before,
+.roots-steps .step.now::before,
+.roots-steps .step.next::before {
+  background: color-mix(in srgb, var(--accent) 70%, transparent);
+}
+.roots-steps .step > span {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.roots-steps .step > b {
+  min-width: 64px;
+  padding: 3px 8px;
+  border-radius: 99px;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: var(--raised);
+  border: 1.5px solid var(--line);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.roots-steps .step > small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.roots-steps .step.cp > small {
+  color: var(--gold);
+  font-weight: 600;
+}
+.roots-steps .step.todo > b {
+  color: var(--muted);
+  border-style: dashed;
+}
+.roots-steps .step.now > b {
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 14px -4px var(--accent);
+}
+.roots-steps .step.next > b {
+  border-color: var(--accent);
+  animation: roots-pulse 0.7s ease-in-out infinite alternate;
+}
+@keyframes roots-pulse {
+  to {
+    box-shadow: 0 0 16px -2px var(--accent);
+  }
+}
+.roots-board {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.roots-board svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  overflow: visible;
+}
+@container (max-width: 760px) {
+  .roots-board {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .roots-board svg {
+    max-height: none;
+  }
+}
+
+.roots-panel text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.roots-panel .panel-bg {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.roots-panel .panel-title {
+  text-anchor: start;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.roots-panel .caption {
+  font-size: 13px;
+  fill: var(--muted);
+}
+.roots-panel .caption.small {
+  font-size: 11px;
+  opacity: 0.8;
+}
+.roots-panel .end {
+  text-anchor: end;
+}
+.roots-panel .start {
+  text-anchor: start;
+}
+
+/* ---------- the odds map ---------- */
+.odds .zone {
+  transition: fill 0.25s ease;
+}
+.odds .zone.win {
+  fill: color-mix(in srgb, var(--green) 34%, var(--bg));
+}
+.odds .zone.lose {
+  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
+}
+.odds .cup {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-opacity: 0.85;
+}
+.odds .cup-label {
+  text-anchor: start;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: italic;
+  fill: #fff;
+  paint-order: stroke;
+  stroke: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke-width: 3px;
+}
+.odds .cup-label.end {
+  text-anchor: end;
+}
+.odds .zone-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  fill: #fff;
+  fill-opacity: 0.7;
+}
+.odds .zero-line {
+  stroke: #fff;
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.odds .box {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.odds .dim {
+  fill: var(--card);
+  fill-opacity: 0.86;
+}
+.odds .band-edge {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.odds .tick {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.odds .tick.strong {
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.odds .tick-mark {
+  stroke: var(--muted);
+  stroke-width: 1;
+}
+.odds .axis-name {
+  font-size: 13px;
+  font-weight: 800;
+  font-style: italic;
+  fill: var(--accent);
+}
+.odds .ruler {
+  stroke-width: 12;
+  stroke-linecap: butt;
+}
+.odds .ruler.win {
+  stroke: var(--green);
+}
+.odds .ruler.lose {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.odds .ruler-tick {
+  stroke: #fff;
+  stroke-width: 2;
+}
+.odds .ruler-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  fill: #fff;
+  fill-opacity: 0.85;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 3px;
+}
+.odds .marker-drop {
+  stroke: #fff;
+  stroke-opacity: 0.5;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+.odds .marker-dot {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.odds .marker-dot.won {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 10px var(--green));
+}
+.odds .marker-dot.lost {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 10px var(--red));
+}
+.odds .swatch.win {
+  fill: var(--green);
+}
+.odds .swatch.lose {
+  fill: var(--red);
+}
+.odds .legend {
+  text-anchor: start;
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.odds .legend.mine {
+  fill: var(--text);
+}
+.odds .legend-num {
+  font-weight: 800;
+}
+
+/* ---------- the curve ---------- */
+.curve-panel .equation {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.curve-panel .equation .unknown {
+  fill: var(--accent);
+  font-weight: 800;
+}
+.curve-panel .equation .known {
+  fill: var(--text);
+}
+.curve-panel .equation .known.fresh {
+  fill: var(--accent);
+}
+.curve-panel .axis-tick {
+  font-size: 10.5px;
+  fill: var(--muted);
+  opacity: 0.85;
+}
+.curve-panel .axis-tick.end {
+  text-anchor: end;
+}
+.curve-panel .grid {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-opacity: 0.6;
+}
+.curve-panel .y-axis {
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.curve-panel .the-line {
+  stroke: #fff;
+  stroke-opacity: 0.8;
+  stroke-width: 2.5;
+}
+.curve-panel .line-label {
+  text-anchor: end;
+  font-size: 12px;
+  font-weight: 700;
+  font-style: italic;
+  fill: var(--muted);
+}
+.curve-panel .ghost {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 7;
+  opacity: 0.6;
+}
+.curve-panel .ghost-q {
+  font-size: 34px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.curve-panel .bracket line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.curve-panel .bracket text {
+  text-anchor: start;
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+.curve-panel .curve {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.curve-panel .curve.pending {
+  stroke: var(--accent);
+  stroke-dasharray: 10 7;
+}
+.curve-panel .curve.live {
+  stroke: var(--accent);
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.curve-panel .curve.won {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.curve-panel .curve.lost {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.curve-panel .track {
+  fill: none;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-dasharray: 1 7;
+}
+.curve-panel .track.win {
+  stroke: var(--green);
+}
+.curve-panel .track.lose {
+  stroke: var(--red);
+  stroke-width: 5;
+}
+.curve-panel .vertex {
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+.curve-panel .root {
+  fill: var(--gold);
+  stroke: var(--bg);
+  stroke-width: 2.5;
+  animation: roots-pop 0.45s ease both;
+}
+
+@keyframes roots-pop {
+  from {
+    r: 0;
+  }
+  60% {
+    r: 10;
+  }
+}
