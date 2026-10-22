@@ -1,0 +1,221 @@
+/* Condorcet board. Layout, panel and readouts come from the kit. */
+
+.og-board.cd-stage {
+  grid-template-columns: minmax(0, 1fr);
+}
+.cd text {
+  font-family: inherit;
+  fill: var(--text);
+}
+
+/* Header labels */
+.cd .cd-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  fill: var(--muted);
+}
+.cd .cd-head.end {
+  text-anchor: end;
+}
+.cd .cd-head.soft {
+  font-weight: 600;
+  opacity: 0.8;
+}
+.cd-pip {
+  fill: var(--hover);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.cd-pip.won {
+  fill: var(--green);
+  stroke: none;
+}
+.cd-pip.live {
+  fill: var(--accent);
+  stroke: none;
+  filter: drop-shadow(0 0 4px var(--accent));
+}
+.cd-pip.lost {
+  fill: var(--red);
+  stroke: none;
+}
+
+/* Triangle */
+.cd-edge line,
+.cd-edge polygon {
+  transition-property: stroke-width, opacity;
+}
+.cd-edge line {
+  stroke-linecap: round;
+}
+.cd-edge.tied line {
+  stroke-dasharray: 5 6;
+  opacity: 0.6;
+}
+.cd .cd-margin {
+  font-size: 14px;
+  font-weight: 800;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.cd .cd-pair {
+  font-size: 10px;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.cd-node circle:not(.cd-ring) {
+  stroke: var(--bg);
+  stroke-width: 3;
+}
+.cd-node.lead circle:not(.cd-ring) {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--text) 45%, transparent));
+}
+.cd .cd-node-text {
+  font-size: 23px;
+  font-weight: 800;
+  text-anchor: middle;
+  fill: #14141c;
+}
+.cd-ring {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+}
+.cd-centre circle {
+  fill: color-mix(in srgb, var(--hover) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.cd-centre.mine circle {
+  stroke: var(--green);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+}
+.cd-centre.on circle {
+  fill: color-mix(in srgb, #a594f9 22%, var(--card));
+}
+.cd .cd-centre-text {
+  font-size: 12px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.cd-loop {
+  fill: none;
+  stroke: #a594f9;
+  stroke-width: 3;
+  opacity: 0.7;
+}
+.cd-loop-head {
+  fill: #a594f9;
+  opacity: 0.8;
+}
+
+/* Odds bar */
+.cd-bar-bg {
+  fill: var(--hover);
+}
+.cd-seg {
+  opacity: 0.4;
+  transition: x 0.25s ease, width 0.25s ease;
+}
+.cd-seg.mine {
+  opacity: 1;
+}
+.cd-seg-mine {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.5;
+}
+.cd-legend text {
+  font-size: 12px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cd-legend.mine text {
+  fill: var(--green);
+  font-weight: 800;
+}
+
+/* Next-ballot tiles */
+.cd-tile rect {
+  fill: var(--raised);
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+.cd-tile.up rect {
+  fill: color-mix(in srgb, var(--green) 10%, var(--raised));
+  stroke: color-mix(in srgb, var(--green) 55%, transparent);
+}
+.cd-tile.sure rect {
+  fill: color-mix(in srgb, var(--green) 22%, var(--raised));
+  stroke: var(--green);
+}
+.cd-tile.down rect {
+  fill: color-mix(in srgb, var(--red) 10%, var(--raised));
+  stroke: color-mix(in srgb, var(--red) 55%, transparent);
+}
+.cd-tile.dead rect {
+  fill: color-mix(in srgb, var(--red) 22%, var(--raised));
+  stroke: var(--red);
+}
+.cd .cd-tile-p {
+  font-size: 12px;
+  font-weight: 800;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.cd .cd-tile.up .cd-tile-p,
+.cd .cd-tile.sure .cd-tile-p {
+  fill: var(--green);
+}
+.cd .cd-tile.down .cd-tile-p,
+.cd .cd-tile.dead .cd-tile-p {
+  fill: var(--red);
+}
+
+/* Ballot strip */
+.cd-ballot rect {
+  fill: var(--raised);
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
+}
+.cd-ballot.pending rect {
+  fill: none;
+  stroke-dasharray: 3 3;
+  stroke: var(--line);
+}
+.cd-ballot.skipped rect {
+  fill: none;
+  stroke: var(--line);
+  opacity: 0.5;
+}
+.cd-ballot.skipped line {
+  stroke: var(--muted);
+  stroke-width: 1.5;
+  opacity: 0.6;
+}
+.cd-ballot.fresh rect {
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 5px var(--accent));
+}
+.cd-ballot.fresh {
+  animation: cd-pop 0.35s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cd .cd-note {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--text);
+}
+
+@keyframes cd-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.85);
+  }
+}
