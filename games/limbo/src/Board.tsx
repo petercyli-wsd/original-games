@@ -114,7 +114,7 @@ export function Dial({ target, value, state, burstId }: { target: number; value:
         TARGET {fmtX(target)}×
       </text>
       <text x={CX} y={CY + 62} className="limbo-sub chance" textAnchor="middle">
-        {chance >= 0.01 ? chance.toFixed(2) : chance.toPrecision(2)}% green
+        {chance >= 1 ? chance.toFixed(2) : chance.toPrecision(2)}% green
       </text>
     </svg>
   );

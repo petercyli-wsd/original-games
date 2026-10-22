@@ -13,11 +13,9 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
-  StageTop,
   VolBadge,
   useAutoBet,
   useBetInput,
-  useHistory,
   useHotkeys,
   useTicket,
   useTurbo,
@@ -57,13 +55,17 @@ const climbMs = (x: number, turbo: boolean) => {
   return turbo ? Math.round(ms * 0.25) : ms;
 };
 
+/** Compact history label: 1.50, 20.90, 1.2k, 3.4M. */
+const fmtHist = (x: number) => (x >= 1e6 ? `${+(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${+(x / 1e3).toFixed(1)}k` : fmtX(x));
+
 const presetLabel = (t: number) => (t >= 1000 ? `${t / 1000}k×` : `${t}×`);
 
 export default function Game() {
   const { rng } = useHost();
   const bet = useBetInput();
   const turbo = useTurbo();
-  const [history, pushHistory] = useHistory(14);
+  // Result history (Stake-style): the drawn multiplier, green when it paid.
+  const [history, setHistory] = useState<{ id: number; result: number; win: boolean }[]>([]);
 
   const [target, setTargetRaw] = useState(2);
   const [rolling, setRolling] = useState(false);
@@ -74,9 +76,12 @@ export default function Game() {
   const raf = useRef(0);
   useEffect(() => () => cancelAnimationFrame(raf.current), []);
 
-  // The outcome is fixed before the counter starts; leaving mid-climb settles at it.
+  // The outcome is drawn the moment the stake is accepted, before the counter
+  // starts; leaving mid-climb settles the open ticket at exactly that outcome.
+  // (A ticket only exists between place() and settle(), so the ref is always
+  // the current round's payout whenever it is read.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (rolling ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const chance = winChance(target);
   const level = volatilityOf(target);
@@ -107,8 +112,9 @@ export default function Game() {
     setDisplay(1);
     await climb(out.result, climbMs(out.result, turbo.turbo));
     ticket.settle(out.multiplier);
-    pushHistory(out.multiplier);
-    setLast({ id: ++seq.current, result: out.result, win: out.win, multiplier: out.multiplier, stake, target: t });
+    const id = ++seq.current;
+    setHistory((h) => [{ id, result: out.result, win: out.win }, ...h].slice(0, 16));
+    setLast({ id, result: out.result, win: out.win, multiplier: out.multiplier, stake, target: t });
     setRolling(false);
     return out.multiplier;
   }
@@ -195,8 +201,12 @@ export default function Game() {
         <>
           <ModeTabs auto={auto} disabled={rolling} />
           <BetField bet={bet} disabled={busy} />
-          <Label hint={`${fmtX(target)}× payout`}>Profit on win</Label>
-          <div className="limbo-profit">+{formatAmount(profit, 2)}</div>
+          {auto.mode === 'manual' && (
+            <>
+              <Label hint={`${fmtX(target)}× payout`}>Profit on win</Label>
+              <div className="limbo-profit">+{formatAmount(profit, 2)}</div>
+            </>
+          )}
 
           <Label hint={<VolBadge level={level} />}>Quick target</Label>
           <Chips
@@ -223,7 +233,7 @@ export default function Game() {
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || rolling}>
               <p className="limbo-auto-note">
-                Each bet targets <b>{fmtX(target)}×</b> ({fmtPct(chance * 100)}%). Set the target under the dial.
+                Each bet: <b>{fmtX(target)}×</b> at {fmtPct(chance * 100)}% · profit +{formatAmount(profit, 2)}
               </p>
             </AutoBetControls>
           )}
@@ -233,7 +243,18 @@ export default function Game() {
         </>
       }
     >
-      <StageTop status={status} tone={rolling ? 'live' : last ? (last.win ? 'won' : 'lost') : 'idle'} history={history} />
+      <div className="og-stage-top">
+        <span className={`og-status ${rolling ? 'live' : last ? (last.win ? 'won' : 'lost') : 'idle'}`} aria-live="polite">
+          {status}
+        </span>
+        <div className="og-history limbo-history" aria-label="Recent results">
+          {history.map((h) => (
+            <span key={h.id} className={`og-hist ${h.win ? 'w' : 'l'}`} title={h.win ? 'Won' : 'Lost'}>
+              {fmtHist(h.result)}×
+            </span>
+          ))}
+        </div>
+      </div>
 
       <Board className="limbo-board">
         <InstantResult multiplier={last && !rolling ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />

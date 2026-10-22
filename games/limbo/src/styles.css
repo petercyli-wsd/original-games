@@ -20,7 +20,10 @@
 }
 .limbo-auto-note {
   margin: 0 0 2px;
-  padding: 8px 10px;
+  padding: 6px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--accent) 10%, var(--bg));
   border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
@@ -265,5 +268,21 @@
   .limbo-inputs {
     grid-template-columns: minmax(0, 1fr);
     padding: 12px;
+  }
+}
+
+/* Result history: newest on the left stays visible; the oldest chips fall off
+   the right edge on narrow screens (the row still sits right when it fits). */
+.limbo-history {
+  justify-content: flex-start;
+  margin-left: auto;
+}
+.limbo-history .og-hist:first-child {
+  animation: limbo-hist-in 0.22s ease-out;
+}
+@keyframes limbo-hist-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
   }
 }
