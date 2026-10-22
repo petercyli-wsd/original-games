@@ -294,8 +294,8 @@ export default function Game() {
       </Board>
 
       <div className="rd-inputs">
-        <LinkedInput label="Low" value={String(range.low)} disabled={busy} onCommit={(v) => update(setEnd(range, 'low', v))} />
-        <LinkedInput label="High" value={String(range.high)} disabled={busy} onCommit={(v) => update(setEnd(range, 'high', v))} />
+        <LinkedInput label="Low" value={fmtN(range.low)} disabled={busy} onCommit={(v) => update(setEnd(range, 'low', v))} />
+        <LinkedInput label="High" value={fmtN(range.high)} disabled={busy} onCommit={(v) => update(setEnd(range, 'high', v))} />
         <LinkedInput
           label="Multiplier"
           value={multiplier.toFixed(4)}
