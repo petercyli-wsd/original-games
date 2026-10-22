@@ -1,0 +1,231 @@
+/* Core board. Layout, panel and readouts come from the kit. */
+
+.core-board text {
+  font-family: inherit;
+  text-anchor: middle;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.core-board text.start {
+  text-anchor: start;
+}
+.core-board text.end {
+  text-anchor: end;
+}
+
+/* Slots and bars. */
+.core-board .slot line {
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+}
+.core-board .row-label {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.core-board .slot.filled .row-label {
+  fill: var(--text);
+}
+.core-board .bar line {
+  stroke-linecap: round;
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+}
+.core-board .bar .end {
+  fill: var(--text);
+}
+.core-board .bar.last line {
+  stroke: var(--accent);
+}
+.core-board .bar.landing line {
+  stroke: #fff;
+}
+.core-board .bar.busted line {
+  stroke: var(--red);
+}
+.core-board .bar.busted .end {
+  fill: #fff;
+}
+.core-board .bar.grow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: core-grow;
+  animation-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+/* The core band, its edges dropping onto the square, and the segment. */
+.core-board .core-band {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  transition: x 0.3s ease, width 0.3s ease;
+}
+.core-board .core-band.won {
+  fill: color-mix(in srgb, var(--green) 18%, transparent);
+}
+.core-board .core-edge {
+  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 4;
+}
+.core-board .axis {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 2;
+}
+.core-board .core-seg {
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+}
+.core-board .core-seg.won {
+  stroke: var(--green);
+}
+.core-board .tick {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.core-board .lr {
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--accent);
+}
+
+/* The endpoint square. */
+.core-board .sq {
+  fill: color-mix(in srgb, var(--text) 4%, transparent);
+}
+.core-board .sq.live {
+  fill: color-mix(in srgb, var(--green) 10%, transparent);
+}
+.core-board .sq-edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.core-board .diag {
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.core-board .red {
+  fill: color-mix(in srgb, var(--red) 34%, transparent);
+  stroke: var(--red);
+  stroke-width: 1.5;
+}
+.core-board .red-label {
+  font-size: 13px;
+  font-weight: 800;
+  fill: #fff;
+}
+.core-board .red-sub {
+  font-size: 11px;
+  fill: color-mix(in srgb, #fff 80%, transparent);
+}
+.core-board .axis-label {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.core-board .formula {
+  font-size: 12.5px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.core-board .formula.risky {
+  fill: var(--red);
+}
+
+/* Dots: one per interval, at (first end, second end). */
+.core-board .dot {
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+.core-board .dot.kept {
+  fill: color-mix(in srgb, var(--text) 70%, transparent);
+}
+.core-board .dot.last {
+  fill: var(--accent);
+}
+.core-board .dot.landing {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.core-board .dot.busted {
+  fill: var(--red);
+  stroke: #fff;
+  stroke-width: 2;
+  animation: core-pop 0.5s ease 2;
+}
+.core-board .dot.drop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation-name: core-drop;
+  animation-timing-function: ease-out;
+  animation-fill-mode: both;
+}
+
+@keyframes core-grow {
+  from {
+    transform: scaleX(0);
+    opacity: 0.2;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@keyframes core-drop {
+  0% {
+    transform: scale(4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.4);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes core-pop {
+  50% {
+    r: 10;
+  }
+}
+
+/* The result card sits beside the board on wide frames, over its foot on
+   medium ones, and below it (in flow) on narrow ones, so the red squares and
+   the bust dot stay visible where there is room. */
+.og-board.core-stage {
+  grid-template-columns: minmax(0, 1fr);
+}
+.core-over {
+  position: absolute;
+  right: 4px;
+  bottom: 50%;
+  width: 270px;
+  transform: translateY(50%);
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+.core-over > * {
+  pointer-events: auto;
+}
+@container (max-width: 1180px) {
+  .core-over {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    transform: none;
+    justify-content: center;
+  }
+}
+@container (max-width: 760px) {
+  .core-over {
+    position: static;
+    width: 100%;
+    min-width: 0;
+    margin-top: 4px;
+  }
+}
