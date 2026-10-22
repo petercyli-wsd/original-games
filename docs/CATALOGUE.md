@@ -455,3 +455,35 @@ Weighted voters (presets such as [5, 4, 3, 2, 1] with quota 9) join a coalition 
 ### homecoming
 **Homecoming** · random-walk · accent `#e0aaff` · M, C
 A simple random walk on ℤ^d with d ∈ {1, 2, 3} (dimension is the volatility knob). Win if it returns to the origin within T steps (T ∈ {10, 20, 40}). Pólya: return is certain eventually in 1D and 2D, ≈ 34% in 3D. Live P is exact by DP over positions (use symmetry to reduce states). For 3D, draw the three coordinates as projections.
+
+### Batch 2 results
+
+All 21 are built and committed. Each passes typecheck, its unit tests (625 across the repo), `npm run eval`, a second 200k-round eval on a fresh seed, a headless-Chrome smoke test with no console errors, and the platform build. As with the end of batch 1, the separate adversarial review stage was not run. Flagged by the builders:
+
+- **Witness:** Miller–Rabin settles most rounds on the first test, so only 27–49% of rounds reach a checkpoint.
+- **Thales:** the equilateral-triangle constant comes from exact-piecewise quadrature, checked to 1e-12 against the square's closed form.
+- **Median, Mediant, Shunt:** rounds are short, about 2–4 steps.
+
+| Game | Mechanic | RTP range (z) | Std dev low → high | Spread | Avg steps | Max seen | ok |
+|---|---|---|---|---|---|---|---|
+| Hamming | combinatorics | 98.51%–99.63% (max \|z\| 1.4) | 0.29 → 9.07 | 31.5× | 3.1–7.9 | 126× | ✓ |
+| Median | geometry | 98.89%–99.52% (max \|z\| 1.8) | 0.18 → 3.83 | 20.8× | 2.8–4.0 | 59× | ✓ |
+| Mediant | number-theory | 98.76%–102.69% (max \|z\| 0.8) | 0.93 → 15.39 | 16.6× | 1.9–2.3 | 1014× | ✓ |
+| Thales | geometry | 98.75%–100.16% (max \|z\| 1.4) | 0.55 → 4.51 | 8.3× | 1.6–2.1 | 48× | ✓ |
+| Zigzag | combinatorics | 96.26%–99.28% (max \|z\| 1.1) | 1.10 → 7.87 | 7.2× | 2.7–3.0 | 175× | ✓ |
+| Connect | graph | 99.02%–99.51% (max \|z\| 1.7) | 0.20 → 2.96 | 14.6× | 5.8–8.3 | 28× | ✓ |
+| Spanning | graph | 98.52%–100.12% (max \|z\| 2.1) | 0.58 → 3.33 | 5.8× | 2.2–2.6 | 41× | ✓ |
+| Euclid | number-theory | 98.68%–99.17% (max \|z\| 0.8) | 0.71 → 4.92 | 6.9× | 2.4–3.4 | 61× | ✓ |
+| Waldegrave | process | 97.82%–99.74% (max \|z\| 1.6) | 0.20 → 2.69 | 13.7× | 2.1–5.0 | 15× | ✓ |
+| Bootstrap | graph | 97.92%–99.55% (max \|z\| 1.4) | 0.29 → 3.21 | 11.1× | 2.4–5.0 | 33× | ✓ |
+| Lasso | random-walk | 99.13%–104.22% (max \|z\| 1.0) | 1.04 → 16.18 | 15.5× | 2.9–10.0 | 453× | ✓ |
+| Serials | inference | 98.45%–99.26% (max \|z\| 1.4) | 0.61 → 4.07 | 6.7× | 1.5–3.1 | 56× | ✓ |
+| Shunt | combinatorics | 98.61%–101.27% (max \|z\| 1.3) | 0.72 → 5.58 | 7.8× | 2.0–2.4 | 74× | ✓ |
+| Euler | graph | 98.98%–99.34% (max \|z\| 1.3) | 0.29 → 7.23 | 24.8× | 4.1–4.6 | 113× | ✓ |
+| Gossip | process | 98.59%–99.77% (max \|z\| 0.9) | 0.36 → 8.50 | 23.5× | 3.1–5.0 | 131× | ✓ |
+| Socks | combinatorics | 92.73%–99.09% (max \|z\| 1.1) | 1.38 → 42.88 | 31.1× | 4.2–8.5 | 8981× | ✓ |
+| Condorcet | inference | 96.92%–99.70% (max \|z\| 1.7) | 1.35 → 10.11 | 7.5× | 2.8–4.1 | 139× | ✓ |
+| Polarizer | geometry | 99.03%–102.46% (max \|z\| 1.1) | 0.42 → 9.91 | 23.7× | 1.8–13.4 | 131× | ✓ |
+| Witness | number-theory | 80.97%–99.89% (max \|z\| 1.9) | 0.60 → 33.67 | 56.2× | 1.2–1.5 | 2442× | ✓ |
+| Pivot | combinatorics | 98.93%–100.13% (max \|z\| 1.5) | 0.56 → 5.36 | 9.6× | 2.3–4.8 | 42× | ✓ |
+| Homecoming | random-walk | 97.96%–99.76% (max \|z\| 2.5) | 0.34 → 2.30 | 6.7× | 3.1–5.2 | 8× | ✓ |
