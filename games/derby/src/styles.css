@@ -223,6 +223,12 @@
 .derby .pct.mine {
   fill: var(--accent);
 }
+.derby .pct.up {
+  fill: var(--green);
+}
+.derby .pct.down {
+  fill: var(--red);
+}
 .derby.narrow .pct {
   font-size: 13.5px;
 }

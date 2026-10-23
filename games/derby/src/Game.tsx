@@ -79,6 +79,8 @@ interface Display {
   pos: number[];
   chances: number[];
   moveMs: number;
+  /** Chances before the latest tick, so the board can flash which way each moved. */
+  prev?: number[];
 }
 
 interface Last {
@@ -170,7 +172,7 @@ export default function Game() {
     for (let k = 0; k < ticks.length; k++) {
       const t = ticks[k];
       const chances = t.winners ? FIELD.map((_, i) => (t.winners!.includes(i) ? 1 / t.winners!.length : 0)) : winChances(t.pos, L);
-      setDisplay({ pos: t.pos, chances, moveMs: ms });
+      setDisplay((d) => ({ pos: t.pos, chances, moveMs: ms, prev: d.chances }));
       if (!(await timers.wait(ms + (t.winners ? ms : 0)))) return false;
     }
     return true;
@@ -435,9 +437,9 @@ export default function Game() {
       tone: 'chance',
     },
     {
-      label: 'Cash out now',
-      value: phase === 'checkpoint' || boardPhase === 'over' || (isAuto && autoBusy) ? fmtMult(value) : '—',
-      sub: phase === 'checkpoint' || boardPhase === 'over' ? formatAmount(stake * value, 2) : 'after each leg',
+      label: boardPhase === 'over' ? 'Paid' : running ? 'Worth now' : 'Cash out now',
+      value: boardPhase !== 'idle' ? fmtMult(value) : '—',
+      sub: running && boardPhase === 'live' ? (isAuto ? `live · auto ${target ? `cashes at ${fmtMult(target)}` : 'rides to the line'}` : 'live · cash out after the leg') : boardPhase !== 'idle' ? formatAmount(stake * value, 2) : 'after each leg',
       tone: 'cash',
     },
     {
@@ -465,7 +467,7 @@ export default function Game() {
               aria-checked={on}
               className={'dby-runner' + (on ? ' on' : '')}
               disabled={disabled || (phase === 'checkpoint' && on)}
-              title={np !== null ? `Switch: prize relocks at ${fmtMult(np)}` : `${GAITS[r.gait].blurb}`}
+              title={np !== null ? `Switch: prize relocks at ${fmtMult(np)}` : GAITS[r.gait].detail}
               onClick={() => choose(i)}
             >
               <i style={{ background: r.colour }}>{i + 1}</i>
@@ -563,6 +565,7 @@ export default function Game() {
             L={T}
             pos={boardPhase === 'idle' && !shown ? zeros() : display.pos}
             chances={boardPhase === 'idle' && !shown ? P : display.chances}
+            prev={running && boardPhase === 'live' ? display.prev ?? null : null}
             me={me}
             outcomes={outcomes}
             winners={shown?.outcome ? shown.winners : null}
@@ -639,7 +642,7 @@ export default function Game() {
                   <b style={{ color: r.colour }}>
                     #{i + 1} {GAITS[r.gait].name}
                   </b>
-                  : {GAITS[r.gait].blurb}.
+                  : {GAITS[r.gait].detail}.
                 </li>
               ))}
             </ul>

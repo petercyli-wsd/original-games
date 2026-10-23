@@ -10,6 +10,8 @@ export interface BoardProps {
   pos: readonly number[];
   /** Live win chance of every runner (the tote). */
   chances: readonly number[];
+  /** Chances before the latest tick while a leg runs (each % flashes up or down), else null. */
+  prev?: readonly number[] | null;
   /** Your runner. */
   me: number;
   /** How the next leg could go for your runner, or null. */
@@ -41,7 +43,7 @@ const LANES_Y = 66;
 const RUNOUT = 4;
 
 export default function Board(props: BoardProps) {
-  const { L, pos, chances, me, outcomes, winners, crossed, moveMs, narrow, phase, pickable, onPick, note, running, legNow, photo } = props;
+  const { L, pos, chances, prev, me, outcomes, winners, crossed, moveMs, narrow, phase, pickable, onPick, note, running, legNow, photo } = props;
   const W = narrow ? 420 : 640;
   const labelW = narrow ? 44 : 168;
   const rightW = narrow ? 58 : 82;
@@ -148,7 +150,7 @@ export default function Board(props: BoardProps) {
               </text>
             </g>
             {/* Live chance, as a number and a bar. */}
-            <text x={W - 14} y={cy + (narrow ? 2 : 0)} className={'pct' + (mine ? ' mine' : '')}>
+            <text x={W - 14} y={cy + (narrow ? 2 : 0)} className={'pct' + (mine ? ' mine' : '') + moved(chances[i], prev?.[i])}>
               {phase === 'over' && winners ? (won ? (winners.length > 1 ? `÷${winners.length}` : 'WIN') : '—') : fmtChance(chances[i])}
             </text>
             <rect x={W - rightW + 2} y={cy + 8} width={rightW - 16} height={5} rx={2.5} className="pbar-bg" />
@@ -237,6 +239,13 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
       <line x1={left} x2={left + width} y1={yOf(now)} y2={yOf(now)} className="now-line" />
     </g>
   );
+}
+
+/** ' up' / ' down' when a chance moved noticeably in the last tick. */
+function moved(now: number, before: number | undefined): string {
+  if (before === undefined) return '';
+  const d = now - before;
+  return Math.abs(d) < 0.002 ? '' : d > 0 ? ' up' : ' down';
 }
 
 /** Rounds a scale up to 1, 2 or 5 × a power of ten. */

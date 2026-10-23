@@ -59,19 +59,21 @@ const LAWS = {
 export interface Gait {
   id: GaitId;
   name: string;
-  /** How it runs, in a few words. */
+  /** How it runs, in a few words (shown on the lane). */
   blurb: string;
+  /** The exact stride law, in words (shown in How to play). */
+  detail: string;
   /** Stride law at position x on a track of length L. */
   law(x: number, L: number): Law;
 }
 
 export const GAITS: Record<GaitId, Gait> = {
-  steady: { id: 'steady', name: 'Steady', blurb: '1 or 2 a tick', law: () => LAWS.steady },
-  erratic: { id: 'erratic', name: 'Erratic', blurb: '0 or 3 a tick', law: () => LAWS.erratic },
-  sprinter: { id: 'sprinter', name: 'Sprinter', blurb: '2–3, then 0–2 after ½', law: (x, L) => (x < L / 2 ? LAWS.fast : LAWS.slow) },
-  stayer: { id: 'stayer', name: 'Stayer', blurb: '0–2, then 2–3 after ½', law: (x, L) => (x < L / 2 ? LAWS.slow : LAWS.fast) },
-  wildcard: { id: 'wildcard', name: 'Wildcard', blurb: '0, or 5 one tick in 5', law: () => LAWS.wildcard },
-  plodder: { id: 'plodder', name: 'Plodder', blurb: '1, or 2 one tick in 4', law: () => LAWS.plod },
+  steady: { id: 'steady', name: 'Steady', blurb: '1 or 2 a tick', detail: '1 or 2 every tick, evens', law: () => LAWS.steady },
+  erratic: { id: 'erratic', name: 'Erratic', blurb: '0 or 3 a tick', detail: '0 or 3 every tick, evens: the same average as Steady', law: () => LAWS.erratic },
+  sprinter: { id: 'sprinter', name: 'Sprinter', blurb: 'fast, fades at halfway', detail: '2 or 3 a tick until halfway, then 0, 1 or 2', law: (x, L) => (x < L / 2 ? LAWS.fast : LAWS.slow) },
+  stayer: { id: 'stayer', name: 'Stayer', blurb: 'slow, kicks at halfway', detail: '0, 1 or 2 a tick until halfway, then 2 or 3', law: (x, L) => (x < L / 2 ? LAWS.slow : LAWS.fast) },
+  wildcard: { id: 'wildcard', name: 'Wildcard', blurb: 'still, or leaps 5', detail: '0 four ticks in five, a leap of 5 one tick in five', law: () => LAWS.wildcard },
+  plodder: { id: 'plodder', name: 'Plodder', blurb: '1, sometimes 2', detail: '1 a tick, or 2 one tick in four (never stops, rarely wins)', law: () => LAWS.plod },
 };
 
 export interface Runner {
