@@ -58,6 +58,9 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
   const dmax = Math.max(...dist);
   const barW = Math.max(2, K * 0.78);
   const yourColour = bet.side === 'blue' ? 'blue' : 'red';
+  const sideName = bet.side === 'blue' ? 'Blue' : 'Red';
+  // Seats your side still needs, against the seats still to call.
+  const need = bet.line - (bet.side === 'blue' ? t.blue : t.red);
 
   return (
     <svg viewBox={`0 0 ${W} 474`} className="mj-svg" role="img" aria-label={`Win chance ${pct(win)}: the green share of the paths to victory`} style={{ '--call': `${callMs}ms` } as CSSProperties}>
@@ -118,7 +121,11 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
           <tspan className="k">BLUE</tspan> {t.blue}
         </text>
         <text x={W / 2} y={BAR_Y - 7} className="bar-m">
-          {t.left > 0 ? `${t.left} seats to call` : 'all called'}
+          {need <= 0
+            ? `${sideName} reached ${bet.line}`
+            : need > t.left
+              ? `${sideName} can't reach ${bet.line}`
+              : `${sideName} needs ${need} of ${t.left} left`}
         </text>
         <text x={X1} y={BAR_Y - 7} className="bar-r-l">
           {t.red} <tspan className="k">RED</tspan>

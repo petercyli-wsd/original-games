@@ -83,7 +83,7 @@ interface Last {
   stake: number;
 }
 
-const RULE = 'Regions are called one by one; does your side reach its line?';
+const RULE = 'Regions flip Blue or Red one at a time; you win if your colour reaches its seat line (51, or 65 for a landslide).';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const betWord = (b: Bet) => `${SIDE_LABEL[b.side]} ${b.line}+`;
 const betLong = (b: Bet) => `${SIDE_LABEL[b.side]} ${b.line === 51 ? 'majority (51+ seats)' : 'landslide (65+ seats)'}`;
@@ -133,6 +133,8 @@ export default function Game() {
   const [last, setLast] = useState<Last | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
+  /** The region mid-flip whose colour is still hidden (the result is already fixed). */
+  const [hold, setHold] = useState<number | null>(null);
   const seq = useRef(0);
 
   // A call is decided the moment it starts, so leaving mid-call settles at its
@@ -195,6 +197,8 @@ export default function Game() {
     setNote(null);
     setRound(moved);
     setPhase('calling');
+    setHold(moved.calling);
+    timers.after(Math.round(callMs * 0.45), () => setHold(null));
     timers.after(callMs, () => {
       if (dec) {
         finish(moved, dec === 'win' ? 'won' : 'lost', paid);
@@ -225,6 +229,7 @@ export default function Game() {
   function clear() {
     if (live || autoBusy) return;
     timers.clearAll();
+    setHold(null);
     setRound(null);
     setLast(null);
     setNote(null);
@@ -272,7 +277,11 @@ export default function Game() {
       const cash = dec ? (dec === 'win' ? r.prize : 0) : cashOf(r);
       resolved.current = cash;
       setRound(r);
-      if (!(await timers.wait(autoCallMs))) return null;
+      setHold(r.calling);
+      const half = Math.round(autoCallMs * 0.45);
+      if (!(await timers.wait(half))) return null;
+      setHold(null);
+      if (!(await timers.wait(autoCallMs - half))) return null;
       if (dec) {
         paid = cash;
         outcome = dec === 'win' ? 'won' : 'lost';
@@ -301,6 +310,7 @@ export default function Game() {
   // Switching Manual / Auto starts from a clean board.
   useEffect(() => {
     timers.clearAll();
+    setHold(null);
     setRound(null);
     setLast(null);
     setNote(null);
@@ -346,7 +356,13 @@ export default function Game() {
 
   const viewMap = MAPS[round?.map ?? mapKey];
   const viewBet: Bet = round?.bet ?? { side, line };
-  const calls = round?.calls ?? emptyCalls(viewMap);
+  const rawCalls = round?.calls ?? emptyCalls(viewMap);
+  const calls = useMemo(() => {
+    if (hold === null || rawCalls[hold] === null) return rawCalls;
+    const c = rawCalls.slice();
+    c[hold] = null;
+    return c;
+  }, [rawCalls, hold]);
   const dist = useMemo(() => finalDist(viewMap, calls), [viewMap, calls]);
   const winNow = winChance(viewMap, calls, viewBet);
   const prize = round?.prize ?? RTP / startChance(mapKey, viewBet);
@@ -522,7 +538,7 @@ export default function Game() {
           note={<NextCall odds={odds} id={viewMap.regions[nextIdx].id} w={viewMap.regions[nextIdx].w} now={winNow} />}
         />
       ) : !isAuto && phase === 'calling' ? (
-        <ChanceBar p={winNow} label="Win chance: the green share of the paths to victory" note="Calling the region…" />
+        <ChanceBar p={winNow} label="Win chance: the green share of the paths to victory" note={hold !== null ? `Region ${viewMap.regions[hold].id}: Blue or Red?` : 'Called.'} />
       ) : (
         <Caption>
           <b className="mj-rule">{RULE}</b>
