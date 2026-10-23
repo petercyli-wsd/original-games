@@ -1,0 +1,222 @@
+/* Chase board. Layout, panel and readouts come from the kit. */
+
+.ch-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.ch-board > svg.chase {
+  width: 100%;
+  max-width: 520px;
+  height: auto;
+  max-height: 58vh;
+  aspect-ratio: 1;
+}
+
+.chase .cell {
+  fill: var(--hover);
+}
+.chase .wall {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.chase .heat {
+  fill: var(--green);
+  opacity: 0.32;
+  transition: x 0.25s ease, y 0.25s ease, width 0.25s ease, height 0.25s ease;
+}
+.chase .cell-p {
+  text-anchor: middle;
+  fill: var(--muted);
+  opacity: 0.75;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.chase .door {
+  fill: color-mix(in srgb, var(--green) 22%, transparent);
+  stroke: var(--green);
+  stroke-width: 3;
+}
+.chase .door.won {
+  fill: color-mix(in srgb, var(--green) 45%, transparent);
+  filter: drop-shadow(0 0 12px var(--green));
+}
+.chase .door-mark {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chase .r-trail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chase .h-trail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.chase .gap-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.chase .move .badge {
+  stroke-width: 2;
+}
+.chase .move text {
+  text-anchor: middle;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.chase .move .arrow {
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.chase .move.up .badge {
+  fill: color-mix(in srgb, var(--green) 22%, var(--bg));
+  stroke: var(--green);
+}
+.chase .move.up text {
+  fill: var(--green);
+}
+.chase .move.up .arrow {
+  stroke: var(--green);
+}
+.chase .move.down .badge,
+.chase .move.flat .badge {
+  fill: color-mix(in srgb, var(--gold) 16%, var(--bg));
+  stroke: var(--gold);
+}
+.chase .move.down text,
+.chase .move.flat text {
+  fill: var(--gold);
+}
+.chase .move.down .arrow,
+.chase .move.flat .arrow {
+  stroke: var(--gold);
+}
+.chase .move.dead .badge {
+  fill: color-mix(in srgb, var(--red) 25%, var(--bg));
+  stroke: var(--red);
+}
+.chase .move.dead text {
+  fill: #fff;
+}
+.chase .move.dead .arrow {
+  stroke: var(--red);
+}
+
+.chase .runner,
+.chase .hunter {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+.chase .runner circle {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--text) 50%, transparent));
+}
+.chase .runner.escaped circle {
+  fill: var(--green);
+}
+.chase .runner.caught circle {
+  fill: var(--red);
+}
+.chase .runner .x {
+  stroke: #fff;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+.chase .hunter rect {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 3;
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.chase .hunter.got rect {
+  animation: ch-pulse 0.5s ease 2;
+}
+.chase .hunter .pip {
+  fill: color-mix(in srgb, var(--accent) 25%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1;
+}
+.chase .hunter .pip.on {
+  fill: var(--accent);
+}
+
+.ch-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.ch-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ch-strip b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ch-strip i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.ch-strip .ex i {
+  background: var(--green);
+}
+.ch-strip .hu i {
+  background: var(--accent);
+  transform: rotate(45deg);
+}
+.ch-strip .rh {
+  color: var(--text);
+  font-weight: 600;
+}
+.ch-rule {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.ch-blocked {
+  margin: 0;
+  font-size: 12px;
+  color: var(--red);
+}
+
+@keyframes ch-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+@media (max-width: 760px) {
+  .chase.small .cell-p {
+    display: none;
+  }
+  .ch-board > svg.chase {
+    max-height: none;
+  }
+}
