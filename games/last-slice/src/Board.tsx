@@ -55,11 +55,13 @@ export interface BoardProps {
   out: readonly number[];
   spins: number;
   live: boolean;
+  /** The wheel is turning: light up the slice passing under the pointer. */
+  spinning: boolean;
   editable: boolean;
   onSlice(i: number): void;
 }
 
-export default function Board({ sizes, rot, mine, last, events, win, hit, outcome, out, spins, live, editable, onSlice }: BoardProps) {
+export default function Board({ sizes, rot, mine, last, events, win, hit, outcome, out, spins, live, spinning, editable, onSlice }: BoardProps) {
   const W = sizes.reduce((a, b) => a + b, 0);
   const slices: { i: number; a0: number; a1: number; share: number }[] = [];
   let cum = 0;
@@ -71,6 +73,8 @@ export default function Board({ sizes, rot, mine, last, events, win, hit, outcom
   const evOf = (i: number) => events?.find((e) => e.slice === i) ?? null;
   const mineSlice = slices.find((s) => s.i === mine);
   const winDeg = Math.max(0, Math.min(1, win)) * 360;
+  // While the wheel turns, the slice under the pointer lights up (red when it is yours).
+  const under = spinning && hit === null ? (slices.find((s) => norm(-s.a0) < s.a1 - s.a0)?.i ?? null) : null;
 
   return (
     <svg viewBox="0 0 400 412" className="ls-wheel" role="img" aria-label={`Your slice ${LETTERS[mine]}: ${pct(win)} to be the last slice`}>
@@ -88,6 +92,7 @@ export default function Board({ sizes, rot, mine, last, events, win, hit, outcom
               `slice c${i}` +
               (i === mine ? ' mine' : '') +
               (hit === i ? (i === mine ? ' hit lose' : ' hit') : '') +
+              (under === i ? (i === mine ? ' under danger' : ' under') : '') +
               (outcome === 'won' && i === mine ? ' champ' : '')
             }
             onClick={editable ? () => onSlice(i) : undefined}
@@ -137,7 +142,7 @@ export default function Board({ sizes, rot, mine, last, events, win, hit, outcom
       </g>
 
       {/* The pointer. */}
-      <path d={`M ${CX - 11} ${CY - R - 22} L ${CX + 11} ${CY - R - 22} L ${CX} ${CY - R + 6} Z`} className={'pointer' + (hit !== null ? (hit === mine ? ' lose' : ' hit') : '')} />
+      <path d={`M ${CX - 11} ${CY - R - 22} L ${CX + 11} ${CY - R - 22} L ${CX} ${CY - R + 6} Z`} className={'pointer' + (hit !== null ? (hit === mine ? ' lose' : ' hit') : under === mine ? ' danger' : '')} />
 
       {/* Hub: your chance as a green arc. */}
       <circle cx={CX} cy={CY} r={HUB} className="hub" />

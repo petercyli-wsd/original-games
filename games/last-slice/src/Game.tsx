@@ -79,6 +79,8 @@ interface View {
   sizes: number[];
   rot: number;
   hit: number | null;
+  /** The wheel is turning (before it settles on the landing). */
+  turning?: boolean;
 }
 
 interface Last {
@@ -141,8 +143,8 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
-  const spinMs = () => (isAutoRef.current ? (fast ? 260 : 900) : fast ? 380 : 1500);
-  const shrinkMs = () => (isAutoRef.current ? (fast ? 90 : 260) : fast ? 120 : 420);
+  const spinMs = () => (isAutoRef.current ? (fast ? 240 : 640) : fast ? 380 : 1250);
+  const shrinkMs = () => (isAutoRef.current ? (fast ? 80 : 200) : fast ? 120 : 380);
   const live = phase === 'spinning' || phase === 'checkpoint';
 
   function cashOf(r: Round) {
@@ -183,7 +185,7 @@ export default function Game() {
     const rot0 = v0.rot;
     const rot1 = rot0 + 360 * turns + (((-frac * 360 - rot0) % 360) + 360) % 360;
     setView({ sizes, rot: rot0, hit: null });
-    if (!(await tween(spinMs(), (t) => setView({ sizes, rot: rot0 + (rot1 - rot0) * easeOut(t), hit: null })))) return false;
+    if (!(await tween(spinMs(), (t) => setView({ sizes, rot: rot0 + (rot1 - rot0) * easeOut(t), hit: null, turning: t < 1 })))) return false;
     setView({ sizes, rot: rot1, hit: slice });
     if (slice === r.mine) return true;
     const m = rot1 + frac * 360;
@@ -303,7 +305,7 @@ export default function Game() {
       if (hitMine) {
         outcome = 'lost';
         paid = 0;
-        if (!(await timers.wait(fast ? 120 : 380))) return null;
+        if (!(await timers.wait(fast ? 120 : 320))) return null;
         break;
       }
       if (countAlive(mask) === 1) {
@@ -566,6 +568,7 @@ export default function Game() {
           out={r.out}
           spins={r.spins}
           live={live}
+          spinning={!!v.turning && (phase === 'spinning' || autoBusy)}
           editable={editable}
           onSlice={onSlice}
         />
@@ -587,6 +590,16 @@ export default function Game() {
         <ChanceBar p={winNow} label={`Win chance: ${LETTERS[r.mine]} is the last slice`} note={<NextSpin events={events} now={winNow} mine={r.mine} />} />
       ) : !isAuto && phase === 'spinning' ? (
         <ChanceBar p={winNow} label={`Win chance: ${LETTERS[r.mine]} is the last slice`} note="Spinning…" />
+      ) : isAuto && round && (autoBusy || auto.running) ? (
+        <ChanceBar
+          p={winNow}
+          label={`Win chance: ${LETTERS[r.mine]} is the last slice`}
+          note={
+            target > 0 && target < r.prize
+              ? `Worth ${fmtMult(cash)} now · Auto cashes at ${fmtMult(target)} (once the chance reaches ${fmtChance(target / r.prize)}), or wins ${fmtMult(r.prize)} if ${LETTERS[r.mine]} is last`
+              : `Worth ${fmtMult(cash)} now · Auto plays to the last slice for ${fmtMult(r.prize)}`
+          }
+        />
       ) : (
         <Caption>
           <b className="ls-rule">{RULE}</b>
