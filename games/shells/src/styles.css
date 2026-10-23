@@ -1,0 +1,279 @@
+/* Shells board. Layout, panel and readouts come from the kit. */
+
+.sh-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.sh-blocked {
+  margin: 0;
+  font-size: 12px;
+  color: var(--red);
+}
+
+.shells text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The auto result pill sits under the board, clear of the shuffle pips. */
+.sh-board .og-instant {
+  top: auto;
+  bottom: 6px;
+}
+
+/* ---------- The shuffle pips ---------- */
+.shells .pip rect {
+  fill: color-mix(in srgb, var(--text) 16%, transparent);
+  stroke: transparent;
+  stroke-width: 2;
+  transition: opacity 0.2s ease, stroke 0.2s ease;
+}
+.shells .pip.blind rect {
+  fill: transparent;
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-dasharray: 4 4;
+}
+.shells .pip text {
+  font-size: 14px;
+  font-weight: 800;
+  fill: var(--muted);
+}
+.shells .pip.done {
+  opacity: 0.28;
+}
+.shells .pip.next rect {
+  stroke: var(--accent);
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.shells .pip.next text {
+  fill: var(--accent);
+}
+
+/* ---------- Bars: each cup's chance to end with the ball ---------- */
+.shells .axis {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.shells .bar .track {
+  fill: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.shells .bar .fill {
+  fill: color-mix(in srgb, var(--text) 34%, transparent);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.shells .bar.mine .fill {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 50%, transparent));
+}
+.shells .bar.found .fill {
+  fill: var(--gold);
+}
+.shells .bar .pct {
+  font-size: 20px;
+  font-weight: 800;
+}
+.shells .bar.mine .pct {
+  fill: var(--accent);
+}
+.shells .bar .pct.zero {
+  fill: var(--muted);
+  opacity: 0.6;
+}
+
+/* ---------- Cups ---------- */
+.shells .cup .hit {
+  fill: transparent;
+}
+.shells .cup .rim {
+  fill: var(--raised);
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 3;
+  transition: stroke 0.2s ease;
+}
+.shells .cup.mine .rim {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+.shells .cup .inner {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 1.5;
+}
+.shells .cup .pie {
+  fill: #fff4e6;
+  opacity: 0.92;
+}
+.shells .bar .num {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.shells .bar.mine .num {
+  fill: var(--accent);
+}
+.shells .cup.pickable {
+  cursor: pointer;
+}
+.shells .cup.pickable:hover .rim {
+  stroke: color-mix(in srgb, var(--accent) 75%, var(--text));
+}
+.shells .cup {
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1), opacity 0.35s ease;
+}
+.shells .cup.lifted {
+  transform: translate(0, -10px);
+  opacity: 0.38;
+}
+.shells .cup.lifted .pie {
+  opacity: 0;
+}
+.shells .cup.hop-r {
+  animation: sh-hop-r both cubic-bezier(0.45, 0, 0.3, 1);
+}
+.shells .cup.hop-l {
+  animation: sh-hop-l both cubic-bezier(0.45, 0, 0.3, 1);
+}
+.shells .cup.jiggle {
+  animation: sh-jiggle both ease-in-out;
+}
+@keyframes sh-hop-r {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(calc(var(--dx) * 0.5), -22px);
+  }
+  100% {
+    transform: translate(var(--dx), 0);
+  }
+}
+@keyframes sh-hop-l {
+  0% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(calc(var(--dx) * 0.5), 22px);
+  }
+  100% {
+    transform: translate(var(--dx), 0);
+  }
+}
+@keyframes sh-jiggle {
+  25%,
+  65% {
+    transform: translate(0, -6px);
+  }
+  45%,
+  85% {
+    transform: translate(0, 6px);
+  }
+}
+
+/* The blind cover. */
+.shells .cover {
+  animation: sh-cover both ease;
+}
+.shells .cover rect {
+  fill: var(--hover);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 8 6;
+}
+.shells .cover text {
+  font-size: 34px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.shells .cover text.sub {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+@keyframes sh-cover {
+  0% {
+    opacity: 0;
+    transform: translate(0, -24px);
+  }
+  22%,
+  78% {
+    opacity: 1;
+    transform: translate(0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(0, -24px);
+  }
+}
+
+/* The real ball and your marker. */
+.shells .ball {
+  fill: var(--gold);
+  stroke: #fff;
+  stroke-width: 3;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gold) 70%, transparent));
+  animation: sh-pop 0.35s ease both;
+}
+@keyframes sh-pop {
+  from {
+    opacity: 0;
+    r: 4;
+  }
+}
+.shells .you {
+  fill: var(--accent);
+}
+.shells .you.won {
+  fill: var(--green);
+}
+.shells .you.lost {
+  fill: var(--red);
+}
+
+/* Prizes under the cups. */
+.shells .prize {
+  font-size: 18px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.shells .prize.mine {
+  fill: var(--gold);
+}
+.shells .prize.off {
+  opacity: 0.45;
+}
+
+/* What each possible next move would do to your chance. */
+.shells .chip rect {
+  fill: var(--raised);
+  stroke: var(--line);
+}
+.shells .chip text {
+  font-size: 17px;
+  font-weight: 800;
+}
+.shells .chip.up rect {
+  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+}
+.shells .chip.up text {
+  fill: var(--green);
+}
+.shells .chip.down rect {
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+}
+.shells .chip.down text {
+  fill: color-mix(in srgb, var(--red) 80%, #fff);
+}
+.shells .chip.flat text {
+  fill: var(--muted);
+}
+.shells .legend {
+  font-size: 14px;
+  fill: var(--muted);
+}
