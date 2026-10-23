@@ -1,0 +1,328 @@
+/* Majority board. Layout, panel and readouts come from the kit. */
+
+.mj-game {
+  --blue: #3a86ff;
+  --rd: #ef476f;
+}
+
+.og-board.mj-board > svg {
+  max-height: 60vh;
+}
+
+.mj-svg text {
+  font-family: inherit;
+}
+
+/* ---------- Hexes ---------- */
+.mj-svg .fill-b {
+  fill: color-mix(in srgb, var(--blue) 38%, var(--bg));
+}
+.mj-svg .fill-r {
+  fill: color-mix(in srgb, var(--rd) 26%, var(--bg));
+}
+.mj-svg .edge {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1.5;
+}
+.mj-svg .hex.called .edge {
+  stroke: color-mix(in srgb, #fff 45%, transparent);
+}
+.mj-svg .hex.b .solid {
+  fill: var(--blue);
+}
+.mj-svg .hex.r .solid {
+  fill: var(--rd);
+}
+.mj-svg .hex .w {
+  text-anchor: middle;
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.mj-svg .hex.called .w {
+  fill: #fff;
+  font-size: 19px;
+}
+.mj-svg .hex .id {
+  text-anchor: middle;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  fill: color-mix(in srgb, var(--text) 55%, transparent);
+  pointer-events: none;
+}
+.mj-svg .hex.called .id {
+  fill: color-mix(in srgb, #fff 75%, transparent);
+}
+.mj-svg .hex.next .id {
+  fill: var(--gold);
+}
+.mj-svg .hex .p {
+  text-anchor: middle;
+  font-size: 11px;
+  font-weight: 700;
+  fill: color-mix(in srgb, var(--text) 80%, transparent);
+  pointer-events: none;
+}
+.mj-svg .hex-body {
+  transform-box: view-box;
+}
+.mj-svg .hex.flip .hex-body {
+  animation: mj-flip var(--call) cubic-bezier(0.3, 0.7, 0.3, 1);
+}
+@keyframes mj-flip {
+  0% {
+    transform: scaleX(1);
+  }
+  45% {
+    transform: scaleX(0.05);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+.mj-svg .spot {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 6px var(--gold));
+  animation: mj-pulse 1s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes mj-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.45;
+  }
+}
+
+/* ---------- Weight bar ---------- */
+.mj-svg .bar-bg {
+  fill: color-mix(in srgb, var(--text) 8%, transparent);
+}
+.mj-svg .bar-b {
+  fill: var(--blue);
+  transition: width 0.3s ease;
+}
+.mj-svg .bar-r {
+  fill: var(--rd);
+  transition: x 0.3s ease, width 0.3s ease;
+}
+.mj-svg .bar-l,
+.mj-svg .bar-r-l {
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.mj-svg .bar-l .k,
+.mj-svg .bar-r-l .k {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.mj-svg .bar-m {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.mj-svg .bar-l {
+  fill: var(--blue);
+}
+.mj-svg .bar-r-l {
+  fill: var(--rd);
+  text-anchor: end;
+}
+.mj-svg .bar-m {
+  fill: var(--muted);
+  text-anchor: middle;
+  font-weight: 600;
+}
+.mj-svg .half {
+  stroke: color-mix(in srgb, var(--text) 45%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 3;
+}
+
+/* ---------- Paths to victory ---------- */
+.mj-svg .zone {
+  fill: color-mix(in srgb, var(--green) 6%, transparent);
+}
+.mj-svg .pbar {
+  fill: color-mix(in srgb, var(--text) 22%, transparent);
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  transition: transform 0.35s ease;
+}
+.mj-svg .pbar.good {
+  fill: var(--green);
+}
+.mj-svg .axis {
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1;
+}
+.mj-svg .yourline {
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+}
+.mj-svg .yourline.blue {
+  stroke: var(--blue);
+}
+.mj-svg .yourline.red {
+  stroke: var(--rd);
+}
+.mj-svg .yourline-l {
+  font-size: 12px;
+  font-weight: 800;
+  fill: var(--text);
+}
+.mj-svg .yourline-l.end {
+  text-anchor: end;
+}
+.mj-svg .tick {
+  text-anchor: middle;
+  font-size: 11px;
+  fill: var(--muted);
+}
+.mj-svg .legend {
+  text-anchor: middle;
+  font-size: 12px;
+  fill: var(--muted);
+}
+
+/* ---------- Next call ---------- */
+.mj-next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+.mj-next-head {
+  font-size: 12px;
+  color: var(--muted);
+}
+.mj-next-head b {
+  color: var(--gold);
+}
+.mj-next-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.mj-ev {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.mj-ev-what {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mj-ev-what i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.mj-ev.b .mj-ev-what i {
+  background: var(--blue);
+}
+.mj-ev.r .mj-ev-what i {
+  background: var(--rd);
+}
+.mj-ev b {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.mj-ev.up {
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+}
+.mj-ev.up b {
+  color: var(--green);
+}
+.mj-ev.down {
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+.mj-ev.down b {
+  color: var(--red);
+}
+
+/* ---------- Panel bits ---------- */
+.mj-side {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mj-side i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.mj-side.blue i {
+  background: var(--blue);
+}
+.mj-side.red i {
+  background: var(--rd);
+}
+.mj-chip2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.mj-chip2 small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.65;
+}
+.mj-blurb {
+  margin: -2px 0 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.mj-rule {
+  color: var(--text);
+  font-size: 14px;
+}
+.mj-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+
+@container (max-width: 760px) {
+  .og-board.mj-board > svg {
+    max-height: none;
+  }
+  .mj-ev {
+    flex-direction: column;
+    gap: 1px;
+    padding: 5px 8px;
+  }
+  .mj-ev b {
+    font-size: 14px;
+  }
+  .mj-ev-what {
+    font-size: 11px;
+  }
+}
