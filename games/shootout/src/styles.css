@@ -1,0 +1,473 @@
+/* Shootout board. Layout, panel and readouts come from the kit. */
+
+.sh-game {
+  --team-a: var(--accent);
+  --team-b: #ff9f1c;
+}
+
+/* ---------- Panel ---------- */
+.sh-rates {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sh-rates span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sh-rates i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.sh-rates .a i {
+  background: var(--team-a);
+}
+.sh-rates .b i {
+  background: var(--team-b);
+}
+
+.sh-picks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.sh-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 8px 2px 7px;
+  background: transparent;
+  border-radius: 6px !important;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sh-pick .n {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.sh-pick b {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+.sh-pick small {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green);
+}
+.sh-pick:not(:disabled):hover {
+  color: var(--text);
+  background: color-mix(in srgb, var(--hover) 60%, transparent);
+}
+.sh-pick.on {
+  background: var(--hover);
+  color: var(--text);
+}
+.sh-pick.a.on {
+  box-shadow: inset 0 -2px 0 var(--team-a);
+}
+.sh-pick.b.on {
+  box-shadow: inset 0 -2px 0 var(--team-b);
+}
+.sh-pick.sd.on {
+  box-shadow: inset 0 -2px 0 var(--text);
+}
+.sh-pick.a .n {
+  color: var(--team-a);
+}
+.sh-pick.b .n {
+  color: var(--team-b);
+}
+.sh-pick:disabled.on {
+  opacity: 1;
+}
+
+.sh-blocked {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--red);
+}
+.sh-rule {
+  color: var(--text);
+  font-weight: 700;
+}
+
+/* ---------- Board ---------- */
+.shoot text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.shoot .row-bg {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  stroke: var(--line);
+}
+.shoot .row.a .swatch {
+  fill: var(--team-a);
+}
+.shoot .row.b .swatch {
+  fill: var(--team-b);
+}
+.shoot .name {
+  font-size: 19px;
+  font-weight: 700;
+}
+.shoot .score {
+  font-size: 28px;
+  font-weight: 800;
+  text-anchor: middle;
+}
+.shoot .row.a .score {
+  fill: var(--team-a);
+}
+.shoot .row.b .score {
+  fill: var(--team-b);
+}
+
+.shoot .pip > circle:not(.next-ring):not(.dot) {
+  stroke-width: 2.5;
+}
+.shoot .pip.empty > circle:not(.next-ring) {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-dasharray: 3 4;
+}
+.shoot .pip.a.goal > circle:not(.next-ring):not(.dot) {
+  fill: var(--team-a);
+  stroke: var(--team-a);
+}
+.shoot .pip.b.goal > circle:not(.next-ring):not(.dot) {
+  fill: var(--team-b);
+  stroke: var(--team-b);
+}
+.shoot .pip.goal .dot {
+  fill: var(--bg);
+}
+.shoot .pip.miss > circle:not(.next-ring) {
+  fill: color-mix(in srgb, var(--red) 14%, transparent);
+  stroke: var(--red);
+}
+.shoot .pip .x {
+  stroke: var(--red);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.shoot .pip.goal,
+.shoot .pip.miss {
+  animation: sh-pop 0.3s ease;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.shoot .next-ring {
+  fill: none;
+  stroke-width: 2.5;
+  animation: sh-pulse 1.2s ease-in-out infinite;
+}
+.shoot .pip.a .next-ring {
+  stroke: var(--team-a);
+}
+.shoot .pip.b .next-ring {
+  stroke: var(--team-b);
+}
+
+.shoot .sd-split {
+  stroke: var(--line-strong);
+  stroke-dasharray: 4 4;
+}
+.shoot .sd-label {
+  font-size: 15px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.shoot .sd-label.strong {
+  font-weight: 700;
+  fill: var(--text);
+  opacity: 0.8;
+}
+.shoot .sd-more {
+  font-size: 11px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+
+.shoot .net-bg {
+  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+}
+.shoot .net {
+  stroke: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke-width: 1;
+}
+.shoot .zone {
+  transition:
+    x 0.25s ease,
+    width 0.25s ease;
+}
+.shoot .zone.score {
+  fill: color-mix(in srgb, var(--green) 22%, transparent);
+}
+.shoot .zone.save {
+  fill: color-mix(in srgb, var(--red) 20%, transparent);
+}
+.shoot .zone-tag {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-anchor: middle;
+  fill: var(--green);
+  opacity: 0.85;
+}
+.shoot .keeper rect,
+.shoot .keeper circle {
+  fill: color-mix(in srgb, var(--red) 70%, var(--card));
+  transition:
+    x 0.25s ease,
+    cx 0.25s ease,
+    width 0.25s ease;
+}
+.shoot .frame {
+  fill: none;
+  stroke: #f2f2f5;
+  stroke-width: 6;
+  stroke-linejoin: round;
+}
+.shoot .ground {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.shoot .goal.scored .net-bg {
+  fill: color-mix(in srgb, var(--green) 26%, transparent);
+  transition: fill 0.2s;
+}
+.shoot .goal.saved .keeper rect,
+.shoot .goal.saved .keeper circle {
+  fill: var(--red);
+  filter: drop-shadow(0 0 8px var(--red));
+}
+
+.shoot .branch text {
+  text-anchor: middle;
+}
+.shoot .b-title {
+  font-size: 16px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.shoot .b-p {
+  font-size: 32px;
+  font-weight: 800;
+}
+.shoot .goal-branch .b-p {
+  fill: var(--green);
+}
+.shoot .save-branch .b-p {
+  fill: var(--red);
+}
+.shoot .b-sub {
+  font-size: 14px;
+  fill: var(--muted);
+}
+.shoot .b-to {
+  font-size: 24px;
+  font-weight: 800;
+  fill: var(--accent);
+}
+.shoot .b-to.up {
+  fill: var(--green);
+}
+.shoot .b-to.down {
+  fill: var(--red);
+}
+
+.shoot .spot {
+  fill: var(--line-strong);
+}
+.shoot .ball {
+  fill: #fff;
+  stroke: var(--bg);
+  stroke-width: 2;
+  filter: drop-shadow(0 2px 6px #0009);
+}
+.shoot .ball.out {
+  fill: #ddd;
+}
+.shoot .ball-wrap {
+  transform-box: view-box;
+  transform-origin: 320px 314px;
+}
+.shoot .ball-wrap.fly {
+  animation: sh-fly cubic-bezier(0.25, 0.7, 0.3, 1) both;
+}
+.shoot .ball-wrap.at {
+  transform: translate(var(--tx), var(--ty)) scale(0.8);
+}
+.shoot .kicker {
+  font-size: 17px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.shoot .kicker.a {
+  fill: var(--team-a);
+}
+.shoot .kicker.b {
+  fill: var(--team-b);
+}
+.shoot .kicker.in {
+  fill: var(--green);
+}
+.shoot .kicker.out {
+  fill: var(--red);
+}
+
+.shoot .bar-label {
+  font-size: 17px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.shoot .bar-label.a {
+  text-anchor: start;
+  fill: var(--team-a);
+}
+.shoot .bar-label.b {
+  text-anchor: end;
+  fill: var(--team-b);
+}
+.shoot .bar-label.sd {
+  text-anchor: middle;
+}
+.shoot .bar-label.mine {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.shoot .bar-label.sd.mine {
+  fill: var(--text);
+}
+.shoot .bar-bg {
+  fill: var(--hover);
+}
+.shoot .bar-seg {
+  transition:
+    x 0.35s ease,
+    width 0.35s ease;
+}
+.shoot .bar-seg.a {
+  fill: var(--team-a);
+}
+.shoot .bar-seg.b {
+  fill: var(--team-b);
+}
+.shoot .hatch-a-bg {
+  fill: color-mix(in srgb, var(--team-a) 45%, var(--card));
+}
+.shoot .hatch-a {
+  fill: var(--team-a);
+}
+.shoot .hatch-b-bg {
+  fill: color-mix(in srgb, var(--team-b) 45%, var(--card));
+}
+.shoot .hatch-b {
+  fill: var(--team-b);
+}
+.shoot .bar-split {
+  stroke: var(--card);
+  stroke-width: 3;
+}
+.shoot .bar-pick {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  transition:
+    x 0.35s ease,
+    width 0.35s ease;
+}
+.shoot .bar-mine {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  fill: var(--text);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.sh-board > svg {
+  max-height: 70vh;
+}
+.sh-game .og-chips .og-chip {
+  font-size: 12.5px;
+  padding-inline: 0;
+}
+
+@keyframes sh-fly {
+  from {
+    transform: translate(0, 0) scale(1);
+  }
+  to {
+    transform: translate(var(--tx), var(--ty)) scale(0.8);
+  }
+}
+@keyframes sh-pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+@keyframes sh-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+.sh-board .og-instant {
+  top: 47%;
+}
+.shoot .sd-bracket {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+/* Narrow frames: the board scales down, so its small print grows. */
+@container (max-width: 760px) {
+  .shoot .b-title {
+    font-size: 19px;
+  }
+  .shoot .b-sub {
+    font-size: 17px;
+  }
+  .shoot .b-to {
+    font-size: 28px;
+  }
+  .shoot .b-p {
+    font-size: 36px;
+  }
+  .shoot .sd-label {
+    font-size: 18px;
+  }
+  .shoot .kicker {
+    font-size: 20px;
+  }
+  .shoot .bar-label {
+    font-size: 20px;
+  }
+  .shoot .bar-mine {
+    font-size: 16px;
+  }
+  .shoot .zone-tag {
+    font-size: 15px;
+  }
+  .shoot .sd-more {
+    font-size: 15px;
+  }
+}
