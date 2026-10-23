@@ -307,6 +307,25 @@ export default function Game() {
                   {RISKS[risk].maxSteps} · {fmtMult(cashAfter(risk, RISKS[risk].maxSteps))}
                 </dd>
               </dl>
+              <div className="rps-pick">
+                <Label hint={phase === 'live' ? 'click to throw' : 'R · P · S'}>{phase === 'live' ? 'Throw a hand' : 'Your hand'}</Label>
+                <div className="rps-hands" role="group" aria-label={phase === 'live' ? 'Throw a hand' : 'Choose your hand'}>
+                  {HANDS.map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      className={'rps-hand' + (hand === h ? ' on' : '') + (phase === 'live' ? ' throw' : '')}
+                      disabled={phase === 'throwing' || auto.running}
+                      aria-pressed={hand === h}
+                      onClick={() => (phase === 'live' ? throwHand(h) : change(() => setHand(h)))}
+                    >
+                      <HandIcon hand={h} />
+                      <span>{HAND_NAMES[h]}</span>
+                      <kbd>{HAND_KEYS[h]}</kbd>
+                    </button>
+                  ))}
+                </div>
+              </div>
               {phase === 'live' || phase === 'throwing' ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live' || k === 0} onClick={cashOut}>
@@ -392,40 +411,6 @@ export default function Game() {
           />
         )}
       </Board>
-
-      {manual && (
-        <div className="rps-hands" role="group" aria-label={phase === 'live' ? 'Throw a hand' : 'Choose your hand'}>
-          {HANDS.map((h) => (
-            <button
-              key={h}
-              type="button"
-              className={'rps-hand' + (hand === h ? ' on' : '') + (phase === 'live' ? ' throw' : '')}
-              disabled={phase === 'throwing' || auto.running}
-              aria-pressed={hand === h}
-              onClick={() => (phase === 'live' ? throwHand(h) : change(() => setHand(h)))}
-            >
-              <HandIcon hand={h} />
-              <span>{HAND_NAMES[h]}</span>
-              <kbd>{HAND_KEYS[h]}</kbd>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Phone frames stack the panel under the stage, so the round's main action is docked by the hands too. */}
-      {manual && !auto.running && phase !== 'over' && (
-        <div className="rps-dock">
-          {live ? (
-            <ActionButton kind="cash" disabled={phase !== 'live' || k === 0} onClick={cashOut}>
-              {k === 0 ? 'Win once to cash out' : <>Cash out <span>{formatAmount(stake * cash, 2)}</span></>}
-            </ActionButton>
-          ) : (
-            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
-              Bet {HAND_NAMES[hand]}
-            </ActionButton>
-          )}
-        </div>
-      )}
 
       <div className="rps-streak" aria-label="Streak ladder">
         <div className="rps-strip" title="The three equally likely house hands">

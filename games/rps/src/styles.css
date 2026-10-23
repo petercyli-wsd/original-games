@@ -1,4 +1,4 @@
-/* Rock Paper Scissors: the duel board, the hand picker and the streak ladder. Layout and panel come from the kit. */
+/* Rock Paper Scissors: the duel board, the panel's hand picker and the streak ladder. Layout and panel come from the kit. */
 
 .rps-blurb {
   margin: -2px 0 0;
@@ -17,7 +17,7 @@
   min-height: 250px;
 }
 .rps-board > svg.rps-duel {
-  max-height: 46vh;
+  max-height: 56vh;
 }
 .rps-duel text {
   text-anchor: middle;
@@ -134,53 +134,64 @@
 }
 .rps-duel .tag.you { fill: var(--accent); }
 
-/* ---------- Hand picker ---------- */
+/* ---------- Hand picker (in the panel, right above the main action) ---------- */
+.rps-pick {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
 .rps-hands {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
-.rps-game button.rps-hand,
-.rps-hand {
+.rps button.rps-hand {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 3px;
   min-width: 0;
-  height: 60px;
-  padding: 0 12px;
+  height: 62px;
+  padding: 6px 4px 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+.rps button.rps-hand:not(:disabled):hover {
   color: var(--text);
-  font-size: 15px;
-  font-weight: 800;
-  background: var(--raised);
-  border: 1.5px solid var(--line) !important;
-}
-.rps-hand:not(:disabled):hover {
   background: var(--hover);
-  border-color: var(--line-strong) !important;
 }
-.rps-hand.on {
-  border-color: var(--accent) !important;
-  background: color-mix(in srgb, var(--accent) 12%, var(--raised));
-  box-shadow: 0 0 22px -10px var(--accent);
+.rps button.rps-hand.on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 14%, var(--hover));
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px -10px var(--accent);
 }
-.rps-hand.throw:not(:disabled) {
-  background: color-mix(in srgb, var(--accent) 8%, var(--raised));
+.rps button.rps-hand.throw:not(:disabled):not(.on) {
+  background: color-mix(in srgb, var(--accent) 6%, var(--raised));
 }
 .rps-hand .rps-icon {
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   flex-shrink: 0;
 }
 .rps-hand kbd {
   position: absolute;
-  top: 6px;
-  right: 8px;
-  padding: 1px 5px;
+  top: 4px;
+  right: 5px;
+  padding: 0 4px;
   font: inherit;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
+  line-height: 14px;
   color: var(--muted);
   border: 1px solid var(--line);
   border-radius: 4px;
@@ -263,8 +274,8 @@
 
 @container (max-width: 760px) {
   .rps-board { min-height: 200px; }
-  .rps-hand { height: 52px; gap: 6px; font-size: 13px; padding: 0 6px; }
-  .rps-hand .rps-icon { width: 28px; height: 28px; }
+  /* Phones: the picks stay directly above the main action, which the kit lifts to just under the board. */
+  .rps .og-panel > .rps-pick { order: -2; }
   .rps-hand kbd { display: none; }
   .rps-rung { min-width: 56px; font-size: 12px; }
 }
@@ -308,11 +319,4 @@
   .rps-duel .verdict .word { font-size: 32px; }
   .rps-duel .verdict .sub { display: none; }
   .rps-duel .verdict .word { transform: translateY(8px); }
-}
-
-/* The docked action only shows on narrow frames, where the panel sits below the stage. */
-.rps-dock { display: none; }
-@container (max-width: 760px) {
-  .rps-dock { display: block; }
-  .rps-dock .og-btn { width: 100%; }
 }
