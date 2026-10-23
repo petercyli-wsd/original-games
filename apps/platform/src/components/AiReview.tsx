@@ -36,7 +36,7 @@ export function AiReview({ gameId }: { gameId: string }) {
         <div className="review-card-head">
           <h2>AI review</h2>
         </div>
-        <p className="rating-note">Hidden so it doesn't influence your own review.</p>
+        <p className="rating-note">Hidden so it doesn't influence your own review.{"\n"}</p>
         <button type="button" className="btn-ghost" onClick={() => setShowAi(true)}>
           Show AI reviews
         </button>
