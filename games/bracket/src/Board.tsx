@@ -50,11 +50,13 @@ export interface BoardProps {
   onPick(seed: number): void;
   /** Show live odds labels (false greys them as a preview). */
   live: boolean;
+  /** The held seed's own match is being played: its token pulses. */
+  playingMine?: boolean;
 }
 
 const TAU = Math.PI * 2;
 
-export default function BracketBoard({ b, res, held, odds, orient, next, playing, champion, canPick, pickTitle, onPick, live }: BoardProps) {
+export default function BracketBoard({ b, res, held, odds, orient, next, playing, champion, canPick, pickTitle, onPick, live, playingMine }: BoardProps) {
   const g = geom(b.n, orient);
   const half = b.n / 2;
   const final = b.rounds - 1;
@@ -163,6 +165,15 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
           champion
         </text>
       </>
+    ) : odds[held] === 0 ? (
+      <>
+        <text x={c.x} y={c.y - g.donutR * 0.12} className="c-big out" style={{ fontSize: g.donutR * 0.42 }}>
+          OUT
+        </text>
+        <text x={c.x} y={c.y + g.donutR * 0.3} className="c-small" style={{ fontSize: g.font * 0.78 }}>
+          seed {held + 1}
+        </text>
+      </>
     ) : (
       <>
         <text x={c.x} y={c.y - g.donutR * 0.12} className={'c-big mine' + (live ? '' : ' idle')} style={{ fontSize: g.donutR * 0.36 }}>
@@ -194,7 +205,7 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
         return (
           <g
             key={s}
-            className={'leaf' + (mine ? ' mine' : '') + (out ? ' out' : '') + (pick ? ' pick' : '') + (champion === s ? ' champ' : '')}
+            className={'leaf' + (mine ? ' mine' : '') + (mine && playingMine ? ' tense' : '') + (out ? ' out' : '') + (pick ? ' pick' : '') + (champion === s ? ' champ' : '')}
             onClick={pick ? () => onPick(s) : undefined}
             role={pick ? 'button' : undefined}
             aria-label={pick ? pickTitle(s) : undefined}
@@ -269,10 +280,12 @@ export interface DuelProps {
   ms: number;
   /** Bumped per match so the sweep restarts. */
   seq: number;
+  /** The held seed plays in this match. */
+  mine?: boolean;
 }
 
 /** The next match as a bar split by its odds, and the title chance each result would leave you with. */
-export function Duel({ b, x, y, px, ax, ay, now, held, title, landing, ms, seq }: DuelProps) {
+export function Duel({ b, x, y, px, ax, ay, now, held, title, landing, ms, seq, mine }: DuelProps) {
   // When the two results (or now) would print the same, show more digits so the move is visible.
   const close = new Set([fmtChance(ax), fmtChance(ay), fmtChance(now)]).size < 3;
   const fmt = (v: number) => (close && v > 0 && v < 1 ? `${(v * 100).toPrecision(4)}%` : fmtChance(v));
@@ -288,7 +301,7 @@ export function Duel({ b, x, y, px, ax, ay, now, held, title, landing, ms, seq }
   };
   const tag = (s: number) => (s === held ? 'mine' : '');
   return (
-    <div className="bk-duel" aria-live="polite">
+    <div className={'bk-duel' + (mine ? ' mine' : '') + (mine && landing !== null ? ' live' : '')} aria-live="polite">
       <div className="bk-duel-head">
         <span>{title}</span>
         <span className="muted">if it goes this way</span>

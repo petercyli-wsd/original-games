@@ -65,7 +65,8 @@
 /* Title ring */
 .bk-svg .donut-hole { fill: var(--card); }
 .bk-svg .donut-track { fill: none; stroke: color-mix(in srgb, var(--text) 7%, transparent); }
-.bk-svg .slice { fill: color-mix(in srgb, var(--text) 30%, transparent); transition: d 0.35s ease; }
+/* No d transition: slices shift start angles as seeds drop out, and a path morph would cut chords through the ring. */
+.bk-svg .slice { fill: color-mix(in srgb, var(--text) 30%, transparent); }
 .bk-svg .slice.alt { fill: color-mix(in srgb, var(--text) 18%, transparent); }
 .bk-svg .slice.mine { fill: var(--accent); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 75%, transparent)); }
 .bk-svg .c-big { fill: var(--text); font-weight: 800; }
@@ -109,3 +110,13 @@
 @container (max-width: 760px) {
   .bk-duel { padding: 8px 10px; font-size: 12px; }
 }
+
+/* Your own match: the duel box and your token light up while it plays. */
+.bk-duel.mine { border-color: color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent), 0 0 22px color-mix(in srgb, var(--accent) 30%, transparent); }
+.bk-duel.mine .bk-duel-head { color: color-mix(in srgb, var(--accent) 45%, #fff); }
+.bk-duel.mine .bk-duel-bar { height: 18px; }
+.bk-duel.live { animation: bk-glow 0.5s ease-in-out infinite alternate; }
+.bk-svg .leaf.tense .tok { animation: bk-pulse 0.5s ease-in-out infinite alternate; transform-box: fill-box; transform-origin: center; }
+.bk-svg .c-big.out { fill: var(--red); }
+@keyframes bk-glow { to { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent), 0 0 34px color-mix(in srgb, var(--accent) 55%, transparent); } }
+@keyframes bk-pulse { to { transform: scale(1.12); } }

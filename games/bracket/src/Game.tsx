@@ -80,6 +80,10 @@ interface Play {
   ref: MatchRef;
   u: number;
   seq: number;
+  /** The held seed plays in this match. */
+  mine: boolean;
+  /** Played as part of "Skip to your match". */
+  skip: boolean;
 }
 
 interface AutoView {
@@ -125,7 +129,9 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'playing' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? round.cash : 0));
 
-  const playMs = turbo.turbo ? 260 : 1050;
+  // Other seeds' matches are quick; your own match gets a longer, tenser sweep.
+  const playMs = turbo.turbo ? 220 : 650;
+  const mineMs = turbo.turbo ? 420 : 1400;
   const skipMs = turbo.turbo ? 110 : 380;
   const autoMs = turbo.turbo ? 45 : 170;
   const live = phase === 'playing' || phase === 'checkpoint';
@@ -151,9 +157,9 @@ export default function Game() {
     const cash = r.prize * odds[r.held];
     resolved.current = cash;
     const mine = players(b, r.res, ref.k, ref.m).includes(r.held);
-    setPlay({ ref, u, seq: ++seq.current });
+    setPlay({ ref, u, seq: ++seq.current, mine, skip: toMine });
     setPhase('playing');
-    timers.after(toMine ? skipMs : playMs, () => {
+    timers.after(mine ? mineMs : toMine ? skipMs : playMs, () => {
       const next: Round = { ...r, res, cash };
       if (odds[r.held] === 0) return finish({ ...next, by: winner }, 'out', 0);
       const after = nextMatch(b, res, r.held);
@@ -329,7 +335,8 @@ export default function Game() {
         held={held}
         title={`${phase === 'playing' ? 'Playing' : 'Next'} · ${roundName(nextRef.k)}${mine ? ' · your seed' : ''}`}
         landing={phase === 'playing' && play ? play.u : null}
-        ms={play ? playMs : 0}
+        ms={play ? (play.mine ? mineMs : play.skip ? skipMs : playMs) : 0}
+        mine={mine}
         seq={play?.seq ?? 0}
       />
     );
@@ -387,7 +394,9 @@ export default function Game() {
       sub: `seed ${held + 1} · rating ${b.ratings[held]}`,
       tone: 'chance',
     },
-    isAuto
+    phase === 'over' && round?.outcome === 'out'
+      ? { label: 'Cash out now', value: 'Out', sub: `beaten by seed ${(round.by ?? 0) + 1}`, tone: 'lose' }
+      : isAuto
       ? { label: 'Cash out at', value: target ? fmtMult(target) : 'End', sub: target ? 'or the title' : 'play every match', tone: 'cash' }
       : {
           label: 'Cash out now',
@@ -506,7 +515,7 @@ export default function Game() {
         <div className="bk-field">
           {(['wide', 'tall'] as const).map((o) => (
             <BracketBoard
-              key={o}
+              key={`${o}-${b.n}`}
               b={b}
               res={view.res}
               held={held}
@@ -519,6 +528,7 @@ export default function Game() {
               pickTitle={pickTitle}
               onPick={pickSeed}
               live={showLive || !!autoView}
+              playingMine={phase === 'playing' && !!play?.mine}
             />
           ))}
         </div>
@@ -546,7 +556,7 @@ export default function Game() {
         />
       ) : (
         <Caption>
-          <b className="bk-rule">{RULE}</b> Each match is won with chance rating ÷ (both ratings). Seed {seed + 1} takes the title {fmtChance(p0)} of the time
+          <b className="bk-rule">{RULE}</b> Cash out or switch seeds after any match. Each match is won with chance rating ÷ (both ratings). Seed {seed + 1} takes the title {fmtChance(p0)} of the time
           for {fmtMult(RTP / p0)}. RTP {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
