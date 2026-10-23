@@ -98,6 +98,12 @@ function overTitle(r: Round): string {
   return `${TEAM_NAME[w ?? 'A']} win the shootout`;
 }
 
+/** Whether the next kick settles `pick` whichever way it goes. */
+function decisiveKick(s: Kicks, m: (typeof MATCHUPS)[MatchupId], pick: Pick) {
+  const f = forecast(s, m, pick);
+  return [f.ifGoal, f.ifMiss].some((v) => v <= 1e-12 || v >= 1 - 1e-12);
+}
+
 const score = (s: Kicks) => `${goalsOf(s.a)}–${goalsOf(s.b)}`;
 
 export default function Game() {
@@ -148,9 +154,10 @@ export default function Game() {
     const cash = res ? (res === 'win' ? r.prize : 0) : r.prize * chanceOf(s, m, r.pick);
     resolved.current = cash;
     const id = ++seq.current;
-    setShot({ id, team, u, goal, ms: kickMs * 0.7, landed: false });
+    const decisive = decisiveKick(r.s, m, r.pick);
+    setShot({ id, team, u, goal, ms: kickMs * 0.7, landed: false, decisive });
     setPhase('kicking');
-    timers.after(kickMs * 0.7, () => setShot({ id, team, u, goal, ms: kickMs * 0.7, landed: true }));
+    timers.after(kickMs * 0.7, () => setShot({ id, team, u, goal, ms: kickMs * 0.7, landed: true, decisive }));
     timers.after(kickMs, () => {
       const next = { ...r, s, cash };
       if (res) return finish(next, res, cash);
@@ -252,6 +259,7 @@ export default function Game() {
         goal,
         ms: autoKickMs * 0.7,
         landed: false,
+        decisive: decisiveKick(prev, m, p),
       });
       if (!(await timers.wait(autoKickMs * 0.7))) break;
       setShot({
@@ -338,7 +346,8 @@ export default function Game() {
     status = `${TEAM_NAME[shot.team]} shoots…`;
     tone = 'live';
   } else if (phase === 'checkpoint') {
-    status = `Checkpoint · Teal ${score(s)} Orange · ${kicksTaken} kick${kicksTaken === 1 ? '' : 's'}`;
+    const decides = !!next && decisiveKick(s, m, shownPick);
+    status = `Checkpoint · Teal ${score(s)} Orange · ${decides ? 'next kick decides your bet' : `${kicksTaken} kick${kicksTaken === 1 ? '' : 's'}`}`;
     tone = 'live';
   } else if (phase === 'over' && round) {
     status = `${overTitle(round)} · Teal ${score(s)} Orange`;

@@ -239,6 +239,32 @@
     cx 0.25s ease,
     width 0.25s ease;
 }
+.shoot .keeper .dive {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.shoot .keeper .dive.go {
+  animation-name: sh-dive;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.3, 1);
+  animation-fill-mode: both;
+}
+@keyframes sh-dive {
+  to {
+    transform: translateX(var(--kdx)) rotate(var(--krot));
+  }
+}
+.shoot .decisive {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  text-anchor: middle;
+  fill: #ffd166;
+  paint-order: stroke;
+  stroke: #000a;
+  stroke-width: 3px;
+  animation: sh-pulse 0.9s ease-in-out infinite;
+}
 .shoot .frame {
   fill: none;
   stroke: #f2f2f5;
@@ -441,9 +467,12 @@
 /* Narrow frames: the board scales down, so its small print grows. */
 @container (max-width: 760px) {
   .shoot .b-title {
-    font-size: 19px;
+    font-size: 20px;
   }
   .shoot .b-sub {
+    font-size: 19px;
+  }
+  .shoot .decisive {
     font-size: 17px;
   }
   .shoot .b-to {

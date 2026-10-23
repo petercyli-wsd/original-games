@@ -12,6 +12,8 @@ export interface Shot {
   ms: number;
   /** True once the ball has landed. */
   landed: boolean;
+  /** Whether this kick settles your bet either way it goes. */
+  decisive?: boolean;
 }
 
 export interface BoardProps {
@@ -127,6 +129,26 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, live, goalFor
   for (const v of seg) xs.push(xs[xs.length - 1] + v * BAR.w);
   const pickSpan = pick === 'A' ? [xs[0], xs[2]] : pick === 'B' ? [xs[2], xs[4]] : [xs[1], xs[3]];
   const kickerName = next ? TEAM_NAME[next.team] : TEAM_NAME[goalFor];
+
+  // The keeper dives as the ball flies: to the ball on a save, the wrong way on a goal.
+  // Only the figure moves; the shaded zones (the odds) stay put.
+  let dive: CSSProperties | undefined;
+  if (shot && target) {
+    const centre = kx + kw / 2;
+    const side = Math.sign(target.x - centre) || 1;
+    const dx = shot.goal ? -side * Math.max(18, kw * 0.22) : (target.x - centre) * 0.75;
+    dive = {
+      '--kdx': `${dx}px`,
+      '--krot': `${Math.sign(dx) * Math.min(28, 10 + Math.abs(dx) * 0.3)}deg`,
+      animationDuration: `${shot.ms * 0.85}ms`,
+      animationDelay: `${shot.ms * 0.12}ms`,
+    } as CSSProperties;
+  }
+
+  // A kick that can settle your bet either way is flagged, and its branch reads WIN or LOSE.
+  const certain = (v: number) => v >= 1 - 1e-12 || v <= 1e-12;
+  const decisive = live && ((!!next && (certain(next.ifGoal) || certain(next.ifMiss))) || (!!shot && !shot.landed && !!shot.decisive));
+  const toText = (v: number) => (!live ? pct(v) : v >= 1 - 1e-12 ? 'WIN' : v <= 1e-12 ? 'LOSE' : pct(v));
   const kickNo = next ? (next.team === 'A' ? s.a.length : s.b.length) + 1 : 0;
 
   return (
@@ -177,10 +199,17 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, live, goalFor
         <rect x={kx} y={GY} width={kw} height={GH} className="zone save" />
         {/* The keeper: arms spread across exactly the zone it covers. */}
         <g className="keeper">
-          <rect x={kx + 3} y={GY + GH / 2 - 8} width={Math.max(0, kw - 6)} height={16} rx={8} />
-          <circle cx={kx + kw / 2} cy={GY + GH / 2 - 24} r={11} />
-          <rect x={kx + kw / 2 - 9} y={GY + GH / 2} width={18} height={GH / 2 - 4} rx={6} />
+          <g key={shot?.id ?? 'still'} className={'dive' + (dive ? ' go' : '')} style={dive}>
+            <rect x={kx + 3} y={GY + GH / 2 - 8} width={Math.max(0, kw - 6)} height={16} rx={8} />
+            <circle cx={kx + kw / 2} cy={GY + GH / 2 - 24} r={11} />
+            <rect x={kx + kw / 2 - 9} y={GY + GH / 2} width={18} height={GH / 2 - 4} rx={6} />
+          </g>
         </g>
+        {decisive && (
+          <text x={GX + GW / 2} y={GY + 20} className="decisive">
+            Decisive kick
+          </text>
+        )}
         <text x={GX + (lo * GW) / 2} y={GY + GH - 10} className="zone-tag score">
           {lo * GW > 50 ? 'goal' : ''}
         </text>
@@ -205,7 +234,7 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, live, goalFor
               {live ? 'your odds →' : 'then your odds'}
             </text>
             <text x={85} y={250} className={'b-to' + (next.ifGoal > odds[pick] + 1e-12 ? ' up' : next.ifGoal < odds[pick] - 1e-12 ? ' down' : '')}>
-              {pct(next.ifGoal)}
+              {toText(next.ifGoal)}
             </text>
           </g>
           <g className="branch save-branch">
@@ -219,7 +248,7 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, live, goalFor
               {live ? 'your odds →' : 'then your odds'}
             </text>
             <text x={555} y={250} className={'b-to' + (next.ifMiss > odds[pick] + 1e-12 ? ' up' : next.ifMiss < odds[pick] - 1e-12 ? ' down' : '')}>
-              {pct(next.ifMiss)}
+              {toText(next.ifMiss)}
             </text>
           </g>
         </>
