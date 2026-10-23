@@ -1,0 +1,316 @@
+/* Derby board. Layout, panel and readouts come from the kit. */
+
+/* ---------- Panel ---------- */
+.dby-pick {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+.dby-runner {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.dby-runner i {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 800;
+  color: #10141a;
+}
+.dby-runner span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.dby-runner b {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+.dby-runner:hover:not(:disabled) {
+  background: var(--hover);
+}
+.dby-runner.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+}
+.dby-runner.on b {
+  color: var(--text);
+}
+.dby-runner:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.dby-runner.on:disabled {
+  opacity: 1;
+}
+.dby-blocked {
+  margin: 0;
+  font-size: 12px;
+  color: var(--red);
+}
+.dby-rule {
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ---------- Board ---------- */
+.dby-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+.dby-wrap > svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 64vh;
+}
+
+.derby {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.derby text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.derby .cap {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  fill: var(--muted);
+}
+.derby .cap.end {
+  text-anchor: end;
+  letter-spacing: 0;
+  font-weight: 600;
+}
+.derby.narrow .cap {
+  font-size: 11.5px;
+}
+
+/* Tote */
+.derby .tote-bg {
+  fill: var(--hover);
+}
+.derby .tote-seg rect {
+  stroke: var(--card, #161a22);
+  stroke-width: 1.5;
+}
+.derby .tote-txt {
+  text-anchor: middle;
+  font-size: 12px;
+  font-weight: 800;
+  fill: #10141a;
+  font-variant-numeric: tabular-nums;
+}
+.derby .tote-mine {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  transition: all 0.3s ease;
+}
+
+/* Lanes */
+.derby .lane-bg {
+  fill: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+.derby .lane.mine .lane-bg {
+  fill: color-mix(in srgb, var(--accent) 16%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  stroke-width: 1.5;
+}
+.derby .lane.pick {
+  cursor: pointer;
+}
+.derby .lane.pick:hover .lane-bg {
+  fill: color-mix(in srgb, var(--accent) 10%, var(--hover));
+}
+.derby .lane.won .lane-bg {
+  fill: color-mix(in srgb, var(--green) 18%, transparent);
+  stroke: var(--green);
+  stroke-width: 1.5;
+}
+.derby .saddle-no,
+.derby .token-no {
+  text-anchor: middle;
+  font-size: 13px;
+  font-weight: 800;
+  fill: #10141a;
+}
+.derby .name {
+  font-size: 14px;
+  font-weight: 700;
+}
+.derby .blurb {
+  font-size: 10.5px;
+  fill: var(--muted);
+}
+.derby .rail {
+  stroke: color-mix(in srgb, var(--text) 16%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 2 4;
+}
+.derby .mark {
+  stroke: color-mix(in srgb, var(--text) 8%, transparent);
+  stroke-width: 1;
+}
+.derby .mark.start {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 2;
+}
+.derby .axis {
+  text-anchor: middle;
+  font-size: 10.5px;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.derby.narrow .axis {
+  font-size: 12px;
+}
+.derby .finish .chk {
+  fill: var(--text);
+  opacity: 0.85;
+}
+.derby .finish .chk:nth-child(odd) {
+  opacity: 0.35;
+}
+.derby .runner .token {
+  stroke: #0b0d12;
+  stroke-width: 2;
+}
+.derby .mine-ring {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 6px var(--accent));
+}
+.derby .lane.won .token {
+  filter: drop-shadow(0 0 8px var(--green));
+}
+.derby .ghost {
+  fill: var(--muted);
+}
+.derby .ghost.up {
+  fill: var(--green);
+}
+.derby .ghost.down {
+  fill: var(--red);
+}
+.derby .pct {
+  text-anchor: end;
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.derby .pct.mine {
+  fill: var(--accent);
+}
+.derby.narrow .pct {
+  font-size: 13.5px;
+}
+.derby .pbar-bg {
+  fill: var(--hover);
+}
+
+/* Next leg strip */
+.derby .leg-bg {
+  fill: color-mix(in srgb, var(--hover) 55%, transparent);
+}
+.derby .leg-bar {
+  transition: all 0.25s ease;
+}
+.derby .leg-bar.up {
+  fill: color-mix(in srgb, var(--green) 70%, transparent);
+}
+.derby .leg-bar.down {
+  fill: color-mix(in srgb, var(--red) 65%, transparent);
+}
+.derby .leg-bar.flat {
+  fill: var(--muted);
+}
+.derby .leg-pct {
+  text-anchor: middle;
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.derby .leg-adv {
+  text-anchor: middle;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.derby .now-line {
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+.derby .cap.sub {
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.derby .next-leg.dim {
+  opacity: 0.45;
+}
+.derby .leg-pct,
+.derby .now-txt {
+  paint-order: stroke;
+  stroke: var(--bg, #0b0d12);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.derby .now-txt {
+  text-anchor: end;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--gold);
+}
+.derby .note {
+  text-anchor: middle;
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+
+/* Photo finish */
+.derby .photo .token {
+  stroke: #0b0d12;
+  stroke-width: 2;
+}
+.derby .photo .token.me {
+  stroke: #fff;
+  stroke-width: 3;
+}
+.derby .photo-lbl {
+  text-anchor: middle;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.derby .photo-lbl.win {
+  fill: var(--green);
+}
+
+/* Auto's result pill sits in the strip under the track. */
+.dby-board .og-instant {
+  top: auto;
+  bottom: 14px;
+}
