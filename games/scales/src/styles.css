@@ -1,0 +1,141 @@
+/* Scales board. Layout, panel and readouts come from the kit. */
+
+.sc-game {
+  --pan-l: var(--accent);
+  --pan-r: #6fb7d9;
+}
+
+/* ---------- Panel ---------- */
+.sc-bets {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg);
+  border-radius: var(--radius);
+}
+.sc-bet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+  padding: 8px 2px 7px;
+  background: transparent;
+  border-radius: 6px !important;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sc-bet .n { font-size: 12px; font-weight: 700; white-space: nowrap; }
+.sc-bet b { font-size: 15px; font-weight: 800; color: var(--text); }
+.sc-bet small { font-size: 11px; font-weight: 700; color: var(--green); }
+.sc-bet:not(:disabled):hover { color: var(--text); background: color-mix(in srgb, var(--hover) 60%, transparent); }
+.sc-bet.on { background: var(--hover); color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.sc-bet.l .n, .sc-bet.k .n { color: var(--pan-l); }
+.sc-bet.r .n { color: var(--pan-r); }
+.sc-bet.r.on { box-shadow: inset 0 -2px 0 var(--pan-r); }
+.sc-bet.b.on { box-shadow: inset 0 -2px 0 var(--text); }
+.sc-bet:disabled.on { opacity: 1; }
+
+.sc-blocked { margin: 0; font-size: 12px; text-align: center; color: var(--red); }
+.sc-rule { color: var(--text); font-weight: 700; }
+
+/* ---------- Board ---------- */
+.scales text { font-family: inherit; fill: var(--text); text-anchor: middle; font-variant-numeric: tabular-nums; }
+
+.scales .hopper { fill: var(--hover); stroke: var(--line-strong); }
+.scales .fulcrum { fill: color-mix(in srgb, var(--text) 10%, var(--card)); stroke: var(--line-strong); stroke-linejoin: round; }
+.scales .base { stroke: var(--line-strong); stroke-width: 3; stroke-linecap: round; }
+.scales .beam {
+  transform-box: view-box;
+  transform-origin: 300px 78px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.scales .beam rect { fill: color-mix(in srgb, var(--text) 75%, var(--card)); }
+.scales .beam .needle { stroke: var(--accent); stroke-width: 3; stroke-linecap: round; }
+.scales .pivot { fill: var(--accent); stroke: var(--card); stroke-width: 3; }
+
+.scales .pan {
+  transform-box: view-box;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+.scales .pan .string { stroke: color-mix(in srgb, var(--text) 30%, transparent); stroke-width: 1.5; }
+.scales .pan .tray { fill: color-mix(in srgb, var(--text) 18%, var(--card)); stroke: var(--line-strong); stroke-linejoin: round; }
+.scales .pan .hook { fill: var(--card); stroke: color-mix(in srgb, var(--text) 60%, transparent); stroke-width: 2; }
+.scales .pan .tot { font-size: 19px; font-weight: 800; }
+.scales .pan .side { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; fill: var(--muted); }
+.scales .pan.l .tot { fill: var(--pan-l); }
+.scales .pan.r .tot { fill: var(--pan-r); }
+.scales .pan.l .bead rect { fill: color-mix(in srgb, var(--pan-l) 70%, var(--card)); stroke: var(--card); }
+.scales .pan.r .bead rect { fill: color-mix(in srgb, var(--pan-r) 70%, var(--card)); stroke: var(--card); }
+.scales .pan .bead.last rect { fill: #fff; }
+.scales .bead-w { font-size: 10px; font-weight: 800; fill: var(--bg) !important; }
+
+.scales .falling {
+  animation-name: sc-fall;
+  animation-timing-function: cubic-bezier(0.5, 0, 0.9, 0.6);
+  animation-fill-mode: forwards;
+  transform-box: view-box;
+}
+.scales .falling rect { fill: #fff; filter: drop-shadow(0 0 6px var(--accent)); }
+.scales .falling.r rect { filter: drop-shadow(0 0 6px var(--pan-r)); }
+@keyframes sc-fall {
+  0% { transform: translate(0, 0); opacity: 0.4; }
+  15% { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)); }
+}
+
+.scales .lead { font-size: 34px; font-weight: 800; }
+.scales .lead.l { fill: var(--pan-l); }
+.scales .lead.r { fill: var(--pan-r); }
+.scales .lead-sub { font-size: 12px; font-weight: 600; fill: var(--muted); }
+.scales .lead-sub.dim { font-size: 11px; font-weight: 500; }
+
+/* Forecast: what each next bead does to your chance */
+.scales .fc-head { font-size: 11px; font-weight: 700; fill: var(--muted); letter-spacing: 0.02em; }
+.scales .fc-cell { fill: var(--bg); stroke: var(--line); }
+.scales .fc-cell.up { fill: var(--green); stroke: color-mix(in srgb, var(--green) 50%, transparent); }
+.scales .fc-cell.down { fill: var(--red); stroke: color-mix(in srgb, var(--red) 50%, transparent); }
+.scales .fc-w { font-size: 10px; font-weight: 700; fill: var(--muted); }
+.scales .fc-p { font-size: 12.5px; font-weight: 800; }
+.scales .fc-mid { font-size: 10px; font-weight: 600; fill: var(--muted); }
+
+/* The strip of the final difference */
+.scales .strip-title { font-size: 11px; font-weight: 700; fill: var(--muted); text-anchor: start; letter-spacing: 0.02em; }
+.scales .strip-odds { font-size: 12px; font-weight: 800; fill: var(--green); text-anchor: end; }
+.scales .strip-bg { fill: color-mix(in srgb, var(--bg) 70%, transparent); stroke: var(--line); }
+.scales .band { fill: color-mix(in srgb, var(--green) 12%, transparent); }
+.scales .bar { fill: color-mix(in srgb, var(--text) 26%, transparent); transition: y 0.25s ease, height 0.25s ease; }
+.scales .bar.win { fill: var(--green); }
+.scales .zero { stroke: color-mix(in srgb, var(--text) 45%, transparent); stroke-width: 1; stroke-dasharray: 3 3; }
+.scales .kline { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.scales .tail { font-size: 10px; font-weight: 600; fill: var(--muted); }
+.scales .now {
+  transform-box: view-box;
+  transition-property: transform;
+  transition-timing-function: ease;
+}
+.scales .now path { fill: #fff; }
+.scales .axis { font-size: 11px; font-weight: 600; fill: var(--muted); }
+.scales .axis.l { fill: var(--pan-l); }
+.scales .axis.r { fill: var(--pan-r); }
+.scales .axis.k { fill: var(--accent); }
+.scales .tail.s, .scales .axis.l { text-anchor: start; }
+.scales .tail.e, .scales .axis.r { text-anchor: end; }
+.scales .fc g { transition: opacity 0.15s ease; }
+.scales .fc .miss { opacity: 0.35; }
+.scales .fc .hit .fc-cell { stroke: #fff; stroke-width: 2; }
+
+/* Phones: the board is drawn smaller, so its labels are drawn larger. */
+.scales.compact .fc-head { font-size: 15px; }
+.scales.compact .fc-w { font-size: 13px; }
+.scales.compact .fc-p { font-size: 18px; }
+.scales.compact .strip-title, .scales.compact .strip-odds { font-size: 15px; }
+.scales.compact .axis { font-size: 15px; }
+.scales.compact .tail { font-size: 13px; }
+.scales.compact .lead { font-size: 40px; }
+.scales.compact .lead-sub { font-size: 15px; }
+.scales.compact .lead-sub.dim { font-size: 14px; }
+.scales.compact .pan .tot { font-size: 24px; }
