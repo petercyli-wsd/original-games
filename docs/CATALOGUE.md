@@ -487,3 +487,66 @@ All 21 are built and committed. Each passes typecheck, its unit tests (625 acros
 | Witness | number-theory | 80.97%–99.89% (max \|z\| 1.9) | 0.60 → 33.67 | 56.2× | 1.2–1.5 | 2442× | ✓ |
 | Pivot | combinatorics | 98.93%–100.13% (max \|z\| 1.5) | 0.56 → 5.36 | 9.6× | 2.3–4.8 | 42× | ✓ |
 | Homecoming | random-walk | 97.96%–99.76% (max \|z\| 2.5) | 0.34 → 2.30 | 6.7× | 3.1–5.2 | 8× | ✓ |
+
+## Batch 3: designed to the evaluator's facets
+
+The AI evaluator's results (`npm run evaluator -- results`) show where originals lose to classics. Classics average 4.04 and prototypes 3.41, and the gap is mostly on **Pace** (no Auto mode, so 3s against the classics' 5s), **Simplicity** (abstract maths, 2–3) and **Fun** (3). Drift, the top original at 4.40, wins on dead-simple rules and odds you can read off the board. Batch 3 is designed for those facets:
+
+- **One-sentence rules.** The sentence is shown under the board in idle.
+- **Manual + Auto + Turbo** via the kit (`ModeTabs`, `useAutoBet`, `AutoBetControls`, as in `games/dice`). Auto plays whole rounds with a cash-out rule ("cash out at ×N", or "play to the end").
+- **Tension.** Something visibly approaches, races or hangs in the balance, and the odds move both ways.
+- **Odds on the board** as a literal quantity: bars, a heat ring, a shaded map, a gauge. The odds also show what each possible next move would do to them; those per-move odds average to the current chance.
+- Exact martingale pricing and fair switching, as in the contract. Checkpoints between events.
+
+| id | Name | One-sentence rule | Maths | Dyn. | Mechanic | Uniq. | Closest → difference |
+|---|---|---|---|---|---|---|---|
+| hot-potato | Hot Potato | A bomb hops round the ring until it blows; back the seat where it goes off. | Killed random walk on a cycle, resolvent (I − (1−h)P)⁻¹ | M,C | process | 5 | Last Light → the odds of every seat are a heat ring that sweeps with the bomb |
+| chase | Chase | Reach the exit before the hunter catches you. | Absorbing Markov chain on joint positions (linear solve) | M | random-walk | 5 | Drift → two moving agents; each possible next step shows its odds |
+| derby | Derby | Back a runner; first past the line wins, and you can switch horses at fair value. | Independent finishing-time distributions, P(i first) = Σₜ P(Tᵢ = t)·Πⱼ P(Tⱼ > t) | M,C | process | 4 | Half-Life → a race of random walkers with steady vs erratic gaits (same mean, different variance) |
+| shells | Shells | Follow the ball under the cups; blind swaps blur where it is. | Markov chain on cup positions; visible swaps permute, blind swaps average | M,C | inference | 5 | Doors → probability flows between cups through swaps, not host reveals |
+| bracket | Bracket | Back a seed to win the knockout. | Bradley–Terry matches, exact bracket DP | M,C | process | 4 | none → a tournament tree whose odds update match by match |
+| shootout | Shootout | Five penalties each, then sudden death; back a team. | Exact DP over (goals, kicks left, turn), sudden-death geometric tail | M,C | process | 4 | Penney → a race of two Bernoulli streams with a fixed horizon and sudden death |
+| scales | Scales | Beads drop onto a balance; bet which pan ends heavier. | Convolution DP of the weight difference | M | process | 3 | Drift → a fixed horizon and a weighted, uneven step law; the tilt is the lead |
+| maze | Maze | A ball wanders the maze; green exit wins, red trap loses. | Harmonic function on the maze graph (linear solve): every cell's odds | M | random-walk | 4 | Halo / Drift → the whole odds map is drawn, cell by cell |
+| majority | Majority | Regions are called one by one; does Blue reach the majority line? | Subset-sum convolution over independent weighted regions | M,C | inference | 4 | Pivot → independent weighted regions reaching a threshold, not a random joining order |
+| last-slice | Last Slice | Each spin removes the slice it lands on; back the slice left standing. | Plackett–Luce elimination (= exponential races) | M,C | process | 3 | Half-Life → same law, but the odds of each spin are literally slice angles; flagged as a shared-maths sibling |
+
+### hot-potato
+**Hot Potato** · process · accent `#ff6b35` · M, C
+n seats on a ring (6–16). A bomb starts at the top seat. Each tick it hops to a uniformly random neighbour, then explodes with probability h (fuse: Long 5%, Medium 10%, Short 20%). Pick 1–3 seats and back **Blows on mine** (high multiplier) or **Not on mine** (low). P(explodes at seat s | bomb at x) = [h·(I − (1−h)P)⁻¹]ₓₛ, exact. Draw it as a heat ring: every seat's chance, summing to 1, sweeping as the bomb moves. Your seats' share is the odds. Checkpoint every hop (bursts in Auto); cash out = prize × P.
+
+### chase
+**Chase** · random-walk · accent `#e63946` · M
+A small grid (5×5 / 7×7, a few walls) with an exit. The runner moves to a uniformly random open neighbour; then the hunter moves one step toward the runner (greedy shortest path, ties at random). Hunter speed is a knob (moves every turn, or every other turn). Win if the runner reaches the exit before the hunter lands on it. Live P is exact by solving the absorbing chain over (runner, hunter, turn), cached per board. Show the four possible runner moves with the odds each would leave (they average to the current odds), a meter, and the hunter's distance. Volatility: board, start gap, hunter speed.
+
+### derby
+**Derby** · process · accent `#2a9d8f` · M, C
+4–6 runners on a track of length L (20–40). Each tick every runner advances by a draw from its gait: steady (1 or 2), erratic (0 or 3), sprinter/stayer variants, with means equal or close. First past the line wins; dead heats split the payout. Live P(i wins) is exact from independent finishing-time distributions computed per runner from its position. Odds board (tote) with live percentages. At checkpoints you may switch your runner: the value is conserved and the prize relocks at value/P(new). Volatility: back a longshot.
+
+### shells
+**Shells** · inference · accent `#f4a261` · M, C
+3–5 cups (circles). The ball starts under a shown cup. A sequence of k moves follows. Visible swaps exchange two cups in plain sight; blind swaps cover two cups, which swap with probability ½. Probability bars over the cups update exactly. Pick a cup; at checkpoints switch at fair value (prize relocks at value/P). Final reveal. Volatility: cups, number of blind swaps, backing an unlikely cup.
+
+### bracket
+**Bracket** · process · accent `#8338ec` · M, C
+8 or 16 seeds with ratings (presets Even / Steep / Underdog-friendly). Each match is won with probability rᵢ/(rᵢ + rⱼ). Back a seed; matches resolve one at a time. Live P(seed wins title) is exact via the bracket DP. Draw the bracket tree with each seed's live odds. Switch your seed at fair value at checkpoints. Volatility: back a low seed.
+
+### shootout
+**Shootout** · process · accent `#06d6a0` · M, C
+Teams A and B alternate kicks, 5 each, scoring with probabilities p_A, p_B (presets). The leader after 5 wins; if level, sudden-death pairs continue until one scores and the other misses. Bets: **A**, **B**, **Goes to sudden death**. Live P is exact (DP plus a closed-form sudden-death tail). Board: two rows of pips (goal/miss), the next kicker highlighted, and per-outcome odds for the next kick (goal vs miss) shown.
+
+### scales
+**Scales** · process · accent `#e9c46a` · M
+n beads (8–20) drop one at a time, each to a random pan with a random weight (1–6). Bets: **Left heavier**, **Right heavier**, **Balanced (±1)**, or **Left by ≥ k**. Live P is exact by convolution DP of the difference. Board: a balance beam whose tilt is the current difference, plus a distribution strip of the final difference with your winning region shaded (its mass is the odds).
+
+### maze
+**Maze** · random-walk · accent `#4cc9f0` · M
+A maze (presets or a seeded generator) with a green exit and a red trap (two traps on hard). A ball steps to a uniformly random open neighbour. Win if it reaches green first. Every cell is shaded by its exact win probability (a harmonic function from a linear solve), so the whole odds map is visible and the ball's cell is the current odds. Checkpoint every few steps; Auto cash-out rule. Volatility: maze and start.
+
+### majority
+**Majority** · inference · accent `#3a86ff` · M, C
+A hex map of 12–18 regions with weights (summing to 100) and Blue probabilities pᵢ (shown on each region). Regions are called one at a time in random order. Bets: **Blue majority (> 50)**, **Red majority**, **Landslide (≥ 65)**. Live P is exact by subset-sum convolution over the remaining regions. Board: the hex map filling in, plus a weight bar towards the 50 line with the "paths to victory" distribution.
+
+### last-slice
+**Last Slice** · process · accent `#ff006e` · M, C
+A wheel with k slices of unequal sizes (5–8). Each spin lands with probability proportional to slice size, and that slice is removed (the wheel renormalises). Back a slice to be the last left. P is exact by Plackett–Luce inclusion–exclusion (the same law as exponential races; note the sibling Half-Life). Each spin's odds are literally the slice angles. Switch at fair value at checkpoints. Volatility: back the biggest slice, which rarely survives.
