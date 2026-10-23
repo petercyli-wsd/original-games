@@ -1,0 +1,257 @@
+/* Maze board. Layout, panel and readouts come from the kit. */
+
+.mz-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.mz-board > svg.maze {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  max-height: 60vh;
+  aspect-ratio: 1;
+}
+
+.maze .tile {
+  transition: fill 0.3s ease;
+}
+.maze .cell.can {
+  cursor: pointer;
+}
+.maze .cell.can:hover .tile {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.maze .cell.cannot .tile {
+  opacity: 0.55;
+}
+.maze .tile.exit {
+  fill: color-mix(in srgb, var(--green) 30%, var(--bg));
+}
+.maze .tile.trap {
+  fill: color-mix(in srgb, var(--red) 26%, var(--bg));
+}
+.maze .gauge {
+  fill: var(--text);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.maze .cell-p {
+  text-anchor: middle;
+  fill: var(--text);
+  opacity: 0.82;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.maze .walls {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 78%, var(--bg));
+  stroke-linecap: round;
+  pointer-events: none;
+}
+.maze .frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 78%, var(--bg));
+  pointer-events: none;
+}
+
+.maze .exit-mark rect {
+  fill: var(--green);
+  stroke: color-mix(in srgb, var(--green) 50%, #fff);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+}
+.maze .exit-mark path {
+  fill: none;
+  stroke: var(--bg);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.maze .exit-mark.won rect {
+  animation: mz-pulse 0.6s ease 3;
+}
+.maze .trap-mark .ring {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 3;
+}
+.maze .trap-mark .hole {
+  fill: var(--red);
+  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--red) 60%, transparent));
+}
+.maze .trap-mark.got .ring {
+  animation: mz-pulse 0.5s ease 3;
+}
+
+.maze .start-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 4 5;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.maze .trail {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.maze .move {
+  pointer-events: none;
+}
+.maze .move .badge {
+  stroke-width: 2;
+}
+.maze .move text {
+  text-anchor: middle;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.maze .move .arrow {
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.maze .move.up .badge,
+.maze .move.out .badge {
+  fill: color-mix(in srgb, var(--green) 24%, var(--bg));
+  stroke: var(--green);
+}
+.maze .move.up text,
+.maze .move.out text {
+  fill: var(--green);
+}
+.maze .move.up .arrow,
+.maze .move.out .arrow {
+  stroke: var(--green);
+}
+.maze .move.down .badge,
+.maze .move.flat .badge {
+  fill: color-mix(in srgb, var(--gold) 18%, var(--bg));
+  stroke: var(--gold);
+}
+.maze .move.down text,
+.maze .move.flat text {
+  fill: var(--gold);
+}
+.maze .move.down .arrow,
+.maze .move.flat .arrow {
+  stroke: var(--gold);
+}
+.maze .move.dead .badge {
+  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
+  stroke: var(--red);
+}
+.maze .move.dead text {
+  fill: #fff;
+}
+.maze .move.dead .arrow {
+  stroke: var(--red);
+}
+
+.maze .ball {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+.maze .ball circle {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+.maze .ball text {
+  text-anchor: middle;
+  fill: #06121a;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.maze .ball.exit circle {
+  fill: var(--green);
+}
+.maze .ball.trap circle {
+  fill: var(--red);
+  transform: scale(0.6);
+  transition: transform 0.3s ease;
+}
+
+.mz-go {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 8px;
+}
+.mz-go .og-btn {
+  padding: 12px 8px;
+  font-size: 14px;
+}
+
+.mz-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 18px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.mz-strip span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.mz-strip b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.mz-strip i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+.mz-strip .ex i {
+  background: var(--green);
+}
+.mz-strip .tr i {
+  background: var(--red);
+  border-radius: 50%;
+}
+.mz-game .og-chance small b.g {
+  color: var(--green);
+}
+.mz-game .og-chance small b.r {
+  color: var(--red);
+}
+.mz-rule {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 2px;
+}
+.mz-blocked {
+  margin: 0;
+  font-size: 12px;
+  color: var(--red);
+}
+
+@keyframes mz-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@container (max-width: 760px) {
+  .mz-board > svg.maze {
+    max-height: none;
+  }
+  .og-panel > .mz-go {
+    order: -2;
+  }
+}
