@@ -38,17 +38,14 @@ export function PlayingCard({ card, deal, ms, mini }: { card: Card; deal?: boole
   );
 }
 
-/** The face-down deck; clicking it skips the card. */
-export function Deck({ onSkip, disabled }: { onSkip(): void; disabled: boolean }) {
+/** The face-down deck the next card is dealt from (skipping lives in the panel). */
+export function Deck() {
   return (
-    <button type="button" className="hl-deck" onClick={onSkip} disabled={disabled} aria-label="Skip card (S)" title="Skip card (S)">
+    <div className="hl-deck" aria-hidden="true">
       <span className="hl-back b3" />
       <span className="hl-back b2" />
       <span className="hl-back b1" />
-      <span className="hl-deck-label">
-        Skip <kbd>S</kbd>
-      </span>
-    </button>
+    </div>
   );
 }
 

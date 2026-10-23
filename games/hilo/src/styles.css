@@ -3,7 +3,7 @@
 .og-game {
   --hl-up: #2dd4bf;
   --hl-down: #a78bfa;
-  --hl-cw: 150px;
+  --hl-cw: 168px;
   --hl-red: #e11d48;
   --hl-ink: #16161d;
 }
@@ -208,31 +208,9 @@
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 6px;
 }
-.hl-num {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
-}
-.hl-num input {
-  flex: 1;
-  min-width: 0;
-  padding: 9px 0;
-  border: 0;
-  outline: none;
-  background: transparent;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.hl-num input:disabled {
-  opacity: 0.5;
-}
-.hl-num b {
-  font-size: 12px;
-  color: var(--muted);
+/* Cash-out rule fields: the kit's .og-num-field, with a tighter suffix to fit half the panel. */
+.hl-stop .og-num-suffix {
+  padding: 0 10px 0 0;
   white-space: nowrap;
 }
 
@@ -247,7 +225,6 @@
   align-items: center;
   justify-content: center;
   gap: clamp(16px, 4cqi, 40px);
-  padding-top: 40px;
 }
 .hl-slot {
   position: relative;
@@ -282,8 +259,9 @@
   transition: none;
 }
 
+/* Room for the Auto result pill at the top of the board. */
 .hl-board.auto .hl-table {
-  padding-top: 72px;
+  padding-top: 56px;
 }
 
 /* Cards */
@@ -398,33 +376,6 @@
   transform: translate(-3px, 3px);
   opacity: 0.8;
 }
-.hl-deck-label {
-  position: absolute;
-  left: 50%;
-  bottom: -30px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  white-space: nowrap;
-  transform: translateX(-50%);
-}
-.hl-deck-label kbd {
-  margin-left: 0;
-}
-.hl-deck:not(:disabled):hover .hl-back.b1 {
-  transform: translateY(-4px);
-  transition: transform 0.15s;
-}
-.hl-deck:not(:disabled):hover .hl-deck-label {
-  color: var(--text);
-}
-.og-game .hl-deck:disabled {
-  opacity: 0.6;
-}
-
 /* Rank scale */
 .hl-ladder {
   display: flex;
@@ -651,10 +602,12 @@
 
 @container (max-width: 760px) {
   .og-game {
-    --hl-cw: 124px;
+    --hl-cw: 128px;
   }
-  .hl-table {
-    padding-top: 36px;
+  /* The kit lifts the main action button under the board; the calls and Skip follow it. */
+  .og-panel > .hl-calls,
+  .og-panel > .hl-skip {
+    order: -2;
   }
   .hl-board {
     min-height: 260px;

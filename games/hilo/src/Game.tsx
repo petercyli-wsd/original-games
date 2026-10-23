@@ -561,7 +561,7 @@ export default function Game() {
           onChange={(v) => setStopKind(v)}
         />
         {stopKind === 'target' ? (
-          <div className="hl-num">
+          <div className="og-num-field">
             <input
               aria-label="Cash out at multiplier"
               value={targetText}
@@ -575,10 +575,10 @@ export default function Game() {
                 setTargetText(t.toFixed(2));
               }}
             />
-            <b>×</b>
+            <span className="og-num-suffix">×</span>
           </div>
         ) : (
-          <div className="hl-num">
+          <div className="og-num-field">
             <input
               aria-label="Right calls in a row"
               value={streakText}
@@ -592,7 +592,7 @@ export default function Game() {
                 setStreakText(String(n));
               }}
             />
-            <b>in a row</b>
+            <span className="og-num-suffix">in a row</span>
           </div>
         )}
       </div>
@@ -628,7 +628,7 @@ export default function Game() {
       <Board className={'hl-board' + (isAuto ? ' auto' : '')}>
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
         <div className="hl-table">
-          <Deck onSkip={skip} disabled={isAuto || dealing || autoLocked || (phase !== 'live' && startPref !== 'random')} />
+          <Deck />
           <div className={'hl-slot' + (flash ? ` ${flash.tone}` : '')}>
             <PlayingCard key={card.id} card={card.card} />
             {incoming && <PlayingCard key={incoming.id} card={incoming.card} deal ms={isAuto ? Math.max(60, Math.min(dealMs, 260)) : dealMs} />}
