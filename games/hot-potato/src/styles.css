@@ -1,0 +1,334 @@
+/* Hot Potato board. Layout, panel and readouts come from the kit. */
+
+.og-board.hp-board > svg {
+  max-height: 60vh;
+}
+
+/* ---------- The heat ring ---------- */
+.hp-ring .cell-bg {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.hp-ring .cell-heat {
+  fill: none;
+  transition: opacity 0.35s ease;
+}
+.hp-ring .cell.good .cell-heat {
+  stroke: var(--green);
+}
+.hp-ring .cell.bad .cell-heat {
+  stroke: color-mix(in srgb, var(--red) 85%, var(--accent));
+}
+.hp-ring .cell.blast .cell-heat {
+  filter: drop-shadow(0 0 10px var(--accent));
+}
+.hp-ring .cell-pct {
+  text-anchor: middle;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: color-mix(in srgb, var(--text) 75%, transparent);
+  pointer-events: none;
+}
+.hp-ring .cell-pct.hot {
+  fill: #fff;
+}
+
+/* ---------- Table and seats ---------- */
+.hp-ring .table {
+  fill: color-mix(in srgb, var(--accent) 4%, transparent);
+  stroke: color-mix(in srgb, var(--text) 12%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 2 5;
+}
+.hp-ring .seat {
+  fill: var(--raised, #1c1c24);
+  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke-width: 1.5;
+  transition: fill 0.2s ease, stroke 0.2s ease;
+}
+.hp-ring .seat.pick {
+  fill: var(--accent);
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+.hp-ring .seat.boom-win {
+  fill: var(--green);
+  stroke: #fff;
+}
+.hp-ring .seat.boom-lose {
+  fill: var(--red);
+  stroke: #fff;
+}
+.hp-ring .seat-n {
+  text-anchor: middle;
+  font-weight: 700;
+  fill: var(--muted);
+  pointer-events: none;
+}
+.hp-ring .seat-n.pick {
+  fill: #1a0e08;
+}
+.hp-ring .hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.hp-ring .hit:hover {
+  fill: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* ---------- Next hop ---------- */
+.hp-ring .chev {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.hp-ring .next .up .chev {
+  stroke: var(--green);
+}
+.hp-ring .next .down .chev {
+  stroke: var(--red);
+}
+.hp-ring .next .flat .chev {
+  stroke: var(--muted);
+}
+.hp-ring .next-pct {
+  text-anchor: middle;
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.hp-ring .next .up .next-pct {
+  fill: var(--green);
+}
+.hp-ring .next .down .next-pct {
+  fill: var(--red);
+}
+.hp-ring .next .flat .next-pct {
+  fill: var(--muted);
+}
+
+/* ---------- The bomb ---------- */
+.hp-ring .bomb {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+.hp-ring .bomb-body.hop {
+  animation: hp-hop var(--hop) ease-out;
+}
+.hp-ring .bomb-halo {
+  fill: color-mix(in srgb, var(--accent) 22%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+  filter: drop-shadow(0 0 8px var(--accent));
+}
+.hp-ring .bomb-core {
+  fill: #15151b;
+  stroke: color-mix(in srgb, #fff 30%, transparent);
+  stroke-width: 1.5;
+}
+.hp-ring .fuse {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.hp-ring .spark {
+  fill: #fff;
+  filter: drop-shadow(0 0 4px var(--gold));
+  animation: hp-spark 0.5s ease-in-out infinite alternate;
+}
+@keyframes hp-hop {
+  50% {
+    transform: translateY(-9px);
+  }
+}
+@keyframes hp-spark {
+  to {
+    opacity: 0.3;
+  }
+}
+
+/* ---------- The blast ---------- */
+.hp-ring .blast .ring {
+  fill: none;
+  stroke-width: 4;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hp-blast 0.7s ease-out both;
+}
+.hp-ring .blast.win .ring {
+  stroke: var(--green);
+}
+.hp-ring .blast.lose .ring {
+  stroke: var(--red);
+}
+.hp-ring .blast .r1 {
+  animation-delay: 0.08s;
+}
+.hp-ring .blast .r2 {
+  animation-delay: 0.16s;
+}
+@keyframes hp-blast {
+  from {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+  to {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* ---------- Dial ---------- */
+.hp-ring .donut-bg {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 32%, var(--bg));
+}
+.hp-ring .donut-win {
+  fill: none;
+  stroke: var(--green);
+  transition: d 0.3s ease;
+}
+.hp-ring text {
+  font-family: inherit;
+}
+.hp-ring .big,
+.hp-ring .small,
+.hp-ring .tiny,
+.hp-ring .verdict {
+  text-anchor: middle;
+  fill: var(--text);
+}
+.hp-ring .big {
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.hp-ring .small {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.hp-ring .tiny {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.hp-ring .verdict {
+  font-size: 18px;
+  font-weight: 800;
+}
+.hp-ring .verdict.won {
+  fill: var(--green);
+}
+.hp-ring .verdict.lost {
+  fill: var(--red);
+}
+.hp-ring .verdict.cashed {
+  fill: var(--gold);
+}
+
+/* ---------- Legend ---------- */
+.hp-ring .legend text {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.hp-ring .legend .end {
+  text-anchor: end;
+}
+.hp-ring .key.good {
+  fill: var(--green);
+}
+.hp-ring .key.bad {
+  fill: color-mix(in srgb, var(--red) 85%, var(--accent));
+}
+
+/* ---------- Next hop strip ---------- */
+.hp-next {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  margin-top: 2px;
+}
+.hp-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.hp-ev-what {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hp-ev b {
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.hp-ev small {
+  font-size: 11px;
+}
+.hp-ev.up {
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+}
+.hp-ev.up b {
+  color: var(--green);
+}
+.hp-ev.down {
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+}
+.hp-ev.down b {
+  color: var(--red);
+}
+.hp-ev.blows {
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg));
+}
+
+.hp-rule {
+  color: var(--text);
+  font-size: 14px;
+}
+.hp-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+
+@container (max-width: 760px) {
+  .og-board.hp-board > svg {
+    max-height: none;
+  }
+  .hp-ev {
+    padding: 5px 6px;
+  }
+  .hp-ev b {
+    font-size: 13px;
+  }
+  .hp-ev-what,
+  .hp-ev small {
+    font-size: 10px;
+  }
+}
+
+.hp-chip2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.hp-chip2 small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.65;
+}
