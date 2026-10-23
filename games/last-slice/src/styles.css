@@ -1,0 +1,299 @@
+/* Last Slice board. Layout, panel and readouts come from the kit. */
+
+.og-board.ls-board > svg {
+  max-height: 56vh;
+}
+
+/* Slice colours: muted, distinct hues, so each slice stays recognisable as the wheel closes up. Yours is the accent. */
+.ls-game {
+  --s0: color-mix(in srgb, #5b7cc4 62%, var(--bg));
+  --s1: color-mix(in srgb, #3fa59a 62%, var(--bg));
+  --s2: color-mix(in srgb, #c49a4a 62%, var(--bg));
+  --s3: color-mix(in srgb, #8a6cc9 62%, var(--bg));
+  --s4: color-mix(in srgb, #4f9fc9 62%, var(--bg));
+  --s5: color-mix(in srgb, #b5715a 62%, var(--bg));
+  --s6: color-mix(in srgb, #7da657 62%, var(--bg));
+  --s7: color-mix(in srgb, #a8679a 62%, var(--bg));
+}
+.ls-wheel .c0,
+.ls-next .c0 {
+  fill: var(--s0);
+  background: var(--s0);
+}
+.ls-wheel .c1,
+.ls-next .c1 {
+  fill: var(--s1);
+  background: var(--s1);
+}
+.ls-wheel .c2,
+.ls-next .c2 {
+  fill: var(--s2);
+  background: var(--s2);
+}
+.ls-wheel .c3,
+.ls-next .c3 {
+  fill: var(--s3);
+  background: var(--s3);
+}
+.ls-wheel .c4,
+.ls-next .c4 {
+  fill: var(--s4);
+  background: var(--s4);
+}
+.ls-wheel .c5,
+.ls-next .c5 {
+  fill: var(--s5);
+  background: var(--s5);
+}
+.ls-wheel .c6,
+.ls-next .c6 {
+  fill: var(--s6);
+  background: var(--s6);
+}
+.ls-wheel .c7,
+.ls-next .c7 {
+  fill: var(--s7);
+  background: var(--s7);
+}
+
+/* ---------- The wheel ---------- */
+.ls-wheel .rim {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 10%, transparent);
+  stroke-width: 6;
+}
+.ls-wheel .rim-risk {
+  fill: none;
+  stroke: var(--red);
+  stroke-width: 6;
+  filter: drop-shadow(0 0 6px var(--og-red-glow, rgba(233, 17, 60, 0.45)));
+}
+.ls-wheel .slice {
+  stroke: var(--bg);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.ls-wheel .slice.mine {
+  fill: var(--accent);
+}
+.ls-wheel .slice:not(.mine):hover {
+  filter: brightness(1.18);
+}
+.ls-wheel .slice.hit {
+  filter: brightness(1.45);
+}
+.ls-wheel .slice.hit.lose {
+  fill: var(--red);
+  filter: drop-shadow(0 0 12px var(--og-red-glow, rgba(233, 17, 60, 0.6)));
+  animation: ls-flash 0.45s ease 2;
+}
+.ls-wheel .slice.champ {
+  filter: drop-shadow(0 0 14px var(--accent));
+}
+@keyframes ls-flash {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.ls-wheel text {
+  font-family: inherit;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.ls-wheel .letter {
+  font-size: 19px;
+  font-weight: 800;
+  fill: #fff;
+}
+.ls-wheel .letter.sm {
+  font-size: 12px;
+}
+.ls-wheel .share {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: rgba(255, 255, 255, 0.82);
+}
+.ls-wheel .outer {
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--muted);
+}
+.ls-wheel .outer.mine {
+  fill: var(--accent);
+}
+.ls-wheel .outer.up {
+  fill: var(--green);
+}
+.ls-wheel .outer.lose {
+  fill: var(--red);
+}
+
+.ls-wheel .pointer {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  transition: fill 0.2s ease;
+}
+.ls-wheel .pointer.hit {
+  fill: var(--gold);
+}
+.ls-wheel .pointer.lose {
+  fill: var(--red);
+}
+
+/* ---------- Hub ---------- */
+.ls-wheel .hub {
+  fill: var(--bg);
+  stroke: color-mix(in srgb, var(--text) 14%, transparent);
+  stroke-width: 2;
+}
+.ls-wheel .dial-bg {
+  fill: none;
+  stroke: color-mix(in srgb, var(--red) 32%, var(--bg));
+  stroke-width: 7;
+}
+.ls-wheel .dial-win {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 7;
+}
+.ls-wheel .big {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+}
+.ls-wheel .small {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.ls-wheel .verdict {
+  font-size: 17px;
+  font-weight: 800;
+  fill: var(--text);
+}
+.ls-wheel .verdict.won {
+  fill: var(--green);
+}
+.ls-wheel .verdict.lost {
+  fill: var(--red);
+}
+.ls-wheel .verdict.cashed {
+  fill: var(--gold);
+}
+
+/* ---------- Legend ---------- */
+.ls-wheel .legend text {
+  font-size: 11.5px;
+  text-anchor: start;
+  fill: var(--text);
+}
+.ls-wheel .legend .dim {
+  fill: var(--muted);
+}
+.ls-wheel .legend .end {
+  text-anchor: end;
+  fill: var(--muted);
+}
+.ls-wheel .legend .r {
+  fill: var(--red);
+  font-weight: 700;
+}
+
+/* ---------- Next spin strip ---------- */
+.ls-next {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 6px;
+  margin-top: 2px;
+}
+.ls-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+.ls-ev-what {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ls-ev-what .sw {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.ls-ev-what .sw.mine {
+  background: var(--accent);
+}
+.ls-ev b {
+  font-size: 14px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.ls-ev.up {
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+}
+.ls-ev.up b {
+  color: var(--green);
+}
+.ls-ev.mine {
+  border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, var(--bg));
+}
+.ls-ev.mine b {
+  color: var(--red);
+}
+
+.ls-rule {
+  color: var(--text);
+  font-size: 14px;
+}
+.ls-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+.ls-chip2 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.ls-chip2 small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.65;
+}
+
+@container (max-width: 760px) {
+  .og-board.ls-board > svg {
+    max-height: none;
+  }
+  .ls-ev {
+    padding: 4px 6px;
+  }
+  .ls-ev b {
+    font-size: 12.5px;
+  }
+  .ls-ev-what {
+    font-size: 10px;
+  }
+}
