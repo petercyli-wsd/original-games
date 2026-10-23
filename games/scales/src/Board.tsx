@@ -44,7 +44,7 @@ export interface BoardProps {
 }
 
 /** Tilt in degrees; positive = left pan down. The tilt is the lead. */
-export const tiltOf = (D: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, D * 0.7));
+export const tiltOf = (D: number) => Math.max(-MAX_TILT, Math.min(MAX_TILT, D * 1.0));
 
 function hookOf(side: 'L' | 'R', deg: number) {
   const a = (deg * Math.PI) / 180;
@@ -57,8 +57,8 @@ function cell(p: number): string {
   if (p >= 1) return 'win';
   if (p <= 0) return 'lose';
   if (p >= 0.995) return '>99%';
-  if (p < 0.005) return '<0.5%';
-  return (p * 100).toFixed(1) + '%';
+  if (p < 0.0005) return '<0.05%';
+  return (p * 100).toFixed(p < 0.01 ? 2 : 1) + '%';
 }
 
 /** Whether the board is rendered narrow (phones), measured from its container. */
@@ -108,6 +108,15 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
   // The winning region as an interval [lo, hi] of final differences.
   const [lo, hi] = bet.kind === 'L' ? [1, R] : bet.kind === 'R' ? [-R, -1] : bet.kind === 'B' ? [-1, 1] : [Math.min(bet.k, R + 1), R];
   const bandX = xOf(hi) - bw / 2;
+  // The margin k, labelled on its line at the top of the strip.
+  const kPill =
+    bet.kind === 'K' && bet.k <= R
+      ? (() => {
+          const w = (compact ? 9 : 7) * (4 + String(bet.k).length) + 10;
+          const x = Math.max(STRIP_L + w / 2 + 2, Math.min(STRIP_R - w / 2 - 2, xOf(bet.k) + bw / 2));
+          return { x, w };
+        })()
+      : null;
   const bandW = Math.max(0, xOf(lo) + bw / 2 - bandX);
 
   // ----- the bead in flight -----
@@ -271,8 +280,8 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
       <text x={STRIP_L} y={BAR_TOP - 12} className="strip-title">
         {left === 0 ? 'Final difference' : 'Where the difference ends'}
       </text>
-      <text x={STRIP_R} y={BAR_TOP - 12} className="strip-odds">
-        shaded = your chance {(chance * 100).toFixed(chance < 0.1 && chance > 0 ? 2 : 1)}%
+      <text x={STRIP_R} y={BAR_TOP - 12} className={'strip-odds' + (chance <= 0 ? ' lost' : '')}>
+        {chance >= 1 ? 'in your region · won' : chance <= 0 ? 'outside your region · lost' : `shaded = your chance ${(chance * 100).toFixed(chance < 0.1 ? 2 : 1)}%`}
       </text>
       <rect x={STRIP_L} y={BAR_TOP - 4} width={STRIP_R - STRIP_L} height={BAR_BASE - BAR_TOP + 4} rx={4} className="strip-bg" />
       {bandW > 0 && <rect x={bandX} y={BAR_TOP - 4} width={bandW} height={BAR_BASE - BAR_TOP + 4} className="band" />}
@@ -282,7 +291,13 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
       })}
       <line x1={xOf(0)} y1={BAR_TOP - 4} x2={xOf(0)} y2={BAR_BASE} className="zero" />
       {bet.kind === 'K' && bet.k <= R && <line x1={xOf(bet.k) + bw / 2} y1={BAR_TOP - 4} x2={xOf(bet.k) + bw / 2} y2={BAR_BASE} className="kline" />}
-      {tailL > 5e-4 && (
+      {kPill && (
+        <g className="kpill" transform={`translate(${kPill.x}, ${BAR_TOP + 9})`}>
+          <rect x={-kPill.w / 2} y={-9} width={kPill.w} height={18} rx={9} />
+          <text x={0} y={4.5}>k = {bet.k}</text>
+        </g>
+      )}
+      {tailL > 5e-4 && !(kPill && kPill.x - kPill.w / 2 < STRIP_L + (compact ? 64 : 52)) && (
         <text x={STRIP_L + 4} y={BAR_TOP + 10} className="tail s">
           ‹ {(tailL * 100).toFixed(1)}%
         </text>
@@ -293,7 +308,7 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
         </text>
       )}
       {/* Where it stands now */}
-      <g className="now" style={{ transform: `translateX(${xOf(Math.max(-R, Math.min(R, D)))}px)`, ...ease }}>
+      <g className={'now ' + (wins(bet, D) ? 'in' : 'out')} style={{ transform: `translateX(${xOf(Math.max(-R, Math.min(R, D)))}px)`, ...ease }}>
         <path d={`M 0 ${BAR_BASE + 2} L 6 ${BAR_BASE + 11} L -6 ${BAR_BASE + 11} Z`} />
       </g>
       <text x={STRIP_L} y={BAR_BASE + 25} className="axis l">
@@ -302,11 +317,6 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
       <text x={xOf(0)} y={BAR_BASE + 25} className="axis">
         level
       </text>
-      {bet.kind === 'K' && bet.k <= R && bet.k / R > 0.25 && bet.k / R < 0.75 && (
-        <text x={xOf(bet.k)} y={BAR_BASE + 25} className="axis k">
-          k = {bet.k}
-        </text>
-      )}
       <text x={STRIP_R} y={BAR_BASE + 25} className="axis r">
         right by {R} →
       </text>

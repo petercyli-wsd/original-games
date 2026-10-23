@@ -123,6 +123,9 @@ export default function Game() {
   const [autoBusy, setAutoBusy] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
   const seq = useRef(0);
+  /** Drop all: keep dropping without stopping at checkpoints until the bet settles. */
+  const runOut = useRef(false);
+  const [running, setRunning] = useState(false);
 
   const chosen: Bet = { kind, k: clampK(n, k) };
 
@@ -134,11 +137,18 @@ export default function Game() {
   const fallMs = turbo.turbo ? 170 : 560;
   const tiltMs = turbo.turbo ? 110 : 380;
   const autoFallMs = turbo.turbo ? 60 : 190;
+  const runFallMs = turbo.turbo ? 90 : 260;
   const live = phase === 'dropping' || phase === 'checkpoint';
 
   // ---------- Manual ----------
 
+  function stopRun() {
+    runOut.current = false;
+    setRunning(false);
+  }
+
   function finish(r: Round, outcome: Outcome, cash: number) {
+    stopRun();
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -151,13 +161,15 @@ export default function Game() {
     const res = settled(s, r.bet);
     const cash = res ? (res === 'win' ? r.prize : 0) : r.prize * chanceAt(s, r.bet);
     resolved.current = cash;
-    setFalling({ id: ++seq.current, bead, ms: fallMs });
+    const ms = runOut.current ? runFallMs : fallMs;
+    setFalling({ id: ++seq.current, bead, ms });
     setPhase('dropping');
-    timers.after(fallMs, () => {
+    timers.after(ms, () => {
       const next = { ...r, s, cash };
       setRound(next);
       setFalling(null);
       if (res) return timers.after(tiltMs, () => finish(next, res, cash));
+      if (runOut.current) return timers.after(runFallMs * 0.35, () => drop(next));
       setPhase('checkpoint');
       track({ type: 'checkpoint', multiplier: cash, winChance: chanceAt(s, r.bet) });
     });
@@ -167,11 +179,19 @@ export default function Game() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
+    stopRun();
     setAutoView(null);
     setLast(null);
     const r: Round = { bet: chosen, prize: prizeFor(n, chosen), stake: bet.value, s: { n, beads: [] }, cash: RTP, outcome: null };
     setRound(r);
     drop(r);
+  }
+
+  function dropAll() {
+    if (phase !== 'checkpoint' || !round) return;
+    runOut.current = true;
+    setRunning(true);
+    drop(round);
   }
 
   function cashOut() {
@@ -182,6 +202,7 @@ export default function Game() {
   function clear() {
     if (live || autoBusy) return;
     timers.clearAll();
+    stopRun();
     setRound(null);
     setFalling(null);
     setAutoView(null);
@@ -232,6 +253,7 @@ export default function Game() {
   // Switching Manual / Auto starts from a clean board.
   useEffect(() => {
     timers.clearAll();
+    stopRun();
     setRound(null);
     setAutoView(null);
     setFalling(null);
@@ -284,7 +306,7 @@ export default function Game() {
       tone = last.multiplier > 0 ? 'won' : 'lost';
     } else status = `Auto · ${betLabel(chosen)}, ${cashAt === null ? 'play to the end' : `cash out at ${fmtMult(cashAt)}`}`;
   } else if (phase === 'dropping') {
-    status = `Bead ${dropped + 1} of ${s.n} falling…`;
+    status = running ? `Dropping all · ${dropped + 1} of ${s.n} · ${describe(D)}` : `Bead ${dropped + 1} of ${s.n} falling…`;
     tone = 'live';
   } else if (phase === 'checkpoint') {
     status = `Checkpoint · ${dropped} of ${s.n} · ${describe(D)}`;
@@ -361,13 +383,18 @@ export default function Game() {
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
-                  <ActionButton kind="secondary" onClick={() => round && drop(round)}>
-                    Drop next · {dropped + 1} of {s.n}
-                  </ActionButton>
+                  <div className="sc-steps">
+                    <ActionButton kind="secondary" onClick={() => round && drop(round)}>
+                      Next bead
+                    </ActionButton>
+                    <ActionButton kind="secondary" onClick={dropAll}>
+                      Drop all
+                    </ActionButton>
+                  </div>
                 </>
               ) : (
                 <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-                  {phase === 'dropping' ? 'Dropping…' : phase === 'over' ? 'Bet again' : 'Bet'}
+                  {phase === 'dropping' ? (running ? 'Dropping all…' : 'Dropping…') : phase === 'over' ? 'Bet again' : 'Bet'}
                 </ActionButton>
               )}
             </>
@@ -404,8 +431,8 @@ export default function Game() {
               }
             : {
                 label: 'Cash out now',
-                value: phase === 'checkpoint' || phase === 'over' ? fmtMult(cash) : '—',
-                sub: phase === 'checkpoint' || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first bead',
+                value: round && dropped > 0 ? fmtMult(cash) : '—',
+                sub: round && dropped > 0 ? formatAmount(stake * cash, 2) : 'after the first bead',
                 tone: 'cash',
               },
           {
@@ -420,26 +447,25 @@ export default function Game() {
       <Board className="sc-board">
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
         <Field n={s.n} beads={s.beads} bet={shownBet} falling={falling} forecast={fc} chance={chance} range={range} tiltMs={isAuto ? autoFallMs : tiltMs} />
-        {!isAuto && phase === 'over' && round?.outcome && (
-          <RoundOver
-            key={history[0]?.id}
-            title={overTitle(round)}
-            multiplier={round.cash}
-            stake={round.stake}
-            nextBet={bet.value}
-            blocked={bet.blocked}
-            onBetAgain={() => void start()}
-            onClear={clear}
-            placement="center"
-          />
-        )}
       </Board>
 
-      {!isAuto && live ? (
+      {!isAuto && phase === 'over' && round?.outcome ? (
+        <RoundOver
+          key={history[0]?.id}
+          title={overTitle(round)}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
+      ) : !isAuto && live ? (
         <ChanceBar
           p={chance}
           label={`Your chance: ${betLabel(shownBet)}`}
-          note="The green share of the strip is your chance. Space drops the next bead, C cashes out."
+          note={running ? 'Dropping every bead until your bet settles.' : 'The green share of the strip is your chance. Space drops the next bead, C cashes out.'}
         />
       ) : (
         <Caption>
@@ -461,7 +487,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Choose how many beads drop (8 to 20) and what to back, then press Bet. The first bead drops straight away.</li>
-              <li>After every bead you can cash out (C) or drop the next one (Space).</li>
+              <li>After every bead you can cash out (C), drop the next one (Space), or press Drop all to play out the rest without stopping.</li>
               <li>Your bet settles the moment the result can no longer change, so a runaway lead can end the round early.</li>
               <li>Auto plays whole rounds with the bet and stop rules you set, cashing out once the cash-out reaches your target (or playing to the end).</li>
             </ol>
