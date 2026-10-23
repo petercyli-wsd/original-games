@@ -99,6 +99,60 @@ export default function Game() {
           <Label hint={`${fmtMult(multiplier)} payout`}>Profit on win</Label>
           <div className="dice-profit">{formatAmount(Math.max(0, bet.value * multiplier - bet.value), 2)}</div>
 
+          <div className="dice-pair">
+            <div>
+              <Label>Multiplier</Label>
+              <div className="og-num-field">
+                <input
+                  value={multText}
+                  inputMode="decimal"
+                  aria-label="Multiplier"
+                  disabled={busy}
+                  onChange={(e) => setMultText(e.target.value)}
+                  onBlur={() => {
+                    const m = parseFloat(multText);
+                    if (Number.isFinite(m) && m > 1) setChance(chanceForMultiplier(m));
+                    else setMultText(multiplier.toFixed(4));
+                  }}
+                />
+                <span className="og-num-suffix">×</span>
+              </div>
+            </div>
+            <div>
+              <Label>Win chance</Label>
+              <div className="og-num-field">
+                <input
+                  value={chanceText}
+                  inputMode="decimal"
+                  aria-label="Win chance"
+                  disabled={busy}
+                  onChange={(e) => setChanceText(e.target.value)}
+                  onBlur={() => {
+                    const c = parseFloat(chanceText);
+                    if (Number.isFinite(c) && c > 0) setChance(clampChance(c));
+                    else setChanceText(chance.toFixed(2));
+                  }}
+                />
+                <span className="og-num-suffix">%</span>
+              </div>
+            </div>
+          </div>
+
+          <Label hint="⇄ swaps, chance kept">Roll {dir === 'over' ? 'over' : 'under'}</Label>
+          <button
+            type="button"
+            className="dice-swap"
+            disabled={busy}
+            aria-label={`Roll ${dir} ${target.toFixed(2)}. Swap over / under`}
+            onClick={() => {
+              setDir((d) => (d === 'over' ? 'under' : 'over'));
+            }}
+            title="Swap over / under (keeps the chance)"
+          >
+            <span>{target.toFixed(2)}</span>
+            <b>⇄</b>
+          </button>
+
           {auto.mode === 'manual' ? (
             <ActionButton disabled={busy || !!bet.blocked} onClick={() => void playOnce(bet.value)}>
               {rolling ? 'Rolling…' : 'Bet'}
@@ -157,58 +211,6 @@ export default function Game() {
           </p>
         </div>
       </Board>
-
-      <div className="dice-inputs">
-        <label className="dice-field">
-          <span>Multiplier</span>
-          <div className="dice-input">
-            <input
-              value={multText}
-              inputMode="decimal"
-              disabled={busy}
-              onChange={(e) => setMultText(e.target.value)}
-              onBlur={() => {
-                const m = parseFloat(multText);
-                if (Number.isFinite(m) && m > 1) setChance(chanceForMultiplier(m));
-                else setMultText(multiplier.toFixed(4));
-              }}
-            />
-            <b>×</b>
-          </div>
-        </label>
-        <label className="dice-field">
-          <span>Roll {dir === 'over' ? 'over' : 'under'}</span>
-          <button
-            type="button"
-            className="dice-swap"
-            disabled={busy}
-            onClick={() => {
-              setDir((d) => (d === 'over' ? 'under' : 'over'));
-            }}
-            title="Swap over / under (keeps the chance)"
-          >
-            <span>{target.toFixed(2)}</span>
-            <b>⇄</b>
-          </button>
-        </label>
-        <label className="dice-field">
-          <span>Win chance</span>
-          <div className="dice-input">
-            <input
-              value={chanceText}
-              inputMode="decimal"
-              disabled={busy}
-              onChange={(e) => setChanceText(e.target.value)}
-              onBlur={() => {
-                const c = parseFloat(chanceText);
-                if (Number.isFinite(c) && c > 0) setChance(clampChance(c));
-                else setChanceText(chance.toFixed(2));
-              }}
-            />
-            <b>%</b>
-          </div>
-        </label>
-      </div>
 
       {infoOpen && (
         <InfoModal title="Dice" onClose={() => setInfoOpen(false)}>
