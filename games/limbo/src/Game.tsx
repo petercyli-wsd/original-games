@@ -208,6 +208,40 @@ export default function Game() {
             </>
           )}
 
+          <Label hint={`${fmtX(MIN_TARGET)}× – 1M×`}>Target multiplier</Label>
+          <div className="og-bet-row limbo-target-row">
+            <input
+              value={targetText}
+              inputMode="decimal"
+              aria-label="Target multiplier"
+              disabled={busy}
+              onChange={(e) => setTargetText(e.target.value)}
+              onBlur={commitTarget}
+              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+            />
+            <span className="og-num-suffix">×</span>
+            <button type="button" disabled={busy || target <= MIN_TARGET} onClick={() => setTarget(target / 2)} aria-label="Halve target" title="Halve target (Q)">
+              ½
+            </button>
+            <button type="button" disabled={busy || target >= MAX_TARGET} onClick={() => setTarget(target * 2)} aria-label="Double target" title="Double target (W)">
+              2×
+            </button>
+          </div>
+
+          <Label>Win chance</Label>
+          <div className="og-num-field limbo-chance">
+            <input
+              value={chanceText}
+              inputMode="decimal"
+              aria-label="Win chance"
+              disabled={busy}
+              onChange={(e) => setChanceText(e.target.value)}
+              onBlur={commitChance}
+              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
+            />
+            <span className="og-num-suffix">%</span>
+          </div>
+
           <Label hint={<VolBadge level={level} />}>Quick target</Label>
           <Chips
             label="Quick target"
@@ -219,17 +253,9 @@ export default function Game() {
           />
 
           {auto.mode === 'manual' ? (
-            <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtPct(chance * 100)}%</dd>
-                <dt>Payout</dt>
-                <dd>{fmtX(target)}×</dd>
-              </dl>
-              <ActionButton disabled={busy || !!bet.blocked} onClick={() => void playOnce(bet.value)}>
-                {rolling ? 'Climbing…' : 'Bet'}
-              </ActionButton>
-            </>
+            <ActionButton disabled={busy || !!bet.blocked} onClick={() => void playOnce(bet.value)}>
+              {rolling ? 'Climbing…' : 'Bet'}
+            </ActionButton>
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || rolling}>
               <p className="limbo-auto-note">
@@ -260,45 +286,6 @@ export default function Game() {
         <InstantResult multiplier={last && !rolling ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <Dial target={last && !rolling ? last.target : target} value={display} state={state} burstId={last?.id ?? 0} />
       </Board>
-
-      <div className="limbo-inputs">
-        <label className="limbo-field">
-          <span>Target multiplier</span>
-          <div className="limbo-input">
-            <input
-              value={targetText}
-              inputMode="decimal"
-              aria-label="Target multiplier"
-              disabled={busy}
-              onChange={(e) => setTargetText(e.target.value)}
-              onBlur={commitTarget}
-              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
-            />
-            <b>×</b>
-            <button type="button" disabled={busy || target <= MIN_TARGET} onClick={() => setTarget(target / 2)} aria-label="Halve target" title="Halve target (Q)">
-              ½
-            </button>
-            <button type="button" disabled={busy || target >= MAX_TARGET} onClick={() => setTarget(target * 2)} aria-label="Double target" title="Double target (W)">
-              2×
-            </button>
-          </div>
-        </label>
-        <label className="limbo-field">
-          <span>Win chance</span>
-          <div className="limbo-input">
-            <input
-              value={chanceText}
-              inputMode="decimal"
-              aria-label="Win chance"
-              disabled={busy}
-              onChange={(e) => setChanceText(e.target.value)}
-              onBlur={commitChance}
-              onKeyDown={(e) => e.key === 'Enter' && (e.currentTarget as HTMLInputElement).blur()}
-            />
-            <b>%</b>
-          </div>
-        </label>
-      </div>
 
       {infoOpen && (
         <InfoModal title="Limbo" onClose={() => setInfoOpen(false)}>

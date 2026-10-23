@@ -1,4 +1,4 @@
-/* Limbo: the odds dial, the climbing counter and the linked target / chance inputs. */
+/* Limbo: the odds dial, the climbing counter and the linked target / chance inputs (in the panel). */
 
 .limbo-profit {
   padding: 10px 12px;
@@ -36,13 +36,14 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The dial has the whole stage now that the inputs live in the panel. */
 .limbo-board {
   min-height: 300px;
   padding-top: 40px;
 }
 .limbo-board > svg.limbo-dial {
-  width: min(100%, 520px);
-  max-height: 58vh;
+  width: min(100%, 620px);
+  max-height: 72vh;
 }
 
 /* ---------- Dial ---------- */
@@ -197,77 +198,25 @@
   flex-shrink: 0;
 }
 
-/* ---------- Inputs under the dial ---------- */
-.limbo-inputs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  background: var(--raised);
+/* ---------- Target / chance inputs in the panel ---------- */
+/* The kit's bet row with a "×" suffix column before the ½ / 2× buttons. */
+.limbo-target-row {
+  grid-template-columns: minmax(0, 1fr) auto 52px 52px;
+  align-items: stretch;
 }
-.limbo-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.limbo-input {
+.limbo-target-row .og-num-suffix {
   display: flex;
   align-items: center;
-  height: 42px;
-  padding-left: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
-  overflow: hidden;
+  padding: 0 10px 0 4px;
 }
-.limbo-input:focus-within {
-  border-color: color-mix(in srgb, var(--accent) 70%, var(--line));
-}
-.limbo-input input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
+.limbo-chance input {
+  padding: 11px 12px;
   font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
-.limbo-input > b {
-  padding-right: 6px;
-  color: var(--muted);
-}
-.limbo-input > b:last-child {
-  padding-right: 12px;
-}
-.limbo-input button {
-  align-self: stretch;
-  width: 40px;
-  flex-shrink: 0;
-  border-radius: 0;
-  border-left: 1px solid var(--line);
-  background: var(--raised);
-  font-weight: 700;
-}
-.limbo-input button:not(:disabled):hover {
-  background: var(--hover);
-}
-
 @container (max-width: 760px) {
   .limbo-board {
     min-height: 250px;
     padding-top: 66px;
-  }
-}
-@container (max-width: 460px) {
-  .limbo-inputs {
-    grid-template-columns: minmax(0, 1fr);
-    padding: 12px;
   }
 }
 
