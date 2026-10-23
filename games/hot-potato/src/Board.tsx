@@ -72,11 +72,14 @@ export default function Board({ n, picks, side, bombX, hops, heat, win, events, 
   const blown = blewAt !== null;
   const labelSize = n >= 16 ? 10 : 11;
 
+  // The verdict shows the moment it blows, not only once the round settles.
+  const verdict: Outcome | null = outcome ?? (blown ? (winsHere(blewAt) ? 'won' : 'lost') : null);
+
   // The donut: the green arc is your chance, literally.
   const winDeg = Math.max(0, Math.min(1, win)) * 360;
 
   return (
-    <svg viewBox="0 0 400 400" className="hp-ring" role="img" aria-label={`Win chance ${pct(win)}: your share of the heat ring`} style={{ '--hop': `${hopMs}ms` } as CSSProperties}>
+    <svg viewBox="0 0 400 400" className={'hp-ring' + (live && !blown ? ' lit' : '')} role="img" aria-label={`Win chance ${pct(win)}: your share of the heat ring`} style={{ '--hop': `${hopMs}ms` } as CSSProperties}>
       {/* The heat ring: each seat's chance to be where the bomb blows. Green wins for you, red loses. */}
       <g className="heat">
         {heat.map((p, s) => {
@@ -116,6 +119,17 @@ export default function Board({ n, picks, side, bombX, hops, heat, win, events, 
                 </text>
               </g>
             );
+          })}
+        </g>
+      )}
+
+      {/* Danger: the two seats the next hop can blow on (each at half the fuse chance). */}
+      {events && live && !blown && (
+        <g className="danger">
+          {([-1, 1] as const).map((dir) => {
+            const s = mod(seat + dir, n);
+            const p = polar(s * deg, R_SEAT);
+            return <circle key={`${hops}:${dir}`} cx={f(p.x)} cy={f(p.y)} r={seatR + 5} className={'zone ' + (winsHere(s) ? 'good' : 'bad')} />;
           })}
         </g>
       )}
@@ -171,7 +185,7 @@ export default function Board({ n, picks, side, bombX, hops, heat, win, events, 
       {/* The donut: your share of the heat. */}
       <circle cx={C} cy={C} r={R_DONUT} className="donut-bg" strokeWidth={DONUT_W} />
       {winDeg > 0.5 && <path d={arcPath(0, winDeg, R_DONUT)} className="donut-win" strokeWidth={DONUT_W} />}
-      {outcome === null ? (
+      {verdict === null ? (
         <>
           <text x={C} y={C + 4} className="big">
             {(win * 100).toFixed(1)}%
@@ -185,8 +199,8 @@ export default function Board({ n, picks, side, bombX, hops, heat, win, events, 
         </>
       ) : (
         <>
-          <text x={C} y={C - 4} className={'verdict ' + outcome}>
-            {outcome === 'won' ? 'you win' : outcome === 'lost' ? 'boom' : 'cashed'}
+          <text x={C} y={C - 4} className={'verdict ' + verdict}>
+            {verdict === 'won' ? 'you win' : verdict === 'lost' ? 'boom' : 'cashed'}
           </text>
           <text x={C} y={C + 18} className="small">
             {blown ? `on seat ${blewAt}` : `at ${pct(win)}`}

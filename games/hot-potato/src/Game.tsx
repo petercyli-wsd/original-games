@@ -139,7 +139,7 @@ export default function Game() {
     phase === 'hopping' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0,
   );
 
-  const hopMs = turbo.turbo ? 120 : 460;
+  const hopMs = turbo.turbo ? 120 : 380;
   const blastMs = turbo.turbo ? 220 : 650;
   const autoHopMs = turbo.turbo ? 55 : 190;
   const live = phase === 'hopping' || phase === 'checkpoint';
@@ -371,6 +371,9 @@ export default function Game() {
   }
 
   const showCash = live || phase === 'over';
+  // Settled as soon as it blows (the blast beat), not only once the round is over.
+  const settled = phase === 'over' || blown;
+  const paidNow = phase === 'over' ? view.paid : winNow ? view.prize : 0;
   const readouts: ReadoutItem[] = [
     {
       label: 'Win chance',
@@ -379,9 +382,9 @@ export default function Game() {
       tone: 'chance',
     },
     {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(view.paid) : showCash && !blown ? fmtMult(cash) : isAuto && !round ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' ? formatAmount(stake * view.paid, 2) : showCash && !blown ? formatAmount(stake * cash, 2) : 'after the first hop',
+      label: settled ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
+      value: settled ? fmtMult(paidNow) : showCash ? fmtMult(cash) : isAuto && !round ? (target > 0 ? fmtMult(target) : 'the end') : '—',
+      sub: settled ? formatAmount(stake * paidNow, 2) : showCash ? formatAmount(stake * cash, 2) : 'after the first hop',
       tone: 'cash',
     },
     {

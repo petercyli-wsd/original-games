@@ -108,6 +108,44 @@
   fill: var(--muted);
 }
 
+/* ---------- Danger: where the next hop can blow ---------- */
+.hp-ring .zone {
+  fill: none;
+  stroke-width: 3;
+  stroke-dasharray: 4 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hp-danger 0.9s ease-in-out infinite alternate;
+}
+.hp-ring .zone.good {
+  stroke: var(--green);
+  filter: drop-shadow(0 0 6px var(--green));
+}
+.hp-ring .zone.bad {
+  stroke: var(--red);
+  filter: drop-shadow(0 0 6px var(--red));
+}
+@keyframes hp-danger {
+  from {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+.hp-ring.lit .spark {
+  animation-duration: 0.18s;
+}
+.hp-ring.lit .bomb-halo {
+  animation: hp-fizz 0.6s ease-in-out infinite alternate;
+}
+@keyframes hp-fizz {
+  to {
+    stroke-width: 3.5;
+  }
+}
 /* ---------- The bomb ---------- */
 .hp-ring .bomb {
   transform-box: view-box;
