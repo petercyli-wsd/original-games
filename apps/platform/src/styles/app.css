@@ -1006,3 +1006,110 @@ button:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Lobby tools, AI chip on tiles, game-to-game navigation
+   --------------------------------------------------------------------------- */
+.lobby-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.lobby-search {
+  width: min(320px, 100%);
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--og-text);
+  background: var(--og-bg-raised);
+  border: 1px solid var(--og-border);
+  border-radius: 20px;
+}
+.lobby-search:focus {
+  outline: none;
+  border-color: var(--og-border-strong);
+}
+.link-button {
+  font: inherit;
+  font-weight: 700;
+  color: var(--og-gold);
+  text-decoration: underline;
+}
+
+.tile-scores {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+}
+.tile-chip.tile-ai {
+  flex: none;
+}
+.tile-chip.tile-ai {
+  color: var(--ai-colour);
+  border-color: color-mix(in srgb, var(--ai-colour) 40%, transparent);
+  text-transform: none;
+}
+.tile-ai.ai-ship {
+  --ai-colour: var(--og-green);
+}
+.tile-ai.ai-iterate {
+  --ai-colour: var(--og-gold);
+}
+.tile-ai.ai-drop {
+  --ai-colour: var(--og-red);
+}
+
+.game-step {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+.status + .game-step {
+  margin-left: 0;
+}
+.game-step a {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-decoration: none;
+  color: var(--og-text-muted);
+  border: 1px solid var(--og-border);
+  border-radius: var(--og-radius);
+  background: var(--og-bg-raised);
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+.game-step a:hover {
+  color: var(--og-text);
+  border-color: var(--og-border-strong);
+}
+.next-to-rate {
+  font-weight: 700;
+  color: var(--og-gold);
+  text-decoration: none;
+}
+.next-to-rate:hover {
+  text-decoration: underline;
+}
+@media (max-width: 640px) {
+  .game-step span {
+    display: none;
+  }
+}
+@media (max-width: 420px) {
+  /* Keep every header control on screen on small phones: the logo mark stays, its wordmark goes. */
+  .logo-wordmark {
+    display: none;
+  }
+  .header-controls {
+    gap: 6px;
+  }
+}

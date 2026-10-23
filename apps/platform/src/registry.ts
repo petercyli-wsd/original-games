@@ -51,3 +51,33 @@ export const games = buildRegistry(
 
 const byId = new Map(games.map((g) => [g.manifest.id, g]));
 export const findGame = (id: string | undefined) => (id ? byId.get(id) : undefined);
+
+/** Which lobby section a game sits in: core Originals, then classics, then experimental, then templates. */
+export function lobbySection(manifest: GameManifest): number {
+  if (manifest.status === 'template') return 3;
+  if (manifest.collection === 'classics') return 1;
+  return manifest.status === 'prototype' ? 2 : 0;
+}
+
+/** Games in lobby order (section, then registry order), for stepping from one game to the next. */
+export const inLobbyOrder = (entries: GameEntry[]) => [...entries].sort((a, b) => lobbySection(a.manifest) - lobbySection(b.manifest));
+
+const playOrder = inLobbyOrder(games);
+
+/** The games either side of `id` in lobby order, wrapping at the ends. */
+export function adjacentGames(id: string): { prev: GameEntry; next: GameEntry } | null {
+  const i = playOrder.findIndex((g) => g.manifest.id === id);
+  if (i < 0 || playOrder.length < 2) return null;
+  const n = playOrder.length;
+  return { prev: playOrder[(i - 1 + n) % n], next: playOrder[(i + 1) % n] };
+}
+
+/** The first game after `id` in lobby order (wrapping) that passes `test`, or null. */
+export function nextGameWhere(id: string, test: (entry: GameEntry) => boolean): GameEntry | null {
+  const i = playOrder.findIndex((g) => g.manifest.id === id);
+  for (let step = 1; step < playOrder.length; step++) {
+    const entry = playOrder[(i + step) % playOrder.length];
+    if (test(entry)) return entry;
+  }
+  return null;
+}

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
+import { ScrollToTop } from './components/ScrollToTop';
 import { loadEvaluationSummaries } from './lib/evaluator';
 import { loadSummaries } from './lib/ratings';
 import { Evaluator } from './pages/Evaluator';
@@ -17,6 +18,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <div className="atmosphere" aria-hidden="true">
         <div className="atmo-glow atmo-glow-1" />
         <div className="atmo-glow atmo-glow-2" />

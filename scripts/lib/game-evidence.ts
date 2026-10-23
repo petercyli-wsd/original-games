@@ -24,6 +24,25 @@ function sourceFiles(dir: string): string[] {
     });
 }
 
+/** The gameplay files of a game's src folder that reviews look at, with paths relative to it. */
+export function gameplayFiles(src: string) {
+  return sourceFiles(src)
+    .map((path) => ({ path: relative(src, path).replaceAll('\\', '/'), content: readFileSync(path, 'utf8') }))
+    .filter((f) => !SKIP.test(f.path));
+}
+
+/**
+ * Hash of a game's gameplay files. Line endings are normalised first, so a
+ * Windows checkout (CRLF) and the Linux build that serves the API (LF) agree
+ * on the same code; otherwise reviews submitted from Windows look stale.
+ */
+export function codeHashOf(files: { path: string; content: string }[]): string {
+  return createHash('sha256')
+    .update(files.map((f) => `${f.path}\n${f.content.replace(/\r\n/g, '\n')}`).join('\n'))
+    .digest('hex')
+    .slice(0, 16);
+}
+
 export const gameIds = () => readdirSync(GAMES_DIR).filter((id) => existsSync(join(GAMES_DIR, id, 'src', 'manifest.ts')));
 
 export async function buildGameEvidence(id: string, rounds = 20000) {
@@ -31,13 +50,8 @@ export async function buildGameEvidence(id: string, rounds = 20000) {
   if (!existsSync(join(src, 'manifest.ts'))) throw new Error(`No game named "${id}" in games/`);
   const load = async <T>(file: string) => ((await import(pathToFileURL(join(src, file)).href)) as { default: T }).default;
   const manifest = await load<GameManifest>('manifest.ts');
-  const files = sourceFiles(src)
-    .map((path) => ({ path: relative(src, path).replaceAll('\\', '/'), content: readFileSync(path, 'utf8') }))
-    .filter((f) => !SKIP.test(f.path));
-  const codeHash = createHash('sha256')
-    .update(files.map((f) => `${f.path}\n${f.content}`).join('\n'))
-    .digest('hex')
-    .slice(0, 16);
+  const files = gameplayFiles(src);
+  const codeHash = codeHashOf(files);
   const evalReport = existsSync(join(src, 'eval.ts')) ? runEval(await load<EvalSpec>('eval.ts'), { rounds, seed: 1 }) : null;
   return { id, manifest, codeHash, files, eval: evalReport, rounds };
 }

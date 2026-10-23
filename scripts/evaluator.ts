@@ -18,15 +18,14 @@
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // Working files live in .evaluator/<id>/ (git-ignored).
 
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { evalTable, measuredChecks, type GameEvidence } from '../apps/api/src/evaluator/evidence';
 import { EXTRACT_SYSTEM, RULES_CARD_SCHEMA, extractUser } from '../apps/api/src/evaluator/prompts';
 import { DEFAULT_CRITERIA, DEFAULT_GUIDANCE } from '../apps/api/src/evaluator/rubric';
 import { FACETS, type EvaluationSummary, type MeasuredCheck } from '../apps/api/src/shared';
-import { GAMES_DIR, ROOT, buildGameEvidence, gameIds } from './lib/game-evidence';
+import { GAMES_DIR, ROOT, buildGameEvidence, codeHashOf, gameIds, gameplayFiles } from './lib/game-evidence';
 
 const envFile = join(ROOT, '.env.local');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
@@ -105,18 +104,7 @@ Reply with a single JSON object only (no prose, no code fences) that matches the
 `;
 
 /** Hash of a game's gameplay source, computed the same way as the evidence builder. */
-function localCodeHash(id: string): string {
-  const src = join(GAMES_DIR, id, 'src');
-  const skip = /(\.test\.tsx?|\.css|(^|\/)dev\.ts|(^|\/)index\.ts)$/;
-  const walk = (d: string): string[] =>
-    readdirSync(d)
-      .sort()
-      .flatMap((n) => (statSync(join(d, n)).isDirectory() ? walk(join(d, n)) : /\.tsx?$/.test(n) ? [join(d, n)] : []));
-  const files = walk(src)
-    .map((p) => ({ path: relative(src, p).replaceAll('\\', '/'), content: readFileSync(p, 'utf8') }))
-    .filter((f) => !skip.test(f.path));
-  return createHash('sha256').update(files.map((f) => `${f.path}\n${f.content}`).join('\n')).digest('hex').slice(0, 16);
-}
+const localCodeHash = (id: string) => codeHashOf(gameplayFiles(join(GAMES_DIR, id, 'src')));
 
 function requireIds() {
   if (!ids.length) fail(`Usage: npm run evaluator -- ${command} <game-id...>`);

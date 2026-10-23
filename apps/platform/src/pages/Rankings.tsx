@@ -1,7 +1,7 @@
 import { FACETS, rankScore, type CriterionKey, type RatingRow, type RatingSummary } from '@originals/api/shared';
 import { useStore } from '@originals/game-sdk/react';
 import { useState, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Emblem } from '../components/Emblem';
 import { StarInput } from '../components/StarInput';
 import { RECOMMENDATION_LABEL, evaluationSummaries } from '../lib/evaluator';
@@ -20,8 +20,23 @@ export function Rankings() {
   const status = useStore(ratingsStatus);
   const ai = useStore(evaluationSummaries);
   const { showAi } = useStore(reviewPrefs);
-  const [facet, setFacet] = useState<Facet>('overall');
-  const [sortPick, setSortBy] = useState<SortBy>('ai');
+  // Facet and sort live in the URL, so Back from a game returns to the same ranking.
+  const [params, setParams] = useSearchParams();
+  const facetParam = params.get('facet');
+  const facet: Facet = FACETS.some((f) => f.key === facetParam) ? (facetParam as CriterionKey) : 'overall';
+  const sortPick: SortBy = params.get('sort') === 'team' ? 'team' : 'ai';
+  const setParam = (key: string, value: string | null) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
+  const setFacet = (f: Facet) => setParam('facet', f === 'overall' ? null : f);
+  const setSortBy = (s: SortBy) => setParam('sort', s === 'ai' ? null : s);
   const [saving, setSaving] = useState<string | null>(null);
   const [error, setError] = useState('');
 

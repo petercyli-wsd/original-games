@@ -106,8 +106,8 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 | Page | What's there |
 |---|---|
-| **Lobby** `/` | Every game as a tile with RTP, max win and its team rating; filter by maths family. `prototype` games are under Experimental. |
-| **Game** `/play/<id>` | The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (write a score with pros and cons, read others') and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
+| **Lobby** `/` | Every game as a tile with RTP, max win, its team rating and AI score. Search, sort (featured, AI score, team score, A–Z), filter by maths family or to games you haven't rated; the view is kept in the URL, so Back returns to it. `prototype` games are under Experimental. |
+| **Game** `/play/<id>` | Previous/next links to step through games in lobby order. The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (write a score with pros and cons, read others'; after saving, a link to the next game you haven't rated) and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
 | **Rankings** `/rankings` | Every game ranked overall or on any one facet (pace, volatility control, win condition…), by the team (weighted by vote count) or by the AI; classics are tagged. Rate any game inline. |
 | **Evaluator** `/evaluator` | The active prompt (weights, guidance, reference games, agreement metrics), candidate versions side by side with the active one, the team-vs-AI table, and **Promote**. Unlock with the admin passphrase. |
 

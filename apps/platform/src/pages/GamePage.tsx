@@ -6,8 +6,9 @@ import { AiReview } from '../components/AiReview';
 import { HumanReviews } from '../components/HumanReviews';
 import { StatsPanel } from '../components/StatsPanel';
 import { createHost } from '../host/session';
+import { lobbyPath } from '../lib/preferences';
 import { ratingsEnabled } from '../lib/ratings';
-import { findGame } from '../registry';
+import { adjacentGames, findGame } from '../registry';
 import { NotFound } from './NotFound';
 
 export function GamePage() {
@@ -25,11 +26,12 @@ export function GamePage() {
 
   if (!entry || !host) return <NotFound />;
   const { manifest } = entry;
+  const adjacent = adjacentGames(manifest.id);
 
   return (
-    <main className="game-page" style={{ '--accent': manifest.accent } as CSSProperties}>
+    <main key={manifest.id} className="game-page" style={{ '--accent': manifest.accent } as CSSProperties}>
       <div className="game-heading">
-        <Link to="/" className="back-link">
+        <Link to={lobbyPath.get()} className="back-link">
           ← Lobby
         </Link>
         <div>
@@ -37,6 +39,16 @@ export function GamePage() {
           <p>{manifest.tagline}</p>
         </div>
         {manifest.status !== 'live' && <span className={`status status-${manifest.status}`}>{manifest.status}</span>}
+        {adjacent && (
+          <nav className="game-step" aria-label="Other games">
+            <Link to={`/play/${adjacent.prev.manifest.id}`} title={`Previous: ${adjacent.prev.manifest.name}`}>
+              ‹ <span>{adjacent.prev.manifest.name}</span>
+            </Link>
+            <Link to={`/play/${adjacent.next.manifest.id}`} title={`Next: ${adjacent.next.manifest.name}`}>
+              <span>{adjacent.next.manifest.name}</span> ›
+            </Link>
+          </nav>
+        )}
       </div>
       <div className="game-layout">
         <GameFrame entry={entry} host={host} />

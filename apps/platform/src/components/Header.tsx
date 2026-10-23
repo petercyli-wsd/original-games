@@ -26,11 +26,11 @@ export function Header() {
         </Link>
 
         <div className="header-controls">
-          <NavLink to="/rankings" className="nav-link">
-            ★ Rankings
+          <NavLink to="/rankings" className="nav-link" aria-label="Rankings" title="Rankings">
+            ★<span className="toggle-label"> Rankings</span>
           </NavLink>
-          <NavLink to="/evaluator" className="nav-link">
-            ✦ Evaluator
+          <NavLink to="/evaluator" className="nav-link" aria-label="Evaluator" title="Evaluator">
+            ✦<span className="toggle-label"> Evaluator</span>
           </NavLink>
           <button
             className={`toggle ai-toggle ${showAi ? 'on' : ''}`}

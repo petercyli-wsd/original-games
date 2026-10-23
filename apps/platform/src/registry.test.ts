@@ -1,6 +1,6 @@
 import type { GameManifest, GameModule } from '@originals/game-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { buildRegistry } from './registry';
+import { buildRegistry, inLobbyOrder } from './registry';
 
 const manifest = (id: string, extra: Partial<GameManifest> = {}): GameManifest => ({
   id,
@@ -41,5 +41,18 @@ describe('buildRegistry', () => {
     ] as const;
     expect(buildRegistry(...inputs)).toEqual([]);
     expect(buildRegistry(...inputs, { includeTemplates: true }).map((g) => g.manifest.id)).toEqual(['template']);
+  });
+});
+
+describe('inLobbyOrder', () => {
+  it('puts core games first, then classics, then prototypes, keeping order within a section', () => {
+    const entry = (id: string, extra: Partial<GameManifest>) => ({ manifest: manifest(id, extra), load });
+    const ordered = inLobbyOrder([
+      entry('proto', { status: 'prototype' }),
+      entry('classic-a', { status: 'live', collection: 'classics' }),
+      entry('core', { status: 'live' }),
+      entry('classic-b', { status: 'live', collection: 'classics' }),
+    ]);
+    expect(ordered.map((g) => g.manifest.id)).toEqual(['core', 'classic-a', 'classic-b', 'proto']);
   });
 });

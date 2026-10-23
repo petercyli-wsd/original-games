@@ -1,6 +1,9 @@
 import { FACETS, MAX_COMMENT_LENGTH, MAX_REVIEWER_LENGTH, type FacetScores, type RatingDetail } from '@originals/api/shared';
+import { useStore } from '@originals/game-sdk/react';
 import { useEffect, useState, type FormEvent } from 'react';
-import { fetchRating, rate, ratingsEnabled, savedReviewer } from '../lib/ratings';
+import { Link } from 'react-router-dom';
+import { fetchRating, rate, ratingSummaries, ratingsEnabled, savedReviewer } from '../lib/ratings';
+import { nextGameWhere } from '../registry';
 import { StarInput } from './StarInput';
 
 const PLACEHOLDER = `Pros: what works? Is the win condition clear, are the odds obvious on screen?
@@ -18,6 +21,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
   const [facets, setFacets] = useState<FacetScores>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const ratings = useStore(ratingSummaries);
 
   useEffect(() => {
     if (!ratingsEnabled) return;
@@ -116,7 +120,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
         />
         <div className="review-form-foot">
           <span className="rating-note">
-            {error ? <span className="rating-error">{error}</span> : saved ? 'Saved. Thanks, this trains the AI reviewer.' : stars ? '' : 'Pick a score to save.'}
+            {error ? <span className="rating-error">{error}</span> : saved ? <SavedNote next={nextGameWhere(gameId, (g) => !ratings[g.manifest.id]?.mine)} /> : stars ? '' : 'Pick a score to save.'}
           </span>
           <button type="submit" className="btn-primary" disabled={!stars || saving}>
             {saving ? 'Saving…' : detail?.myReview?.comment ? 'Update review' : 'Save review'}
@@ -150,5 +154,24 @@ export function HumanReviews({ gameId }: { gameId: string }) {
         detail && <p className="rating-note">No written reviews yet.</p>
       )}
     </section>
+  );
+}
+
+/** Thanks the reviewer and points at the next game they haven't rated, to keep a review session moving. */
+function SavedNote({ next }: { next: ReturnType<typeof nextGameWhere> }) {
+  return (
+    <>
+      Saved. Thanks, this trains the AI reviewer.
+      {next ? (
+        <>
+          {' '}
+          <Link to={`/play/${next.manifest.id}`} className="next-to-rate">
+            Next game to rate: {next.manifest.name} →
+          </Link>
+        </>
+      ) : (
+        ' You have rated every game.'
+      )}
+    </>
   );
 }
