@@ -60,7 +60,7 @@ interface Last {
 
 const easeOut = (t: number) => 1 - Math.pow(1 - t, 3);
 
-/** A text box that edits a number and commits on blur or Enter. */
+/** A panel number field that edits one linked value and commits on blur or Enter. */
 function LinkedInput({
   label,
   value,
@@ -82,9 +82,9 @@ function LinkedInput({
     setText(value);
   };
   return (
-    <label className="rd-field">
-      <span>{label}</span>
-      <div className="rd-input">
+    <div className="rd-field">
+      <Label>{label}</Label>
+      <div className="og-num-field">
         <input
           value={text}
           inputMode="decimal"
@@ -96,9 +96,9 @@ function LinkedInput({
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
           }}
         />
-        {suffix && <b>{suffix}</b>}
+        {suffix && <span className="og-num-suffix">{suffix}</span>}
       </div>
-    </label>
+    </div>
   );
 }
 
@@ -226,6 +226,26 @@ export default function Game() {
               { value: 'out', label: 'Roll out', title: 'Win when the number lands outside the range' },
             ]}
           />
+          <div className="rd-pair">
+            <LinkedInput label="Low" value={fmtN(range.low)} disabled={busy} onCommit={(v) => update(setEnd(range, 'low', v))} />
+            <LinkedInput label="High" value={fmtN(range.high)} disabled={busy} onCommit={(v) => update(setEnd(range, 'high', v))} />
+          </div>
+          <div className="rd-pair">
+            <LinkedInput
+              label="Multiplier"
+              value={multiplier.toFixed(4)}
+              suffix="×"
+              disabled={busy}
+              onCommit={(m) => m > 0 && update(withWins(range, winsForMultiplier(m)))}
+            />
+            <LinkedInput
+              label="Win chance"
+              value={(chance * 100).toFixed(2)}
+              suffix="%"
+              disabled={busy}
+              onCommit={(c) => update(withWins(range, winsForChance(c)))}
+            />
+          </div>
           <Label hint={<VolBadge level={level} />}>Quick payout</Label>
           <div className="rd-presets">
             <Chips<number>
@@ -238,8 +258,6 @@ export default function Game() {
             />
           </div>
           <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(chance)}</dd>
             <dt>Winning numbers</dt>
             <dd>
               {wins.toLocaleString('en-US')} / {SIZE.toLocaleString('en-US')}
@@ -292,25 +310,6 @@ export default function Game() {
           </p>
         </div>
       </Board>
-
-      <div className="rd-inputs">
-        <LinkedInput label="Low" value={fmtN(range.low)} disabled={busy} onCommit={(v) => update(setEnd(range, 'low', v))} />
-        <LinkedInput label="High" value={fmtN(range.high)} disabled={busy} onCommit={(v) => update(setEnd(range, 'high', v))} />
-        <LinkedInput
-          label="Multiplier"
-          value={multiplier.toFixed(4)}
-          suffix="×"
-          disabled={busy}
-          onCommit={(m) => m > 0 && update(withWins(range, winsForMultiplier(m)))}
-        />
-        <LinkedInput
-          label="Win chance"
-          value={(chance * 100).toFixed(2)}
-          suffix="%"
-          disabled={busy}
-          onCommit={(c) => update(withWins(range, winsForChance(c)))}
-        />
-      </div>
 
       {infoOpen && (
         <InfoModal title="Range Dice" onClose={() => setInfoOpen(false)}>

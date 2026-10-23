@@ -1,4 +1,4 @@
-/* Range Dice: a 0–9999 track with two handles, the win zones, the rolled marker and linked inputs. */
+/* Range Dice: a 0–9999 track with two handles, the win zones and the rolled marker; the linked inputs sit in the panel. */
 
 /* The Auto panel is taller than the frame: let it scroll instead of squeezing the controls. */
 .og-panel > * {
@@ -351,61 +351,31 @@
   color: var(--muted);
 }
 
-.rd-inputs {
+/* Linked Low / High and Multiplier / Win chance fields: two per row in the panel. */
+.rd-pair {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-  padding: 14px;
-  border-radius: var(--radius-lg);
-  background: var(--raised);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 8px;
 }
 .rd-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   min-width: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
 }
-.rd-input {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 12px;
-  height: 42px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
+.rd-field .og-num-field {
   transition: border-color 0.15s ease;
 }
-.rd-input:focus-within {
+.rd-field .og-num-field:focus-within {
   border-color: var(--accent);
 }
-.rd-input input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  outline: none;
-  background: transparent;
+.rd-field .og-num-field input {
   font-size: 15px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.rd-input input:disabled {
-  opacity: 0.55;
-}
-.rd-input b {
-  color: var(--muted);
 }
 
 @container (max-width: 760px) {
-  .rd-inputs {
-    grid-template-columns: 1fr 1fr;
-    padding: 12px;
-  }
   .rd-wrap {
-    padding-top: 124px;
+    padding-top: 144px;
   }
   .rd-track-wrap,
   .rd-legend {
