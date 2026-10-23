@@ -23,11 +23,11 @@ export interface FieldProps {
   rhythm: [number, number];
   end: 'escaped' | 'caught' | null;
   moveMs: number;
-  /** Faint chance label on every cell (big boards hide them on narrow screens via CSS). */
-  showAll: boolean;
+  /** The hunter can catch the runner on the coming turn. */
+  threat: boolean;
 }
 
-export default function Field({ grid, heat, runner, hunter, trail, hunterTrail, moves, p, path, rhythm, end, moveMs, showAll }: FieldProps) {
+export default function Field({ grid, heat, runner, hunter, trail, hunterTrail, moves, p, path, rhythm, end, moveMs, threat }: FieldProps) {
   const cs = (SIZE - PAD * 2) / grid.w;
   const xy = (i: number) => ({ x: PAD + (i % grid.w) * cs + cs / 2, y: PAD + Math.floor(i / grid.w) * cs + cs / 2 });
   const pts = (cells: number[]) => cells.map((c) => `${xy(c).x.toFixed(1)},${xy(c).y.toFixed(1)}`).join(' ');
@@ -53,7 +53,7 @@ export default function Field({ grid, heat, runner, hunter, trail, hunterTrail, 
           <g key={i}>
             <rect x={x0} y={y0} width={cs - 4} height={cs - 4} rx={6} className={'cell' + (isExit ? ' exit' : '')} />
             {!isExit && side > 0.5 && <rect x={x - side / 2} y={y - side / 2} width={side} height={side} rx={3} className="heat" />}
-            {showAll && !isExit && i !== runner && i !== hunter && !moveAt.has(i) && (
+            {!isExit && i !== runner && i !== hunter && !moveAt.has(i) && (
               <text x={x} y={y + 4} className="cell-p" style={{ fontSize: fs - 1 }}>
                 {v > 0 && v < 0.005 ? '<1' : Math.round(v * 100)}
               </text>
@@ -91,7 +91,8 @@ export default function Field({ grid, heat, runner, hunter, trail, hunterTrail, 
       })}
 
       {/* Hunter: a red diamond, with pips counting down to its next move. */}
-      <g className={'hunter' + (end === 'caught' ? ' got' : '')} style={{ transform: `translate(${h.x}px, ${h.y}px)`, transitionDuration: `${moveMs}ms` }}>
+      <g className={'hunter' + (end === 'caught' ? ' got' : '') + (threat ? ' threat' : '')} style={{ transform: `translate(${h.x}px, ${h.y}px)`, transitionDuration: `${moveMs}ms` }}>
+        {threat && <circle r={cs * 0.36} className="ring" />}
         <rect x={-cs * 0.2} y={-cs * 0.2} width={cs * 0.4} height={cs * 0.4} rx={3} transform="rotate(45)" />
         {rhythm[1] > 1 &&
           Array.from({ length: rhythm[1] }, (_, k) => (

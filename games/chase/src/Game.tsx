@@ -119,7 +119,7 @@ export default function Game() {
   const [boardId, setBoardId] = useState<BoardId>('yard');
   const [gap, setGap] = useState<Gap>('big');
   const [speed, setSpeed] = useState<Speed>('steady');
-  const [target, setTarget] = useState<number | null>(2);
+  const [target, setTarget] = useState<number | null>(1.5);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [last, setLast] = useState<Last | null>(null);
@@ -133,7 +133,7 @@ export default function Game() {
   const ticket = useTicket(() => (phase === 'moving' || autoBusy ? resolved.current : phase === 'live' && round ? round.cash : 0));
 
   const settings: Settings = { board: boardId, gap, speed };
-  const moveMs = turbo.turbo ? 90 : 340;
+  const moveMs = turbo.turbo ? 90 : 260;
   const autoMs = turbo.turbo ? 70 : 200;
   const live = phase === 'moving' || phase === 'live';
 
@@ -216,6 +216,9 @@ export default function Game() {
     const s = { ...settings };
     const tgt = target;
     if (!(await ticket.place(stake))) return null;
+    // Until the first turn is drawn the round is worth its starting value (RTP),
+    // never the previous round's result.
+    resolved.current = RTP;
     setAutoBusy(true);
     setLast(null);
     setPhase('idle');
@@ -321,6 +324,9 @@ export default function Game() {
   const period = t.period;
   const turnsToMove = period - 1 - state.phase;
   const fatal = moves?.filter((m) => m.p === 0).length ?? 0;
+  // The hunter can catch the runner on the coming turn (it is adjacent, or one
+  // step further away and about to move).
+  const threatened = hunterGap <= (movesNow ? 2 : 1);
   const path = phase === 'moving' || end ? [] : chasePath(grid, round?.hunter ?? state.hunter, round?.runner ?? state.runner);
 
   let status = `Ready · ${grid.name}, ${SPEED_LABEL[shown.speed].toLowerCase()} hunter`;
@@ -337,7 +343,7 @@ export default function Game() {
     status = `Turn ${(round?.turn ?? 0) + 1} · moving…`;
     tone = 'live';
   } else if (phase === 'live' && round) {
-    status = `Checkpoint · turn ${round.turn}`;
+    status = fatal ? `Danger · turn ${round.turn} · ${fatal === 1 ? 'one step walks' : `${fatal} steps walk`} into the hunter` : `Checkpoint · turn ${round.turn}`;
     tone = 'live';
   } else if (phase === 'over' && round?.outcome) {
     status = `${OUTCOME_TITLE[round.outcome]} · ${round.turn} ${round.turn === 1 ? 'turn' : 'turns'}`;
@@ -461,6 +467,7 @@ export default function Game() {
       <Board className="ch-board">
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
         <Field
+          key={grid.id}
           grid={grid}
           heat={heat}
           runner={round?.runner ?? state.runner}
@@ -473,7 +480,7 @@ export default function Game() {
           rhythm={[state.phase, period]}
           end={end}
           moveMs={isAuto ? autoMs : moveMs}
-          showAll={!live && !autoBusy}
+          threat={!end && phase !== 'moving' && threatened}
         />
         <div className="ch-strip" aria-label="Distances">
           <span className="ex">
@@ -489,7 +496,13 @@ export default function Game() {
               ? end === 'escaped'
                 ? 'Runner got out'
                 : 'Runner caught'
-              : period === 1
+              : round?.outcome === 'cashed'
+                ? 'Cashed out'
+                : threatened && !autoBusy
+                ? movesNow
+                  ? 'Hunter can strike this turn'
+                  : 'Hunter is next to you'
+                : period === 1
                 ? 'Hunter moves every turn'
                 : movesNow
                   ? 'Hunter moves this turn'
@@ -522,8 +535,8 @@ export default function Game() {
         />
       ) : (
         <Caption>
-          <b className="ch-rule">{RULE}</b> The runner steps at random; the red hunter chases it and {SPEED_HINT[shown.speed]}. Each square's green area is your
-          escape chance if the runner stood there.
+          <b className="ch-rule">{RULE}</b> The runner steps at random; the red hunter chases it and {SPEED_HINT[shown.speed]}. Each square's green area and number
+          are your escape chance if the runner stood there.
         </Caption>
       )}
 

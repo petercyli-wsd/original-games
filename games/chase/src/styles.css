@@ -151,6 +151,13 @@
 .chase .hunter.got rect {
   animation: ch-pulse 0.5s ease 2;
 }
+.chase .hunter .ring {
+  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  animation: ch-threat 0.9s ease-in-out infinite;
+}
 .chase .hunter .pip {
   fill: color-mix(in srgb, var(--accent) 25%, transparent);
   stroke: var(--accent);
@@ -206,6 +213,11 @@
   color: var(--red);
 }
 
+@keyframes ch-threat {
+  50% {
+    opacity: 0.35;
+  }
+}
 @keyframes ch-pulse {
   50% {
     opacity: 0.4;
