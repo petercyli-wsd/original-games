@@ -6,6 +6,7 @@
 //   GET  /ratings[?voter=<uuid>]        -> { [gameId]: { average, count, mine? } }
 //   GET  /ratings/:gameId?voter=<uuid>  -> RatingDetail (incl. reviews)
 //   PUT  /ratings/:gameId  { voterId, stars, comment?, reviewer?, facets? } -> RatingDetail
+//   GET  /reviews[?voter=<uuid>]        -> FeedReview[], the latest reviews across games
 //
 // AI evaluator (reads public; actions marked * need the x-admin-key header):
 //   GET  /evaluator                      -> status and active prompt version
@@ -40,7 +41,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BODY = 8 * 1024;
 // Rules cards, reviews and prompts are a few KB each.
 const MAX_EVALUATOR_BODY = 128 * 1024;
-const REVIEWS_SHOWN = 20;
+const REVIEWS_SHOWN = 50;
+const FEED_SIZE = 200;
 
 export interface AppOptions {
   ratings: RatingsStore;
@@ -91,7 +93,7 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
       ratings.distribution(gameId),
       voterId ? ratings.stars(gameId, voterId) : null,
       voterId ? ratings.review(gameId, voterId) : null,
-      ratings.reviews(gameId, REVIEWS_SHOWN),
+      ratings.reviews(gameId, REVIEWS_SHOWN, voterId),
       ratings.facetScores(gameId),
     ]);
     return { ...summarize(distribution), distribution, facets: facetAverages(facets.get(gameId) ?? []), mine, myReview, reviews };
@@ -244,6 +246,11 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
     const [resource, ...parts] = url.pathname.split('/').filter(Boolean);
     if (req.method === 'GET' && resource === 'health' && !parts.length) return { ok: true };
     if (resource === 'ratings' && parts.length <= 1) return ratingsRoute(req, url, parts[0]);
+    if (resource === 'reviews' && parts.length === 0) {
+      if (req.method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      const voter = url.searchParams.get('voter');
+      return ratings.recentReviews(FEED_SIZE, voter && UUID.test(voter) ? voter : null);
+    }
     if (resource === 'evaluator' && parts.length <= 3) return evaluatorRoute(req, url, parts);
     if (resource === 'evaluations' && parts.length <= 1) return evaluationsRoute(req, parts[0]);
     throw new HttpError(404, 'Not found');

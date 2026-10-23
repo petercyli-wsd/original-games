@@ -3,10 +3,12 @@ import { useStore } from '@originals/game-sdk/react';
 import { useState, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Emblem } from '../components/Emblem';
+import { ReviewFeed } from '../components/ReviewFeed';
 import { StarInput } from '../components/StarInput';
 import { RECOMMENDATION_LABEL, evaluationSummaries } from '../lib/evaluator';
 import { reviewPrefs } from '../lib/preferences';
 import { rate, ratingSummaries, ratingsEnabled, ratingsStatus } from '../lib/ratings';
+import { notify } from '../lib/toast';
 import { games } from '../registry';
 
 const UNRATED: RatingRow = { average: 0, count: 0, mine: null };
@@ -14,7 +16,7 @@ const UNRATED: RatingRow = { average: 0, count: 0, mine: null };
 type Facet = 'overall' | CriterionKey;
 type SortBy = 'team' | 'ai';
 
-/** Every game ranked overall or on one facet, by the team or by the AI, with inline voting. */
+/** Every game ranked overall or on one facet, by the team or by the AI, with inline voting; or the team's latest reviews. */
 export function Rankings() {
   const summaries = useStore(ratingSummaries);
   const status = useStore(ratingsStatus);
@@ -25,6 +27,7 @@ export function Rankings() {
   const facetParam = params.get('facet');
   const facet: Facet = FACETS.some((f) => f.key === facetParam) ? (facetParam as CriterionKey) : 'overall';
   const sortPick: SortBy = params.get('sort') === 'team' ? 'team' : 'ai';
+  const view = params.get('view') === 'reviews' ? 'reviews' : 'ranking';
   const setParam = (key: string, value: string | null) =>
     setParams(
       (prev) => {
@@ -76,8 +79,11 @@ export function Rankings() {
     setError('');
     try {
       await rate(gameId, stars);
+      notify(`Rated ${games.find((g) => g.manifest.id === gameId)?.manifest.name ?? gameId} ${stars}★`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your rating');
+      const message = err instanceof Error ? err.message : 'Could not save your rating';
+      setError(message);
+      notify(message, 'error');
     } finally {
       setSaving(null);
     }
@@ -89,14 +95,29 @@ export function Rankings() {
     <main className="rankings">
       <div className="section-head">
         <div>
-          <h2>Rankings</h2>
+          <h2>{view === 'reviews' ? 'Team reviews' : 'Rankings'}</h2>
           <p>
-            Rank every game overall or on one facet. Team scores weigh each average by how many people voted; write full facet reviews on each game's
-            page.
+            {view === 'reviews'
+              ? "Everyone's latest reviews across every game. Write your own on each game's page."
+              : "Rank every game overall or on one facet. Team scores weigh each average by how many people voted; write full facet reviews on each game's page."}
           </p>
         </div>
+        {ratingsEnabled && (
+          <div className="segmented-mini" role="group" aria-label="View">
+            <button className={view === 'ranking' ? 'on' : ''} aria-pressed={view === 'ranking'} onClick={() => setParam('view', null)}>
+              Ranking
+            </button>
+            <button className={view === 'reviews' ? 'on' : ''} aria-pressed={view === 'reviews'} onClick={() => setParam('view', 'reviews')}>
+              Latest reviews
+            </button>
+          </div>
+        )}
       </div>
 
+      {view === 'reviews' ? (
+        <ReviewFeed />
+      ) : (
+      <>
       <div className="rank-controls">
         <nav className="filters rank-facets" aria-label="Rank by">
           <button className={`chip ${facet === 'overall' ? 'on' : ''}`} onClick={() => setFacet('overall')}>
@@ -189,6 +210,8 @@ export function Rankings() {
           );
         })}
       </ol>
+      </>
+      )}
     </main>
   );
 }

@@ -619,3 +619,191 @@
     padding: 7px 8px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Your review vs other people's, the review feed, and toasts
+   --------------------------------------------------------------------------- */
+.review-subhead {
+  margin: 4px 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--og-text-muted);
+}
+.review-subhead span {
+  font-weight: 600;
+}
+.review-card .rating-bars {
+  margin: 0 0 16px;
+}
+.other-reviews {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--og-border);
+}
+.other-reviews-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.other-reviews-head .review-subhead {
+  margin-bottom: 0;
+}
+.other-reviews-all {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--og-gold);
+  text-decoration: none;
+}
+.other-reviews-all:hover {
+  text-decoration: underline;
+}
+.other-reviews .review-list {
+  margin-top: 10px;
+}
+.reviews-hidden {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px dashed var(--og-border);
+  border-radius: var(--og-radius);
+}
+.reviews-hidden .rating-note {
+  margin: 0;
+}
+.review-author {
+  font-weight: 700;
+  color: var(--og-text);
+}
+.review-list p.review-empty {
+  font-style: italic;
+  color: var(--og-text-muted);
+}
+
+.feed-filters {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.feed-select {
+  padding: 7px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--og-text);
+  background: var(--og-bg-raised);
+  border: 1px solid var(--og-border);
+  border-radius: 20px;
+}
+.feed-list {
+  margin-top: 14px;
+}
+.feed-list .review-item {
+  padding: 14px 16px;
+  border: 1px solid var(--og-border);
+  background: var(--og-bg-card);
+}
+.feed-game {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  text-decoration: none;
+}
+.feed-game .tile-emblem {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+}
+.feed-game .tile-emblem svg {
+  width: 20px;
+  height: 20px;
+}
+.feed-game strong {
+  font-size: 15px;
+}
+.feed-game:hover strong {
+  color: var(--accent);
+}
+
+.toaster {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 100;
+  display: grid;
+  gap: 8px;
+  width: min(420px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--og-border-strong);
+  border-radius: var(--og-radius-lg);
+  background: var(--og-bg-raised);
+  box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+  animation: toast-in 0.25s var(--og-ease);
+}
+.toast-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--og-text-on-accent);
+  border-radius: 50%;
+}
+.toast-success .toast-icon {
+  background: var(--og-green);
+}
+.toast-error .toast-icon {
+  background: var(--og-red);
+}
+.toast-message {
+  flex: 1;
+}
+.toast-close {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--og-text-muted);
+}
+.toast-close:hover {
+  color: var(--og-text);
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+.segmented-mini button {
+  white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .rankings .section-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+}

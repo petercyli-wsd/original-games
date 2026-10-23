@@ -2,7 +2,7 @@
 // random voter id and holds one rating per game (stars plus an optional written
 // review), which it can change.
 
-import { summarize, type FacetScores, type RatingDetail, type RatingRow } from '@originals/api/shared';
+import { summarize, type FacetScores, type FeedReview, type RatingDetail, type RatingRow } from '@originals/api/shared';
 import { createStore } from '@originals/game-sdk';
 import { apiEnabled, apiRequest as request, jsonBody } from './api';
 import { safeStorage } from './storage';
@@ -65,6 +65,9 @@ export function loadSummaries() {
       summariesRequest = null;
     });
 }
+
+/** The latest reviews across every game, with this browser's own flagged. */
+export const fetchFeed = () => request<FeedReview[]>(`/reviews?voter=${encodeURIComponent(voterId())}`);
 
 export const fetchRating = (gameId: string) =>
   request<RatingDetail>(`/ratings/${gameId}?voter=${encodeURIComponent(voterId())}`);

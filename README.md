@@ -107,15 +107,15 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 | Page | What's there |
 |---|---|
 | **Lobby** `/` | Every game as a tile with RTP, max win, its team rating and AI score. Search, sort (featured, AI score, team score, A–Z), filter by maths family or to games you haven't rated; the view is kept in the URL, so Back returns to it. `prototype` games are under Experimental. |
-| **Game** `/play/<id>` | Previous/next links to step through games in lobby order. The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (write a score with pros and cons, read others'; after saving, a link to the next game you haven't rated) and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
-| **Rankings** `/rankings` | Every game ranked overall or on any one facet (pace, volatility control, win condition…), by the team (weighted by vote count) or by the AI; classics are tagged. Rate any game inline. |
+| **Game** `/play/<id>` | Previous/next links to step through games in lobby order. The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (the score breakdown, your review with pros and cons, and everyone else's reviews, folded until you've saved yours so they don't sway it; after saving, a link to the next game you haven't rated) and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
+| **Rankings** `/rankings` | Every game ranked overall or on any one facet (pace, volatility control, win condition…), by the team (weighted by vote count) or by the AI; classics are tagged. Rate any game inline. **Latest reviews** (`/rankings?view=reviews`) lists everyone's reviews across games, filterable by reviewer or to written ones. |
 | **Evaluator** `/evaluator` | The active prompt (weights, guidance, reference games, agreement metrics), candidate versions side by side with the active one, the team-vs-AI table, and **Promote**. Unlock with the admin passphrase. |
 
 The play balance is a demo wallet stored in the browser; **Refill** resets it.
 
 ## Reviews and the AI evaluator
 
-**Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Reviews are anonymous by default: each browser keeps one review per game, which it can change. Reviewers can also score each facet (below); facet scores are optional and the overall star stays the headline metric.
+**Team reviews.** Each game can be rated 1–5 stars with an optional written review (pros and cons) and name. Averages show on lobby tiles and the Rankings page; full reviews sit under each game. Everyone on the team can review the same game: each browser keeps its own review per game (identified by a random id, signed with the name you give), which it can change. A notification confirms each save. Reviewers can also score each facet (below); facet scores are optional and the overall star stays the headline metric.
 
 **Facets.** Every metric has a team version and an AI version, on the same 1–5 scale:
 
@@ -219,8 +219,9 @@ Public reads, with `*` marking routes that need the `x-admin-key` header:
 
 | Route | Purpose |
 |---|---|
-| `GET /ratings[?voter=]`, `GET /ratings/:id?voter=` | Rating summaries; one game's distribution, your review and recent reviews |
-| `PUT /ratings/:id` | `{ voterId, stars, comment?, reviewer? }` (rate-limited per IP) |
+| `GET /ratings[?voter=]`, `GET /ratings/:id?voter=` | Rating summaries; one game's distribution, your review and everyone else's |
+| `GET /reviews[?voter=]` | The latest reviews across every game, yours flagged |
+| `PUT /ratings/:id` | `{ voterId, stars, comment?, reviewer?, facets? }` (rate-limited per IP) |
 | `GET /evaluations`, `GET /evaluations/:id` | AI score per game; one game's full AI review |
 | `GET /evaluator`, `/evaluator/versions[/:id]`, `/evaluator/agreement`, `/evaluator/calibration` | Status, prompt versions, team-vs-AI, backtest to-do |
 | `GET /evaluator/cards/:id?hash=` | Cached rules card for a code version |

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
 import { ScrollToTop } from './components/ScrollToTop';
+import { Toaster } from './components/Toaster';
 import { loadEvaluationSummaries } from './lib/evaluator';
 import { loadSummaries } from './lib/ratings';
 import { Evaluator } from './pages/Evaluator';
@@ -25,6 +26,7 @@ export default function App() {
         <div className="atmo-grid" />
       </div>
       <Header />
+      <Toaster />
       <Routes>
         <Route path="/" element={<Lobby />} />
         <Route path="/play/:gameId" element={<GamePage />} />

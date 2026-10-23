@@ -18,6 +18,7 @@ import {
   type EvaluatorStatus,
   type Job,
   type PromptVersion,
+  type FeedReview,
   type RatingDetail,
 } from './shared.js';
 import { createMemoryEvalStore, createMemoryStore } from './store.js';
@@ -157,14 +158,33 @@ describe('ratings API', () => {
   it('keeps written reviews when a quick star vote follows', async () => {
     const { base, put } = await start();
     await put('drift', { voterId: A, stars: 4, comment: '  Pro: clear odds.\nCon: slow.\u0007 ', reviewer: 'Peter' });
-    await put('drift', { voterId: B, stars: 2 }); // no comment: not listed as a review
+    await put('drift', { voterId: B, stars: 2 });
     const quick = (await (await put('drift', { voterId: A, stars: 5 })).json()) as RatingDetail;
     expect(quick.myReview).toMatchObject({ stars: 5, comment: 'Pro: clear odds.\nCon: slow.', reviewer: 'Peter' });
-    expect(quick.reviews).toHaveLength(1);
     const cleared = (await (await put('drift', { voterId: A, stars: 5, comment: '' })).json()) as RatingDetail;
-    expect(cleared.reviews).toHaveLength(0);
+    expect(cleared.myReview?.comment).toBe('');
     const anon = (await (await fetch(`${base}/ratings/drift`)).json()) as RatingDetail;
     expect(anon.myReview).toBeNull();
+  });
+
+  it("lists everyone else's reviews, written or not, and a feed across games", async () => {
+    const { base, put } = await start();
+    await put('drift', { voterId: A, stars: 4, comment: 'Clear odds.', reviewer: 'Peter' });
+    await put('drift', { voterId: B, stars: 2, facets: { pace: 2 } }); // stars and a facet only: still a review
+    await put('slice', { voterId: B, stars: 5, comment: 'Fun.', reviewer: 'Sam' });
+
+    const forA = (await (await fetch(`${base}/ratings/drift?voter=${A}`)).json()) as RatingDetail;
+    expect(forA.reviews).toEqual([expect.objectContaining({ stars: 2, comment: '', facets: { pace: 2 } })]); // A's own is left out
+    const forAnyone = (await (await fetch(`${base}/ratings/drift`)).json()) as RatingDetail;
+    expect(forAnyone.reviews.map((r) => r.stars)).toEqual([2, 4]); // newest first
+
+    const feed = (await (await fetch(`${base}/reviews?voter=${B}`)).json()) as FeedReview[];
+    expect(feed.map((r) => [r.gameId, r.stars, r.mine])).toEqual([
+      ['slice', 5, true],
+      ['drift', 2, true],
+      ['drift', 4, false],
+    ]);
+    expect((await fetch(`${base}/reviews`, { method: 'POST' })).status).toBe(405);
   });
 
   it('rejects bad input', async () => {

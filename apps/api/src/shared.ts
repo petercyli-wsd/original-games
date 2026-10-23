@@ -81,8 +81,15 @@ export interface RatingDetail extends RatingSummary {
   mine: number | null;
   /** This voter's full review, if any. */
   myReview: Review | null;
-  /** Reviews with a written comment, newest first. */
+  /** Everyone else's reviews (any rating, written or not), newest first. */
   reviews: Review[];
+}
+
+/** A review in the cross-game feed. */
+export interface FeedReview extends Review {
+  gameId: string;
+  /** Whether the requesting voter wrote it. */
+  mine: boolean;
 }
 
 export interface RatingInput {

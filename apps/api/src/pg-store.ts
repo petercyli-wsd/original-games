@@ -106,12 +106,19 @@ export async function createPgStores(connectionString: string, { ssl = false } =
       const { rows } = await pool.query<VoteRow>(`SELECT ${REVIEW_COLS} FROM ratings WHERE game_id = $1 AND voter_id = $2`, [gameId, voterId]);
       return rows[0] ? toReview(rows[0]) : null;
     },
-    async reviews(gameId, limit) {
+    async reviews(gameId, limit, excludeVoter) {
       const { rows } = await pool.query<VoteRow>(
-        `SELECT ${REVIEW_COLS} FROM ratings WHERE game_id = $1 AND comment <> '' ORDER BY updated_at DESC LIMIT $2`,
-        [gameId, limit],
+        `SELECT ${REVIEW_COLS} FROM ratings WHERE game_id = $1 AND voter_id IS DISTINCT FROM $3 ORDER BY updated_at DESC LIMIT $2`,
+        [gameId, limit, excludeVoter ?? null],
       );
       return rows.map(toReview);
+    },
+    async recentReviews(limit, voter) {
+      const { rows } = await pool.query<VoteRow & { game_id: string; mine: boolean }>(
+        `SELECT game_id, ${REVIEW_COLS}, voter_id = $2 AS mine FROM ratings ORDER BY updated_at DESC LIMIT $1`,
+        [limit, voter ?? null],
+      );
+      return rows.map((r) => ({ ...toReview(r), gameId: r.game_id, mine: r.mine === true }));
     },
     async allReviews() {
       const { rows } = await pool.query<VoteRow & { game_id: string }>(

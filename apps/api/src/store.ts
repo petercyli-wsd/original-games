@@ -1,7 +1,7 @@
 // Storage behind the API. Postgres in production; in-memory stores for tests
 // and for running locally without a database.
 
-import type { Evaluation, FacetScores, PromptVersion, Review, RulesCard } from './shared.js';
+import type { Evaluation, FacetScores, FeedReview, PromptVersion, Review, RulesCard } from './shared.js';
 
 export interface RatingsStore {
   /** Star distribution per game id (index 0 = 1 star). */
@@ -9,8 +9,10 @@ export interface RatingsStore {
   distribution(gameId: string): Promise<number[]>;
   stars(gameId: string, voterId: string): Promise<number | null>;
   review(gameId: string, voterId: string): Promise<Review | null>;
-  /** Reviews with a written comment, newest first. */
-  reviews(gameId: string, limit: number): Promise<Review[]>;
+  /** Everyone's review of a game (any rating, written or not), newest first, leaving out `excludeVoter`'s. */
+  reviews(gameId: string, limit: number, excludeVoter?: string | null): Promise<Review[]>;
+  /** The latest reviews across every game, newest first; `voter`'s own are flagged. */
+  recentReviews(limit: number, voter?: string | null): Promise<FeedReview[]>;
   /** Every review with a comment, grouped by game; feeds the evaluator's refiner. */
   allReviews(): Promise<Map<string, Review[]>>;
   /** Every game this voter has rated, with their stars. */
@@ -59,6 +61,7 @@ const newestFirst = (a: Vote, b: Vote) => b.updatedAt.getTime() - a.updatedAt.ge
 
 export function createMemoryStore(): RatingsStore {
   const games = new Map<string, Map<string, Vote>>();
+  let lastWrite = 0;
   const tally = (votes: Map<string, Vote>) => {
     const d = emptyDistribution();
     for (const v of votes.values()) d[v.stars - 1]++;
@@ -81,8 +84,20 @@ export function createMemoryStore(): RatingsStore {
       const v = games.get(gameId)?.get(voterId);
       return v ? toReview(v) : null;
     },
-    async reviews(gameId, limit) {
-      return commented(games.get(gameId)).slice(0, limit).map(toReview);
+    async reviews(gameId, limit, excludeVoter) {
+      return [...(games.get(gameId) ?? [])]
+        .filter(([voter]) => voter !== excludeVoter)
+        .map(([, v]) => v)
+        .sort(newestFirst)
+        .slice(0, limit)
+        .map(toReview);
+    },
+    async recentReviews(limit, voter) {
+      return [...games]
+        .flatMap(([gameId, votes]) => [...votes].map(([id, v]) => ({ gameId, mine: id === voter, v })))
+        .sort((a, b) => newestFirst(a.v, b.v))
+        .slice(0, limit)
+        .map(({ gameId, mine, v }) => ({ ...toReview(v), gameId, mine }));
     },
     async allReviews() {
       return new Map([...games].map(([id, votes]) => [id, commented(votes).map(toReview)]).filter(([, r]) => r.length) as [string, Review[]][]);
@@ -108,12 +123,14 @@ export function createMemoryStore(): RatingsStore {
       if (!games.has(gameId)) games.set(gameId, new Map());
       const votes = games.get(gameId)!;
       const prev = votes.get(voterId);
+      // Strictly increasing, so "newest first" is deterministic even within one millisecond.
+      lastWrite = Math.max(Date.now(), lastWrite + 1);
       votes.set(voterId, {
         stars,
         comment: comment ?? prev?.comment ?? '',
         reviewer: reviewer ?? prev?.reviewer ?? '',
         facets: facets ?? prev?.facets ?? {},
-        updatedAt: new Date(),
+        updatedAt: new Date(lastWrite),
       });
     },
     async close() {},

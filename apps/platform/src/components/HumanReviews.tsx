@@ -3,15 +3,19 @@ import { useStore } from '@originals/game-sdk/react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchRating, rate, ratingSummaries, ratingsEnabled, savedReviewer } from '../lib/ratings';
-import { nextGameWhere } from '../registry';
+import { notify } from '../lib/toast';
+import { findGame, nextGameWhere } from '../registry';
+import { RatingBars, ReviewItem } from './ReviewItem';
 import { StarInput } from './StarInput';
 
 const PLACEHOLDER = `Pros: what works? Is the win condition clear, are the odds obvious on screen?
 Cons: what's confusing, flat or too close to an existing game?`;
 
-const when = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-
-/** Write a review (overall stars, optional facet scores, pros and cons, name) and read the team's reviews. */
+/**
+ * The team's view of a game: the score breakdown, your own review (stars,
+ * optional facet scores, pros and cons, name) and everyone else's reviews.
+ * Other reviews stay folded until you've saved yours, so they don't sway it.
+ */
 export function HumanReviews({ gameId }: { gameId: string }) {
   const [detail, setDetail] = useState<RatingDetail | null>(null);
   const [error, setError] = useState('');
@@ -21,6 +25,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
   const [facets, setFacets] = useState<FacetScores>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showOthers, setShowOthers] = useState(false);
   const ratings = useStore(ratingSummaries);
 
   useEffect(() => {
@@ -44,22 +49,31 @@ export function HumanReviews({ gameId }: { gameId: string }) {
 
   if (!ratingsEnabled) return null;
 
+  const edited = () => setSaved(false);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!stars) return;
     setSaving(true);
     setError('');
     try {
-      setDetail(await rate(gameId, stars, { comment: comment.trim(), reviewer: reviewer.trim(), facets }));
+      const updated = await rate(gameId, stars, { comment: comment.trim(), reviewer: reviewer.trim(), facets });
+      const first = !detail?.myReview;
+      setDetail(updated);
       setSaved(true);
+      setShowOthers(true);
+      notify(`${first ? 'Review saved' : 'Review updated'} for ${findGame(gameId)?.manifest.name ?? gameId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not save your review');
+      const message = err instanceof Error ? err.message : 'Could not save your review';
+      setError(message);
+      notify(message, 'error');
     } finally {
       setSaving(false);
     }
   }
 
   const others = detail?.reviews ?? [];
+  const hasMine = Boolean(detail?.myReview);
 
   return (
     <section className="review-card" id="reviews">
@@ -71,16 +85,19 @@ export function HumanReviews({ gameId }: { gameId: string }) {
           </span>
         )}
       </div>
+      {detail && detail.count > 1 && (hasMine || showOthers) && <RatingBars distribution={detail.distribution} />}
 
+      <h3 className="review-subhead">{hasMine ? 'Your review' : 'Add your review'}</h3>
       <form className="review-form" onSubmit={(e) => void submit(e)}>
         <div className="review-form-row">
-          <StarInput value={stars} onRate={(s) => (setStars(s), setSaved(false))} label="Your score" />
+          <StarInput value={stars} onRate={(s) => (setStars(s), edited())} label="Your score" />
           <input
             className="review-name"
-            placeholder="Your name (optional)"
+            placeholder="Your name, so the team knows who wrote it"
+            aria-label="Your name"
             maxLength={MAX_REVIEWER_LENGTH}
             value={reviewer}
-            onChange={(e) => (setReviewer(e.target.value), setSaved(false))}
+            onChange={(e) => (setReviewer(e.target.value), edited())}
           />
         </div>
         <details className="facet-form" open={Object.keys(facets).length > 0}>
@@ -103,7 +120,7 @@ export function HumanReviews({ gameId }: { gameId: string }) {
                       else next[f.key] = s;
                       return next;
                     });
-                    setSaved(false);
+                    edited();
                   }}
                 />
                 <small>{f.question}</small>
@@ -114,44 +131,56 @@ export function HumanReviews({ gameId }: { gameId: string }) {
         <textarea
           rows={4}
           placeholder={PLACEHOLDER}
+          aria-label="Pros and cons"
           maxLength={MAX_COMMENT_LENGTH}
           value={comment}
-          onChange={(e) => (setComment(e.target.value), setSaved(false))}
+          onChange={(e) => (setComment(e.target.value), edited())}
         />
         <div className="review-form-foot">
           <span className="rating-note">
-            {error ? <span className="rating-error">{error}</span> : saved ? <SavedNote next={nextGameWhere(gameId, (g) => !ratings[g.manifest.id]?.mine)} /> : stars ? '' : 'Pick a score to save.'}
+            {error ? (
+              <span className="rating-error">{error}</span>
+            ) : saved ? (
+              <SavedNote next={nextGameWhere(gameId, (g) => !ratings[g.manifest.id]?.mine)} />
+            ) : stars ? (
+              ''
+            ) : (
+              'Pick a score to save.'
+            )}
           </span>
           <button type="submit" className="btn-primary" disabled={!stars || saving}>
-            {saving ? 'Saving…' : detail?.myReview?.comment ? 'Update review' : 'Save review'}
+            {saving ? 'Saving…' : hasMine ? 'Update review' : 'Save review'}
           </button>
         </div>
       </form>
 
-      {others.length > 0 ? (
-        <ul className="review-list">
-          {others.map((r, i) => (
-            <li key={i}>
-              <div className="review-meta">
-                <span className="review-stars">{'★'.repeat(r.stars)}<span>{'★'.repeat(5 - r.stars)}</span></span>
-                <span>{r.reviewer || 'Anonymous'}</span>
-                <span>{when(r.updatedAt)}</span>
-              </div>
-              {Object.keys(r.facets ?? {}).length > 0 && (
-                <div className="review-facets">
-                  {FACETS.filter((f) => r.facets[f.key]).map((f) => (
-                    <span key={f.key}>
-                      {f.label} {r.facets[f.key]}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <p>{r.comment}</p>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        detail && <p className="rating-note">No written reviews yet.</p>
+      {detail && (
+        <div className="other-reviews">
+          <div className="other-reviews-head">
+            <h3 className="review-subhead">
+              Other reviews <span>({others.length})</span>
+            </h3>
+            <Link to="/rankings?view=reviews" className="other-reviews-all">
+              All team reviews →
+            </Link>
+          </div>
+          {others.length === 0 ? (
+            <p className="rating-note">No one else has reviewed this game yet.</p>
+          ) : hasMine || showOthers ? (
+            <ul className="review-list">
+              {others.map((r, i) => (
+                <ReviewItem key={`${r.updatedAt}-${i}`} review={r} />
+              ))}
+            </ul>
+          ) : (
+            <div className="reviews-hidden">
+              <p className="rating-note">Hidden until you save your own, so they don't sway your score.</p>
+              <button type="button" className="btn-ghost" onClick={() => setShowOthers(true)}>
+                Show {others.length} review{others.length === 1 ? '' : 's'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
     </section>
   );
