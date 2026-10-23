@@ -38,6 +38,10 @@ export interface BoardProps {
   anim: Anim | null;
   /** The real ball, once revealed. */
   reveal: number | null;
+  /** Cups lifted so far in the reveal. */
+  lifted: boolean[];
+  /** The reveal is under way and your cup is still down. */
+  suspense: boolean;
   won: boolean | null;
   pickable: boolean;
   onPick(slot: number): void;
@@ -54,7 +58,7 @@ function pie(p: number, r: number) {
 }
 
 export default function Board(props: BoardProps) {
-  const { cups, belief, chances, slot, prizes, next, sched, done, anim, reveal, won, pickable, onPick } = props;
+  const { cups, belief, chances, slot, prizes, next, sched, done, anim, reveal, lifted, suspense, won, pickable, onPick } = props;
   const gap = cups === 3 ? 156 : cups === 4 ? 128 : 104;
   const r = cups === 5 ? 36 : 40;
   const xs = Array.from({ length: cups }, (_, i) => W / 2 + (i - (cups - 1) / 2) * gap);
@@ -133,7 +137,7 @@ export default function Board(props: BoardProps) {
           <g key={i} transform={`translate(${x} ${CY})`}>
             <g
               key={anim ? anim.id : 'still'}
-              className={'cup' + cls + (mine ? ' mine' : '') + (reveal !== null ? ' lifted' : '') + (pickable ? ' pickable' : '')}
+              className={'cup' + cls + (mine ? ' mine' : '') + (lifted[i] ? ' lifted' : '') + (mine && suspense && !lifted[i] ? ' suspense' : '') + (pickable ? ' pickable' : '')}
               style={{ '--dx': `${dx}px`, animationDuration: anim ? `${anim.ms}ms` : undefined } as CSSProperties}
               onClick={pickable ? () => onPick(i) : undefined}
               role={pickable ? 'button' : undefined}

@@ -277,3 +277,19 @@
   font-size: 14px;
   fill: var(--muted);
 }
+
+/* The reveal: your cup trembles while the others lift. */
+.shells .cup.suspense {
+  animation: sh-tremble 0.18s ease-in-out infinite alternate;
+}
+.shells .cup.suspense .rim {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--accent) 70%, transparent));
+}
+@keyframes sh-tremble {
+  from {
+    transform: translate(-1.5px, 0);
+  }
+  to {
+    transform: translate(1.5px, -2px);
+  }
+}

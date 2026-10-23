@@ -66,7 +66,10 @@ interface Round {
   ball: number;
   slot: number;
   prize: number;
+  /** The ball is showing (its cup has been lifted). */
   revealed: boolean;
+  /** Cups lifted so far in the reveal. */
+  lifted: boolean[];
   outcome: Outcome | null;
   payout: number;
 }
@@ -83,6 +86,11 @@ const TARGETS = [0, 1.5, 2, 3, 5] as const;
 
 const chancesOf = (r: Round) => finalChances(r.belief, r.sched, r.done);
 const valueOf = (r: Round) => r.prize * chancesOf(r)[r.slot];
+/** During the reveal: where the ball is, given the cups lifted so far came up empty. */
+const conditioned = (r: Round) => {
+  const left = r.belief.reduce((s, b, i) => (r.lifted[i] ? s : s + b), 0);
+  return r.belief.map((b, i) => (r.lifted[i] || left <= 0 ? 0 : b / left));
+};
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -113,7 +121,9 @@ export default function Game() {
 
   const swapMs = turbo.turbo ? 150 : 560;
   const blindMs = turbo.turbo ? 200 : 820;
-  const revealMs = turbo.turbo ? 160 : 520;
+  const liftMs = turbo.turbo ? 130 : 460;
+  const lastLiftMs = turbo.turbo ? 170 : 700;
+  const holdMs = turbo.turbo ? 120 : 420;
   const autoSwapMs = turbo.turbo ? 110 : 360;
   const autoBlindMs = turbo.turbo ? 150 : 520;
 
@@ -125,7 +135,7 @@ export default function Game() {
     const sched = schedule(blinds);
     const slot = Math.min(pick, cups - 1);
     const p0 = finalChances(startBelief(cups), sched, 0)[slot];
-    return { cups, sched, stake, belief: startBelief(cups), done: 0, ball: 0, slot, prize: RTP / p0, revealed: false, outcome: null, payout: 0 };
+    return { cups, sched, stake, belief: startBelief(cups), done: 0, ball: 0, slot, prize: RTP / p0, revealed: false, lifted: Array.from({ length: cups }, () => false), outcome: null, payout: 0 };
   }
 
   /** Draws and animates one move; resolves to the round after it (or null if interrupted). */
@@ -153,7 +163,7 @@ export default function Game() {
   function settle(r: Round, outcome: Outcome, payout: number) {
     ticket.settle(payout);
     pushHistory(payout);
-    const done = { ...r, outcome, payout, revealed: true };
+    const done = { ...r, outcome, payout, revealed: true, lifted: r.belief.map(() => true) };
     setRound(done);
     return done;
   }
@@ -181,12 +191,38 @@ export default function Game() {
     track({ type: 'checkpoint', multiplier: valueOf(next), winChance: q[next.slot] });
   }
 
+  /**
+   * The reveal lifts the cups one at a time: the empty ones at once, then each
+   * rival that could hold the ball, least likely first, and yours last. Each
+   * empty lift raises your chance (the rest renormalise). The result was fixed
+   * before the first lift; this is only how it is shown.
+   */
   async function reveal(r: Round) {
     const win = r.ball === r.slot;
     resolved.current = win ? r.prize : 0;
     setPhase('revealing');
-    setRound({ ...r, revealed: true });
-    if (!(await timers.wait(revealMs))) return;
+    let lifted = r.belief.map((b, i) => i !== r.slot && b === 0);
+    let cur: Round = { ...r, lifted };
+    setRound(cur);
+    const rivals = r.belief
+      .map((b, i) => ({ b, i }))
+      .filter(({ b, i }) => i !== r.slot && b > 0)
+      .sort((x, y) => x.b - y.b || x.i - y.i);
+    for (const { i } of rivals) {
+      if (!(await timers.wait(liftMs))) return;
+      lifted = lifted.slice();
+      lifted[i] = true;
+      cur = { ...cur, lifted, revealed: i === r.ball };
+      setRound(cur);
+      if (cur.revealed) break;
+    }
+    if (!cur.revealed) {
+      if (!(await timers.wait(lastLiftMs))) return;
+      lifted = lifted.slice();
+      lifted[r.slot] = true;
+      setRound({ ...cur, lifted, revealed: true });
+    }
+    if (!(await timers.wait(holdMs))) return;
     finish(r, win ? 'found' : 'missed', win ? r.prize : 0);
   }
 
@@ -331,7 +367,11 @@ export default function Game() {
   const preview: Round = round ?? { ...newRound(bet.value), stake: bet.value };
   const view = preview;
   // Once the cups are lifted the answer is known: one bar at 100%.
-  const chances = view.revealed ? view.belief.map((_, i) => (i === view.ball ? 1 : 0)) : chancesOf(view);
+  const chances = view.revealed
+    ? view.belief.map((_, i) => (i === view.ball ? 1 : 0))
+    : view.lifted.some(Boolean)
+      ? conditioned(view)
+      : chancesOf(view);
   const sched = view.sched;
   const slot = view.slot;
   const myChance = chances[slot];
@@ -362,7 +402,11 @@ export default function Game() {
     status = view.done >= MOVES ? 'Shuffle done · reveal or cash out' : `Move ${view.done} of ${MOVES} done · next is ${nextBlind ? 'blind' : 'in sight'}`;
     tone = 'live';
   } else if (phase === 'revealing') {
-    status = 'Lifting the cups…';
+    status = view.revealed
+      ? `Ball under cup ${view.ball + 1}`
+      : view.lifted.some(Boolean)
+        ? `Lifting the cups · cup ${slot + 1} now ${fmtChance(myChance)}`
+        : 'Lifting the cups…';
     tone = 'live';
   } else if (round?.outcome) {
     status = `${OUTCOME_TITLE[round.outcome]} · ball under cup ${round.ball + 1}`;
@@ -376,8 +420,8 @@ export default function Game() {
     { label: 'Win chance', value: over ? (round?.outcome === 'found' ? '100%' : '—') : fmtChance(myChance), sub: `cup ${slot + 1} ends with the ball`, tone: 'chance' },
     {
       label: 'Cash out now',
-      value: showValue ? fmtMult(over ? round?.payout ?? 0 : value) : '—',
-      sub: showValue ? formatAmount(stake * (over ? round?.payout ?? 0 : value), 2) : 'after the first move',
+      value: phase === 'revealing' ? '—' : showValue ? fmtMult(over ? round?.payout ?? 0 : value) : '—',
+      sub: phase === 'revealing' ? 'cups are lifting' : showValue ? formatAmount(stake * (over ? round?.payout ?? 0 : value), 2) : 'after the first move',
       tone: 'cash',
     },
     { label: 'Prize', value: fmtMult(round?.prize ?? RTP / myChance), sub: `if the ball ends under cup ${slot + 1}`, tone: 'prize' },
@@ -486,7 +530,7 @@ export default function Game() {
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
         <Field
           cups={view.cups}
-          belief={view.belief}
+          belief={view.lifted.some(Boolean) && !view.revealed ? chances : view.belief}
           chances={chances}
           slot={slot}
           prizes={prizes}
@@ -495,6 +539,8 @@ export default function Game() {
           done={view.done}
           anim={anim}
           reveal={view.revealed ? view.ball : null}
+          lifted={view.lifted}
+          suspense={phase === 'revealing' && !view.revealed}
           won={view.revealed ? view.ball === view.slot : null}
           pickable={!isAuto && (phase === 'idle' || phase === 'over' || phase === 'checkpoint')}
           onPick={onPick}
@@ -533,7 +579,7 @@ export default function Game() {
             <ol>
               <li>Choose 3–5 cups, how many of the {MOVES} moves are blind, and the cup you back (click it). The ball starts under cup 1.</li>
               <li>Bet. The dealer swaps a random pair of neighbouring cups, one move at a time. In-sight swaps you can follow; a blind swap covers the pair, which then swaps or not, 50/50.</li>
-              <li>After each move you can cash out, play the next move (Space), or click another cup to switch to it. After the last move, reveal.</li>
+              <li>After each move you can cash out, play the next move (Space), or click another cup to switch to it. After the last move, reveal: the other cups lift first, least likely first, and yours last. Each empty cup raises your chance.</li>
               <li>Auto plays whole rounds on the cup you chose, cashing out once the bet is worth your target (or playing to the reveal).</li>
             </ol>
           </InfoSection>
