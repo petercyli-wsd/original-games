@@ -550,3 +550,20 @@ A hex map of 12–18 regions with weights (summing to 100) and Blue probabilitie
 ### last-slice
 **Last Slice** · process · accent `#ff006e` · M, C
 A wheel with k slices of unequal sizes (5–8). Each spin lands with probability proportional to slice size, and that slice is removed (the wheel renormalises). Back a slice to be the last left. P is exact by Plackett–Luce inclusion–exclusion (the same law as exponential races; note the sibling Half-Life). Each spin's odds are literally the slice angles. Switch at fair value at checkpoints. Volatility: back the biggest slice, which rarely survives.
+
+### Batch 3 results
+
+All 10 are built, reviewed against the nine evaluator facets, fixed and committed. Each passes typecheck, its unit tests (1,056 across the repo), `npm run eval`, a fresh-seed 200k-round eval, desktop and 420 px smoke tests, and the build.
+
+| Game | Mechanic | RTP range (z) | Std dev low → high | Spread | Avg steps | Max seen | ok |
+|---|---|---|---|---|---|---|---|
+| Hot Potato | process | 95.34%–99.57% (max \|z\| 2.5) | 0.73 → 9.14 | 12.5× | 3.9–13.7 | 304× | ✓ |
+| Chase | random-walk | 98.72%–100.31% (max \|z\| 1.7) | 0.94 → 5.66 | 6.0× | 3.2–8.7 | 68× | ✓ |
+| Derby | process | 98.88%–99.74% (max \|z\| 1.0) | 1.08 → 8.83 | 8.2× | 3.4–5.9 | 182× | ✓ |
+| Shells | inference | 95.64%–99.86% (max \|z\| 2.2) | 1.22 → 11.15 | 9.1× | 3.7–5.3 | 419× | ✓ |
+| Bracket | process | 98.65%–110.97% (max \|z\| 2.4) | 1.76 → 16.00 | 9.1× | 4.9–9.9 | 1068× | ✓ |
+| Shootout | process | 98.37%–99.55% (max \|z\| 1.8) | 0.13 → 3.41 | 26.2× | 5.0–6.4 | 54× | ✓ |
+| Scales | process | 94.85%–100.16% (max \|z\| 1.9) | 0.75 → 9.80 | 13.1× | 2.7–9.9 | 362× | ✓ |
+| Maze | random-walk | 98.40%–100.89% (max \|z\| 1.4) | 0.57 → 4.31 | 7.5× | 3.9–8.2 | 41× | ✓ |
+| Majority | inference | 99.00%–99.42% (max \|z\| 1.2) | 0.53 → 4.26 | 8.1× | 7.5–11.6 | 94× | ✓ |
+| Last Slice | process | 95.51%–99.60% (max \|z\| 0.8) | 1.20 → 16.62 | 13.8× | 2.4–3.0 | 660× | ✓ |
