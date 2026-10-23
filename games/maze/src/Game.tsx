@@ -106,10 +106,12 @@ export default function Game() {
   // A roll is decided the moment it starts, so leaving mid-roll settles at
   // its real result, never at the pre-roll value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'moving' || autoBusy ? resolved.current : phase === 'live' && round ? round.cash : 0));
+  /** True while a decided roll or Auto round is in flight: the ticket settles at `resolved`. */
+  const pinned = useRef(false);
+  const ticket = useTicket(() => (phase === 'moving' || pinned.current ? resolved.current : phase === 'live' && round ? round.cash : 0));
 
   const settings: Settings = { maze: mazeId, start };
-  const moveMs = turbo.turbo ? 70 : 240;
+  const moveMs = turbo.turbo ? 70 : 200;
   const autoMs = turbo.turbo ? 35 : 120;
   const live = phase === 'moving' || phase === 'live';
 
@@ -130,15 +132,20 @@ export default function Game() {
     const end = endOf(m, endCell);
     const cash = end === 'exit' ? r.prize : end === 'trap' ? 0 : r.prize * m.odds[endCell];
     resolved.current = cash;
+    pinned.current = true;
     setPhase('moving');
     let cur = r;
     path.forEach((cell, k) => {
       timers.after(k * moveMs, () => {
-        cur = { ...cur, ball: cell, trail: [...cur.trail, cell], moves: cur.moves + 1 };
+        // The cash-out readout ticks with the ball (the button stays locked until the roll ends).
+        const e = endOf(m, cell);
+        const now = e === 'exit' ? cur.prize : e === 'trap' ? 0 : cur.prize * m.odds[cell];
+        cur = { ...cur, ball: cell, trail: [...cur.trail, cell], moves: cur.moves + 1, cash: now };
         setRound(cur);
       });
     });
     timers.after(path.length * moveMs, () => {
+      pinned.current = false;
       if (end) return finish(cur, end, cash);
       const after = { ...cur, cash };
       setRound(after);
@@ -175,7 +182,13 @@ export default function Game() {
   async function playAuto(stake: number): Promise<number | null> {
     const s = { ...settings };
     const tgt = target !== null && target < prizeFor(s) ? target : null;
-    if (!(await ticket.place(stake))) return null;
+    // Fair value before the first move is RTP; never the previous round's result.
+    resolved.current = RTP;
+    pinned.current = true;
+    if (!(await ticket.place(stake))) {
+      pinned.current = false;
+      return null;
+    }
     setAutoBusy(true);
     setLast(null);
     setPhase('idle');
@@ -202,6 +215,7 @@ export default function Game() {
       }
     }
     ticket.settle(mult);
+    pinned.current = false;
     pushHistory(mult);
     setRound({ ...r, outcome, cash: mult });
     setLast({ id: ++seq.current, multiplier: mult, stake });
@@ -286,7 +300,7 @@ export default function Game() {
     status = `Rolling · move ${round?.moves ?? 0}`;
     tone = 'live';
   } else if (phase === 'live' && round) {
-    status = `Checkpoint · after ${plural(round.moves, 'move')}`;
+    status = `Checkpoint · after ${plural(round.moves, 'move')}${traps ? ' · trap next door' : exits ? ' · exit next door' : ''}`;
     tone = 'live';
   } else if (phase === 'over' && round?.outcome) {
     status = `${OUTCOME_TITLE[round.outcome]} · ${plural(round.moves, 'move')}`;

@@ -39,6 +39,9 @@ export default function Field({ maze: m, ball, start, trail, moves, p, end, move
   const wall = Math.max(3, cs * 0.07);
   const cells = [...Array(m.w * m.h).keys()];
   const recent = trail.slice(-40);
+  // Tension cue: a trap or the exit one move from the ball.
+  const nearTrap = !end && m.nbrs[ball].some((v) => m.traps.includes(v));
+  const nearExit = !end && m.nbrs[ball].includes(m.exit);
 
   // Walls: the right and bottom side of each cell where there is no gap, plus the frame.
   const walls: string[] = [];
@@ -80,12 +83,12 @@ export default function Field({ maze: m, ball, start, trail, moves, p, end, move
       })}
 
       {/* Exit: a green square door; traps: red holes. */}
-      <g className={'exit-mark' + (end === 'exit' ? ' won' : '')}>
+      <g className={'exit-mark' + (end === 'exit' ? ' won' : nearExit ? ' near' : '')}>
         <rect x={x0(m.exit) + cs * 0.22} y={y0(m.exit) + cs * 0.22} width={cs * 0.56} height={cs * 0.56} rx={4} />
         <path d={`M${cx(m.exit) - cs * 0.1} ${cy(m.exit) + cs * 0.1} L${cx(m.exit) + cs * 0.1} ${cy(m.exit) - cs * 0.1} M${cx(m.exit) - cs * 0.04} ${cy(m.exit) - cs * 0.1} H${cx(m.exit) + cs * 0.1} V${cy(m.exit) + cs * 0.04}`} />
       </g>
       {m.traps.map((t) => (
-        <g key={t} className={'trap-mark' + (end === 'trap' && ball === t ? ' got' : '')}>
+        <g key={t} className={'trap-mark' + (end === 'trap' && ball === t ? ' got' : !end && m.nbrs[ball].includes(t) ? ' near' : '')}>
           <circle cx={cx(t)} cy={cy(t)} r={cs * 0.3} className="ring" />
           <circle cx={cx(t)} cy={cy(t)} r={cs * 0.18} className="hole" />
         </g>
@@ -119,7 +122,8 @@ export default function Field({ maze: m, ball, start, trail, moves, p, end, move
 
       {/* The ball. The number on it is the live chance. */}
       <g className={'ball' + (end ? ` ${end}` : '')} style={{ transform: `translate(${cx(ball)}px, ${cy(ball)}px)`, transitionDuration: `${moveMs}ms` }}>
-        <circle r={cs * 0.27} />
+        {(nearTrap || nearExit) && <circle r={cs * 0.4} className={'halo ' + (nearTrap ? 'danger' : 'close')} />}
+        <circle r={cs * 0.27} className="core" />
         {!end && (
           <text y={fs * 0.34} style={{ fontSize: fs * 0.92 }}>
             {pct(m.odds[ball])}

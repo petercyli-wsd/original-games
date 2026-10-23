@@ -162,7 +162,7 @@
   transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
   pointer-events: none;
 }
-.maze .ball circle {
+.maze .ball .core {
   fill: var(--accent);
   stroke: #fff;
   stroke-width: 2.5;
@@ -174,10 +174,10 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
-.maze .ball.exit circle {
+.maze .ball.exit .core {
   fill: var(--green);
 }
-.maze .ball.trap circle {
+.maze .ball.trap .core {
   fill: var(--red);
   transform: scale(0.6);
   transition: transform 0.3s ease;
@@ -239,6 +239,41 @@
   margin: 0;
   font-size: 12px;
   color: var(--red);
+}
+
+/* Tension: a trap (red) or the exit (green) is one move from the ball. */
+.maze .ball .halo {
+  fill: none;
+  stroke-width: 4;
+  animation: mz-halo 0.9s ease-in-out infinite;
+}
+.maze .ball .halo.danger {
+  stroke: var(--red);
+}
+.maze .ball .halo.close {
+  stroke: var(--green);
+}
+.maze .trap-mark.near .ring {
+  animation: mz-pulse 0.9s ease-in-out infinite;
+}
+.maze .exit-mark.near rect {
+  animation: mz-pulse 0.9s ease-in-out infinite;
+}
+@keyframes mz-halo {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .maze .ball .halo,
+  .maze .trap-mark.near .ring,
+  .maze .exit-mark.near rect {
+    animation: none;
+  }
 }
 
 @keyframes mz-pulse {
