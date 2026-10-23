@@ -360,6 +360,26 @@ export default function Game() {
                   {maxFlips(coins, need)} · {fmtMult(cashAfter(coins, need, maxFlips(coins, need)))}
                 </dd>
               </dl>
+              <div className="cf-pick">
+                <Label hint={phase === 'live' ? 'pick one to flip' : undefined}>{live ? 'Flip again' : 'Your call'}</Label>
+                <div className="cf-calls" role="group" aria-label={phase === 'live' ? 'Flip with a call' : 'Choose your call'}>
+                  {([0, 1, 'random'] as Call[]).map((c) => (
+                    <button
+                      key={String(c)}
+                      type="button"
+                      className={'cf-call' + (call === c ? ' on' : '') + (phase === 'live' ? ' go' : '')}
+                      disabled={phase === 'flipping' || auto.running}
+                      aria-pressed={call === c}
+                      aria-label={phase === 'live' ? `Flip ${callName(c)}` : callName(c)}
+                      onClick={() => (phase === 'live' ? flipWith(c) : chooseCall(c))}
+                    >
+                      <CallIcon c={c} />
+                      <span>{callName(c)}</span>
+                      <kbd>{CALL_KEY[String(c)]}</kbd>
+                    </button>
+                  ))}
+                </div>
+              </div>
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live' || s === 0} onClick={cashOut}>
@@ -377,6 +397,25 @@ export default function Game() {
             </>
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
+              <div className="cf-pick">
+                <Label hint="keys H · T · R · A">Call each flip</Label>
+                <div className="cf-calls four" role="group" aria-label="Auto call each flip">
+                  {AUTO_CALLS.map(({ value: c, label }) => (
+                    <button
+                      key={String(c)}
+                      type="button"
+                      className={'cf-call' + (autoCall === c ? ' on' : '')}
+                      disabled={auto.running}
+                      aria-pressed={autoCall === c}
+                      onClick={() => chooseAutoCall(c)}
+                    >
+                      <CallIcon c={c} />
+                      <span>{label}</span>
+                      <kbd>{CALL_KEY[String(c)]}</kbd>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Label
                 hint={
                   <>
@@ -440,45 +479,6 @@ export default function Game() {
           />
         )}
       </Board>
-
-      {manual ? (
-        <div className="cf-calls" role="group" aria-label={phase === 'live' ? 'Flip with a call' : 'Choose your call'}>
-          {([0, 1, 'random'] as Call[]).map((c) => (
-            <button
-              key={String(c)}
-              type="button"
-              className={'cf-call' + (call === c ? ' on' : '') + (phase === 'live' ? ' go' : '')}
-              disabled={phase === 'flipping' || auto.running}
-              aria-pressed={call === c}
-              onClick={() => (phase === 'live' ? flipWith(c) : chooseCall(c))}
-            >
-              <CallIcon c={c} />
-              <span>
-                {phase === 'live' && <span className="cf-flipword">Flip </span>}
-                {callName(c)}
-              </span>
-              <kbd>{CALL_KEY[String(c)]}</kbd>
-            </button>
-          ))}
-        </div>
-      ) : (
-        <div className="cf-calls four" role="group" aria-label="Auto call each flip">
-          {AUTO_CALLS.map(({ value: c, label }) => (
-            <button
-              key={String(c)}
-              type="button"
-              className={'cf-call' + (autoCall === c ? ' on' : '')}
-              disabled={auto.running}
-              aria-pressed={autoCall === c}
-              onClick={() => chooseAutoCall(c)}
-            >
-              <CallIcon c={c} />
-              <span>{label}</span>
-              <kbd>{CALL_KEY[String(c)]}</kbd>
-            </button>
-          ))}
-        </div>
-      )}
 
       <div className="cf-streak" aria-label="Streak ladder">
         <div className={'cf-strip' + (total > 8 ? ' dense' : '')} title={`${ways} of the ${total} equally likely outcomes win`}>
