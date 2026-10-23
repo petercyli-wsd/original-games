@@ -28,7 +28,7 @@ export default defineEval<Params>({
     { label: 'low (6 seats, medium fuse, not on 2)', params: { n: 6, fuse: 'medium', side: 'off', seats: 2, minDist: 0 } },
     { label: 'medium (10 seats, medium fuse, on 2)', params: { n: 10, fuse: 'medium', side: 'on', seats: 2, minDist: 0 } },
     { label: 'high (12 seats, long fuse, on 1)', params: { n: 12, fuse: 'long', side: 'on', seats: 1, minDist: 0 } },
-    { label: 'extreme (16 seats, short fuse, on 1 far seat)', params: { n: 16, fuse: 'short', side: 'on', seats: 1, minDist: 6 } },
+    { label: 'extreme (16 seats, short fuse, on 2 far seats)', params: { n: 16, fuse: 'short', side: 'on', seats: 2, minDist: 5 } },
   ],
   playRound({ n, fuse, side: side0, seats, minDist }, rng) {
     let picks = samplePicks(n, seats, minDist, rng);
