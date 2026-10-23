@@ -1,0 +1,111 @@
+/* Bracket board. Layout, panel and readouts come from the kit. */
+
+.bk-seeds .og-chips.wrap .og-chip { flex: 1 0 calc(12.5% - 4px); padding: 7px 0; }
+.bk-skip { padding: 10px; font-size: 13px; }
+.bk-blocked { margin: 0; font-size: 12px; color: var(--red); text-align: center; }
+.bk-rule { color: var(--text); }
+
+.bk-board.og-board { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 10px; min-height: 0; }
+/* Wide: the bracket fills whatever height the stage leaves. Narrow: a tall bracket at its natural height. */
+.bk-field { position: relative; flex: 1 1 0; min-height: 300px; }
+.bk-svg { display: block; overflow: visible; }
+.bk-svg.wide { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bk-svg.tall { display: none; }
+@container (max-width: 760px) {
+  .bk-field { flex: none; min-height: 0; }
+  .bk-svg.wide { display: none; }
+  .bk-svg.tall { display: block; width: 100%; height: auto; }
+  .bk-board.auto { padding-top: 56px; }
+}
+
+.bk-svg text { text-anchor: middle; dominant-baseline: central; font-family: inherit; font-variant-numeric: tabular-nums; pointer-events: none; }
+
+/* Bracket lines */
+.bk-svg .ln { fill: none; stroke: color-mix(in srgb, var(--text) 22%, transparent); stroke-width: 2; stroke-linejoin: round; transition: stroke 0.25s ease, opacity 0.25s ease; }
+.bk-svg .ln.won { stroke: color-mix(in srgb, var(--text) 62%, transparent); stroke-width: 2.6; }
+.bk-svg .ln.won.mine { stroke: var(--accent); stroke-width: 3.4; filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 70%, transparent)); }
+.bk-svg .ln.lost { stroke: color-mix(in srgb, var(--text) 9%, transparent); }
+.bk-svg .ln.route { stroke: color-mix(in srgb, var(--accent) 75%, transparent); stroke-dasharray: 5 6; stroke-width: 2.4; }
+.bk-svg .ln.next { stroke: var(--gold); stroke-width: 3; stroke-dasharray: none; }
+
+/* Match nodes */
+.bk-svg .node circle { fill: var(--raised); stroke: color-mix(in srgb, var(--text) 30%, transparent); stroke-width: 2; }
+.bk-svg .node.empty { fill: var(--card); stroke: color-mix(in srgb, var(--text) 20%, transparent); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.bk-svg .node.done text { fill: var(--text); font-weight: 800; }
+.bk-svg .node.done circle { animation: bk-pop 0.35s ease; }
+.bk-svg .node.done.mine circle { fill: var(--accent); stroke: #fff; }
+.bk-svg .node.ready .bg { fill: var(--bg); stroke: none; }
+.bk-svg .split { fill: none; stroke-width: 5; }
+.bk-svg .split.a { stroke: color-mix(in srgb, var(--text) 70%, transparent); }
+.bk-svg .split.b { stroke: color-mix(in srgb, var(--text) 28%, transparent); }
+.bk-svg .split.mine { stroke: var(--accent); }
+.bk-svg .node.next .bg { fill: color-mix(in srgb, var(--gold) 22%, var(--bg)); }
+.bk-svg .node.next { filter: drop-shadow(0 0 7px color-mix(in srgb, var(--gold) 70%, transparent)); }
+.bk-svg .node.playing { animation: bk-throb 0.45s ease-in-out infinite alternate; transform-box: fill-box; }
+
+/* Seeds */
+.bk-svg .leaf .hit { fill: transparent; }
+.bk-svg .leaf.pick { cursor: pointer; }
+.bk-svg .leaf.pick:hover .tok { stroke: #fff; }
+.bk-svg .leaf .ring-track { fill: none; stroke: color-mix(in srgb, var(--text) 10%, transparent); stroke-width: 4; }
+.bk-svg .leaf .ring { fill: none; stroke: color-mix(in srgb, var(--text) 78%, transparent); stroke-width: 4; stroke-linecap: round; transition: d 0.35s ease; }
+.bk-svg .leaf .tok { fill: var(--raised); stroke: color-mix(in srgb, var(--text) 35%, transparent); stroke-width: 1.5; transition: fill 0.2s ease; }
+.bk-svg .leaf .seed { fill: var(--text); font-weight: 800; }
+.bk-svg .leaf .pct { fill: var(--text); font-weight: 700; }
+.bk-svg .leaf .pct.idle { fill: var(--muted); }
+.bk-svg .leaf.mine .tok { fill: var(--accent); stroke: #fff; stroke-width: 2; filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 80%, transparent)); }
+.bk-svg .leaf.mine .ring { stroke: var(--accent); }
+.bk-svg .leaf.mine .pct { fill: color-mix(in srgb, var(--accent) 55%, #fff); }
+.bk-svg .leaf.out { opacity: 0.32; }
+.bk-svg .leaf.out .pct { fill: var(--red); font-weight: 600; }
+.bk-svg .leaf.out.mine { opacity: 0.7; }
+.bk-svg .leaf.out.mine .tok { fill: var(--red); filter: none; }
+.bk-svg .leaf.champ .tok { stroke: var(--gold); stroke-width: 3; }
+
+/* Title ring */
+.bk-svg .donut-hole { fill: var(--card); }
+.bk-svg .donut-track { fill: none; stroke: color-mix(in srgb, var(--text) 7%, transparent); }
+.bk-svg .slice { fill: color-mix(in srgb, var(--text) 30%, transparent); transition: d 0.35s ease; }
+.bk-svg .slice.alt { fill: color-mix(in srgb, var(--text) 18%, transparent); }
+.bk-svg .slice.mine { fill: var(--accent); filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 75%, transparent)); }
+.bk-svg .c-big { fill: var(--text); font-weight: 800; }
+.bk-svg .c-big.mine { fill: color-mix(in srgb, var(--accent) 45%, #fff); }
+.bk-svg .c-big.idle { fill: var(--muted); }
+.bk-svg .c-small { fill: var(--muted); font-weight: 600; }
+
+/* The next match: a bar split by its odds */
+.bk-duel { display: flex; flex-direction: column; gap: 5px; width: min(560px, 100%); margin: 0 auto; padding: 10px 14px; border-radius: var(--radius); background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
+.bk-duel-head, .bk-duel-names, .bk-duel-after { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.bk-duel-head { font-size: 12px; font-weight: 700; color: var(--gold); }
+.bk-duel-head .muted { color: var(--muted); font-weight: 500; }
+.bk-duel-names { font-weight: 800; }
+.bk-duel-names small { font-weight: 600; color: var(--muted); }
+.bk-duel-names .mine { color: color-mix(in srgb, var(--accent) 50%, #fff); }
+.bk-duel-bar { position: relative; display: flex; height: 14px; border-radius: 99px; overflow: hidden; background: var(--hover); }
+.bk-duel-bar i { display: block; height: 100%; }
+.bk-duel-bar i.a { background: color-mix(in srgb, var(--text) 62%, transparent); border-right: 2px solid var(--bg); }
+.bk-duel-bar i.c { background: color-mix(in srgb, var(--text) 24%, transparent); }
+.bk-duel-bar i.mine { background: var(--accent); }
+.bk-duel-bar .needle {
+  position: absolute; top: -2px; bottom: -2px; width: 4px; margin-left: -2px; border-radius: 2px;
+  background: var(--gold); box-shadow: 0 0 10px var(--gold);
+  left: calc(var(--u) * 100%);
+  animation-name: bk-sweep; animation-timing-function: cubic-bezier(0.25, 0.7, 0.25, 1); animation-fill-mode: both;
+}
+.bk-duel-after { color: var(--muted); }
+.bk-duel-after b { color: var(--text); }
+.bk-duel-after b.up { color: var(--green); }
+.bk-duel-after b.down { color: var(--red); }
+
+@keyframes bk-sweep {
+  0% { left: 0%; }
+  30% { left: 100%; }
+  55% { left: 0%; }
+  100% { left: calc(var(--u) * 100%); }
+}
+@keyframes bk-pop { 50% { transform: scale(1.25); } }
+@keyframes bk-throb { to { opacity: 0.55; } }
+
+@container (max-width: 760px) {
+  .bk-duel { padding: 8px 10px; font-size: 12px; }
+}
