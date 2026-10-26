@@ -131,6 +131,15 @@ export async function createPgStores(connectionString: string, { ssl = false } =
       }
       return out;
     },
+    async allVotes() {
+      const { rows } = await pool.query<VoteRow & { game_id: string }>(`SELECT game_id, ${REVIEW_COLS} FROM ratings ORDER BY updated_at DESC`);
+      const out = new Map<string, Review[]>();
+      for (const r of rows) {
+        if (!out.has(r.game_id)) out.set(r.game_id, []);
+        out.get(r.game_id)!.push(toReview(r));
+      }
+      return out;
+    },
     async votesBy(voterId) {
       const { rows } = await pool.query('SELECT game_id, stars FROM ratings WHERE voter_id = $1', [voterId]);
       return new Map(rows.map((r: { game_id: string; stars: number }) => [r.game_id, r.stars]));

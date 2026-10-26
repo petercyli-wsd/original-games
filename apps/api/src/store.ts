@@ -15,6 +15,8 @@ export interface RatingsStore {
   recentReviews(limit: number, voter?: string | null): Promise<FeedReview[]>;
   /** Every review with a comment, grouped by game; feeds the evaluator's refiner. */
   allReviews(): Promise<Map<string, Review[]>>;
+  /** Every vote (written or not) with its reviewer and facets, grouped by game; the evaluator's ground truth. */
+  allVotes(): Promise<Map<string, Review[]>>;
   /** Every game this voter has rated, with their stars. */
   votesBy(voterId: string): Promise<Map<string, number>>;
   /** Facet scores of every review that scored at least one facet, by game. */
@@ -101,6 +103,9 @@ export function createMemoryStore(): RatingsStore {
     },
     async allReviews() {
       return new Map([...games].map(([id, votes]) => [id, commented(votes).map(toReview)]).filter(([, r]) => r.length) as [string, Review[]][]);
+    },
+    async allVotes() {
+      return new Map([...games].map(([id, votes]) => [id, [...votes.values()].sort(newestFirst).map(toReview)]).filter(([, r]) => r.length) as [string, Review[]][]);
     },
     async votesBy(voterId) {
       const out = new Map<string, number>();

@@ -23,8 +23,9 @@
 //
 // Claude Code path (scripts/evaluator.ts drives these; all need the admin key):
 //   GET  /evaluator/cards/:gameId?hash=  -> cached rules card or null
-//   POST /evaluator/judge-prompt *       { gameId|anchorId, card?, facts?, table?, versionId?, pool? } -> prompt
-//   POST /evaluations/import *           { gameId|anchorId, versionId?, codeHash, card?, review, checks?, model? }
+//   POST /evaluator/judge-prompt *       { gameId|anchorId, card?, facts?, table?, versionId?, pool?, player? } -> designer prompt
+//   POST /evaluator/player-prompt *      { gameId, versionId?, pool?, tool } -> blind player prompt (UI only)
+//   POST /evaluations/import *           { gameId|anchorId, versionId?, codeHash, card?, review, player?, checks?, model? }
 //   GET  /evaluator/refine-prompt *      -> refine prompt over train games, plus games still to review
 //   POST /evaluator/versions *           { proposal } or { version } -> candidate version
 //   GET  /evaluator/calibration?version= -> what to review to backtest a version
@@ -191,6 +192,10 @@ export function createApp({ ratings, evaluator, corsOrigins, adminKey, writeLimi
     if (section === 'judge-prompt' && post && !id) {
       requireAdmin(req);
       return ev.judgePrompt((await readJson(req, MAX_EVALUATOR_BODY)) as Parameters<Evaluator['judgePrompt']>[0]);
+    }
+    if (section === 'player-prompt' && post && !id) {
+      requireAdmin(req);
+      return ev.playerPrompt((await readJson(req, MAX_EVALUATOR_BODY)) as Parameters<Evaluator['playerPrompt']>[0]);
     }
     if (section === 'refine-prompt' && get && !id) {
       requireAdmin(req);

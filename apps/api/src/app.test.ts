@@ -13,6 +13,7 @@ import {
   CRITERION_KEYS,
   overallScore,
   rankScore,
+  reviewerWeight,
   summarize,
   type EvaluationView,
   type EvaluatorStatus,
@@ -267,9 +268,10 @@ describe('evaluator API', () => {
     expect(job.status).toBe('done');
     const { versionId, metrics, activeMetrics } = job.result as { versionId: number; metrics: PromptVersion['metrics']; activeMetrics: PromptVersion['metrics'] };
     expect(versionId).toBe(2);
-    expect(metrics).toMatchObject({ humanGames: 4, anchorsTotal: ANCHORS.length, holdout: { games: 1 } });
+    // Benchmarks: the three games the team rated low (beta, gamma, delta) must not score high.
+    expect(metrics).toMatchObject({ humanGames: 4, anchorsTotal: 3, holdout: { games: 1 } });
     expect(metrics!.spearman).toBeGreaterThan(0.8);
-    expect(activeMetrics!.anchorsPassed).toBe(ANCHORS.length);
+    expect(activeMetrics!.anchorsPassed).toBe(3);
 
     // The refiner never sees the held-out game or its review.
     const refineCall = calls.find((c) => 'changelog' in (c.schema.properties as object))!;
@@ -409,7 +411,7 @@ describe('Claude Code path', () => {
 
     const cal = await getJson<{ todo: { games: string[]; anchors: unknown[] } }>('/evaluator/calibration?version=2');
     expect(cal.todo.games).toHaveLength(4);
-    expect(cal.todo.anchors).toHaveLength(ANCHORS.length);
+    expect(cal.todo.anchors).toHaveLength(0); // text anchors are retired: they can't be played blind
     for (const g of ['alpha', 'beta', 'gamma', 'delta']) {
       await post('/evaluations/import', { gameId: g, versionId: 2, codeHash: `hash-${g}`, review });
     }
@@ -418,7 +420,87 @@ describe('Claude Code path', () => {
   });
 });
 
+describe('blind player reviews', () => {
+  const card = { concept: 'c', win_condition: 'w', odds_display: 'o', volatility_controls: 'v', checkpoints: 'k', round_flow: 'r', maths_family: 'm', dynamics: ['ladder'], theme_dependence: 't', closest_known_games: [] };
+  const playerKeys = DEFAULT_CRITERIA.filter((c) => c.judge === 'player').map((c) => c.key);
+  const designerKeys = CRITERION_KEYS.filter((k) => !playerKeys.includes(k));
+  const player = {
+    first_impression: 'a slider game',
+    understanding: { win_condition: 'roll over the line', how_it_works: 'pick a line, roll', odds: 'the green share', settings: 'the slider', confidence: 'sure' },
+    criteria: playerKeys.map((key) => ({ key, reasoning: 'seen', score: 5 })),
+    confusions: ['what the blue box does'],
+  };
+  const designer = (comprehension: string) => ({
+    criteria: designerKeys.map((key) => ({ key, reasoning: 'r', score: 4 })),
+    pros: ['p'],
+    cons: ['c'],
+    closest_existing: 'Dice',
+    duplicate_of: '',
+    verdict: 'v',
+    recommendation: 'ship',
+    player_comprehension: comprehension,
+    comprehension_reasoning: 'they thought it was over/under only',
+  });
+
+  it('serves a UI-only player prompt and a designer prompt that sees what the player understood', async () => {
+    const { post } = await start();
+    const pp = (await (await post('/evaluator/player-prompt', { gameId: 'alpha', tool: 'npm run evaluator -- play alpha' })).json()) as { system: string; user: string; schema: { properties: { criteria: { items: { properties: { key: { enum: string[] } } } } } } };
+    expect(pp.system).toContain('no description, rules or source code');
+    expect(pp.user).toContain('npm run evaluator -- play alpha');
+    expect(pp.user).not.toContain('alpha tagline'); // nothing about the game itself
+    expect(pp.schema.properties.criteria.items.properties.key.enum.sort()).toEqual([...playerKeys].sort());
+
+    const jp = (await (await post('/evaluator/judge-prompt', { gameId: 'alpha', card, player })).json()) as { system: string; user: string; schema: { required: string[]; properties: { criteria: { items: { properties: { key: { enum: string[] } } } } } } };
+    expect(jp.user).toContain('What wins: roll over the line');
+    expect(jp.system).toContain('## The player test');
+    expect(jp.schema.required).toContain('player_comprehension');
+    expect(jp.schema.properties.criteria.items.properties.key.enum.sort()).toEqual([...designerKeys].sort());
+  });
+
+  it('merges both judges and caps clarity when the blind player misread the game', async () => {
+    const { post, getJson } = await start();
+    expect((await post('/evaluations/import', { gameId: 'alpha', codeHash: 'hash-alpha', card, player, review: designer('correct') })).status).toBe(200);
+    const good = await getJson<EvaluationView>('/evaluations/alpha');
+    expect(Object.fromEntries(good.criteria.map((c) => [c.key, c.score]))).toMatchObject({ win_clarity: 5, simplicity: 5, uniqueness: 4 });
+    expect(good.cons.some((c) => c.includes('blue box'))).toBe(true);
+
+    await post('/evaluations/import', { gameId: 'beta', codeHash: 'hash-beta', card, player, review: designer('wrong') });
+    const misread = await getJson<EvaluationView>('/evaluations/beta');
+    const scores = Object.fromEntries(misread.criteria.map((c) => [c.key, c.score]));
+    expect(scores).toMatchObject({ win_clarity: 2, simplicity: 2, odds_legibility: 5 });
+    expect(misread.overall).toBeLessThanOrEqual(3); // clarity cap: capFor(2)
+    expect(misread.cons[misread.cons.length - 2]).toMatch(/blind player misread it \(wrong\)/);
+
+    // A player review missing a criterion is rejected.
+    const bad = await post('/evaluations/import', { gameId: 'alpha', codeHash: 'h', card, player: { ...player, criteria: player.criteria.slice(1) }, review: designer('correct') });
+    expect(bad.status).toBe(400);
+  });
+
+  it('calibrates against weighted team scores: Pierre counts 3×', async () => {
+    const ratings = createMemoryStore();
+    await ratings.upsert('alpha', A, 2, 'too fiddly', 'Pierre');
+    await ratings.upsert('alpha', B, 5, 'love it', 'Peter');
+    const { getJson } = await start({ ratings });
+    const agreement = await getJson<{ rows: { gameId: string; humanAverage: number; humanCount: number }[] }>('/evaluator/agreement');
+    expect(agreement.rows.find((r) => r.gameId === 'alpha')).toMatchObject({ humanAverage: 2.75, humanCount: 2 });
+  });
+});
+
 describe('helpers', () => {
+  it('caps the overall by clarity and, for prototypes, by uniqueness', () => {
+    const s = (scores: Partial<Record<(typeof CRITERION_KEYS)[number], number>>) =>
+      CRITERION_KEYS.map((key) => ({ key, score: scores[key] ?? 5, reasoning: '' }));
+    expect(overallScore(s({}), DEFAULT_CRITERIA)).toBe(5);
+    // Brilliant everywhere except an unreadable win condition: capped at 2.25.
+    expect(overallScore(s({ win_clarity: 1 }), DEFAULT_CRITERIA)).toBe(2.25);
+    // A reskin prototype is capped; the same scores on a classic are not.
+    expect(overallScore(s({ uniqueness: 1 }), DEFAULT_CRITERIA)).toBe(2.25);
+    expect(overallScore(s({ uniqueness: 1 }), DEFAULT_CRITERIA, { classic: true })).toBeGreaterThan(4.5);
+    expect(overallScore(s({}), DEFAULT_CRITERIA, { duplicate: true })).toBe(2.25);
+    expect(reviewerWeight('pierre W')).toBe(3);
+    expect(reviewerWeight('Peter')).toBe(1);
+  });
+
   it('summarizes distributions', () => {
     expect(summarize([0, 0, 0, 0, 0])).toEqual({ average: 0, count: 0 });
     expect(summarize([1, 0, 0, 0, 3])).toEqual({ average: 4, count: 4 });

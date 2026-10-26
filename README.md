@@ -133,10 +133,15 @@ The play balance is a demo wallet stored in the browser; **Refill** resets it.
 
 **Hide AI reviews.** The ✦ AI toggle in the header hides every AI score, review and the AI sort, so reviewers form their own view first. It's remembered per browser.
 
-**AI reviews** score each game against the Originals brief in two stages:
+**AI reviews** score each game against the Originals brief in three stages, each run by a separate model that sees only what its stage allows:
 
 1. **Rules card**: read the game's source and write a factual card (concept, win condition, how odds appear, volatility controls, checkpoints, maths). Cached per code version.
-2. **Judge**: score nine criteria from 1 to 5 (odds on screen, clear win condition, simplicity, uniqueness, volatility control, checkpoints, pace, fun, geometry-first) from the card, the measured facts and a catalogue of every other game (for reskin detection). The overall score is a weighted mean computed in code.
+2. **Blind player**: play the game as a first-time player, with no source, rules card, tagline, How-to-play or explanatory text (any visible text of 9+ words is hidden). Its only tool is `npm run evaluator -- play <id> "<steps>"`: click by visible text or screen position, press keys, take screenshots. It writes down what it thinks wins, how the game works and what its odds were, then scores **win condition, simplicity, odds and fun** from what one play taught it.
+3. **Designer**: from the rules card, the measured facts and a catalogue of every game (for reskin detection), score **uniqueness, volatility control, checkpoints, pace and geometry-first**, and grade the blind player's understanding against the real rules. A partial misread caps the player's win-condition and simplicity scores at 3; a wrong one at 2.
+
+The overall score is computed in code: a weighted mean (win condition, simplicity and odds 3 each; volatility and uniqueness 1.5; fun 0.75; checkpoints, pace and geometry 0.25 each), then two caps. **Clarity cap:** the overall can't exceed 1.5 + 0.75 × the weakest of win condition, simplicity and odds (a 1 caps at 2.25, a 2 at 3, a 3 at 3.75). **Uniqueness gate** (prototypes only): the same formula on uniqueness, and a confirmed reskin caps at 2.25. Classics are exempt from the gate: they are the originals of their formats.
+
+Why: in the team's first reviews, every game people rated 2★ was one they found unreadable (win condition and odds rated 1–2), while the AI, reading the code, rated the same games 3–4. Pace, checkpoints and geometry scored 4–5 for almost every game, so they barely separate good games from bad ones.
 
 Facts a machine can measure (RTP, volatility spread ≥ 5×, round length, checkpoints) are computed from Monte Carlo evals, not judged.
 
@@ -157,7 +162,7 @@ Reviews run in a Claude Code session on the team's subscription; results are sto
 | `/review-games` | Reviews every game that's new or changed since its last review (`/review-games all` for everything), in parallel |
 | `/refine-evaluator` | Proposes a better prompt from the team's reviews, backtests it, and recommends whether to promote |
 
-Each judgement runs in its own subagent that sees only its prompt file, so the judge scores from the rules card and facts, never from the code. The skills drive `npm run evaluator` (`scripts/evaluator.ts`), which builds prompts with the same code the API uses and validates every result before storing it. Working files go to `.evaluator/` (git-ignored).
+Each judgement runs in its own subagent that sees only its prompt file (and, for the blind player, the screenshots its play command takes), so no judge scores from the code. The skills drive `npm run evaluator` (`scripts/evaluator.ts`), which builds prompts with the same code the API uses and validates every result before storing it. Working files go to `.evaluator/` (git-ignored).
 
 ### How the prompt is calibrated
 
@@ -167,9 +172,10 @@ Not every reviewed game goes into the prompt. Showing all of them would bloat th
 - **At most 6 reference games per review, chosen per game:** the team's highest- and lowest-rated games (to pin the scale), the refiner's curated exemplars, then the most similar reviewed games (same mechanic, dynamics or closest known games). Each comes with a one-line description and up to two review comments.
 - **Leave-one-out.** A game is never shown its own reviews.
 - **Train/holdout split.** About 30% of reviewed games are held out by a fixed hash. The refiner learns only from train games; versions are compared on holdout agreement (Spearman ρ and average gap in stars), which shows whether a change generalises rather than memorises.
+- **The team score is weighted.** The ground truth for calibration is each game's team score with Pierre's reviews counting 3× (`reviewerWeight` in `apps/api/src/shared.ts`): where he and one other reviewer disagree the target sits three quarters of the way to his score, while several reviewers together can still outweigh him. Star-only votes count too. The lobby's star averages are unweighted.
 - **Classics are the benchmark.** The catalogue marks the 30 live classics, and the judge is told when the game in front of it is one. A well-made classic should land around 4 or above, with the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the top. Check this with `results` after a prompt change.
 - **References need a pool.** Until at least 3 games have team reviews, no reference games are shown at all, so one or two test ratings can't skew the scale.
-- **Anchors.** Proven games (Russian roulette, Mines, Crash, Dice) must score ≥ 3.6 and known-bad concepts (a Mines reskin, a theme-dependent concept, an unintuitive maths game) ≤ 2.6. They are never shown as examples, so they stay a fair test.
+- **Benchmarks.** Every backtest checks real games: the core classics must score ≥ 4, the classics must average ≥ 3.8, and any game the team scored ≤ 2.5 must get ≤ 3 from the AI. (The old text-only anchors are retired, since a concept on paper can't be played blind.)
 - **The refiner writes principles, not verdicts.** It may change weights, score descriptions, guidance (capped at 350 words, consolidated rather than appended) and up to 4 curated exemplars, and it gets a least-squares weight fit as a hint. Nothing goes live until someone promotes it.
 - **Cache-friendly layout.** The rubric and catalogue form a stable system prompt; per-game references and facts go in the user message.
 
@@ -188,8 +194,10 @@ The skills call these for you; they're also handy on their own. All need `ORIGIN
 |---|---|
 | `todo [--all]` | Games with no review under the active prompt, or whose code changed since |
 | `prepare <id...>` | Builds evidence and the rules-card prompt (`.evaluator/<id>/extract.md`), or restores a cached card |
-| `judge-prompt <id...> [--version N] [--pool train]` | Writes the judge prompt (`judge.md`). `anchor-*` ids work too. `--pool train` limits references to train games (backtests) |
-| `submit <id...> [--model name]` | Validates `review.json` and stores it with the rules card and measured checks; prints the overall score |
+| `player-prompt <id...> [--version N] [--pool train]` | Writes the blind player prompt (`player.md`): rubric for the player criteria, team scale references, and the play tool |
+| `play <id> "<steps>"` | The blind player's sandbox: plays the UI with prose, rules and modals hidden; only `shot`, `text`, `mouse`, `key` and `wait` steps; numbered screenshots in `.evaluator/<id>/ui/run-N/` |
+| `judge-prompt <id...> [--version N] [--pool train]` | Writes the designer prompt (`judge.md`), including what the blind player understood (`player.json`). `--pool train` limits references to train games (backtests) |
+| `submit <id...> [--model name]` | Validates `review.json` (and `player.json`) and stores them with the rules card and measured checks; prints the overall score |
 | `refine-prompt` | Writes the refine prompt over train games, or lists train games to review first |
 | `submit-version` | Stores `.evaluator/_refine/proposal.json` as a candidate prompt version |
 | `calibration [--version N]` | Lists the games and anchors to review to backtest a version |
@@ -203,7 +211,7 @@ The skills call these for you; they're also handy on their own. All need `ORIGIN
 | File | Contents |
 |---|---|
 | `apps/api/src/evaluator/rubric.ts` | Version 1 of the rubric: the nine criteria, weights, 1/3/5 descriptions, starting guidance |
-| `apps/api/src/evaluator/anchors.ts` | Calibration anchors and their pass thresholds |
+| `apps/api/src/evaluator/anchors.ts` | Retired text anchors (the benchmarks in `service.ts` replaced them) |
 | `apps/api/src/evaluator/prompts.ts` | The extract, judge and refine prompts and their JSON schemas |
 | `apps/api/src/evaluator/service.ts` | Reference selection, train/holdout, refine, backtest and metrics |
 | `apps/api/src/evaluator/evidence.ts` | Measured checks (RTP, volatility spread, round length, checkpoints) |

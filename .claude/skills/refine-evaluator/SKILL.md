@@ -1,11 +1,11 @@
 ---
 name: refine-evaluator
-description: Improve the Originals AI evaluator's prompt from the team's written reviews, then backtest the candidate against held-out reviews and anchor games before anyone promotes it. Use for "refine the evaluator", "train the reviewer", or after the team has added a batch of reviews.
+description: Improve the Originals AI evaluator's prompt from the team's written reviews, then backtest the candidate against held-out reviews and benchmark games before anyone promotes it. Use for "refine the evaluator", "train the reviewer", or after the team has added a batch of reviews.
 ---
 
 # Refine the evaluator's prompt from team reviews
 
-This is a small, honest training loop: learn from **train** games, measure on **holdout** games the refiner never saw, and only promote if the holdout agreement improves without breaking the anchors (proven games must score high, known reskins low).
+This is a small, honest training loop: learn from **train** games, measure on **holdout** games the refiner never saw, and only promote if the holdout agreement improves without breaking the benchmarks (the core classics must score 4+, the classics must average 3.8+, and games the team rated low must score low). The team score is weighted: Pierre's reviews count 3×.
 
 Requested: $ARGUMENTS
 
@@ -20,13 +20,13 @@ Follow the subagent isolation rules in `.claude/skills/review-game/SKILL.md`; yo
 
 3. **Candidate.** `npm run evaluator -- submit-version`. Note the new version number N.
 
-4. **Backtest.** `npm run evaluator -- calibration --version N`. It lists games and `anchor-*` ids to review under the candidate, and under the active version if any are missing. Review each list with the `review-game` procedure, passing `--version <that version> --pool train` to both `judge-prompt` and `submit`. Anchors skip prepare and the rules-card step: start at judge-prompt. Run up to 5 in parallel.
+4. **Backtest.** `npm run evaluator -- calibration --version N`. It lists the games to review under the candidate (the team-reviewed games plus the core classics), and under the active version if any are missing. Review each list with the full `review-game` procedure (blind player and designer), passing `--version <that version> --pool train` to `player-prompt`, `judge-prompt` and `submit`. Run up to 5 in parallel.
 
-5. **Score.** `npm run evaluator -- score N`. It prints, for the active and the candidate version, holdout agreement (Spearman ρ and average gap in stars), the same on all reviewed games, and anchor passes.
+5. **Score.** `npm run evaluator -- score N`. It prints, for the active and the candidate version, holdout agreement (Spearman ρ and average gap in stars), the same on all reviewed games, and benchmark passes.
 
 6. **Recommend, don't promote.** Show the user both rows and the proposal's changelog, and recommend:
-   - **Promote** if holdout ρ is higher (or equal with a smaller gap) and all anchors pass.
-   - **Don't promote** if holdout agreement got worse or an anchor fails, and say why.
+   - **Promote** if holdout ρ is higher (or equal with a smaller gap) and all benchmarks pass.
+   - **Don't promote** if holdout agreement got worse or a benchmark fails, and say why.
    - With fewer than 3 holdout games, say the result is not yet meaningful and suggest more team reviews.
 
    Only run `npm run evaluator -- promote N` if the user explicitly agrees. They can also promote from the site's Evaluator page.

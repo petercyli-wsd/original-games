@@ -1,9 +1,10 @@
-// Prompts and output schemas for the three evaluator calls:
+// Prompts and output schemas for the evaluator calls:
 //   extract  game source  -> rules card (what the player sees and does)
-//   judge    rules card + measured facts -> criterion scores
+//   player   the game's UI only, played blind -> player criteria + what the player understood
+//   judge    rules card + measured facts + the player's understanding -> designer criteria
 //   refine   human reviews vs AI scores -> a revised prompt version
 
-import { CRITERION_KEYS, type CriterionDef, type PromptVersion, type Review } from '../shared.js';
+import { CRITERION_KEYS, criteriaFor, type CriterionDef, type CriterionKey, type PromptVersion, type Review } from '../shared.js';
 
 const BRIEF = `"Originals" are the casino games crypto casinos build in-house: purposefully simple, quick to load and play, with player-customisable volatility, and simple to understand. They are single-player. Most are built on mines-style maths (reveal safe cells, a survival ladder) or crash-style maths (a rising multiplier you cash out before a bust), though any maths concept could in principle carry one.
 
@@ -92,15 +93,22 @@ function rubricText(criteria: CriterionDef[]): string {
 // The system prompt depends only on the prompt version and the catalogue, so it
 // is identical for every game in a batch and caches; per-game material
 // (references, rules card, facts) goes in the user message.
-export function judgeSystem(version: PromptVersion, catalogue: string): string {
+export function judgeSystem(version: PromptVersion, catalogue: string, withPlayer = false): string {
+  const criteria = criteriaFor(version.criteria, withPlayer ? 'designer' : 'all');
+  const playerPart = withPlayer
+    ? `
+
+## The player test
+A separate judge played the game blind, from its UI alone, and scored the player criteria (win condition, simplicity, odds, fun) itself; you do not score those. The request includes what that player believed the game was. Compare it with the rules card and grade the player's comprehension: "correct" if they had the win condition and the core mechanic right, "partial" if they had the gist but missed or misread something that matters to a bet, "wrong" if they misunderstood what wins or how the game works. A misunderstanding is the game's fault, not the player's.`
+    : '';
   return `You evaluate casino "Originals" game concepts for a studio that prototypes many of them and needs to pick the best. Your scores are compared with the team's own reviews, so be candid and consistent: most prototypes are mediocre, and a 5 must be earned.
 
 ${BRIEF}
 
 ## Rubric
-Score each criterion from 1 to 5 using the descriptions below. Score each criterion independently; a game can be unique but illegible. Write your reasoning for a criterion before deciding its score, and ground it in the rules card and the measured facts. Use the whole scale.
+Score each criterion below from 1 to 5. Score each criterion independently; a game can be unique but illegible. Write your reasoning for a criterion before deciding its score, and ground it in the rules card and the measured facts. Use the whole scale.
 
-${rubricText(version.criteria)}
+${rubricText(criteria)}${playerPart}
 
 ## Guidance from the team's reviews
 ${version.guidance}
@@ -113,7 +121,7 @@ Check uniqueness against these and against well-known market games (Dice, Limbo,
 ${catalogue}
 
 ## Output
-Return every criterion exactly once. Then list the strongest pros and the most important cons (two to four each), name the closest existing game, and give a one-sentence verdict with a recommendation: ship (strong as is), iterate (promising, fix the cons) or drop (not worth more work).`;
+Return every criterion in the rubric above exactly once. Then list the strongest pros and the most important cons (two to four each), name the closest existing game, and give a one-sentence verdict with a recommendation: ship (strong as is), iterate (promising, fix the cons) or drop (not worth more work).`;
 }
 
 function referencesText(refs: ExemplarContext[]): string {
@@ -138,12 +146,14 @@ export function judgeUser(
   checks: string,
   evalTable: string,
   references: ExemplarContext[],
+  player?: string,
 ): string {
+  const playerText = player ? `\n\nWhat the blind player understood from playing the UI (grade it against the rules card):\n${player}` : '';
   return `Reference games the team has reviewed, lowest score first:
 ${referencesText(references)}
 
 Evaluate the game "${name}" (id: ${id}).
-Standing: ${standing}
+Standing: ${standing}${playerText}
 
 Rules card:
 ${JSON.stringify(card, null, 2)}
@@ -155,32 +165,105 @@ Monte Carlo eval:
 ${evalTable}`;
 }
 
-export const JUDGE_SCHEMA = {
+const criteriaSchema = (keys: readonly CriterionKey[]) => ({
+  type: 'array',
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['key', 'reasoning', 'score'],
+    properties: {
+      key: { type: 'string', enum: [...keys] },
+      reasoning: { type: 'string' },
+      score: { type: 'integer', enum: [1, 2, 3, 4, 5] },
+    },
+  },
+});
+
+/** The designer judge's schema: its criteria, plus a comprehension grade when a player review exists. */
+export function judgeSchema(keys: readonly CriterionKey[] = CRITERION_KEYS, withPlayer = false) {
+  const required = ['criteria', 'pros', 'cons', 'closest_existing', 'duplicate_of', 'verdict', 'recommendation'];
+  return {
+    type: 'object',
+    additionalProperties: false,
+    required: withPlayer ? [...required, 'player_comprehension', 'comprehension_reasoning'] : required,
+    properties: {
+      criteria: criteriaSchema(keys),
+      pros: { type: 'array', items: str },
+      cons: { type: 'array', items: str },
+      closest_existing: { type: 'string' },
+      duplicate_of: { type: 'string', description: 'A catalogue id, or empty.' },
+      verdict: { type: 'string', description: 'One sentence on the whole game, taking the player test into account.' },
+      recommendation: { type: 'string', enum: ['ship', 'iterate', 'drop'] },
+      ...(withPlayer
+        ? {
+            player_comprehension: { type: 'string', enum: ['correct', 'partial', 'wrong'] },
+            comprehension_reasoning: { type: 'string', description: 'What the player got right or wrong, versus the rules card.' },
+          }
+        : {}),
+    },
+  };
+}
+
+export const JUDGE_SCHEMA = judgeSchema();
+
+// ---------------------------------------------------------------------------
+// Player (blind UI review)
+// ---------------------------------------------------------------------------
+
+export function playerSystem(version: PromptVersion): string {
+  return `You are play-testing a casino game for a studio, as a typical online casino player meeting it for the first time. You get no description, rules or source code: only the game's screen, which you can play. Paragraphs of explanatory text have been hidden, because the test is whether the game explains itself. Real players skim; they do not study numbers or charts, and they decide within a round or two whether they get it.
+
+Your scores are compared with the team's own reviews. The team's experience so far: games whose win condition and odds a player could not read from the screen scored 1-2 with people, even when an expert could work them out. Do not be generous because you can deduce the rules with effort; judge what a casual player would get from one play.
+
+## How to test
+1. Look at the first screen and write down, before playing, what you think the game is.
+2. Play one round with the default settings, taking screenshots as it unfolds. Then play once more if you need to, perhaps after changing one setting.
+3. Write down what you understood: what wins, how the game works in one sentence, what you think your chances were (overall and at each step), and what the settings do. If you are guessing, say so.
+4. Only then score the criteria below.
+
+## Rubric
+Score each criterion from 1 to 5. Write your reasoning before each score and base it only on what you saw.
+
+${rubricText(criteriaFor(version.criteria, 'player'))}
+
+## Guidance from the team's reviews
+${version.guidance}`;
+}
+
+export function playerUser(id: string, tool: string, references: string): string {
+  return `Game id: ${id}
+
+How the team scored some other games on these criteria (for the scale only; they are different games):
+${references}
+
+Tool: you play the game with this command (Bash), and nothing else:
+${tool}
+
+Rules: run only that command, and read only the screenshots it writes (with the Read tool). Do not open any other file: not the game's source, docs, the rules card or earlier reviews. Keep to about 25 actions in total.`;
+}
+
+export const playerSchema = (keys: readonly CriterionKey[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['criteria', 'pros', 'cons', 'closest_existing', 'duplicate_of', 'verdict', 'recommendation'],
+  required: ['first_impression', 'understanding', 'criteria', 'confusions'],
   properties: {
-    criteria: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['key', 'reasoning', 'score'],
-        properties: {
-          key: { type: 'string', enum: [...CRITERION_KEYS] },
-          reasoning: { type: 'string' },
-          score: { type: 'integer', enum: [1, 2, 3, 4, 5] },
-        },
+    first_impression: { type: 'string', description: 'What you thought the game was from the first screen, before playing.' },
+    understanding: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['win_condition', 'how_it_works', 'odds', 'settings', 'confidence'],
+      properties: {
+        win_condition: { type: 'string' },
+        how_it_works: { type: 'string', description: 'The whole game in one sentence, as you would explain it to a friend.' },
+        odds: { type: 'string', description: 'What you believed your chances were, overall and at each step, and how you could tell.' },
+        settings: { type: 'string', description: 'What the settings seemed to do to your risk.' },
+        confidence: { type: 'string', enum: ['sure', 'fairly sure', 'guessing'] },
       },
     },
-    pros: { type: 'array', items: str },
-    cons: { type: 'array', items: str },
-    closest_existing: { type: 'string' },
-    duplicate_of: { type: 'string', description: 'A catalogue id, or empty.' },
-    verdict: { type: 'string' },
-    recommendation: { type: 'string', enum: ['ship', 'iterate', 'drop'] },
+    criteria: criteriaSchema(keys),
+    confusions: { type: 'array', items: str, description: 'Moments you were unsure what was happening or what to do.' },
   },
-};
+});
 
 // ---------------------------------------------------------------------------
 // Refine
@@ -190,8 +273,10 @@ export const REFINE_SYSTEM = `You maintain the rubric of an automated evaluator 
 
 ${BRIEF}
 
+The overall is the weighted mean, then capped by the weakest of win condition, simplicity and odds, and (for prototypes) by uniqueness. Win condition, simplicity, odds and fun are scored by a blind player judge that only plays the UI; the rest by a judge that reads the rules card.
+
 You may change:
-- each criterion's weight (0 to 3) and its 1/3/5 descriptions; the criterion keys, names and questions are fixed;
+- each criterion's weight (0 to 3) and its 1/3/5 descriptions; the criterion keys, names, questions and which judge scores them are fixed;
 - the guidance text: the lessons the evaluator should apply. Rewrite and consolidate it; do not just append. Keep it under 350 words;
 - the curated exemplars: up to 4 reviewed games that teach something the rubric alone does not. The judge also sees the team's highest- and lowest-rated games and the most similar reviewed games, picked automatically, so don't spend exemplars on those. Explain in each note what the judge should learn from it.
 
@@ -218,13 +303,13 @@ export function refineUser(
     )
     .join('\n');
   const commentText = [...comments]
-    .map(([id, reviews]) => `### ${id}\n${reviews.map((r) => `- ${r.stars}★${r.reviewer ? ` (${r.reviewer})` : ''}: ${r.comment}`).join('\n')}`)
+    .map(([id, reviews]) => `### ${id}\n${reviews.map((r) => `- ${r.stars}★${r.reviewer ? ` (${r.reviewer}${/pierre/i.test(r.reviewer) ? ', the manager, counts 3×' : ''})` : ''}: ${r.comment}`).join('\n')}`)
     .join('\n\n');
 
   return `Current version (id ${version.id}):
 ${JSON.stringify({ criteria: version.criteria, guidance: version.guidance, exemplars: version.exemplars }, null, 2)}
 
-Training games (${rows.length}; another ${holdoutCount} reviewed ${holdoutCount === 1 ? 'game is' : 'games are'} held out to test your changes). Human average vs AI overall, with the AI's criterion scores:
+Training games (${rows.length}; another ${holdoutCount} reviewed ${holdoutCount === 1 ? 'game is' : 'games are'} held out to test your changes). Human average (weighted: Pierre, the manager, counts 3×) vs AI overall, with the AI's criterion scores:
 | game | human (n) | AI | AI criteria |
 |---|---|---|---|
 ${table}

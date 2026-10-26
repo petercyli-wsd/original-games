@@ -4,9 +4,13 @@
 //
 //   todo [--all]                       games needing a review under the active prompt
 //   prepare <id...>                    evidence + rules-card prompt (reuses a cached card)
+//   player-prompt <id...> [--version N] [--pool train]
+//                                      the blind player prompt (UI only) for each game
+//   play <id> "<steps>"                the blind player's only tool: plays the UI with prose
+//                                      hidden, saves numbered screenshots to .evaluator/<id>/ui/
 //   judge-prompt <id...> [--version N] [--pool train]
-//                                      the judge prompt for each game or anchor-* id
-//   submit <id...> [--model name]      validate review.json and store it via the API
+//                                      the designer judge prompt (uses player.json if present)
+//   submit <id...> [--model name]      validate review.json (+ player.json) and store it via the API
 //   refine-prompt                      the refine prompt over train games
 //   submit-version                     store .evaluator/_refine/proposal.json as a candidate
 //   calibration [--version N]          what to review to backtest a version
@@ -18,7 +22,8 @@
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // Working files live in .evaluator/<id>/ (git-ignored).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { evalTable, measuredChecks, type GameEvidence } from '../apps/api/src/evaluator/evidence';
@@ -142,6 +147,49 @@ async function prepare() {
   }
 }
 
+const PLAY_TOOL = (id: string) =>
+  `npm run evaluator -- play ${id} "<steps>"
+Steps are separated by ";": shot:<name> (screenshot), text:<label> (click the first enabled button whose visible text contains <label>), mouse:<x>,<y> (click at screen coordinates, 1280x800), key:<Space|Enter|Escape|letter>, wait:<ms>.
+Each call starts a fresh page and plays your steps in order, so include every step from the start. Take a shot after each action you want to see. Example: npm run evaluator -- play ${id} "shot:start;text:Bet;wait:1200;shot:after-bet"
+The command prints the screenshot paths; open them with Read.`;
+
+async function playerPrompt() {
+  for (const id of requireIds()) {
+    const d = dir(id);
+    const versionId = values.version ? Number(values.version) : undefined;
+    const pool = values.pool === 'train' ? 'train' : 'all';
+    const p = await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', {
+      method: 'POST',
+      body: { gameId: id, versionId, pool, tool: PLAY_TOOL(id) },
+    });
+    write(join(d, 'player.schema.json'), p.schema);
+    write(join(d, 'player.md'), promptFile(p.system, p.user, rel(join(d, 'player.schema.json'))));
+    write(join(d, 'player.meta.json'), { versionId: p.versionId, pool });
+    console.log(`✓ ${id}: player prompt v${p.versionId} → read ${rel(join(d, 'player.md'))}, write ${rel(join(d, 'player.json'))}`);
+  }
+}
+
+/** The blind player's sandbox: plays the game's UI with prose hidden and only player actions allowed. */
+async function play() {
+  const [id, steps] = ids;
+  if (!id || !steps) fail('Usage: npm run evaluator -- play <game-id> "<steps>"');
+  if (!gameIds().includes(id)) fail(`No game ${id}`);
+  const uiDir = join(dir(id), 'ui');
+  mkdirSync(uiDir, { recursive: true });
+  const run = readdirSync(uiDir).filter((f) => f.startsWith('run-')).length + 1;
+  const out = join(uiDir, `run-${run}`);
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'play.mjs'), id, '--blind', '--size', '1280x800', '--out', out, '--steps', steps], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  const text = `${r.stdout ?? ''}${r.stderr ?? ''}`
+    .split('\n')
+    .filter((l) => /^(text|shot|✗|✓)|not allowed/.test(l.trim()))
+    .map((l) => l.replace(/^shot\s+/, 'screenshot: ').replaceAll('\\', '/'))
+    .join('\n');
+  console.log(`Run ${run}:\n${text}`);
+}
+
 async function judgePrompt() {
   for (const id of requireIds()) {
     const d = dir(id);
@@ -163,6 +211,7 @@ async function judgePrompt() {
         table: evalTable(evidence),
         versionId,
         pool,
+        player: existsSync(join(d, 'player.json')) ? readJson(join(d, 'player.json')) : undefined,
       };
     }
     const p = await api<{ versionId: number; system: string; user: string; schema: unknown; references: number }>('/evaluator/judge-prompt', { method: 'POST', body });
@@ -185,7 +234,8 @@ async function submit() {
     } else {
       const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
       const checks: MeasuredCheck[] = measuredChecks(evidence);
-      body = { gameId: id, versionId: meta.versionId, codeHash: evidence.codeHash, card: readJson(join(d, 'card.json')), review, checks, model };
+      const player = existsSync(join(d, 'player.json')) ? readJson(join(d, 'player.json')) : undefined;
+      body = { gameId: id, versionId: meta.versionId, codeHash: evidence.codeHash, card: readJson(join(d, 'card.json')), review, player, checks, model, collection: evidence.manifest.collection };
     }
     const saved = await api<{ overall: number; recommendation: string; verdict: string }>('/evaluations/import', { method: 'POST', body });
     write(join(d, 'submitted.json'), saved);
@@ -288,6 +338,8 @@ async function results() {
 const commands: Record<string, () => Promise<void>> = {
   todo,
   prepare,
+  'player-prompt': playerPrompt,
+  play,
   'judge-prompt': judgePrompt,
   submit,
   'refine-prompt': refinePrompt,
@@ -300,7 +352,7 @@ const commands: Record<string, () => Promise<void>> = {
 };
 
 if (!command || !commands[command]) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 21).join('\n'));
+  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 26).join('\n'));
   process.exit(command ? 1 : 0);
 }
 await commands[command]();

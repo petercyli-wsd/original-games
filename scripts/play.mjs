@@ -16,6 +16,11 @@
 //   size:<w>x<h>         resize the viewport
 //   mouse:<x>,<y>        real mouse click at page coordinates
 //
+// --blind is the AI evaluator's player sandbox: what a player sees and can do,
+// nothing more. Prose (any visible text of 9+ words), the How-to-play button and
+// modals are hidden; only shot, text, mouse, key and wait steps are allowed; page
+// errors are counted but not printed. Shots are numbered in the order taken.
+//
 // Inside expressions: $(sel) finds one element and $$(sel) all of them,
 // searching through shadow roots; $text(label) finds a button by its text.
 //
@@ -33,6 +38,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     steps: { type: 'string', default: 'shot:idle' },
+    blind: { type: 'boolean', default: false },
     out: { type: 'string', default: join(tmpdir(), 'originals-shots') },
     size: { type: 'string', default: '1280x800' },
   },
@@ -188,6 +194,31 @@ try {
     window.$click = (el) => { if (!el) return false; el.dispatchEvent(new MouseEvent('click', { bubbles: true, composed: true, cancelable: true, view: window })); return true; };
     window.$dump = () => { const host = document.getElementById('root'); const r = host?.shadowRoot ?? document; return [...r.children].map((c) => c.innerText ?? '').join('\\n'); };
   `;
+  // The player sandbox: hide explanatory prose and rules, keep labels and numbers.
+  const BLIND = `
+    (() => {
+      const root = document.getElementById('root')?.shadowRoot;
+      if (!root) return;
+      const style = document.createElement('style');
+      style.textContent = '.og-caption, .og-info-btn, .og-modal-backdrop, [role=dialog] { display: none !important; }';
+      root.append(style);
+      const words = (t) => t.trim().split(/\\s+/).filter(Boolean).length;
+      window.__blindHide = () => {
+        for (const el of root.querySelectorAll('*')) {
+          if (el.closest('button, input, select, textarea, svg') && el.tagName.toLowerCase() !== 'text') continue;
+          const own = [...el.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join(' ');
+          const isText = el.tagName.toLowerCase() === 'text' || el.tagName.toLowerCase() === 'tspan';
+          const txt = isText ? el.textContent : own;
+          if (words(txt) >= 9) el.style.visibility = 'hidden';
+        }
+        for (const b of root.querySelectorAll('button')) {
+          if (/how to play|rules|info/i.test(b.textContent || '')) b.style.display = 'none';
+        }
+      };
+      window.__blindHide();
+      new MutationObserver(() => window.__blindHide()).observe(root, { subtree: true, childList: true, characterData: true });
+    })();
+  `;
   const evaluate = async (expression) => {
     const r = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description ?? r.exceptionDetails.text);
@@ -198,6 +229,7 @@ try {
   await send('Page.navigate', { url: `http://127.0.0.1:${vitePort}/` });
   await loaded;
   await evaluate(HELPERS);
+  if (values.blind) await evaluate(BLIND);
   // Wait for the game to render into its shadow root.
   for (let i = 0; i < 100; i++) {
     if (await evaluate(`!!(document.getElementById('root')?.shadowRoot?.querySelector('*:not(style)'))`)) break;
@@ -206,14 +238,18 @@ try {
   await sleep(400);
 
   const keyCodes = { Space: [' ', 'Space', 32], Escape: ['Escape', 'Escape', 27], Enter: ['Enter', 'Enter', 13] };
+  let shotNo = 0;
   for (const raw of values.steps.split(';').map((s) => s.trim()).filter(Boolean)) {
+    if (values.blind && !/^(shot|text|mouse|key|wait)(:|$)/.test(raw)) throw new Error(`Step "${raw}" is not allowed in --blind mode (use shot, text, mouse, key or wait)`);
     const i = raw.indexOf(':');
     const cmd = i < 0 ? raw : raw.slice(0, i);
     const arg = i < 0 ? '' : raw.slice(i + 1);
     switch (cmd) {
       case 'shot': {
+        if (values.blind) await evaluate('window.__blindHide && window.__blindHide()');
         const { data } = await send('Page.captureScreenshot', { format: 'png' });
-        const file = join(values.out, `${id}-${arg || 'shot'}.png`);
+        shotNo++;
+        const file = values.blind ? join(values.out, `${String(shotNo).padStart(2, '0')}-${(arg || 'shot').replace(/[^\w-]/g, '')}.png`) : join(values.out, `${id}-${arg || 'shot'}.png`);
         writeFileSync(file, Buffer.from(data, 'base64'));
         console.log(`shot  ${file}`);
         break;
@@ -289,7 +325,10 @@ try {
   await cleanup();
 }
 
-if (errors.length) {
+if (errors.length && values.blind) {
+  console.error(`\n✗ ${errors.length} page error(s) (details hidden in --blind mode)`);
+  exitCode = 2;
+} else if (errors.length) {
   console.error(`\n✗ ${errors.length} page error(s):\n  ${errors.join('\n  ')}`);
   exitCode = 2;
 } else {

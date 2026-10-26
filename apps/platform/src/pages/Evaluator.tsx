@@ -51,7 +51,7 @@ function MetricsTable({ rows }: { rows: { label: string; metrics: BacktestMetric
         {line('Holdout gap', (m) => (m.holdout?.mae == null ? '—' : `${m.holdout.mae.toFixed(2)}★`), 'Mean absolute difference from the team on held-out games.')}
         {line('Agreement, all games', (m) => fmt(m.spearman), 'Spearman correlation on every reviewed game, including those the refiner learned from (optimistic).')}
         {line('Gap, all games', (m) => (m.mae === null ? '—' : `${m.mae.toFixed(2)}★`), 'Mean absolute difference from the team on every reviewed game.')}
-        {line('Anchors passed', (m) => `${m.anchorsPassed}/${m.anchorsTotal}`, 'Proven games must score high and known reskins low.')}
+        {line('Benchmarks passed', (m) => `${m.anchorsPassed}/${m.anchorsTotal}`, 'Core classics must score 4+, classics must average 3.8+, and games the team rated low must score low.')}
         {line('Games compared', (m) => String(m.humanGames), 'Games with human reviews in the backtest.')}
       </tbody>
     </table>
@@ -320,7 +320,7 @@ export function Evaluator() {
                 { label: `Candidate v${c.id}`, metrics: c.metrics },
               ]}
             />
-            {c.metrics?.anchorFailures.length ? <p className="ai-flag">Anchor failures: {c.metrics.anchorFailures.join('; ')}</p> : null}
+            {c.metrics?.anchorFailures.length ? <p className="ai-flag">Benchmark failures: {c.metrics.anchorFailures.join('; ')}</p> : null}
             <VersionDetails version={c} parent={parent} />
           </article>
         );
@@ -375,7 +375,7 @@ export function Evaluator() {
             {history.map((v) => (
               <li key={v.id}>
                 <b>v{v.id}</b> {new Date(v.createdAt).toLocaleDateString()}: {v.changelog}
-                {v.metrics && ` (agreement ${fmt(v.metrics.spearman)}, anchors ${v.metrics.anchorsPassed}/${v.metrics.anchorsTotal})`}
+                {v.metrics && ` (agreement ${fmt(v.metrics.spearman)}, benchmarks ${v.metrics.anchorsPassed}/${v.metrics.anchorsTotal})`}
               </li>
             ))}
           </ul>

@@ -134,6 +134,63 @@ export interface CriterionDef {
   weight: number;
   /** What a 1, a 3 and a 5 look like; 2 and 4 sit between. */
   descriptors: { 1: string; 3: string; 5: string };
+  /**
+   * Who scores it. `player`: a blind judge that only plays the game's UI (no
+   * code, rules card or descriptions), as a real player meets it. `designer`
+   * (the default): the judge that reads the rules card and measured facts.
+   */
+  judge?: 'player' | 'designer';
+}
+
+/** The criteria a judge scores under a version: `player`, `designer`, or all (single-judge reviews). */
+export function criteriaFor(criteria: CriterionDef[], judge: 'player' | 'designer' | 'all'): CriterionDef[] {
+  if (judge === 'all') return criteria;
+  return criteria.filter((c) => (c.judge ?? 'designer') === judge);
+}
+
+// ---------------------------------------------------------------------------
+// Ground truth: weighted team reviews
+// ---------------------------------------------------------------------------
+
+/**
+ * How much one reviewer's review counts towards the team score the evaluator
+ * is calibrated against. Pierre (the manager, who wrote the brief) counts 3×:
+ * where he and one other reviewer disagree the target sits three quarters of
+ * the way to his score, but several reviewers together can still outweigh him.
+ */
+export function reviewerWeight(reviewer: string): number {
+  return /pierre/i.test(reviewer) ? 3 : 1;
+}
+
+/** Weighted average stars (and facet averages) over a game's votes. */
+export function weightedSummary(votes: { stars: number; reviewer: string }[]): RatingSummary & { weight: number } {
+  let total = 0;
+  let weight = 0;
+  for (const v of votes) {
+    const w = reviewerWeight(v.reviewer);
+    total += v.stars * w;
+    weight += w;
+  }
+  return { average: weight ? total / weight : 0, count: votes.length, weight };
+}
+
+export function weightedFacets(votes: { reviewer: string; facets: FacetScores }[]): Partial<Record<CriterionKey, RatingSummary>> {
+  const out: Partial<Record<CriterionKey, RatingSummary>> = {};
+  for (const key of CRITERION_KEYS) {
+    let total = 0;
+    let weight = 0;
+    let count = 0;
+    for (const v of votes) {
+      const s = v.facets[key];
+      if (typeof s !== 'number') continue;
+      const w = reviewerWeight(v.reviewer);
+      total += s * w;
+      weight += w;
+      count++;
+    }
+    if (count) out[key] = { average: total / weight, count };
+  }
+  return out;
 }
 
 export interface Exemplar {
@@ -288,8 +345,25 @@ export function isHoldout(gameId: string): boolean {
   return (h >>> 0) % 10 < 3;
 }
 
-/** Weighted mean of criterion scores under a version's weights, 1..5. */
-export function overallScore(scores: CriterionScore[], criteria: CriterionDef[]): number {
+/** A player who can't work out the game can't rate it well, whatever else it does. */
+export const CLARITY_KEYS: CriterionKey[] = ['win_clarity', 'simplicity', 'odds_legibility'];
+
+/** The highest overall a game can reach when its weakest gating score is `s`: 1 → 2.25, 2 → 3, 3 → 3.75, 4 → 4.5. */
+export const capFor = (s: number) => 1.5 + 0.75 * s;
+
+/**
+ * Overall score, 1..5: the weighted mean of the criterion scores, then two
+ * caps, so a strong score elsewhere can't paper over a fatal flaw.
+ * - Clarity cap: limited by the weakest of win condition, simplicity and odds.
+ * - Uniqueness gate (prototypes only; a classic is the original of its
+ *   format): limited by the uniqueness score, and a confirmed reskin of a
+ *   catalogue game caps at capFor(1).
+ */
+export function overallScore(
+  scores: CriterionScore[],
+  criteria: CriterionDef[],
+  opts: { classic?: boolean; duplicate?: boolean } = {},
+): number {
   let total = 0;
   let weights = 0;
   for (const c of criteria) {
@@ -298,5 +372,14 @@ export function overallScore(scores: CriterionScore[], criteria: CriterionDef[])
     total += s.score * c.weight;
     weights += c.weight;
   }
-  return weights ? total / weights : 0;
+  let overall = weights ? total / weights : 0;
+  const score = (k: CriterionKey) => scores.find((x) => x.key === k)?.score;
+  const clarity = CLARITY_KEYS.map(score).filter((s): s is number => typeof s === 'number');
+  if (clarity.length) overall = Math.min(overall, capFor(Math.min(...clarity)));
+  if (!opts.classic) {
+    const u = score('uniqueness');
+    if (typeof u === 'number') overall = Math.min(overall, capFor(u));
+    if (opts.duplicate) overall = Math.min(overall, capFor(1));
+  }
+  return overall;
 }

@@ -1,117 +1,130 @@
-// The evaluator's rubric, written from the manager's brief and calibrated so
-// the proven casino classics land at the top of the scale. It seeds a fresh
-// database; an existing one takes it as a new version via
-// `npm run evaluator -- seed-version`. Refinement creates later versions.
+// The evaluator's rubric. It seeds a fresh database; an existing one takes it
+// as a new version via `npm run evaluator -- seed-version`. Refinement creates
+// later versions.
+//
+// Version 3 (calibrated on the team's first reviews). The team's low scores all
+// came from games a player couldn't read: win condition and odds rated 1-2 by
+// people while the AI, reading the code, rated them 4. So:
+// - win condition, simplicity and odds are judged by a blind "player" judge
+//   that only plays the UI (no code, rules card or descriptions), and they
+//   carry most of the weight;
+// - pace, checkpoints and geometry are things every game can be built to do
+//   well, so they barely move the score;
+// - fun is subjective and follows the others, so it counts little;
+// - uniqueness gates prototypes (see overallScore in shared.ts).
 
 import type { CriterionDef } from '../shared.js';
 
 export const DEFAULT_CRITERIA: CriterionDef[] = [
   {
-    key: 'odds_legibility',
-    name: 'Odds on screen',
-    question: 'Is the current win probability visually obvious and intuitive at every moment of a round?',
-    weight: 3,
-    descriptors: {
-      1: 'The player cannot tell their chances, or must compute them; the maths result behind the game is unintuitive.',
-      3: 'The odds are shown as a number or meter, but the board itself does not make them obvious.',
-      5: "The board is the probability: chambers left, tiles left, the share of a dice slider, a position, an area. Readable at a glance, no explanation needed.",
-    },
-  },
-  {
     key: 'win_clarity',
     name: 'Clear win condition',
-    question: 'Is it immediately clear what wins and what loses?',
-    weight: 2,
+    question: 'From the screen alone, after one round, is it obvious what wins and what loses?',
+    weight: 3,
+    judge: 'player',
     descriptors: {
-      1: 'Unclear what counts as a win, or several interacting rules decide it.',
-      3: 'Clear once the rules are read.',
-      5: 'Obvious from one look or one short sentence ("survive the shot", "cash out before it crashes").',
+      1: 'After a round you still could not say what you were trying to make happen, or you would need to read rules to know.',
+      3: 'It clicks after a round or two, or only after studying the labels and numbers.',
+      5: 'Obvious from the first look and confirmed by the first round: anyone could say "this wins, that loses" without reading anything.',
     },
   },
   {
     key: 'simplicity',
     name: 'Simple to understand',
-    question: 'Is it purposefully simple: could a new player explain it in one sentence?',
-    weight: 2,
+    question: 'From one play and no reading, could a new player explain the whole game in one sentence?',
+    weight: 3,
+    judge: 'player',
     descriptors: {
-      1: 'Several mechanics, jargon, or a tutorial needed.',
-      3: 'One core idea with a few extra rules to learn.',
-      5: 'One rule, nothing extra, like Russian roulette or Dice.',
+      1: 'Several interacting rules, unexplained symbols, numbers or charts; it would need a tutorial.',
+      3: 'One core idea, but extra rules, bet types or settings that take a few rounds to make sense of.',
+      5: 'One rule and nothing extra: it explains itself the way Dice or Mines does.',
     },
   },
   {
-    key: 'uniqueness',
-    name: 'Unique mechanic',
-    question: 'Is it a distinct format rather than a reskin of mines-style, crash-style or any other game in the catalogue?',
-    weight: 2,
+    key: 'odds_legibility',
+    name: 'Odds on screen',
+    question: 'Can the player see on the board, without calculating, both their overall chance of winning and how each move changes it?',
+    weight: 3,
+    judge: 'player',
     descriptors: {
-      1: 'A reskin: the same maths and decision as an existing game under a new theme.',
-      3: 'A known family (e.g. a mines-style survival ladder) with a genuinely different danger law, reveal or decision.',
-      5: 'A distinct format: a proven classic that defines its own format (Dice, Crash, Plinko), or a new dynamic not found in the catalogue or on the market that still plays simply.',
+      1: 'No feel for the odds from the screen, or only numbers and charts whose meaning is not obvious.',
+      3: 'The odds appear as a percentage or meter, or only for the next move, but the board itself does not make the overall chance obvious.',
+      5: 'The board is the probability (the green share of a slider, the tiles left, a position, an area): the overall chance and the next-move risk read at a glance.',
     },
   },
   {
     key: 'volatility_control',
     name: 'Customisable volatility',
-    question: 'Can the player customise volatility with a natural, understandable control, and does it really change the risk?',
+    question: 'How well do the controls let a player choose their risk: natural, understandable, and really spanning low to high volatility?',
     weight: 1.5,
     descriptors: {
-      1: 'No control, or the control barely changes the risk (measured spread small).',
-      3: 'A control exists but its range is narrow or its effect is hard to understand.',
-      5: "One natural knob (chamber count, Dice's win-chance slider, Plinko's risk and rows) spanning low to high volatility; measured std-dev spread of 5× or more.",
+      1: 'No real control, or one whose effect on risk is unclear or tiny (small measured spread).',
+      3: 'A control exists, but it is one of several interacting knobs, its effect on risk is not obvious, or the range is narrow.',
+      5: "One natural knob whose effect the player can see (Dice's chance slider, the mine count, Plinko's risk and rows), spanning low to high volatility; measured std-dev spread of 5× or more.",
+    },
+  },
+  {
+    key: 'uniqueness',
+    name: 'Unique mechanic',
+    question: 'Is it a distinct format rather than a reskin of an existing game?',
+    weight: 1.5,
+    descriptors: {
+      1: 'A reskin: the same maths and decision as a catalogue or market game under a new look or theme.',
+      3: 'A known family (a mines-style ladder, a crash curve, a random walk) with a genuinely different danger law, reveal or decision.',
+      5: 'A distinct format: a proven classic that defines its own format (Dice, Crash, Plinko), or a new dynamic not found in the catalogue or on the market that still plays simply.',
+    },
+  },
+  {
+    key: 'fun',
+    name: 'Tension and fun',
+    question: 'Did playing build tension and make you want another round?',
+    weight: 0.75,
+    judge: 'player',
+    descriptors: {
+      1: 'Flat or confusing: outcomes felt arbitrary and nothing built up.',
+      3: 'Some tension, but rounds feel samey or it is unclear what to root for.',
+      5: 'Every step visibly changed the stakes; you wanted one more round.',
     },
   },
   {
     key: 'checkpoints',
     name: 'Checkpoints and cash-out',
-    question: 'Can the player pause or continue quickly, and, when a round has several steps, stop and cash out at a real decision point?',
-    weight: 1.5,
+    question: 'Where a round has several steps, is there a natural point to stop and cash out?',
+    weight: 0.25,
     descriptors: {
       1: 'A multi-step round with no point to stop, or a slow outcome with no rhythm of pauses.',
-      3: 'Pauses exist, but cashing out rarely matters (the value barely changes, or is always below the stake).',
-      5: 'A natural break after every step where cashing out is a real, tense decision (Mines, Crash), or an instant round (Dice, Limbo) that resolves at once so every bet is its own pause.',
+      3: 'Pauses exist, but cashing out rarely matters.',
+      5: 'A natural break after each step with a real cash-out decision (Mines, Crash), or an instant round (Dice, Limbo) where every bet is its own pause. Most games built on the kit reach 4-5.',
     },
   },
   {
     key: 'pace',
     name: 'Fast or slow play',
     question: 'Can the game be played both quickly and slowly?',
-    weight: 1,
+    weight: 0.25,
     descriptors: {
-      1: 'One fixed pace, or rounds far too long or too short.',
-      3: 'Works well at only one pace, or lacks turbo or auto-bet.',
-      5: 'Instant play (turbo, auto-bet) and deliberate play both work, and round length suits the format (instant games resolve in one step).',
-    },
-  },
-  {
-    key: 'fun',
-    name: 'Tension and fun',
-    question: 'Does each step visibly change the stakes, creating tension, near misses and a pull to play again?',
-    weight: 1.5,
-    descriptors: {
-      1: 'Flat: outcomes feel arbitrary and nothing builds.',
-      3: 'Some tension, but steps feel samey.',
-      5: 'Every step changes the stakes visibly; you want one more round.',
+      1: 'One fixed pace, or rounds far too long or too short for the format.',
+      3: 'Works at only one pace, or lacks turbo or auto-bet.',
+      5: 'Turbo and auto-bet for fast play, step-by-step play for slow, and a round length that suits the format. Most games built on the kit reach 4-5.',
     },
   },
   {
     key: 'geometry_first',
     name: 'Geometry-first',
-    question: 'Does the concept make sense as pure geometry, without relying on a theme?',
-    weight: 0.5,
+    question: 'Does the concept make sense as plain shapes, without relying on a theme?',
+    weight: 0.25,
     descriptors: {
       1: 'Only makes sense with its theme (frozen lake, lava volcano, sticky custard).',
       3: 'The theme helps, but the mechanic stands on its own.',
-      5: 'Pure shapes; any theme is optional and it would translate to a 3D or live show.',
+      5: 'Pure shapes; any theme is optional.',
     },
   },
 ];
 
-export const DEFAULT_GUIDANCE = `Benchmark: the catalogue's classics (marked "classic": Dice, Limbo, Crash, Mines, Plinko, Keno, HiLo, Tower, Wheel, Roulette and the table games) are proven games the studio already runs. A well-made classic should land around 4 or above overall, and the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the very top. They are the top of the scale for prototypes: a prototype should only out-score a comparable classic on a criterion where it is clearly better.
-Instant one-shot games (Dice, Limbo, Coin Flip) are not penalised for lacking mid-round checkpoints: each bet resolves at once and the player pauses between bets. Table classics (Blackjack, Baccarat, Craps, Sic Bo) are proven but less Originals-shaped: familiarity makes their win condition clear, while their odds clarity and volatility control depend on how the implementation presents the bets and pay table.
-Common failure modes to score down:
-- Reskins. AI-generated concepts often re-theme an existing mechanic (frozen lake, lava, broken digger, sticky custard). Same maths under a new theme is uniqueness 1 and usually geometry_first 1–2.
-- Player-vs-House variants that add rules without adding gameplay. Extra rules cost simplicity.
-- Games built from proven maths results whose win condition or odds are unintuitive to a player. Being mathematically elegant is not the same as being legible; judge odds_legibility from the player's seat.
-Things that work well: one natural volatility knob (chamber count), a natural break after every step with a cash-out, random-walk "trading" dynamics, tug-of-war style duels where the board shows who is winning.
-Mines-style or crash-style maths is acceptable; judge whether the danger law, reveal or decision is genuinely different. UI layout is not part of this evaluation.`;
+export const DEFAULT_GUIDANCE = `Games are for players, not mathematicians. The team's low scores came from games whose win condition and odds a player could not read from the screen, even when the maths was elegant and the code clear. Being clever is not the same as being legible.
+
+Player judge (win condition, simplicity, odds, fun): judge only what one casual play of the UI teaches. Play as a typical online casino player who skims and does not study numbers. If you had to stop and think, read labels twice, or infer rules from a chart, score it down. Extra bet types, interacting settings and unexplained symbols cost simplicity. Odds count only when the player can see them: the overall chance of the bet as well as the risk of the next step. A next-step number alone is a 3 unless the board makes the whole bet obvious.
+
+Designer judge (uniqueness, volatility, checkpoints, pace, geometry): use the rules card and the measured facts. Volatility is about how well the dial lets a player choose risk: one natural, visible knob beats several interacting ones, and the measured spread must be real. Pace, checkpoints and geometry are baseline expectations that most games meet (4-5); score them low only when the format truly fails them, or when timing is the point and the game gets it wrong. Uniqueness: same maths and decision as an existing game under a new look is a reskin (1); a known family with a genuinely different law, reveal or decision is 3; the original of a format or a new dynamic that still plays simply is 5.
+
+Benchmarks: the classics (Dice, Limbo, Crash, Mines, Plinko, Keno, Wheel, Tower, HiLo, Roulette and the table games) are proven. Most should land around 4 or above, with the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the top. Table games with many bet types can be legitimately less simple. A prototype should only out-score a comparable classic where it is clearly better.`;

@@ -14,9 +14,11 @@
 import { randomUUID } from 'node:crypto';
 import {
   CRITERION_KEYS,
+  criteriaFor,
   isHoldout,
   overallScore,
-  summarize,
+  weightedFacets,
+  weightedSummary,
   type AgreementRow,
   type AgreementStats,
   type BacktestMetrics,
@@ -35,13 +37,17 @@ import {
   type RulesCard,
 } from '../shared.js';
 import type { EvalStore, RatingsStore } from '../store.js';
-import { ANCHORS, HIGH_MIN, LOW_MAX, type Anchor } from './anchors.js';
+import { ANCHORS, type Anchor } from './anchors.js';
 import { evalTable, measuredChecks, type EvidenceIndex, type GameEvidence } from './evidence.js';
 import type { Llm } from './llm.js';
 import {
   EXTRACT_SYSTEM,
   CLASSIC_STANDING,
   JUDGE_SCHEMA,
+  judgeSchema,
+  playerSchema,
+  playerSystem,
+  playerUser,
   PROTOTYPE_STANDING,
   REFINE_SCHEMA,
   REFINE_SYSTEM,
@@ -107,6 +113,13 @@ interface Subject {
 }
 
 const MIN_TRAIN_FOR_REFINE = 3;
+/** The core Originals every scoring system must rate highly. */
+const CORE_CLASSICS = ['dice', 'limbo', 'crash', 'mines', 'plinko', 'keno'];
+const CORE_MIN = 4;
+const CLASSICS_MEAN_MIN = 3.8;
+/** A game the team scored at or below TEAM_LOW must not get more than AI_LOW_MAX. */
+const TEAM_LOW = 2.5;
+const AI_LOW_MAX = 3;
 const MAX_REFERENCES = 6;
 // Below this many reviewed games there's no real team scale to calibrate
 // against (and early ratings are often tests), so the rubric judges alone.
@@ -119,11 +132,66 @@ const checksText = (checks: MeasuredCheck[]) => checks.map((c) => `- ${c.pass ? 
 
 const isStringArray = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 
+function parseScores(criteria: unknown, keys: readonly CriterionKey[], who: string): CriterionScore[] {
+  if (!Array.isArray(criteria)) throw new EvaluatorError(400, `The ${who} has no criteria array.`);
+  return keys.map((key) => {
+    const c = (criteria as { key?: string; score?: number; reasoning?: string }[]).find((x) => x?.key === key);
+    if (!c || !Number.isInteger(c.score) || c.score! < 1 || c.score! > 5) throw new EvaluatorError(400, `The ${who} is missing a valid 1-5 score for ${key}.`);
+    return { key, score: c.score!, reasoning: typeof c.reasoning === 'string' ? c.reasoning : '' };
+  });
+}
+
+/** What the blind player judge returns. */
+export interface PlayerOutput {
+  first_impression: string;
+  understanding: { win_condition: string; how_it_works: string; odds: string; settings: string; confidence: string };
+  criteria: { key: CriterionKey; reasoning: string; score: number }[];
+  confusions: string[];
+}
+
+/** Validates a blind player review for the given player criteria. */
+export function parsePlayer(raw: unknown, keys: readonly CriterionKey[]): PlayerOutput & { scores: CriterionScore[] } {
+  const r = raw as Partial<PlayerOutput> | null;
+  if (!r || typeof r !== 'object') throw new EvaluatorError(400, 'The player review is not an object.');
+  const u = r.understanding as Partial<PlayerOutput['understanding']> | undefined;
+  if (!u || typeof u.win_condition !== 'string' || typeof u.how_it_works !== 'string') {
+    throw new EvaluatorError(400, 'The player review must say what the player understood (understanding.win_condition and how_it_works).');
+  }
+  return {
+    first_impression: typeof r.first_impression === 'string' ? r.first_impression : '',
+    understanding: {
+      win_condition: u.win_condition,
+      how_it_works: u.how_it_works,
+      odds: typeof u.odds === 'string' ? u.odds : '',
+      settings: typeof u.settings === 'string' ? u.settings : '',
+      confidence: typeof u.confidence === 'string' ? u.confidence : '',
+    },
+    criteria: (r.criteria ?? []) as PlayerOutput['criteria'],
+    confusions: isStringArray(r.confusions) ? r.confusions : [],
+    scores: parseScores(r.criteria, keys, 'player review'),
+  };
+}
+
+/** The player's understanding as the designer judge sees it. */
+export function playerSummary(p: PlayerOutput): string {
+  return [
+    `- First impression: ${p.first_impression}`,
+    `- What wins: ${p.understanding.win_condition}`,
+    `- How it works: ${p.understanding.how_it_works}`,
+    `- Odds as they read them: ${p.understanding.odds}`,
+    `- Settings: ${p.understanding.settings}`,
+    `- Confidence: ${p.understanding.confidence}`,
+    p.confusions.length ? `- Confusions: ${p.confusions.join(' | ')}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 /** Validates a judge result from Claude or an import; throws on anything malformed. */
-export function parseJudge(raw: unknown): JudgeOutput & { scores: CriterionScore[] } {
-  const r = raw as Partial<JudgeOutput> | null;
+export function parseJudge(raw: unknown, keys: readonly CriterionKey[] = CRITERION_KEYS): JudgeOutput & { scores: CriterionScore[]; comprehension: string; comprehensionReasoning: string } {
+  const r = raw as (Partial<JudgeOutput> & { player_comprehension?: string; comprehension_reasoning?: string }) | null;
   if (!r || typeof r !== 'object' || !Array.isArray(r.criteria)) throw new EvaluatorError(400, 'The review has no criteria array.');
-  const scores: CriterionScore[] = CRITERION_KEYS.map((key) => {
+  const scores: CriterionScore[] = keys.map((key) => {
     const c = r.criteria!.find((x) => x?.key === key);
     if (!c || !Number.isInteger(c.score) || c.score < 1 || c.score > 5) throw new EvaluatorError(400, `The review is missing a valid 1-5 score for ${key}.`);
     return { key, score: c.score, reasoning: typeof c.reasoning === 'string' ? c.reasoning : '' };
@@ -139,8 +207,13 @@ export function parseJudge(raw: unknown): JudgeOutput & { scores: CriterionScore
     duplicate_of: typeof r.duplicate_of === 'string' ? r.duplicate_of : '',
     verdict: typeof r.verdict === 'string' ? r.verdict : '',
     recommendation: r.recommendation as JudgeOutput['recommendation'],
+    comprehension: ['correct', 'partial', 'wrong'].includes(r.player_comprehension ?? '') ? r.player_comprehension! : '',
+    comprehensionReasoning: typeof r.comprehension_reasoning === 'string' ? r.comprehension_reasoning : '',
   };
 }
+
+/** The highest win-condition and simplicity score a player's comprehension allows. */
+const COMPREHENSION_CAP: Record<string, number> = { correct: 5, partial: 3, wrong: 2 };
 
 function parseCard(raw: unknown): RulesCard {
   const c = raw as Partial<RulesCard> | null;
@@ -220,12 +293,15 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       .join('\n');
   }
 
-  /** Human average and count for every rated game that has evidence. */
+  /**
+   * The ground truth: each rated game's team score, weighted by reviewer
+   * (Pierre counts 3×, see reviewerWeight), from every vote, written or not.
+   */
   async function humanSummaries(): Promise<Map<string, RatingSummary>> {
     const out = new Map<string, RatingSummary>();
-    for (const [id, d] of await ratings.distributions()) {
-      const s = summarize(d);
-      if (s.count > 0 && evidence.get(id)) out.set(id, s);
+    for (const [id, votes] of await ratings.allVotes()) {
+      const s = weightedSummary(votes);
+      if (s.count > 0 && evidence.get(id)) out.set(id, { average: s.average, count: s.count });
     }
     return out;
   }
@@ -270,19 +346,44 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
           humanAverage: h.average,
           humanCount: h.count,
           note,
-          comments: (reviews.get(id) ?? []).slice(0, 2).map((r) => r.comment.slice(0, 300)),
+          comments: (reviews.get(id) ?? []).slice(0, 2).map((r) => `${r.reviewer ? `${r.reviewer}: ` : ''}${r.comment.slice(0, 300)}`),
         };
       })
       .sort((a, b) => a.humanAverage - b.humanAverage);
   }
 
-  async function buildJudgePrompt(version: PromptVersion, subject: Subject, pool: ReferencePool, catalogue?: string) {
+  async function buildJudgePrompt(version: PromptVersion, subject: Subject, pool: ReferencePool, catalogue?: string, player?: string) {
     const refs = await references(subject, version, pool);
     return {
-      system: judgeSystem(version, catalogue ?? (await catalogueText())),
-      user: judgeUser(subject.name, subject.id, subject.standing, subject.card, subject.facts, subject.table, refs),
+      system: judgeSystem(version, catalogue ?? (await catalogueText()), !!player),
+      user: judgeUser(subject.name, subject.id, subject.standing, subject.card, subject.facts, subject.table, refs, player),
       references: refs.length,
     };
+  }
+
+  /**
+   * Scale references for the blind player judge: how the team scored other
+   * games on the player criteria (weighted, with a comment). Only names and
+   * scores of other games, never anything about the game under review.
+   */
+  async function playerReferences(subjectId: string, version: PromptVersion, pool: ReferencePool): Promise<string> {
+    const votes = await ratings.allVotes();
+    const keys = criteriaFor(version.criteria, 'player').map((c) => c.key);
+    const rows = [...votes]
+      .filter(([id, v]) => id !== subjectId && evidence.get(id) && v.length && (pool === 'all' || !isHoldout(id)))
+      .map(([id, v]) => ({ id, s: weightedSummary(v), f: weightedFacets(v), comment: v.find((x) => x.comment)?.comment ?? '' }))
+      .filter((r) => keys.some((k) => r.f[k]));
+    if (rows.length < MIN_REFERENCE_POOL) return 'None yet.';
+    rows.sort((a, b) => a.s.average - b.s.average);
+    const pick = [...new Set([rows[0], rows[rows.length - 1], ...rows.slice(1, -1).sort((a, b) => b.s.count - a.s.count)])].slice(0, MAX_REFERENCES);
+    return pick
+      .sort((a, b) => a.s.average - b.s.average)
+      .map((r) => {
+        const facets = keys.map((k) => (r.f[k] ? `${k} ${r.f[k]!.average.toFixed(1)}` : '')).filter(Boolean).join(', ');
+        const said = r.comment ? ` Said: "${r.comment.slice(0, 220)}"` : '';
+        return `- ${nameOf(r.id)}: team ${r.s.average.toFixed(1)}/5 (${r.s.count} ${r.s.count === 1 ? 'review' : 'reviews'}); ${facets}.${said}`;
+      })
+      .join('\n');
   }
 
   const standingOf = (collection: string | undefined) => (collection === 'classics' ? CLASSIC_STANDING : PROTOTYPE_STANDING);
@@ -314,20 +415,42 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     version: PromptVersion,
     subjectId: string,
     raw: unknown,
-    meta: { codeHash: string; checks: MeasuredCheck[]; model: string },
+    meta: { codeHash: string; checks: MeasuredCheck[]; model: string; classic?: boolean; player?: unknown },
   ): Promise<Evaluation> {
-    const r = parseJudge(raw);
+    let scores: CriterionScore[];
+    let r: ReturnType<typeof parseJudge>;
+    const cons: string[] = [];
+    if (meta.player !== undefined) {
+      // Two judges: the blind player scores the player criteria, the designer the rest.
+      const playerKeys = criteriaFor(version.criteria, 'player').map((c) => c.key);
+      const designerKeys = CRITERION_KEYS.filter((k) => !playerKeys.includes(k));
+      const p = parsePlayer(meta.player, playerKeys);
+      r = parseJudge(raw, designerKeys);
+      const cap = COMPREHENSION_CAP[r.comprehension] ?? 5;
+      const playerScores = p.scores.map((s) =>
+        (s.key === 'win_clarity' || s.key === 'simplicity') && s.score > cap
+          ? { ...s, score: cap, reasoning: `${s.reasoning} [Capped at ${cap}: the blind player's understanding was graded "${r.comprehension}". ${r.comprehensionReasoning}]` }
+          : s,
+      );
+      scores = CRITERION_KEYS.map((k) => [...playerScores, ...r.scores].find((s) => s.key === k)!);
+      if (r.comprehension && r.comprehension !== 'correct') cons.push(`A blind player misread it (${r.comprehension}): ${r.comprehensionReasoning}`);
+      cons.push(...p.confusions.slice(0, 2).map((c) => `Player confusion: ${c}`));
+    } else {
+      r = parseJudge(raw);
+      scores = r.scores;
+    }
+    const duplicateOf = r.duplicate_of && r.duplicate_of !== subjectId ? r.duplicate_of : '';
     return evals.saveEvaluation({
       gameId: subjectId,
       versionId: version.id,
       codeHash: meta.codeHash,
-      overall: overallScore(r.scores, version.criteria),
-      criteria: r.scores,
+      overall: overallScore(scores, version.criteria, { classic: meta.classic, duplicate: !!duplicateOf }),
+      criteria: scores,
       recommendation: r.recommendation,
       verdict: r.verdict,
       pros: r.pros,
-      cons: r.cons,
-      duplicateOf: r.duplicate_of && r.duplicate_of !== subjectId ? r.duplicate_of : '',
+      cons: [...r.cons, ...cons],
+      duplicateOf,
       closestExisting: r.closest_existing,
       checks: meta.checks,
       model: meta.model,
@@ -360,7 +483,7 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     const model = requireLlm();
     const prompt = await buildJudgePrompt(ctx.version, subject, ctx.pool, ctx.catalogue);
     const raw = await model.json<JudgeOutput>({ system: prompt.system, user: prompt.user, schema: JUDGE_SCHEMA, effort: 'high' });
-    return saveJudged(ctx.version, subject.id, raw, { ...meta, model: model.model });
+    return saveJudged(ctx.version, subject.id, raw, { ...meta, model: model.model, classic: subject.standing === CLASSIC_STANDING });
   }
 
   async function evaluateGame(gameId: string, ctx: BatchContext): Promise<Evaluation> {
@@ -436,13 +559,14 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
   // Calibration: humans vs AI
   // -------------------------------------------------------------------------
 
-  /** The most-reviewed games (train and holdout), used as the backtest set. */
+  /** The most-reviewed games (train and holdout) plus the core classics, used as the backtest set. */
   async function calibrationGames(): Promise<string[]> {
     const humans = await humanSummaries();
-    return [...humans]
+    const reviewed = [...humans]
       .sort((a, b) => b[1].count - a[1].count || a[0].localeCompare(b[0]))
       .slice(0, calibrationSize)
       .map(([id]) => id);
+    return [...new Set([...reviewed, ...CORE_CLASSICS.filter((id) => evidence.get(id))])];
   }
 
   /** Calibration games and anchors with no current review under `version`. */
@@ -450,7 +574,8 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     const latest = await evals.latestEvaluations(version.id);
     return {
       games: games.filter((id) => latest.get(id)?.codeHash !== evidence.get(id)?.codeHash),
-      anchors: ANCHORS.filter((a) => !latest.has(a.id)),
+      // Text anchors are retired: they can't be played blind. Real games are the benchmarks now.
+      anchors: [] as Anchor[],
     };
   }
 
@@ -476,16 +601,29 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       const h = humans.get(id);
       return e && h ? [{ id, ai: e.overall, human: h.average }] : [];
     });
+    // Benchmarks (they replace the text anchors): the core classics must score
+    // high, the classics as a group should average well, and games the team
+    // rated low must not score high.
     const anchorFailures: string[] = [];
     let anchorsPassed = 0;
     let anchorsTotal = 0;
-    for (const a of ANCHORS) {
-      const e = latest.get(a.id);
-      if (!e) continue;
+    const check = (ok: boolean, failure: string) => {
       anchorsTotal++;
-      const ok = a.expectation === 'high' ? e.overall >= HIGH_MIN : e.overall <= LOW_MAX;
       if (ok) anchorsPassed++;
-      else anchorFailures.push(`${a.name} scored ${e.overall.toFixed(2)} (expected ${a.expectation === 'high' ? `≥ ${HIGH_MIN}` : `≤ ${LOW_MAX}`})`);
+      else anchorFailures.push(failure);
+    };
+    for (const id of CORE_CLASSICS) {
+      const e = latest.get(id);
+      if (e) check(e.overall >= CORE_MIN, `${nameOf(id)} (core classic) scored ${e.overall.toFixed(2)} (expected ≥ ${CORE_MIN})`);
+    }
+    const classics = evidence.all().filter((g) => g.manifest.collection === 'classics' && latest.has(g.id));
+    if (classics.length >= 5) {
+      const mean = classics.reduce((a, g) => a + latest.get(g.id)!.overall, 0) / classics.length;
+      check(mean >= CLASSICS_MEAN_MIN, `Classics average ${mean.toFixed(2)} (expected ≥ ${CLASSICS_MEAN_MIN})`);
+    }
+    for (const [id, h] of humans) {
+      const e = latest.get(id);
+      if (e && h.average <= TEAM_LOW) check(e.overall <= AI_LOW_MAX, `${nameOf(id)} (team ${h.average.toFixed(1)}) scored ${e.overall.toFixed(2)} (expected ≤ ${AI_LOW_MAX})`);
     }
     const all = agreement(pairs);
     return {
@@ -753,15 +891,35 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       table?: string;
       versionId?: number;
       pool?: ReferencePool;
+      /** The blind player's review: the designer judge then scores only its own criteria and grades comprehension. */
+      player?: unknown;
     }) {
       const version = input.versionId ? await versionOrThrow(input.versionId) : await activeVersion();
       const subject = await subjectFor(input);
-      const prompt = await buildJudgePrompt(version, subject, input.pool === 'train' ? 'train' : 'all');
-      return { versionId: version.id, subjectId: subject.id, ...prompt, schema: JUDGE_SCHEMA };
+      const playerKeys = criteriaFor(version.criteria, 'player').map((c) => c.key);
+      const player = input.player !== undefined && playerKeys.length ? playerSummary(parsePlayer(input.player, playerKeys)) : undefined;
+      const prompt = await buildJudgePrompt(version, subject, input.pool === 'train' ? 'train' : 'all', undefined, player);
+      const keys = player ? CRITERION_KEYS.filter((k) => !playerKeys.includes(k)) : CRITERION_KEYS;
+      return { versionId: version.id, subjectId: subject.id, ...prompt, schema: judgeSchema(keys, !!player) };
+    },
+
+    /** The blind player prompt for a game: UI only, played through `tool` (a command the caller provides). */
+    async playerPrompt(input: { gameId?: string; versionId?: number; pool?: ReferencePool; tool?: string }) {
+      if (!input.gameId) throw new EvaluatorError(400, 'Give a gameId.');
+      const version = input.versionId ? await versionOrThrow(input.versionId) : await activeVersion();
+      const keys = criteriaFor(version.criteria, 'player').map((c) => c.key);
+      if (!keys.length) throw new EvaluatorError(400, `Prompt version ${version.id} has no player criteria; review with the judge alone.`);
+      const refs = await playerReferences(input.gameId, version, input.pool === 'train' ? 'train' : 'all');
+      return {
+        versionId: version.id,
+        system: playerSystem(version),
+        user: playerUser(input.gameId, input.tool ?? '(the caller did not provide a play command)', refs),
+        schema: playerSchema(keys),
+      };
     },
 
     /** Stores a review produced elsewhere (Claude Code). The overall score is computed here. */
-    async importEvaluation(input: { gameId?: string; anchorId?: string; versionId?: number; codeHash?: string; card?: unknown; review: unknown; checks?: unknown; model?: string }): Promise<Evaluation> {
+    async importEvaluation(input: { gameId?: string; anchorId?: string; versionId?: number; codeHash?: string; card?: unknown; review: unknown; player?: unknown; checks?: unknown; model?: string; collection?: string }): Promise<Evaluation> {
       const version = input.versionId ? await versionOrThrow(input.versionId) : await activeVersion();
       const anchor = input.anchorId ? ANCHORS.find((a) => a.id === input.anchorId) : undefined;
       if (input.anchorId && !anchor) throw new EvaluatorError(404, `No anchor ${input.anchorId}`);
@@ -772,7 +930,8 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       const model = typeof input.model === 'string' && input.model.trim() ? input.model.trim().slice(0, 60) : 'claude-code';
       if (!anchor && input.card !== undefined) await evals.saveRulesCard(subjectId, codeHash, parseCard(input.card), model);
       const checks = Array.isArray(input.checks) ? (input.checks as MeasuredCheck[]).filter((c) => c && typeof c.label === 'string') : [];
-      return saveJudged(version, subjectId, input.review, { codeHash, checks, model });
+      const classic = (input.collection ?? evidence.get(subjectId)?.manifest.collection) === 'classics';
+      return saveJudged(version, subjectId, input.review, { codeHash, checks, model, classic, player: input.player });
     },
 
     /** The refine prompt; `missing` lists train games to review first under the active version. */
