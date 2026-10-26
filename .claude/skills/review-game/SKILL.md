@@ -12,7 +12,7 @@ Requested: $ARGUMENTS
 The CLI (`npm run evaluator -- …`) does all the plumbing: building prompts from the active prompt version, team reviews and measured facts, then validating and storing results. You do three judgement steps, each in a **separate subagent** that sees only what that step allows:
 
 - **Rules card** (reads the source): a factual card about the game.
-- **Blind player** (UI only): plays the game in a sandbox with explanatory prose hidden, and scores what a real player can tell from one play: win condition, simplicity, odds, fun. It never sees the source, the rules card, docs or descriptions. This is the most important step: the team's reviews showed that an AI reading code rates games far clearer than people do.
+- **Blind player** (UI only): plays the game in a sandbox with explanatory prose hidden, and scores what a real player can tell from one play: win condition, simplicity, odds, fun. It also answers factual checks (how a round is decided, whether it is a known casino game, where its sense of the odds came from), which cap those scores in code. It never sees the source, the rules card, docs or descriptions. This is the most important step: the team's reviews showed that an AI reading code rates games far clearer than people do.
 - **Designer** (rules card + measured facts + what the player understood): scores uniqueness, volatility, checkpoints, pace and geometry, and grades whether the blind player understood the game correctly. A misread caps the player's clarity scores.
 
 ## Setup check
