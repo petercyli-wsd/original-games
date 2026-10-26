@@ -45,6 +45,8 @@ import {
   CLASSIC_STANDING,
   JUDGE_SCHEMA,
   judgeSchema,
+  PLAYER_ODDS_SOURCES,
+  PLAYER_OUTCOMES,
   playerSchema,
   playerSystem,
   playerUser,
@@ -145,8 +147,33 @@ function parseScores(criteria: unknown, keys: readonly CriterionKey[], who: stri
 export interface PlayerOutput {
   first_impression: string;
   understanding: { win_condition: string; how_it_works: string; odds: string; settings: string; confidence: string };
+  /** Factual answers that cap the player's scores (absent before rubric v4). */
+  checks?: { outcome: string; known_casino_game: boolean; odds_source: string; reasoning: string };
   criteria: { key: CriterionKey; reasoning: string; score: number }[];
   confusions: string[];
+}
+
+/**
+ * Score limits from the blind player's checks. The team rated every game decided
+ * by a pattern or a hidden state (rather than a draw you watch) 1-2 on win
+ * condition and odds, however clearly an AI could follow it, unless it was a
+ * casino game players already know.
+ */
+export function playerCaps(checks: PlayerOutput['checks']): Partial<Record<CriterionKey, { cap: number; why: string }>> {
+  const caps: Partial<Record<CriterionKey, { cap: number; why: string }>> = {};
+  if (!checks) return caps;
+  const limit = (key: CriterionKey, cap: number, why: string) => {
+    if (!caps[key] || caps[key]!.cap > cap) caps[key] = { cap, why };
+  };
+  if (checks.outcome !== 'direct' && !checks.known_casino_game) {
+    const why = `the result is decided by ${checks.outcome === 'hidden' ? 'a hidden state the player only sees clues about' : 'a pattern the player has to check'}, not a draw they watch, and it is not a known casino game`;
+    limit('win_clarity', 2, why);
+    limit('odds_legibility', 2, why);
+    limit('simplicity', 3, why);
+  }
+  if (checks.odds_source === 'unclear') limit('odds_legibility', 2, 'the player could not tell what their chances were');
+  if (checks.odds_source === 'trust') limit('odds_legibility', 4, 'the chance is shown as a number the player has to take on trust');
+  return caps;
 }
 
 /** Validates a blind player review for the given player criteria. */
@@ -166,10 +193,20 @@ export function parsePlayer(raw: unknown, keys: readonly CriterionKey[]): Player
       settings: typeof u.settings === 'string' ? u.settings : '',
       confidence: typeof u.confidence === 'string' ? u.confidence : '',
     },
+    checks: parseChecks(r.checks),
     criteria: (r.criteria ?? []) as PlayerOutput['criteria'],
     confusions: isStringArray(r.confusions) ? r.confusions : [],
     scores: parseScores(r.criteria, keys, 'player review'),
   };
+}
+
+function parseChecks(raw: unknown): PlayerOutput['checks'] {
+  if (raw === undefined) return undefined;
+  const c = raw as Partial<NonNullable<PlayerOutput['checks']>> | null;
+  if (!c || !PLAYER_OUTCOMES.includes(c.outcome as string) || typeof c.known_casino_game !== 'boolean' || !PLAYER_ODDS_SOURCES.includes(c.odds_source as string)) {
+    throw new EvaluatorError(400, `The player's checks must give outcome (${PLAYER_OUTCOMES.join('/')}), known_casino_game (true/false) and odds_source (${PLAYER_ODDS_SOURCES.join('/')}).`);
+  }
+  return { outcome: c.outcome!, known_casino_game: c.known_casino_game, odds_source: c.odds_source!, reasoning: typeof c.reasoning === 'string' ? c.reasoning : '' };
 }
 
 /** The player's understanding as the designer judge sees it. */
@@ -181,6 +218,7 @@ export function playerSummary(p: PlayerOutput): string {
     `- Odds as they read them: ${p.understanding.odds}`,
     `- Settings: ${p.understanding.settings}`,
     `- Confidence: ${p.understanding.confidence}`,
+    p.checks ? `- Checks: outcome ${p.checks.outcome}; known casino game: ${p.checks.known_casino_game ? 'yes' : 'no'}; odds ${p.checks.odds_source}` : '',
     p.confusions.length ? `- Confusions: ${p.confusions.join(' | ')}` : '',
   ]
     .filter(Boolean)
@@ -426,12 +464,15 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       const designerKeys = CRITERION_KEYS.filter((k) => !playerKeys.includes(k));
       const p = parsePlayer(meta.player, playerKeys);
       r = parseJudge(raw, designerKeys);
+      const caps = playerCaps(p.checks);
       const cap = COMPREHENSION_CAP[r.comprehension] ?? 5;
-      const playerScores = p.scores.map((s) =>
-        (s.key === 'win_clarity' || s.key === 'simplicity') && s.score > cap
-          ? { ...s, score: cap, reasoning: `${s.reasoning} [Capped at ${cap}: the blind player's understanding was graded "${r.comprehension}". ${r.comprehensionReasoning}]` }
-          : s,
-      );
+      for (const key of ['win_clarity', 'simplicity'] as const) {
+        if (cap < (caps[key]?.cap ?? 5)) caps[key] = { cap, why: `the blind player's understanding was graded "${r.comprehension}". ${r.comprehensionReasoning}` };
+      }
+      const playerScores = p.scores.map((s) => {
+        const c = caps[s.key];
+        return c && s.score > c.cap ? { ...s, score: c.cap, reasoning: `${s.reasoning} [Capped at ${c.cap}: ${c.why}]` } : s;
+      });
       scores = CRITERION_KEYS.map((k) => [...playerScores, ...r.scores].find((s) => s.key === k)!);
       if (r.comprehension && r.comprehension !== 'correct') cons.push(`A blind player misread it (${r.comprehension}): ${r.comprehensionReasoning}`);
       cons.push(...p.confusions.slice(0, 2).map((c) => `Player confusion: ${c}`));

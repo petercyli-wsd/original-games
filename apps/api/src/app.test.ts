@@ -471,6 +471,16 @@ describe('blind player reviews', () => {
     expect(misread.overall).toBeLessThanOrEqual(3); // clarity cap: capFor(2)
     expect(misread.cons[misread.cons.length - 2]).toMatch(/blind player misread it \(wrong\)/);
 
+    // A game decided by a pattern, which nobody knows from a casino, is capped from the player's checks.
+    const checks = { outcome: 'pattern', known_casino_game: false, odds_source: 'trust', reasoning: 'r' };
+    await post('/evaluations/import', { gameId: 'gamma', codeHash: 'hash-gamma', card, player: { ...player, checks }, review: designer('correct') });
+    const pattern = Object.fromEntries((await getJson<EvaluationView>('/evaluations/gamma')).criteria.map((c) => [c.key, c.score]));
+    expect(pattern).toMatchObject({ win_clarity: 2, odds_legibility: 2, simplicity: 3 });
+    // The same answers for a known casino game only cap the odds a number shows on trust.
+    await post('/evaluations/import', { gameId: 'delta', codeHash: 'hash-delta', card, player: { ...player, checks: { ...checks, known_casino_game: true } }, review: designer('correct') });
+    const known = Object.fromEntries((await getJson<EvaluationView>('/evaluations/delta')).criteria.map((c) => [c.key, c.score]));
+    expect(known).toMatchObject({ win_clarity: 5, odds_legibility: 4, simplicity: 5 });
+
     // A player review missing a criterion is rejected.
     const bad = await post('/evaluations/import', { gameId: 'alpha', codeHash: 'h', card, player: { ...player, criteria: player.criteria.slice(1) }, review: designer('correct') });
     expect(bad.status).toBe(400);

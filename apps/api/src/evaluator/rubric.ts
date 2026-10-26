@@ -12,6 +12,13 @@
 //   well, so they barely move the score;
 // - fun is subjective and follows the others, so it counts little;
 // - uniqueness gates prototypes (see overallScore in shared.ts).
+//
+// Version 4. The v3 blind player still followed games built on a maths idea
+// (a hidden coin inferred from flips, chords that must not cross, a grid that
+// fills, a family tree that survives) and rated them clear; the team rated all
+// of them 1-2. The player now answers factual checks (how a round is decided,
+// whether it is a known casino game, where its sense of the odds came from) and
+// code caps its scores from them (playerCaps in service.ts).
 
 import type { CriterionDef } from '../shared.js';
 
@@ -123,7 +130,7 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
 
 export const DEFAULT_GUIDANCE = `Games are for players, not mathematicians. The team's low scores came from games whose win condition and odds a player could not read from the screen, even when the maths was elegant and the code clear. Being clever is not the same as being legible.
 
-Player judge (win condition, simplicity, odds, fun): judge only what one casual play of the UI teaches. Play as a typical online casino player who skims and does not study numbers. If you had to stop and think, read labels twice, or infer rules from a chart, score it down. Extra bet types, interacting settings and unexplained symbols cost simplicity. Odds count only when the player can see them: the overall chance of the bet as well as the risk of the next step. A next-step number alone is a 3 unless the board makes the whole bet obvious.
+Player judge (win condition, simplicity, odds, fun): judge only what one casual play of the UI teaches. Play as a typical online casino player who skims and does not study numbers. If you had to stop and think, read labels twice, or infer rules from a chart, score it down. Extra bet types, interacting settings and unexplained symbols cost simplicity. Odds count only when the player can see them: the overall chance of the bet as well as the risk of the next step. A next-step number alone is a 3 unless the board makes the whole bet obvious. The clearest games are decided by a draw the player watches (a roll, a card, a tile, where a ball lands, where a multiplier stops, who wins a race). Games decided by a pattern the player has to check (lines crossing, a grid filling, a population surviving) or by a hidden state they only see clues about were all rated 1-2 by the team on win condition and odds, however elegant, unless they were casino games players already know.
 
 Designer judge (uniqueness, volatility, checkpoints, pace, geometry): use the rules card and the measured facts. Volatility is about how well the dial lets a player choose risk: one natural, visible knob beats several interacting ones, and the measured spread must be real. Pace, checkpoints and geometry are baseline expectations that most games meet (4-5); score them low only when the format truly fails them, or when timing is the point and the game gets it wrong. Uniqueness: same maths and decision as an existing game under a new look is a reskin (1); a known family with a genuinely different law, reveal or decision is 3; the original of a format or a new dynamic that still plays simply is 5.
 

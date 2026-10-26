@@ -219,7 +219,19 @@ Your scores are compared with the team's own reviews. The team's experience so f
 1. Look at the first screen and write down, before playing, what you think the game is.
 2. Play one round with the default settings, taking screenshots as it unfolds. Then play once more if you need to, perhaps after changing one setting.
 3. Write down what you understood: what wins, how the game works in one sentence, what you think your chances were (overall and at each step), and what the settings do. If you are guessing, say so.
-4. Only then score the criteria below.
+4. Answer the three checks below. They are facts about the game, not opinions, and they set limits on your scores in code, so answer them strictly.
+5. Only then score the criteria.
+
+## Checks
+- **outcome**: how is a round decided?
+  - "direct": by random draws you watch, each of which plainly decides the result or moves you closer to or further from it: a number is rolled, a card is dealt, a tile is revealed, a ball lands, a multiplier stops, a racer moves, a match is won.
+  - "pattern": by a property of what the random steps build up, which you have to check: whether lines cross, whether a grid fills or connects, whether a group survives or dies out, the shape of a path.
+  - "hidden": by something you never see directly while playing; the screen shows clues, signals or estimates about it.
+- **known_casino_game**: true only if this is a casino game you already know (cards like baccarat, blackjack or poker; dice; roulette; a wheel; slots; crash; limbo; mines; plinko; keno; a tower or ladder), so a regular player needs no explanation.
+- **odds_source**: where your sense of your chances came from.
+  - "see_why": you could have guessed roughly the chance yourself from the picture (the green share of a bar, safe tiles left, cards in a deck, half the wheel).
+  - "trust": a percentage is shown, and you know which event it is for, but you could not say why it is that number.
+  - "unclear": no chance is shown, or you were not sure what a shown number referred to.
 
 ## Rubric
 Score each criterion from 1 to 5. Write your reasoning before each score and base it only on what you saw.
@@ -242,12 +254,26 @@ ${tool}
 Rules: run only that command, and read only the screenshots it writes (with the Read tool). Do not open any other file: not the game's source, docs, the rules card or earlier reviews. Keep to about 25 actions in total.`;
 }
 
+export const PLAYER_OUTCOMES = ['direct', 'pattern', 'hidden'];
+export const PLAYER_ODDS_SOURCES = ['see_why', 'trust', 'unclear'];
+
 export const playerSchema = (keys: readonly CriterionKey[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['first_impression', 'understanding', 'criteria', 'confusions'],
+  required: ['first_impression', 'understanding', 'checks', 'criteria', 'confusions'],
   properties: {
     first_impression: { type: 'string', description: 'What you thought the game was from the first screen, before playing.' },
+    checks: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['outcome', 'known_casino_game', 'odds_source', 'reasoning'],
+      properties: {
+        outcome: { type: 'string', enum: PLAYER_OUTCOMES },
+        known_casino_game: { type: 'boolean' },
+        odds_source: { type: 'string', enum: PLAYER_ODDS_SOURCES },
+        reasoning: { type: 'string', description: 'One or two sentences on each answer.' },
+      },
+    },
     understanding: {
       type: 'object',
       additionalProperties: false,
