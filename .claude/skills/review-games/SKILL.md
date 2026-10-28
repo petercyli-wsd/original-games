@@ -15,7 +15,7 @@ This runs the same procedure as the `review-game` skill (read `.claude/skills/re
 
 3. **Rules cards.** For every game whose prepare line says it needs a rules card, launch the step 2 subagent from `review-game`, up to 5 at a time in parallel. Wait for each batch to finish.
 
-4. **Blind players.** Delete any old `.evaluator/<id>/player.json`, run `npm run evaluator -- player-prompt <every id>`, then launch the step 3 blind-player subagent from `review-game` for every game, up to 5 at a time in parallel, each a fresh subagent.
+4. **Blind players.** Run `npm run evaluator -- player-prompt <every id>` and note the alias it prints for each game, then launch the step 3 blind-player subagent from `review-game` for every game (given only its alias, never its id or name), up to 5 at a time in parallel, each a fresh subagent.
 
 5. **Designer prompts.** `npm run evaluator -- judge-prompt <every id>`.
 
