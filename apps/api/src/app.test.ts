@@ -444,10 +444,13 @@ describe('blind player reviews', () => {
 
   it('serves a UI-only player prompt and a designer prompt that sees what the player understood', async () => {
     const { post } = await start();
-    const pp = (await (await post('/evaluator/player-prompt', { gameId: 'alpha', tool: 'npm run evaluator -- play alpha' })).json()) as { system: string; user: string; schema: { properties: { criteria: { items: { properties: { key: { enum: string[] } } } } } } };
+    const pp = (await (await post('/evaluator/player-prompt', { gameId: 'alpha', tool: 'npm run evaluator -- play g-abc123' })).json()) as { system: string; user: string; schema: { properties: { criteria: { items: { properties: { key: { enum: string[] } } } } } } };
     expect(pp.system).toContain('no description, rules or source code');
-    expect(pp.user).toContain('npm run evaluator -- play alpha');
-    expect(pp.user).not.toContain('alpha tagline'); // nothing about the game itself
+    expect(pp.user).toContain('npm run evaluator -- play g-abc123');
+    expect(pp.user).not.toContain('alpha'); // never told which game it is
+    // No designer or benchmark guidance: it names games and says how they should score.
+    expect(pp.system).not.toMatch(/Benchmarks|Designer judge/);
+    expect(pp.system).toContain('Player judge');
     expect(pp.schema.properties.criteria.items.properties.key.enum.sort()).toEqual([...playerKeys].sort());
 
     const jp = (await (await post('/evaluator/judge-prompt', { gameId: 'alpha', card, player })).json()) as { system: string; user: string; schema: { required: string[]; properties: { criteria: { items: { properties: { key: { enum: string[] } } } } } } };

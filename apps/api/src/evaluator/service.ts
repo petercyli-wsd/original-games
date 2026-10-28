@@ -409,17 +409,18 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
     const keys = criteriaFor(version.criteria, 'player').map((c) => c.key);
     const rows = [...votes]
       .filter(([id, v]) => id !== subjectId && evidence.get(id) && v.length && (pool === 'all' || !isHoldout(id)))
-      .map(([id, v]) => ({ id, s: weightedSummary(v), f: weightedFacets(v), comment: v.find((x) => x.comment)?.comment ?? '' }))
+      .map(([id, v]) => ({ id, s: weightedSummary(v), f: weightedFacets(v) }))
       .filter((r) => keys.some((k) => r.f[k]));
     if (rows.length < MIN_REFERENCE_POOL) return 'None yet.';
     rows.sort((a, b) => a.s.average - b.s.average);
     const pick = [...new Set([rows[0], rows[rows.length - 1], ...rows.slice(1, -1).sort((a, b) => b.s.count - a.s.count)])].slice(0, MAX_REFERENCES);
     return pick
       .sort((a, b) => a.s.average - b.s.average)
-      .map((r) => {
+      // Unnamed and without comments: a name (or a comment naming a game) would
+      // tell the player which formats the team rates highly.
+      .map((r, i) => {
         const facets = keys.map((k) => (r.f[k] ? `${k} ${r.f[k]!.average.toFixed(1)}` : '')).filter(Boolean).join(', ');
-        const said = r.comment ? ` Said: "${r.comment.slice(0, 220)}"` : '';
-        return `- ${nameOf(r.id)}: team ${r.s.average.toFixed(1)}/5 (${r.s.count} ${r.s.count === 1 ? 'review' : 'reviews'}); ${facets}.${said}`;
+        return `- Game ${String.fromCharCode(65 + i)}: team ${r.s.average.toFixed(1)}/5 (${r.s.count} ${r.s.count === 1 ? 'review' : 'reviews'}); ${facets}.`;
       })
       .join('\n');
   }
@@ -954,7 +955,7 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       return {
         versionId: version.id,
         system: playerSystem(version),
-        user: playerUser(input.gameId, input.tool ?? '(the caller did not provide a play command)', refs),
+        user: playerUser(input.tool ?? '(the caller did not provide a play command)', refs),
         schema: playerSchema(keys),
       };
     },

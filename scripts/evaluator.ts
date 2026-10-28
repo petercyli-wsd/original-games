@@ -5,8 +5,9 @@
 //   todo [--all]                       games needing a review under the active prompt
 //   prepare <id...>                    evidence + rules-card prompt (reuses a cached card)
 //   player-prompt <id...> [--version N] [--pool train]
-//                                      the blind player prompt (UI only) for each game
-//   play <id> "<steps>"                the blind player's only tool: plays the UI with prose
+//                                      the blind player prompt (UI only) for each game, under
+//                                      an alias so the player never learns which game it is
+//   play <alias> "<steps>"             the blind player's only tool: plays the UI with prose
 //                                      hidden, saves numbered screenshots to .evaluator/<id>/ui/
 //   judge-prompt <id...> [--version N] [--pool train]
 //                                      the designer judge prompt (uses player.json if present)
@@ -23,7 +24,8 @@
 // Working files live in .evaluator/<id>/ (git-ignored).
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { randomBytes } from 'node:crypto';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { evalTable, measuredChecks, type GameEvidence } from '../apps/api/src/evaluator/evidence';
@@ -147,34 +149,54 @@ async function prepare() {
   }
 }
 
-const PLAY_TOOL = (id: string) =>
-  `npm run evaluator -- play ${id} "<steps>"
+const PLAY_TOOL = (alias: string) =>
+  `npm run evaluator -- play ${alias} "<steps>"
 Steps are separated by ";": shot:<name> (screenshot), text:<label> (click the first enabled button whose visible text contains <label>), mouse:<x>,<y> (click at screen coordinates, 1280x800), key:<Space|Enter|Escape|letter>, wait:<ms>.
-Each call starts a fresh page and plays your steps in order, so include every step from the start. Take a shot after each action you want to see. Example: npm run evaluator -- play ${id} "shot:start;text:Bet;wait:1200;shot:after-bet"
+Each call starts a fresh page and plays your steps in order, so include every step from the start. Take a shot after each action you want to see. Example: npm run evaluator -- play ${alias} "shot:start;text:Bet;wait:1200;shot:after-bet"
 The command prints the screenshot paths; open them with Read.`;
+
+// The blind player works under an alias in .evaluator/_blind/<alias>/, so
+// nothing it reads, runs or writes names the game. The alias → id map stays
+// with the CLI.
+const BLIND = join(WORK, '_blind');
+const blindMapFile = join(BLIND, 'map.json');
+const blindMap = (): Record<string, string> => (existsSync(blindMapFile) ? readJson<Record<string, string>>(blindMapFile) : {});
+
+/** Where a game's blind player review is: the alias folder of its latest player prompt. */
+function playerFile(id: string): string {
+  const meta = join(dir(id), 'player.meta.json');
+  const alias = existsSync(meta) ? readJson<{ alias?: string }>(meta).alias : undefined;
+  return alias ? join(BLIND, alias, 'player.json') : join(dir(id), 'player.json');
+}
 
 async function playerPrompt() {
   for (const id of requireIds()) {
     const d = dir(id);
     const versionId = values.version ? Number(values.version) : undefined;
     const pool = values.pool === 'train' ? 'train' : 'all';
+    const alias = `g-${randomBytes(3).toString('hex')}`;
+    const b = join(BLIND, alias);
+    mkdirSync(b, { recursive: true });
+    write(blindMapFile, { ...blindMap(), [alias]: id });
     const p = await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', {
       method: 'POST',
-      body: { gameId: id, versionId, pool, tool: PLAY_TOOL(id) },
+      body: { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) },
     });
-    write(join(d, 'player.schema.json'), p.schema);
-    write(join(d, 'player.md'), promptFile(p.system, p.user, rel(join(d, 'player.schema.json'))));
-    write(join(d, 'player.meta.json'), { versionId: p.versionId, pool });
-    console.log(`✓ ${id}: player prompt v${p.versionId} → read ${rel(join(d, 'player.md'))}, write ${rel(join(d, 'player.json'))}`);
+    write(join(b, 'player.schema.json'), p.schema);
+    write(join(b, 'player.md'), promptFile(p.system, p.user, rel(join(b, 'player.schema.json'))));
+    write(join(d, 'player.meta.json'), { versionId: p.versionId, pool, alias });
+    rmSync(join(d, 'player.json'), { force: true });
+    console.log(`✓ ${id}: blind player prompt v${p.versionId} as ${alias} → read ${rel(join(b, 'player.md'))}, write ${rel(join(b, 'player.json'))}`);
   }
 }
 
 /** The blind player's sandbox: plays the game's UI with prose hidden and only player actions allowed. */
 async function play() {
-  const [id, steps] = ids;
-  if (!id || !steps) fail('Usage: npm run evaluator -- play <game-id> "<steps>"');
-  if (!gameIds().includes(id)) fail(`No game ${id}`);
-  const uiDir = join(dir(id), 'ui');
+  const [name, steps] = ids;
+  if (!name || !steps) fail('Usage: npm run evaluator -- play <alias> "<steps>"');
+  const id = blindMap()[name] ?? name;
+  if (!gameIds().includes(id)) fail(`No game ${name}`);
+  const uiDir = join(id === name ? dir(id) : join(BLIND, name), 'ui');
   mkdirSync(uiDir, { recursive: true });
   const run = readdirSync(uiDir).filter((f) => f.startsWith('run-')).length + 1;
   const out = join(uiDir, `run-${run}`);
@@ -211,8 +233,9 @@ async function judgePrompt() {
         table: evalTable(evidence),
         versionId,
         pool,
-        player: existsSync(join(d, 'player.json')) ? readJson(join(d, 'player.json')) : undefined,
+        player: existsSync(playerFile(id)) ? readJson(playerFile(id)) : undefined,
       };
+      if (existsSync(playerFile(id)) && playerFile(id) !== join(d, 'player.json')) copyFileSync(playerFile(id), join(d, 'player.json'));
     }
     const p = await api<{ versionId: number; system: string; user: string; schema: unknown; references: number }>('/evaluator/judge-prompt', { method: 'POST', body });
     write(join(d, 'review.schema.json'), p.schema);
@@ -234,7 +257,7 @@ async function submit() {
     } else {
       const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
       const checks: MeasuredCheck[] = measuredChecks(evidence);
-      const player = existsSync(join(d, 'player.json')) ? readJson(join(d, 'player.json')) : undefined;
+      const player = existsSync(playerFile(id)) ? readJson(playerFile(id)) : undefined;
       body = { gameId: id, versionId: meta.versionId, codeHash: evidence.codeHash, card: readJson(join(d, 'card.json')), review, player, checks, model, collection: evidence.manifest.collection };
     }
     const saved = await api<{ overall: number; recommendation: string; verdict: string }>('/evaluations/import', { method: 'POST', body });

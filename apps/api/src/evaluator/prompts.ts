@@ -239,13 +239,26 @@ Score each criterion from 1 to 5. Write your reasoning before each score and bas
 ${rubricText(criteriaFor(version.criteria, 'player'))}
 
 ## Guidance from the team's reviews
-${version.guidance}`;
+${playerGuidance(version.guidance)}`;
 }
 
-export function playerUser(id: string, tool: string, references: string): string {
-  return `Game id: ${id}
+/**
+ * The guidance a blind player may see: the general and player paragraphs only.
+ * The designer and benchmark paragraphs name games and say how they should
+ * score, which would tell the player what to expect.
+ */
+export function playerGuidance(guidance: string): string {
+  return guidance
+    .split(/\n\s*\n/)
+    .filter((p) => !/^[\s*_#]*(designer|benchmark)/i.test(p))
+    .join('\n\n');
+}
 
-How the team scored some other games on these criteria (for the scale only; they are different games):
+/** The blind player is never told which game it is playing: the tool names it by an alias. */
+export function playerUser(tool: string, references: string): string {
+  return `You are not told which game this is.
+
+How the team scored some other games on these criteria (for the scale only; they are different games, unnamed):
 ${references}
 
 Tool: you play the game with this command (Bash), and nothing else:
