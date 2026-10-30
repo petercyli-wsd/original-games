@@ -335,6 +335,20 @@ button:disabled {
 .lobby-section {
   margin-top: 36px;
 }
+.lobby-section-folded > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.lobby-section-folded > summary::-webkit-details-marker {
+  display: none;
+}
+.lobby-section-folded > summary h2::before {
+  content: '▸ ';
+  color: var(--og-text-muted);
+}
+.lobby-section-folded[open] > summary h2::before {
+  content: '▾ ';
+}
 .section-head {
   display: flex;
   align-items: flex-end;
@@ -598,7 +612,8 @@ button:disabled {
 .status-prototype {
   color: var(--og-gold);
 }
-.status-template {
+.status-template,
+.status-retired {
   color: var(--og-text-muted);
 }
 

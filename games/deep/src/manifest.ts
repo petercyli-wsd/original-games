@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Deep',
   tagline: 'Random keys grow a binary search tree. Place them all above the depth limit. The red stretch of the line is your risk.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

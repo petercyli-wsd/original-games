@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Connect',
   tagline: 'Random edges join nodes on a circle. Back Connected or Split before the edge budget runs out.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

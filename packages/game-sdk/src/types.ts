@@ -28,8 +28,11 @@ export type Mechanic =
  */
 export type Collection = 'originals' | 'classics';
 
-/** `template` games are hidden from production lobbies. */
-export type GameStatus = 'template' | 'prototype' | 'beta' | 'live';
+/**
+ * `template` games are hidden from production lobbies. `retired` games were
+ * dropped after review: they stay playable in a folded lobby section.
+ */
+export type GameStatus = 'template' | 'retired' | 'prototype' | 'beta' | 'live';
 
 export interface GameManifest {
   /** kebab-case, must match the folder name under games/. Used in URLs. */

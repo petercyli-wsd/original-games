@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Ramsey',
   tagline: 'Colour the edges of a polygon at random. Avoid a one-colour triangle. Each edge shows its exact risk, and Ramsey says the board must lock.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

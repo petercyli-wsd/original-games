@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Factor',
   tagline: 'A hidden number is factored by trial division. Back how many prime factors it has. The lit cells are your odds.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

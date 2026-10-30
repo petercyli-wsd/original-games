@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Sperner',
   tagline: 'Colour a triangle vertex by vertex. Sperner says the rainbow count is always odd: bet on just one, or on many.',
   mechanic: 'combinatorics',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

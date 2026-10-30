@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Witness',
   tagline: 'Miller–Rabin tests a hidden number with random bases. Composites survive at their liar rate; the lit dots are your odds.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: Math.ceil(MAX_MULTIPLIER),
   volatility: ['low', 'medium', 'high', 'extreme'],

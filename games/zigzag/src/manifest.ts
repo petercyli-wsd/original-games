@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Zigzag',
   tagline: 'Random bars must go up, down, up, down. The green zone is where the next one has to land.',
   mechanic: 'combinatorics',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

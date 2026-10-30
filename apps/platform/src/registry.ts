@@ -10,7 +10,7 @@ export interface GameEntry {
   load: () => Promise<GameModule>;
 }
 
-const STATUS_ORDER: Record<GameStatus, number> = { live: 0, beta: 1, prototype: 2, template: 3 };
+const STATUS_ORDER: Record<GameStatus, number> = { live: 0, beta: 1, prototype: 2, retired: 3, template: 4 };
 
 const folderOf = (path: string) => path.match(/games\/([^/]+)\/src\//)?.[1];
 
@@ -52,9 +52,10 @@ export const games = buildRegistry(
 const byId = new Map(games.map((g) => [g.manifest.id, g]));
 export const findGame = (id: string | undefined) => (id ? byId.get(id) : undefined);
 
-/** Which lobby section a game sits in: core Originals, then classics, then experimental, then templates. */
+/** Which lobby section a game sits in: core Originals, then classics, then experimental, then retired, then templates. */
 export function lobbySection(manifest: GameManifest): number {
-  if (manifest.status === 'template') return 3;
+  if (manifest.status === 'template') return 4;
+  if (manifest.status === 'retired') return 3;
   if (manifest.collection === 'classics') return 1;
   return manifest.status === 'prototype' ? 2 : 0;
 }

@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Two-Tone',
   tagline: 'Random edges join nodes on a ring. Keep the graph two-toned: an edge between same-tone nodes closes an odd cycle. Red pairs are your risk.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Circuit',
   tagline: 'Get power from S to T across a network whose wires fail at random.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: maxMultiplier(),
   // Evals (random cash-out step): std dev 0.50 Parallel, 0.74 Bridge, 1.63 Ladder,

@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Halo',
   tagline: 'A particle wanders from the centre to the rim. Leave through the green arc to win. The green share of its halo is your chance.',
   mechanic: 'random-walk',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

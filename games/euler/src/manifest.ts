@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Euler',
   tagline: 'Random edges join the nodes. Each edge flips the parity of both ends. Back the number of odd nodes at the end: glowing nodes are odd.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

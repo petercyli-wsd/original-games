@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Euclid',
   tagline: 'Euclid cuts squares from a hidden rectangle. Each cut reveals a quotient; the lit pairs are your odds.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

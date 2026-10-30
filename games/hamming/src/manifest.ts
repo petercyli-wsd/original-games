@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Hamming',
   tagline: 'Seven bits cross a noisy channel. The code absorbs one flip per block. Bet it decodes, or bet it gets fooled.',
   mechanic: 'combinatorics',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

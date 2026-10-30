@@ -10,7 +10,7 @@ export default defineManifest({
   name: 'Croc Dentist (Solo)',
   tagline: 'Press the teeth one by one. Every safe tooth raises your multiplier. Cash out before the bite.',
   mechanic: 'mines',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: maxMultiplier(TEETH_OPTIONS, BAD_TEETH_OPTIONS, RTP),
   // 20 teeth / 1 bad is gentle; 20 teeth / 5 bad reaches ~15,000×.

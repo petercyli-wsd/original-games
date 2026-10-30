@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Bootstrap',
   tagline: 'Seeds land, infection spreads to any cell with two sick neighbours. Will the whole grid fall? The perimeter can only shrink.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

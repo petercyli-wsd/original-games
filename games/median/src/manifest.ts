@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Median',
   tagline: 'Points drop on a line. Place a window and win if the middle point lands in it. Neither side may get past half.',
   mechanic: 'geometry',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

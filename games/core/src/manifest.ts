@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Core',
   tagline: 'Random intervals drop onto a line. Keep them all sharing a point. The red corners are your risk.',
   mechanic: 'geometry',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

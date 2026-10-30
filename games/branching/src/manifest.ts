@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Branching',
   tagline: 'One seed, a random family tree. Keep any line alive to the outer ring; the lit share of the ring is your chance.',
   mechanic: 'process',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

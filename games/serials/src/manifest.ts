@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Serials',
   tagline: 'Serial numbers are drawn from a hidden range. Bet the top serial is at most your cut. The posterior left of the cut is your chance.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

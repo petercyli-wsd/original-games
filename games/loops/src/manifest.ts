@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Loops',
   tagline: 'Follow the arrows box to box. Every loop must close within the limit. The green share of the ruler is your chance.',
   mechanic: 'combinatorics',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

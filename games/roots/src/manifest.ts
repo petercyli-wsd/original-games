@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Roots',
   tagline: 'A random parabola, one coefficient at a time. Will it cross the line? The green share of the box is your chance.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

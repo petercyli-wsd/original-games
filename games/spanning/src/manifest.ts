@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Spanning',
   tagline: 'A random spanning tree grows across a grid, row by row. Back edges IN or lay them OUT. Edge widths are their live chances.',
   mechanic: 'graph',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

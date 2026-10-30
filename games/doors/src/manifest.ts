@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Doors',
   tagline: 'One prize behind 3 to 12 doors. The host opens empty ones and the bars show where the prize must be. Switch any time: the value stays put.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

@@ -10,11 +10,12 @@ import { lobbyPath, reviewPrefs } from '../lib/preferences';
 import { ratingSummaries, ratingsEnabled } from '../lib/ratings';
 import { games, lobbySection, type GameEntry } from '../registry';
 
-const SECTIONS: { title: string; subtitle: string; section: number }[] = [
+const SECTIONS: { title: string; subtitle: string; section: number; folded?: boolean }[] = [
   { title: `Core ${BRAND.product}`, subtitle: 'Click any game to play instantly', section: 0 },
   { title: 'Casino Classics', subtitle: 'Proven formats from the biggest crypto casinos, rebuilt to house standard', section: 1 },
   { title: 'Experimental', subtitle: 'Fresh probability prototypes and new mechanics', section: 2 },
-  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', section: 3 },
+  { title: 'Retired', subtitle: 'Dropped after review, kept here to play and compare', section: 3, folded: true },
+  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', section: 4 },
 ];
 
 type Sort = 'featured' | 'ai' | 'team' | 'name';
@@ -153,7 +154,14 @@ export function Lobby() {
         ))}
 
       {SECTIONS.map((s) => (
-        <Section key={s.title} title={s.title} subtitle={s.subtitle} entries={ordered.filter((g) => lobbySection(g.manifest) === s.section)} />
+        <Section
+          key={s.title}
+          title={s.title}
+          subtitle={s.subtitle}
+          // A search or filter opens a folded section, so matches inside it show.
+          folded={s.folded && !filtered}
+          entries={ordered.filter((g) => lobbySection(g.manifest) === s.section)}
+        />
       ))}
     </main>
   );
@@ -171,24 +179,38 @@ function sortGames(entries: GameEntry[], sort: Sort, aiScore: (id: string) => nu
   });
 }
 
-function Section({ title, subtitle, entries }: { title: string; subtitle: string; entries: GameEntry[] }) {
+function Section({ title, subtitle, entries, folded = false }: { title: string; subtitle: string; entries: GameEntry[]; folded?: boolean }) {
   if (entries.length === 0) return null;
+  const head = (
+    <div className="section-head">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+      <span className="section-count">
+        {entries.length} {entries.length === 1 ? 'game' : 'games'}
+      </span>
+    </div>
+  );
+  const grid = (
+    <div className="lobby-grid">
+      {entries.map((g, i) => (
+        <GameTile key={g.manifest.id} manifest={g.manifest} index={i} />
+      ))}
+    </div>
+  );
+  if (folded) {
+    return (
+      <details className="lobby-section lobby-section-folded">
+        <summary>{head}</summary>
+        {grid}
+      </details>
+    );
+  }
   return (
     <section className="lobby-section">
-      <div className="section-head">
-        <div>
-          <h2>{title}</h2>
-          <p>{subtitle}</p>
-        </div>
-        <span className="section-count">
-          {entries.length} {entries.length === 1 ? 'game' : 'games'}
-        </span>
-      </div>
-      <div className="lobby-grid">
-        {entries.map((g, i) => (
-          <GameTile key={g.manifest.id} manifest={g.manifest} index={i} />
-        ))}
-      </div>
+      {head}
+      {grid}
     </section>
   );
 }

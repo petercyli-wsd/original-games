@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Chords',
   tagline: 'Random chords cut a circle into regions. Both ends must land in one region, or the chords cross.',
   mechanic: 'combinatorics',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

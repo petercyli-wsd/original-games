@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Condorcet',
   tagline: 'Random voters rank three candidates. Back a Condorcet winner, or the paradox: majorities that chase each other round in a cycle.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

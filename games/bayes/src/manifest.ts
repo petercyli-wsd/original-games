@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Bayes',
   tagline: 'Gold or Silver? Every flip reshapes the Bayes box. Your coin’s share of it is your chance.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
