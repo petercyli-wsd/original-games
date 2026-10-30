@@ -550,11 +550,9 @@
   font-size: 13px;
 }
 .facet-form li small {
-  overflow: hidden;
   font-size: 11px;
+  line-height: 1.35;
   color: var(--og-text-muted);
-  white-space: nowrap;
-  text-overflow: ellipsis;
 }
 .review-facets {
   display: flex;
@@ -574,7 +572,8 @@
     grid-template-columns: 110px auto;
   }
   .facet-form li small {
-    display: none;
+    grid-column: 1 / -1;
+    margin-bottom: 4px;
   }
 }
 

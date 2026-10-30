@@ -76,7 +76,9 @@ export function HumanReviews({ gameId }: { gameId: string }) {
   const hasMine = Boolean(detail?.myReview);
 
   return (
-    <section className="review-card" id="reviews">
+    // Keys typed here stay here: some games bind Space and letters on window and
+    // would otherwise swallow them (no spaces in the review).
+    <section className="review-card" id="reviews" onKeyDown={(e) => e.stopPropagation()}>
       <div className="review-card-head">
         <h2>Team reviews</h2>
         {detail && detail.count > 0 && (
