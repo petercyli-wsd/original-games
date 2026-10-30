@@ -510,6 +510,11 @@ describe('helpers', () => {
     expect(overallScore(s({ uniqueness: 1 }), DEFAULT_CRITERIA)).toBe(2.25);
     expect(overallScore(s({ uniqueness: 1 }), DEFAULT_CRITERIA, { classic: true })).toBeGreaterThan(4.5);
     expect(overallScore(s({}), DEFAULT_CRITERIA, { duplicate: true })).toBe(2.25);
+    // Dead structure gates prototypes (some → 3, most → 2.25), never classics.
+    expect(overallScore(s({}), DEFAULT_CRITERIA, { deadStructure: 'none' })).toBe(5);
+    expect(overallScore(s({}), DEFAULT_CRITERIA, { deadStructure: 'some' })).toBe(3);
+    expect(overallScore(s({}), DEFAULT_CRITERIA, { deadStructure: 'most' })).toBe(2.25);
+    expect(overallScore(s({}), DEFAULT_CRITERIA, { deadStructure: 'most', classic: true })).toBe(5);
     expect(reviewerWeight('pierre W')).toBe(3);
     expect(reviewerWeight('Peter')).toBe(1);
   });

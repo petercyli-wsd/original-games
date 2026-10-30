@@ -14,6 +14,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   CRITERION_KEYS,
+  DEAD_STRUCTURE,
   criteriaFor,
   isHoldout,
   overallScore,
@@ -25,6 +26,7 @@ import {
   type CriterionDef,
   type CriterionKey,
   type CriterionScore,
+  type DeadStructure,
   type Evaluation,
   type EvaluationSummary,
   type EvaluationView,
@@ -226,8 +228,11 @@ export function playerSummary(p: PlayerOutput): string {
 }
 
 /** Validates a judge result from Claude or an import; throws on anything malformed. */
-export function parseJudge(raw: unknown, keys: readonly CriterionKey[] = CRITERION_KEYS): JudgeOutput & { scores: CriterionScore[]; comprehension: string; comprehensionReasoning: string } {
-  const r = raw as (Partial<JudgeOutput> & { player_comprehension?: string; comprehension_reasoning?: string }) | null;
+export function parseJudge(
+  raw: unknown,
+  keys: readonly CriterionKey[] = CRITERION_KEYS,
+): JudgeOutput & { scores: CriterionScore[]; comprehension: string; comprehensionReasoning: string; deadStructure: DeadStructure; deadStructureReasoning: string } {
+  const r = raw as (Partial<JudgeOutput> & { player_comprehension?: string; comprehension_reasoning?: string; dead_structure?: string; dead_structure_reasoning?: string }) | null;
   if (!r || typeof r !== 'object' || !Array.isArray(r.criteria)) throw new EvaluatorError(400, 'The review has no criteria array.');
   const scores: CriterionScore[] = keys.map((key) => {
     const c = r.criteria!.find((x) => x?.key === key);
@@ -247,11 +252,16 @@ export function parseJudge(raw: unknown, keys: readonly CriterionKey[] = CRITERI
     recommendation: r.recommendation as JudgeOutput['recommendation'],
     comprehension: ['correct', 'partial', 'wrong'].includes(r.player_comprehension ?? '') ? r.player_comprehension! : '',
     comprehensionReasoning: typeof r.comprehension_reasoning === 'string' ? r.comprehension_reasoning : '',
+    // Reviews from before the check have no answer: no cap.
+    deadStructure: DEAD_STRUCTURE.includes(r.dead_structure as DeadStructure) ? (r.dead_structure as DeadStructure) : 'none',
+    deadStructureReasoning: typeof r.dead_structure_reasoning === 'string' ? r.dead_structure_reasoning : '',
   };
 }
 
 /** The highest win-condition and simplicity score a player's comprehension allows. */
 const COMPREHENSION_CAP: Record<string, number> = { correct: 5, partial: 3, wrong: 2 };
+/** The highest fun score a board with dead structure allows: watching what doesn't matter isn't tense. */
+const DEAD_STRUCTURE_FUN_CAP: Record<DeadStructure, number> = { none: 5, some: 3, most: 2 };
 
 function parseCard(raw: unknown): RulesCard {
   const c = raw as Partial<RulesCard> | null;
@@ -481,12 +491,21 @@ export function createEvaluator({ llm, evals, ratings, evidence, concurrency = 3
       r = parseJudge(raw);
       scores = r.scores;
     }
+    // Dead structure is a prototype's flaw; a classic is the original of its format.
+    const deadStructure = meta.classic ? 'none' : r.deadStructure;
+    if (deadStructure !== 'none') {
+      const cap = DEAD_STRUCTURE_FUN_CAP[deadStructure];
+      scores = scores.map((s) =>
+        s.key === 'fun' && s.score > cap ? { ...s, score: cap, reasoning: `${s.reasoning} [Capped at ${cap}: ${deadStructure} of the board is dead structure.]` } : s,
+      );
+      cons.push(`Dead structure (${deadStructure}): ${r.deadStructureReasoning}`);
+    }
     const duplicateOf = r.duplicate_of && r.duplicate_of !== subjectId ? r.duplicate_of : '';
     return evals.saveEvaluation({
       gameId: subjectId,
       versionId: version.id,
       codeHash: meta.codeHash,
-      overall: overallScore(scores, version.criteria, { classic: meta.classic, duplicate: !!duplicateOf }),
+      overall: overallScore(scores, version.criteria, { classic: meta.classic, duplicate: !!duplicateOf, deadStructure }),
       criteria: scores,
       recommendation: r.recommendation,
       verdict: r.verdict,

@@ -348,6 +348,17 @@ export function isHoldout(gameId: string): boolean {
 /** A player who can't work out the game can't rate it well, whatever else it does. */
 export const CLARITY_KEYS: CriterionKey[] = ['win_clarity', 'simplicity', 'odds_legibility'];
 
+/**
+ * How much of what the board shows or animates has no bearing on the result
+ * or on a decision (the designer's factual check). The team rated games with
+ * such structure low however clear they were: "all of the game is irrelevant
+ * except the row the A is on".
+ */
+export const DEAD_STRUCTURE = ['none', 'some', 'most'] as const;
+export type DeadStructure = (typeof DEAD_STRUCTURE)[number];
+/** The gating score each level stands for (null: no cap). */
+export const DEAD_STRUCTURE_CAP: Record<DeadStructure, number | null> = { none: null, some: 2, most: 1 };
+
 /** The highest overall a game can reach when its weakest gating score is `s`: 1 → 2.25, 2 → 3, 3 → 3.75, 4 → 4.5. */
 export const capFor = (s: number) => 1.5 + 0.75 * s;
 
@@ -358,11 +369,13 @@ export const capFor = (s: number) => 1.5 + 0.75 * s;
  * - Uniqueness gate (prototypes only; a classic is the original of its
  *   format): limited by the uniqueness score, and a confirmed reskin of a
  *   catalogue game caps at capFor(1).
+ * - Dead-structure gate (prototypes only): a board that is partly or mostly
+ *   irrelevant to the result caps at capFor(2) or capFor(1).
  */
 export function overallScore(
   scores: CriterionScore[],
   criteria: CriterionDef[],
-  opts: { classic?: boolean; duplicate?: boolean } = {},
+  opts: { classic?: boolean; duplicate?: boolean; deadStructure?: DeadStructure } = {},
 ): number {
   let total = 0;
   let weights = 0;
@@ -380,6 +393,8 @@ export function overallScore(
     const u = score('uniqueness');
     if (typeof u === 'number') overall = Math.min(overall, capFor(u));
     if (opts.duplicate) overall = Math.min(overall, capFor(1));
+    const dead = DEAD_STRUCTURE_CAP[opts.deadStructure ?? 'none'];
+    if (dead) overall = Math.min(overall, capFor(dead));
   }
   return overall;
 }

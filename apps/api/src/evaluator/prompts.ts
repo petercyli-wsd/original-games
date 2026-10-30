@@ -4,7 +4,7 @@
 //   judge    rules card + measured facts + the player's understanding -> designer criteria
 //   refine   human reviews vs AI scores -> a revised prompt version
 
-import { CRITERION_KEYS, criteriaFor, type CriterionDef, type CriterionKey, type PromptVersion, type Review } from '../shared.js';
+import { CRITERION_KEYS, DEAD_STRUCTURE, criteriaFor, type CriterionDef, type CriterionKey, type PromptVersion, type Review } from '../shared.js';
 
 const BRIEF = `"Originals" are the casino games crypto casinos build in-house: purposefully simple, quick to load and play, with player-customisable volatility, and simple to understand. They are single-player. Most are built on mines-style maths (reveal safe cells, a survival ladder) or crash-style maths (a rising multiplier you cash out before a bust), though any maths concept could in principle carry one.
 
@@ -110,6 +110,13 @@ Score each criterion below from 1 to 5. Score each criterion independently; a ga
 
 ${rubricText(criteria)}${playerPart}
 
+## Dead structure (a factual check)
+From the rules card, list what the board shows and animates during a round, and ask of each part: does it bear on whether the player wins, or on a decision they make? Dead structure is a part that looks as if it matters but does not. Examples the team called out: a random walk drawn in two directions when only the distance from the centre decides the result; a grid of many edges or cells when only the one the player backed can affect the bet; a pattern framing (keep the zigzag going) over what is really a run of independent higher-or-lower draws. The draw that decides the result is never dead structure, however it is animated (a ball bouncing down pegs to its slot, reels spinning, cards dealt, a wheel turning). Answer dead_structure:
+- "none": everything the player watches bears on the result or on a decision.
+- "some": a noticeable part of what is shown or animated is irrelevant, or the presentation promises a richer game than the maths delivers.
+- "most": the result rests on a small part of the board, and the rest is decoration around a simpler game.
+The team rated games with dead structure low however clear and elegant they were: watching things that do not matter makes the game feel random and pointless. The score caps follow in code; do not lower other criteria for it.
+
 ## Guidance from the team's reviews
 ${version.guidance}
 
@@ -117,7 +124,7 @@ ${version.guidance}
 Each request includes a few games the team has already reviewed, with their scores and comments. Use them to calibrate the level of your scores (what the team considers a 2 or a 4), not as templates: judge the game in front of you on its own merits. The game under review is never among its own references.
 
 ## Catalogue of existing games
-Check uniqueness against these and against well-known market games (Dice, Limbo, Crash, Mines, Plinko, Keno, Blackjack, Baccarat, Coin Flip, HiLo, Tower, Chicken Road, Wheel). Set duplicate_of to a catalogue id only if the game under review is essentially the same maths and decision as that game with a different look; otherwise leave it empty.
+Check uniqueness against these and against well-known market games (Dice, Limbo, Crash, Mines, Plinko, Keno, Blackjack, Baccarat, Coin Flip, HiLo, Tower, Chicken Road, Wheel). Set duplicate_of to a catalogue id only if a player would meet the same game twice: the same kind of board, the same visible draw and the same decision, with only the look or theme changed. Sharing a maths family (an exponential race, a fair cash-out ladder, a fixed-chance reveal) under a different board and draw is not a duplicate: the team rated such games very differently from each other, so judge them on the board, draw and decision the player meets, not on the maths alone. Otherwise leave duplicate_of empty.
 ${catalogue}
 
 ## Output
@@ -181,7 +188,7 @@ const criteriaSchema = (keys: readonly CriterionKey[]) => ({
 
 /** The designer judge's schema: its criteria, plus a comprehension grade when a player review exists. */
 export function judgeSchema(keys: readonly CriterionKey[] = CRITERION_KEYS, withPlayer = false) {
-  const required = ['criteria', 'pros', 'cons', 'closest_existing', 'duplicate_of', 'verdict', 'recommendation'];
+  const required = ['criteria', 'pros', 'cons', 'closest_existing', 'duplicate_of', 'dead_structure', 'dead_structure_reasoning', 'verdict', 'recommendation'];
   return {
     type: 'object',
     additionalProperties: false,
@@ -192,6 +199,8 @@ export function judgeSchema(keys: readonly CriterionKey[] = CRITERION_KEYS, with
       cons: { type: 'array', items: str },
       closest_existing: { type: 'string' },
       duplicate_of: { type: 'string', description: 'A catalogue id, or empty.' },
+      dead_structure: { type: 'string', enum: [...DEAD_STRUCTURE] },
+      dead_structure_reasoning: { type: 'string', description: 'Which parts of the board bear on the result or a decision, and which do not.' },
       verdict: { type: 'string', description: 'One sentence on the whole game, taking the player test into account.' },
       recommendation: { type: 'string', enum: ['ship', 'iterate', 'drop'] },
       ...(withPlayer
