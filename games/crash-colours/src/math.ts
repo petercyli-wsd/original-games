@@ -151,6 +151,43 @@ export function anyWinChance(stakes: Stakes, lines: Lines): number {
   return distribution(stakes, lines).reduce((s, o) => s + (o.mult > 0 ? o.p : 0), 0);
 }
 
+// ---------- the odds picture ----------
+// The graph's height axis is probability, not the multiplier: a multiplier x
+// sits at height P(C < x), the share of rounds that crash before the line
+// reaches x. So the Red region (under L) is exactly P(Red) tall, everything
+// above L is exactly P(Green), and everything above M is exactly P(Moon). As
+// the line climbs to m, the part below it is spent (those rounds have already
+// crashed), and the bands' chances become their share of what is left.
+
+/** The 0.01 grid point at or above x. The line has reached x exactly when C ≥ gridUp(x). */
+export const gridUp = (x: number) => Math.max(100, Math.ceil(x * 100 - 1e-9)) / 100;
+
+/** P(C < x): the graph's height for multiplier x, from 0 at 1.00× to 1 at the top. */
+export const crashedBefore = (x: number) => 1 - survival(gridUp(x));
+
+/**
+ * The drawn height of a multiplier v during the climb: P(C < v) at every 0.01
+ * grid point (so every line and every crash point sits at its exact height),
+ * joined linearly in between so the curve rises smoothly instead of in steps.
+ */
+export function heightAt(v: number): number {
+  if (!(v > 1)) return 0;
+  const lo = Math.floor(v * 100 + 1e-9);
+  const f = Math.min(1, Math.max(0, v * 100 - lo));
+  const a = crashedBefore(lo / 100);
+  return f < 1e-9 ? a : a + f * (crashedBefore((lo + 1) / 100) - a);
+}
+
+/** Each band's chance given the line has already reached m (so C ≥ m): the cards' live odds during the climb. */
+export function chancesFrom(lines: Lines, m: number): Record<Band, number> {
+  const g = gridUp(m);
+  const left = survival(g);
+  if (!(left > 0)) return { red: 0, green: 1, moon: 1 };
+  const above = (x: number) => (cents(x) <= cents(g) ? 1 : survival(x) / left);
+  const green = above(lines.split);
+  return { red: 1 - green, green, moon: above(lines.moon) };
+}
+
 // ---------- the cosmetic climb ----------
 
 /** Curve steepness: m(t) = (1 − t/T)^(−K). */

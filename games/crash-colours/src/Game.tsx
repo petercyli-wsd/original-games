@@ -9,7 +9,6 @@ import {
   GameLayout,
   InfoModal,
   InfoSection,
-  InstantResult,
   Label,
   ModeTabs,
   PanelFoot,
@@ -33,10 +32,11 @@ import {
   anyWinChance,
   bandOf,
   chances,
+  chancesFrom,
   crashPoint,
-  distribution,
   multAt,
   multiplierOf,
+  payoutOf,
   payouts,
   scaleStakes,
   timeAt,
@@ -73,7 +73,7 @@ const parseStake = (t: string) => {
 };
 
 const fmtX = (x: number) => (x >= 1000 ? Math.round(x).toLocaleString('en-US') : x.toFixed(2)) + '×';
-const fmtPay = (x: number) => (Number.isInteger(x) ? x.toFixed(2) : x.toFixed(4)) + '×';
+const fmtPay = (x: number) => (Math.abs(x * 100 - Math.round(x * 100)) < 1e-9 ? x.toFixed(2) : x.toFixed(4)) + '×';
 const condition = (b: Band, l: Lines) => (b === 'red' ? `under ${fmtX(l.split)}` : b === 'green' ? `${fmtX(l.split)} or more` : `${fmtX(l.moon)} or more`);
 
 export default function Game() {
@@ -210,7 +210,10 @@ export default function Game() {
     if (next.moon !== undefined) setMoon(next.moon);
     if (phase === 'over') clearBoard();
   };
-  const setStake = (b: Band, t: string) => setTexts((s) => ({ ...s, [b]: t }));
+  const setStake = (b: Band, t: string) => {
+    setTexts((s) => ({ ...s, [b]: t }));
+    if (phase === 'over') clearBoard();
+  };
   const scaleOne = (b: Band, f: number) => {
     const v = parseStake(texts[b]);
     setStake(b, formatAmount(Number.isNaN(v) ? 0 : Math.min(balance, v * f), 2));
@@ -220,6 +223,8 @@ export default function Game() {
   const shownLines = round && phase !== 'idle' ? round.lines : lines;
   const shownStakes = round && phase !== 'idle' ? round.stakes : invalid ? { red: 0, green: 0, moon: 0 } : stakes;
   const pChance = chances(shownLines);
+  // While the line climbs, each card shows its band's chance out of what is left above the line.
+  const liveChance = round && phase === 'live' ? chancesFrom(round.lines, m) : null;
   const pay = payouts(shownLines);
 
   function bandState(b: Band): 'idle' | 'pending' | 'won' | 'lost' {
@@ -233,18 +238,14 @@ export default function Game() {
 
   const safeStakes = invalid ? { red: 0, green: 0, moon: 0 } : stakes;
   const winChance = total > 0 ? anyWinChance(safeStakes, lines) : 0;
-  const bestPay = total > 0 ? Math.max(...distribution(safeStakes, lines).map((o) => o.mult)) * total : 0;
   const vol = total > 0 ? volatilityOf(safeStakes, lines) : 'medium';
 
-  const status = (() => {
-    if (phase === 'live') return 'In flight…';
-    if (phase === 'over' && round) {
-      const w = winners(round.crash, round.lines);
-      const names = BANDS.filter((b) => w[b]).map((b) => NAMES[b]);
-      return `Crashed at ${fmtX(round.crash)} · ${names.join(' + ')}`;
-    }
-    return 'Pick your colours';
-  })();
+  const winText = (r: Round) => {
+    const w = winners(r.crash, r.lines);
+    const names = BANDS.filter((b) => w[b]).map((b) => NAMES[b]);
+    return `${names.join(' + ')} ${names.length > 1 ? 'win' : 'wins'}`;
+  };
+  const status = phase === 'live' ? 'In flight…' : phase === 'over' && round ? winText(round) : 'Pick your colours';
   const tone = phase === 'live' ? 'live' : phase === 'over' && round ? (round.mult >= 1 ? 'won' : 'lost') : 'idle';
 
   return (
@@ -310,12 +311,8 @@ export default function Game() {
           </div>
 
           <dl className="og-stats">
-            <dt>Total bet</dt>
-            <dd>{formatAmount(total, 2)}</dd>
-            <dt>Chance of a return</dt>
+            <dt>Chance of any return</dt>
             <dd>{fmtChance(winChance)}</dd>
-            <dt>Best payout</dt>
-            <dd>{formatAmount(bestPay, 2)}</dd>
             <dt>Volatility</dt>
             <dd>
               <VolBadge level={vol} />
@@ -370,7 +367,7 @@ export default function Game() {
       </div>
 
       <Board className="cc-board">
-        <InstantResult multiplier={phase === 'over' && round ? round.mult : null} stake={round?.total ?? 0} id={round?.id ?? 0} />
+        {phase === 'over' && round && <ResultLine key={round.id} round={round} wins={winText(round)} />}
         <Graph m={m} phase={phase} lines={shownLines} />
       </Board>
 
@@ -378,16 +375,25 @@ export default function Game() {
         {BANDS.map((b) => {
           const st = bandState(b);
           const s = shownStakes[b];
+          const pNow = liveChance ? liveChance[b] : pChance[b];
           return (
             <div key={b} className={`cc-band ${b} ${st}` + (s > 0 ? ' staked' : '')}>
               <div className="cc-band-head">
                 <b>{NAMES[b]}</b>
-                <span>{fmtChance(pChance[b])}</span>
+                <span>
+                  {liveChance && <small>now </small>}
+                  {fmtChance(pNow)}
+                </span>
               </div>
               <div className="cc-band-cond">{condition(b, shownLines)}</div>
-              <div className="cc-band-bar" title={`Exact chance ${fmtChance(pChance[b])}`}>
-                <i style={{ width: `${pChance[b] * 100}%` }} />
+              <div className="cc-band-bar" title={`Exact chance ${fmtChance(pNow)}`}>
+                <i style={{ width: `${pNow * 100}%` }} />
               </div>
+              {b === 'red' && (
+                <div className="cc-band-note">
+                  {pay.red < pay.green && pay.green / pay.red < 1.1 ? 'Pays a little less: instant 1.00× crashes count as Red' : 'Instant 1.00× crashes count as Red'}
+                </div>
+              )}
               <div className="cc-band-foot">
                 <span>Pays {fmtPay(pay[b])}</span>
                 <b>{s > 0 ? (st === 'lost' ? `−${formatAmount(s, 2)}` : `${formatAmount(s * pay[b], 2)}`) : 'No bet'}</b>
@@ -398,7 +404,8 @@ export default function Game() {
       </div>
       {phase === 'idle' && (
         <Caption>
-          Each bar is the band's exact chance. Pay = {(RTP * 100).toFixed(0)}% ÷ chance, so every colour, line and mix returns {(RTP * 100).toFixed(0)}%.
+          Back the colour band where the line crashes: Red under the green line, Green past it, Moon past the moon line. Each band is as tall as its
+          chance.
         </Caption>
       )}
 
@@ -421,8 +428,11 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Under each band, the filled bar is its exact chance to win. Red and Green always add up to 100%; Moon is a slice of Green. The graph's tinted
-              regions are the same three bands on the multiplier axis.
+              The graph's height is probability, not the multiplier: each colour band is exactly as tall as its chance. Red is everything under the green
+              line, Green is everything above it, and Moon is the top slice above the moon line (so a Moon finish wins Green too). The multipliers on the
+              right show where each value falls on that scale. As the line climbs, the part below it is shaded: those rounds would already have crashed.
+              The cards then show each band's chance <i>now</i>, its share of what is left above the line. Red drops to 0% once the line passes the green
+              line.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -436,11 +446,38 @@ export default function Game() {
           <InfoSection title="Payouts and fairness">
             <p>
               Return to player is exactly {(RTP * 100).toFixed(0)}% on every colour, every line and every mix; the lines only change the volatility. The crash
-              point is drawn before the climb starts (C = 1.00× about 2% of the time). The largest payout is 1,000× (Moon at the 1,000× line).
+              point is drawn before the climb starts (C = 1.00× about 2% of the time). Those instant crashes count as Red, which is why Red's chance at the
+              2× line is 50.5% rather than 50%, and why it pays a little less than Green's 2×. The largest payout is 1,000× (Moon at the 1,000× line).
             </p>
           </InfoSection>
         </InfoModal>
       )}
     </GameLayout>
+  );
+}
+
+/** The round's result in words: where it crashed, which colours won, and what the ticket did. */
+function ResultLine({ round, wins }: { round: Round; wins: string }) {
+  const back = payoutOf(round.stakes, round.crash, round.lines);
+  const net = back - round.total;
+  const even = Math.abs(net) < 0.005;
+  const tone = even ? 'even' : net > 0 ? 'win' : 'lose';
+  const you = even
+    ? `you got your ${formatAmount(round.total, 2)} back`
+    : net > 0
+      ? `you won +${formatAmount(net, 2)}`
+      : back > 0
+        ? `you got back ${formatAmount(back, 2)} of ${formatAmount(round.total, 2)}`
+        : `you lost ${formatAmount(round.total, 2)}`;
+  return (
+    <div className={`cc-result ${tone}`} role="status">
+      <span>
+        Crashed at {fmtX(round.crash)} <i aria-hidden="true">·</i> <b className={bandOf(round.crash, round.lines)}>{wins}</b>
+      </span>
+      <i className="cc-result-sep" aria-hidden="true">
+        ·
+      </i>
+      <span className="cc-result-you">{you}</span>
+    </div>
   );
 }
