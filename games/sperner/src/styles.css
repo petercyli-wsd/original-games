@@ -6,9 +6,6 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
-.sp-actions.one {
-  grid-template-columns: 1fr;
-}
 .sp-actions .og-btn {
   padding: 12px 6px;
   white-space: nowrap;
