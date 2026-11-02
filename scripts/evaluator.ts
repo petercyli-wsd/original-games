@@ -8,12 +8,14 @@
 //                                      the blind player prompt (UI only) for each game, under
 //                                      an alias so the player never learns which game it is;
 //                                      --players N makes N aliases, one per independent play,
-//                                      merged into one review (medians, majority checks)
+//                                      merged into one review (medians, majority checks);
+//                                      --more adds the N plays to the game's current panel
 //   play <alias> "<steps>"             the blind player's only tool: plays the UI with prose
 //                                      hidden, saves numbered screenshots to .evaluator/<id>/ui/
 //   judge-prompt <id...> [--version N] [--pool train]
 //                                      the designer judge prompt (uses player.json if present)
-//   submit <id...> [--model name]      validate review.json (+ player.json) and store it via the API
+//   submit <id...> [--model name]      validate review.json (+ player.json) and store it via the API;
+//                                      with the API down it queues them, and `submit --pending` sends the queue
 //   refine-prompt                      the refine prompt over train games
 //   submit-version                     store .evaluator/_refine/proposal.json as a candidate
 //   calibration [--version N]          what to review to backtest a version
@@ -23,13 +25,16 @@
 //   results [--json]                   every AI-reviewed game ranked by overall, with facet scores
 //   gate <id...> [--all] [--json]      pass/fail each game's latest review against the keep gate
 //                                      (overall >= 3.5, each clarity facet >= 3, no reskin, no dead
-//                                      structure); exits 1 if any game fails
+//                                      structure); a game the team has rated passes on the team's
+//                                      average >= 3.5 instead. Exits 1 if any game fails
 //   preview <id...> [--json]           score the local review.json + player panel with the API's code,
-//                                      store nothing, and check the gate (works with the API down,
-//                                      using the cached active version)
+//                                      store nothing, and check the gate
 //   review <id...>                     a game's latest AI review and its team reviews, for iterating
 //
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
+// When the API is unreachable, prepare, player-prompt, judge-prompt, gate, preview
+// and review run on the API's code locally, from the version and team reviews
+// cached in .evaluator/ the last time it answered; submit queues.
 // Working files live in .evaluator/<id>/ (git-ignored).
 
 import { spawnSync } from 'node:child_process';
@@ -57,6 +62,8 @@ const { positionals, values } = parseArgs({
     model: { type: 'string' },
     all: { type: 'boolean' },
     json: { type: 'boolean' },
+    pending: { type: 'boolean' },
+    more: { type: 'boolean' },
     rounds: { type: 'string', default: '20000' },
   },
 });
@@ -122,6 +129,102 @@ ${user}
 Reply with a single JSON object only (no prose, no code fences) that matches the schema in ${schemaPath}.
 `;
 
+// ---------------------------------------------------------------------------
+// Working without the API
+// ---------------------------------------------------------------------------
+// Prompt building and scoring are the API's own code, so they also run here
+// on in-memory stores: the active version and the team's reviews are cached
+// whenever the API answers. Submissions made while it is down are queued in
+// .evaluator/_pending.json for `submit --pending`.
+
+const ACTIVE_CACHE = join(WORK, '_active-version.json');
+const TEAM_CACHE = join(WORK, '_team-reviews.json');
+const PENDING = join(WORK, '_pending.json');
+
+let reachable: Promise<boolean> | undefined;
+const online = () =>
+  (reachable ??= fetch(`${apiBase()}/health`, { signal: AbortSignal.timeout(15_000) })
+    .then((r) => r.ok)
+    .catch(() => false)
+    .then((ok) => {
+      if (!ok) console.log('! The API is unreachable: working from the cached active version and team reviews in .evaluator/.');
+      return ok;
+    }));
+
+type TeamReview = { gameId: string; reviewer?: string; stars: number; comment?: string; facets?: Record<string, number> };
+
+/** The active prompt version and the team's reviews: live (and cached) when the API answers, else the cache. */
+async function shared(): Promise<{ active: PromptVersion; team: TeamReview[] }> {
+  if (await online()) {
+    const { activeVersion } = await api<{ activeVersion: PromptVersion }>('/evaluator');
+    const team = await api<TeamReview[] | { reviews: TeamReview[] }>('/reviews');
+    write(ACTIVE_CACHE, activeVersion);
+    write(TEAM_CACHE, Array.isArray(team) ? team : team.reviews);
+  }
+  if (!existsSync(ACTIVE_CACHE) || !existsSync(TEAM_CACHE)) fail('The API is unreachable and .evaluator/ has no cached active version or team reviews.');
+  return { active: readJson<PromptVersion>(ACTIVE_CACHE), team: readJson<TeamReview[]>(TEAM_CACHE) };
+}
+
+/**
+ * The API's evaluator on in-memory stores, seeded with the active version,
+ * the team's reviews, every prepared game's evidence and its cached rules card.
+ * Prompts and scores from it match the API's.
+ */
+let localCache: ReturnType<typeof buildLocal> | undefined;
+const local = () => (localCache ??= buildLocal());
+async function buildLocal() {
+  const { createEvaluator } = await import('../apps/api/src/evaluator/service');
+  const { createMemoryEvalStore, createMemoryStore } = await import('../apps/api/src/store');
+  const { active, team } = await shared();
+  const evals = createMemoryEvalStore();
+  const version = await evals.createVersion({ parentId: null, status: 'candidate', criteria: active.criteria, guidance: active.guidance, exemplars: active.exemplars, changelog: '' });
+  await evals.promote(version.id);
+  const index = new Map<string, GameEvidence>();
+  for (const id of readdirSync(WORK)) {
+    const f = join(WORK, id, 'evidence.json');
+    if (id.startsWith('_') || !existsSync(f)) continue;
+    const evidence = readJson<GameEvidence>(f);
+    index.set(id, evidence);
+    const card = join(WORK, id, 'card.json');
+    if (existsSync(card)) await evals.saveRulesCard(id, evidence.codeHash, readJson(card), 'cached');
+  }
+  const ratings = createMemoryStore();
+  for (const [i, r] of team.entries()) await ratings.upsert(r.gameId, `voter-${r.reviewer || `anon-${i}`}`, r.stars, r.comment ?? '', r.reviewer ?? '', (r.facets ?? {}) as never);
+  const evaluator = createEvaluator({ llm: null, evals, ratings, evidence: { get: (g) => index.get(g), all: () => [...index.values()] } });
+  const teamAverage = new Map((await evaluator.agreement()).rows.map((r) => [r.gameId, r.humanAverage]));
+  return { evaluator, localVersionId: version.id, active, team, teamAverage };
+}
+
+/** A player or judge prompt built locally, as the API would, under the cached active version. */
+async function offlinePrompt(
+  kind: 'player' | 'judge',
+  body: { versionId?: number; [k: string]: unknown },
+): Promise<{ versionId: number; system: string; user: string; schema: unknown; references?: number }> {
+  const { evaluator, active } = await local();
+  if (body.versionId && body.versionId !== active.id) fail(`Offline, only the cached active version v${active.id} is available.`);
+  if (body.anchorId) fail('Anchors need the API.');
+  const input = { ...body, versionId: undefined } as never;
+  const p = kind === 'player' ? await evaluator.playerPrompt(input) : await evaluator.judgePrompt(input);
+  return { ...p, versionId: active.id };
+}
+
+/** Scores a game's local review files with the API's code, storing nothing. */
+async function scoreLocal(id: string) {
+  const d = dir(id);
+  const { evaluator, localVersionId } = await local();
+  const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
+  return evaluator.importEvaluation({
+    gameId: id,
+    versionId: localVersionId,
+    codeHash: evidence.codeHash,
+    card: readJson(join(d, 'card.json')),
+    review: readJson(join(d, 'review.json')),
+    player: readPlayer(id),
+    checks: measuredChecks(evidence),
+    collection: evidence.manifest.collection,
+  });
+}
+
 /** Hash of a game's gameplay source, computed the same way as the evidence builder. */
 const localCodeHash = (id: string) => codeHashOf(gameplayFiles(join(GAMES_DIR, id, 'src')));
 
@@ -147,10 +250,17 @@ async function todo() {
 async function prepare() {
   for (const id of requireIds()) {
     const d = dir(id);
+    const previous = existsSync(join(d, 'evidence.json')) ? readJson<GameEvidence>(join(d, 'evidence.json')).codeHash : undefined;
     const evidence = (await buildGameEvidence(id, Number(values.rounds))) as GameEvidence;
     write(join(d, 'evidence.json'), evidence);
     write(join(d, 'card.schema.json'), RULES_CARD_SCHEMA);
-    const cached = await api<unknown>(`/evaluator/cards/${id}?hash=${evidence.codeHash}`);
+    // Offline, the local card is reused only if the code hasn't changed since it was written.
+    const cached = (await online())
+      ? await api<unknown>(`/evaluator/cards/${id}?hash=${evidence.codeHash}`)
+      : previous === evidence.codeHash && existsSync(join(d, 'card.json'))
+        ? readJson(join(d, 'card.json'))
+        : null;
+    if (!cached) rmSync(join(d, 'card.json'), { force: true });
     if (cached) {
       write(join(d, 'card.json'), cached);
       console.log(`✓ ${id}: rules card cached for this code version → ${rel(join(d, 'card.json'))} (skip the card step)`);
@@ -197,16 +307,18 @@ async function playerPrompt() {
     const d = dir(id);
     const versionId = values.version ? Number(values.version) : undefined;
     const pool = values.pool === 'train' ? 'train' : 'all';
-    const aliases: string[] = [];
+    // --more adds the new plays to the game's current panel instead of starting a new one.
+    const current = values.more && existsSync(join(d, 'player.meta.json')) ? readJson<{ aliases?: string[]; alias?: string }>(join(d, 'player.meta.json')) : {};
+    const aliases: string[] = current.aliases ?? (current.alias ? [current.alias] : []);
     for (let i = 0; i < panel; i++) {
       const alias = `g-${randomBytes(3).toString('hex')}`;
       const b = join(BLIND, alias);
       mkdirSync(b, { recursive: true });
       write(blindMapFile, { ...blindMap(), [alias]: id });
-      const p = await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', {
-        method: 'POST',
-        body: { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) },
-      });
+      const body = { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) } as const;
+      const p = (await online())
+        ? await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', { method: 'POST', body })
+        : await offlinePrompt('player', body);
       write(join(b, 'player.schema.json'), p.schema);
       write(join(b, 'player.md'), promptFile(p.system, p.user, rel(join(b, 'player.schema.json'))));
       write(join(d, 'player.meta.json'), { versionId: p.versionId, pool, alias: aliases[0] ?? alias, aliases: [...aliases, alias] });
@@ -265,7 +377,9 @@ async function judgePrompt() {
       // The merged panel review, kept beside the designer prompt for reference.
       if (body.player !== undefined) write(join(d, 'player.json'), body.player);
     }
-    const p = await api<{ versionId: number; system: string; user: string; schema: unknown; references: number }>('/evaluator/judge-prompt', { method: 'POST', body });
+    const p = (await online())
+      ? await api<{ versionId: number; system: string; user: string; schema: unknown; references: number }>('/evaluator/judge-prompt', { method: 'POST', body })
+      : await offlinePrompt('judge', body);
     write(join(d, 'review.schema.json'), p.schema);
     write(join(d, 'judge.md'), promptFile(p.system, p.user, rel(join(d, 'review.schema.json'))));
     write(join(d, 'judge.meta.json'), { versionId: p.versionId, pool });
@@ -274,7 +388,14 @@ async function judgePrompt() {
 }
 
 async function submit() {
-  for (const id of requireIds()) {
+  const pending = existsSync(PENDING) ? readJson<string[]>(PENDING) : [];
+  const targets = values.pending ? pending : requireIds();
+  if (!(await online())) {
+    write(PENDING, [...new Set([...pending, ...targets])]);
+    console.log(`! Queued ${targets.join(' ')} in ${rel(PENDING)}. Run \`npm run evaluator -- submit --pending\` once the API is back.`);
+    return;
+  }
+  for (const id of targets) {
     const d = dir(id);
     const meta = readJson<{ versionId: number }>(join(d, 'judge.meta.json'));
     const review = readJson(join(d, 'review.json'));
@@ -291,6 +412,7 @@ async function submit() {
     const saved = await api<{ overall: number; recommendation: string; verdict: string }>('/evaluations/import', { method: 'POST', body });
     write(join(d, 'submitted.json'), saved);
     console.log(`✓ ${id}: ${saved.overall.toFixed(2)}/5 (${saved.recommendation}) under v${meta.versionId}. ${saved.verdict}`);
+    if (existsSync(PENDING)) write(PENDING, readJson<string[]>(PENDING).filter((p) => p !== id));
   }
 }
 
@@ -391,8 +513,8 @@ const GATE = { overall: 3.5, clarity: 3 } as const;
 
 type Reviewed = { overall: number; criteria: { key: string; score: number; reasoning?: string }[]; duplicateOf: string; cons: string[]; pros?: string[]; verdict?: string; versionId: number };
 
-/** Why a review fails the keep gate; empty when it passes. */
-function gateReasons(e: Reviewed): string[] {
+/** Why the AI review fails the keep gate; empty when it passes. */
+function aiReasons(e: Reviewed): string[] {
   const score = (k: string) => e.criteria.find((c) => c.key === k)?.score ?? 0;
   return [
     ...(e.overall < GATE.overall ? [`overall ${e.overall.toFixed(2)} < ${GATE.overall}`] : []),
@@ -402,21 +524,44 @@ function gateReasons(e: Reviewed): string[] {
   ];
 }
 
+/**
+ * The keep gate. Where the team has rated this exact game, its rating decides
+ * (team average, Pierre weighted, ≥ 3.5) and the AI review is only advice;
+ * otherwise the AI review must pass.
+ */
+async function gateResult(id: string, e: Reviewed) {
+  const team = (await local()).teamAverage.get(id);
+  const ai = aiReasons(e);
+  if (team == null) return { pass: !ai.length, reasons: ai, team };
+  return { pass: team >= GATE.overall, reasons: team >= GATE.overall ? [] : [`team-rated ${team.toFixed(2)} < ${GATE.overall}`], team, ai };
+}
+
+/** The game's AI review: the stored one when the API answers, else its local review files scored locally. */
+async function latestReview(id: string): Promise<Reviewed | null> {
+  if (await online()) return api<Reviewed | null>(`/evaluations/${id}`);
+  return existsSync(join(WORK, id, 'review.json')) ? ((await scoreLocal(id)) as Reviewed) : null;
+}
+
+const gateLine = (r: { id: string; pass: boolean; overall: number | null; reasons: string[]; team?: number; ai?: string[] }) =>
+  `${r.pass ? 'PASS' : 'FAIL'} ${r.id}${r.overall == null ? '' : ` ${r.overall.toFixed(2)}`}${r.team == null ? '' : ` (team ${r.team.toFixed(2)} decides; AI: ${r.ai?.length ? r.ai.join('; ') : 'pass'})`}${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`;
+
 async function gate() {
-  const summaries = await api<Record<string, EvaluationSummary>>('/evaluations');
-  const targets = values.all ? Object.keys(summaries) : requireIds();
+  const targets = !values.all
+    ? requireIds()
+    : (await online())
+      ? Object.keys(await api<Record<string, EvaluationSummary>>('/evaluations'))
+      : gameIds().filter((id) => existsSync(join(WORK, id, 'review.json')));
   const rows = [];
   for (const id of targets) {
-    const e = await api<Reviewed | null>(`/evaluations/${id}`);
+    const e = await latestReview(id);
     if (!e) {
       rows.push({ id, pass: false, overall: null, reasons: ['no review'] });
       continue;
     }
-    const reasons = gateReasons(e);
-    rows.push({ id, pass: reasons.length === 0, overall: e.overall, version: e.versionId, reasons });
+    rows.push({ id, overall: e.overall, version: e.versionId, ...(await gateResult(id, e)) });
   }
   if (values.json) console.log(JSON.stringify(rows, null, 2));
-  else for (const r of rows) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id}${r.overall == null ? '' : ` ${r.overall.toFixed(2)}`}${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`);
+  else for (const r of rows) console.log(gateLine(r));
   if (rows.some((r) => !r.pass)) process.exitCode = 1;
 }
 
@@ -426,57 +571,31 @@ async function gate() {
  * gate. /iterate-game uses it to accept or revert a change before submitting.
  */
 async function preview() {
-  const { createEvaluator } = await import('../apps/api/src/evaluator/service');
-  const { createMemoryEvalStore, createMemoryStore } = await import('../apps/api/src/store');
-  const cache = join(WORK, '_active-version.json');
-  const live = await fetch(`${apiBase()}/evaluator`, { signal: AbortSignal.timeout(20_000) })
-    .then((r) => (r.ok ? (r.json() as Promise<{ activeVersion: PromptVersion }>) : null))
-    .catch(() => null);
-  if (live) write(cache, live.activeVersion);
-  else if (!existsSync(cache)) fail('The API is unreachable and no cached active version exists (.evaluator/_active-version.json).');
-  const active = live?.activeVersion ?? readJson<PromptVersion>(cache);
   const rows = [];
   for (const id of requireIds()) {
-    const d = dir(id);
-    const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
-    const evals = createMemoryEvalStore();
-    const version = await evals.createVersion({ parentId: null, status: 'candidate', criteria: active.criteria, guidance: active.guidance, exemplars: active.exemplars, changelog: '' });
-    await evals.promote(version.id);
-    const evaluator = createEvaluator({ llm: null, evals, ratings: createMemoryStore(), evidence: { get: (g) => (g === id ? evidence : undefined), all: () => [evidence] } });
-    const saved = await evaluator.importEvaluation({
-      gameId: id,
-      versionId: version.id,
-      codeHash: evidence.codeHash,
-      card: readJson(join(d, 'card.json')),
-      review: readJson(join(d, 'review.json')),
-      player: readPlayer(id),
-      checks: measuredChecks(evidence),
-      collection: evidence.manifest.collection,
-    });
-    const reasons = gateReasons(saved);
-    write(join(d, 'preview.json'), { ...saved, gate: { pass: !reasons.length, reasons } });
-    rows.push({ id, overall: saved.overall, pass: !reasons.length, reasons, facets: Object.fromEntries(saved.criteria.map((c) => [c.key, c.score])) });
+    const saved = await scoreLocal(id);
+    const gate = await gateResult(id, saved as Reviewed);
+    write(join(dir(id), 'preview.json'), { ...saved, gate });
+    rows.push({ id, overall: saved.overall, ...gate, facets: Object.fromEntries(saved.criteria.map((c) => [c.key, c.score])) });
   }
   if (values.json) console.log(JSON.stringify(rows, null, 2));
-  else for (const r of rows) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id} ${r.overall.toFixed(2)} (preview, not stored)${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`);
+  else for (const r of rows) console.log(`${gateLine(r)} (preview, not stored)`);
 }
 
 /** A game's latest stored review, plus the team's reviews: what /iterate-game works from. */
 async function review() {
   for (const id of requireIds()) {
-    const e = await api<Reviewed | null>(`/evaluations/${id}`);
-    const team = await api<{ reviews?: { reviewer?: string; stars: number; comment?: string; facets?: Record<string, number> }[] }>(`/ratings/${id}?voter=evaluator-cli`);
+    const e = await latestReview(id);
+    const reviews = (await local()).team.filter((r) => r.gameId === id);
     console.log(`# ${id}`);
     if (!e) console.log('No AI review yet.');
     else {
-      console.log(`Overall ${e.overall.toFixed(2)} under v${e.versionId}. ${e.verdict ?? ''}`);
-      const reasons = gateReasons(e);
-      console.log(`Gate: ${reasons.length ? `FAIL (${reasons.join('; ')})` : 'PASS'}`);
+      console.log(`Overall ${e.overall.toFixed(2)}${(await online()) ? ` under v${e.versionId}` : ' (local review files, scored offline)'}. ${e.verdict ?? ''}`);
+      console.log(`Gate: ${gateLine({ id, overall: e.overall, ...(await gateResult(id, e)) })}`);
       for (const c of e.criteria) console.log(`- ${c.key} ${c.score}: ${c.reasoning ?? ''}`);
       console.log(`Pros:\n${(e.pros ?? []).map((p) => `- ${p}`).join('\n')}`);
       console.log(`Cons:\n${e.cons.map((c) => `- ${c}`).join('\n')}`);
     }
-    const reviews = team.reviews ?? [];
     console.log(reviews.length ? `Team reviews:\n${reviews.map((r) => `- ${r.reviewer || 'anon'} ${r.stars}★ ${JSON.stringify(r.facets ?? {})} ${r.comment ?? ''}`).join('\n')}` : 'No team reviews.');
     console.log('');
   }

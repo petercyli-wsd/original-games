@@ -45,7 +45,7 @@ After the builds, run `npm install --package-lock-only --ignore-scripts`. Each n
 
 ## 5. Evaluate
 
-Review every built game with the `review-game` procedure and its isolation rules. The blind player must never learn the game's id or name. Use a panel: `player-prompt <id> --players 3` with one fresh blind-player subagent per alias. Don't submit yet.
+Review every built game with the `review-game` procedure and its isolation rules. The blind player must never learn the game's id or name. One blind player per game, then `npm run evaluator -- preview <id>`. If the overall is between 3.25 and 3.75, widen to a panel: `player-prompt <id> --players 2 --more`, run the two new blind players, and redo the designer. Don't submit yet.
 
 ## 6. Gate
 
@@ -61,7 +61,7 @@ If a game fails, give its review's cons and confusions to one repair subagent (s
 
 - For each kept game:
   - set `revision: { kind: 'new', date: '<today>', note: '<one-line rule>' }` in its manifest;
-  - `npm run evaluator -- submit <id> --model claude-code`;
+  - `npm run evaluator -- submit <id> --model claude-code` (queued if the API is down; `submit --pending` later);
   - commit it on its own: `node scripts/commit-game.mjs <id> "Add <Name>: <one-line principle>"`.
 - Commit `package-lock.json` after the games.
 - Add a batch section to `docs/CATALOGUE.md`: the concept cards of the kept games, plus a results table (overall, the three clarity scores, RTP, volatility spread).

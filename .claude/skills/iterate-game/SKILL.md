@@ -7,6 +7,8 @@ description: Improve existing Originals games against the evaluator's criteria -
 
 Arguments: game ids, or `failing` for every game in Experimental that fails `npm run evaluator -- gate`. Requested: $ARGUMENTS
 
+Don't iterate a game the team rated 3.5 or more: the team's rating is the truth, and the AI's lower score is the evaluator's error, not the game's.
+
 Each game goes through: diagnose → (fork if team-reviewed) → repair → check → panel review → preview → accept or revert. Every judgement runs in a **fresh subagent**, following the isolation rules in `.claude/skills/review-game/SKILL.md`. The repair subagent never sees the evaluator's prompts, and no reviewer sees the repair notes. Run up to 5 games in parallel. Ask before starting more than 10.
 
 ## 1. Diagnose (you)
@@ -32,18 +34,21 @@ If the review output lists team reviews, run `node scripts/fork-game.mjs <id>`. 
 
 Then add or update `revision` in the game's manifest: `{ kind: 'improved', date: '<today>', note: '<one line on what changed, for players>' }`. For a forked game, the kind is still 'improved'.
 
-## 4. Panel review
+## 4. Review
 
 1. `npm run evaluator -- prepare <id>`. The code changed, so it needs a new rules card: run the rules-card subagent from review-game.
-2. `npm run evaluator -- player-prompt <id> --players 3`, then launch the blind-player subagent from review-game once per alias. Each is a fresh subagent given only its alias.
+2. `npm run evaluator -- player-prompt <id>`, then launch the blind-player subagent from review-game with only its alias.
 3. `npm run evaluator -- judge-prompt <id>`, then launch the designer subagent.
+4. `npm run evaluator -- preview <id>`. If the overall is between 3.25 and 3.75, one player's quirks can decide the gate, so widen to a panel: `player-prompt <id> --players 2 --more`, run the two new blind players, then repeat 3 and 4. Scores are then medians of the three plays.
+
+All of this works with the API down (the CLI says so and uses its cache).
 
 ## 5. Accept or revert
 
-`npm run evaluator -- preview <id>` scores the new review locally and checks the gate. Nothing is stored.
+`preview` scores the new review locally and checks the gate. Nothing is stored. A game the team has already rated passes or fails on the team's average, so the gate only matters for forks and unrated games.
 
 - **Accept** if it passes the gate, or if the overall is at least 0.25 above the old one with no new cap. Then:
-  - `npm run evaluator -- submit <id> --model claude-code`;
+  - `npm run evaluator -- submit <id> --model claude-code` (queued if the API is down; `submit --pending` later);
   - `node scripts/commit-game.mjs <id> "Improve <Name>: <what changed>"`;
   - commit `package-lock.json` too if a fork changed it.
 - **Second round** if it improved but still fails the gate: write a new brief from the new review, and run steps 3–5 once more.
