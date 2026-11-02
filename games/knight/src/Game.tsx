@@ -26,21 +26,21 @@ import {
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
 import { useMemo, useRef, useState } from 'react';
-import Field, { type BoardOutcome, type Move } from './Board';
+import Field, { Legend, type BoardOutcome, type Move } from './Board';
 import {
   CORNERS,
+  HOPS,
   MOVES,
   REGIONS,
   REGION_LABEL,
   RTP,
   START,
-  TURNS,
   cashAt,
   chance,
   cornerOf,
+  drawHops,
   endDistribution,
   inTarget,
-  nearestReachable,
   prizeFor,
   rankOf,
   reachable,
@@ -52,13 +52,11 @@ import {
   type Corner,
   type Region,
   type Target,
-  type Turns,
 } from './math';
 
 type Phase = 'idle' | 'moving' | 'checkpoint' | 'over';
 
 interface Round {
-  turns: Turns;
   target: Target;
   stake: number;
   prize: number;
@@ -68,9 +66,9 @@ interface Round {
 }
 
 const OUTCOME_TITLE: Record<BoardOutcome, string> = {
-  win: 'Landed in the target',
+  win: 'Ended on green',
   sure: 'Locked in',
-  miss: 'Missed the target',
+  miss: 'Missed the green',
   reach: 'Out of reach',
   cashed: 'Cashed out',
 };
@@ -87,6 +85,8 @@ export function targetName(t: Target): string {
   return squareName(t.square);
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 export default function Game() {
   const { rng, track } = useHost();
   const bet = useBetInput();
@@ -94,29 +94,25 @@ export default function Game() {
   const timers = useTimers();
   const [history, pushHistory] = useHistory();
 
-  const [turns, setTurns] = useState<Turns>(5);
   const [region, setRegion] = useState<Region>('centre');
   const [corner, setCorner] = useState<Corner>('a8');
   const [square, setSquare] = useState(squareIndex('e6'));
   const [phase, setPhase] = useState<Phase>('idle');
+  const [running, setRunning] = useState(false);
   const [round, setRound] = useState<Round | null>(null);
   const [move, setMove] = useState<Move | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const moveSeq = useRef(0);
 
-  // A chosen square of the wrong colour (or out of range) for this many moves
-  // can never be hit: fall back to the nearest square that can.
-  const chosen: Target = useMemo(
-    () => ({ region, corner, square: reachable(turns, square) ? square : nearestReachable(turns, square) }),
-    [region, corner, square, turns],
-  );
+  const chosen: Target = useMemo(() => ({ region, corner, square }), [region, corner, square]);
 
-  // The move in flight is decided when it starts, so leaving mid-jump settles
-  // at its real result, never at the pre-move value.
+  // The hops in flight are all decided when the button is pressed, so leaving
+  // mid-jump (or mid-run) settles at their real result, never at the pre-hop value.
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'moving' ? resolved.current : round?.cash ?? 0));
 
   const moveMs = turbo.turbo ? 200 : 750;
+  const gapMs = turbo.turbo ? 60 : 220;
   const live = phase === 'moving' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: BoardOutcome, cash: number) {
@@ -124,27 +120,46 @@ export default function Game() {
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
     setMove(null);
+    setRunning(false);
     setPhase('over');
   }
 
-  function jump(r: Round) {
+  /** One hop, or (all = true) every hop until the result is certain. */
+  function hop(r: Round, all: boolean) {
     const from = r.path[r.path.length - 1];
-    const options = MOVES[from];
-    const to = options[rng.int(options.length)];
-    const left = r.turns - r.path.length; // moves left after this one
-    const end = verdict(to, left, r.target);
-    const cash = end === 'win' ? r.prize : end === 'lost' ? 0 : cashAt(r.prize, to, left, r.target);
+    const left = HOPS - (r.path.length - 1);
+    const steps = drawHops(from, left, r.target, all, (n) => rng.int(n));
+    const last = steps[steps.length - 1];
+    const leftAfter = left - steps.length;
+    const end = verdict(last, leftAfter, r.target);
+    const cash = end === 'win' ? r.prize : end === 'lost' ? 0 : cashAt(r.prize, last, leftAfter, r.target);
     resolved.current = cash;
+    setRunning(all);
     setPhase('moving');
+    animate(r, steps, 0, () => {
+      const done = { ...r, path: [...r.path, ...steps], cash };
+      if (end === 'win') return finish(done, leftAfter === 0 ? 'win' : 'sure', cash);
+      if (end === 'lost') return finish(done, leftAfter === 0 ? 'miss' : 'reach', 0);
+      setRound(done);
+      setMove(null);
+      setRunning(false);
+      setPhase('checkpoint');
+      track({ type: 'checkpoint', multiplier: cash, winChance: chance(last, leftAfter, r.target) });
+    });
+  }
+
+  function animate(r: Round, steps: number[], i: number, done: () => void) {
+    const from = r.path[r.path.length - 1];
+    const to = steps[i];
     setMove({ id: ++moveSeq.current, from, to });
     timers.after(moveMs, () => {
-      const next = { ...r, path: [...r.path, to], cash };
-      if (end === 'win') return finish(next, left === 0 ? 'win' : 'sure', cash);
-      if (end === 'lost') return finish(next, left === 0 ? 'miss' : 'reach', 0);
+      if (i === steps.length - 1) return done();
+      // Mid-run: commit the hop so the readouts follow the knight, then jump again.
+      const left = HOPS - r.path.length;
+      const next = { ...r, path: [...r.path, to], cash: cashAt(r.prize, to, left, r.target) };
       setRound(next);
       setMove(null);
-      setPhase('checkpoint');
-      track({ type: 'checkpoint', multiplier: cash, winChance: chance(to, left, r.target) });
+      timers.after(gapMs, () => animate(next, steps, i + 1, done));
     });
   }
 
@@ -152,9 +167,9 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const r: Round = { turns, target: chosen, stake: bet.value, prize: prizeFor(turns, chosen), path: [START], cash: RTP, outcome: null };
+    const r: Round = { target: chosen, stake: bet.value, prize: prizeFor(chosen), path: [START], cash: RTP, outcome: null };
     setRound(r);
-    jump(r);
+    hop(r, false);
   }
 
   function cashOut() {
@@ -178,43 +193,44 @@ export default function Game() {
 
   useHotkeys(
     {
-      space: () => (phase === 'checkpoint' && round ? jump(round) : !live ? void start() : undefined),
+      space: () => (phase === 'checkpoint' && round ? hop(round, false) : !live ? void start() : undefined),
       cashOut,
     },
     !infoOpen,
   );
 
   // What the board shows: the live or finished round, else a preview of the settings.
-  const T = round?.turns ?? turns;
   const target = round?.target ?? chosen;
   const path = round?.path ?? [START];
   const taken = path.length - 1;
-  const left = T - taken;
+  const left = HOPS - taken;
   const at = path[path.length - 1];
-  const prize = round?.prize ?? prizeFor(T, target);
-  const p0 = startChance(T, target);
+  const prize = round?.prize ?? prizeFor(target);
+  const p0 = startChance(target);
   const pNow = chance(at, left, target);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const pSel = startChance(turns, chosen);
+  const pSel = startChance(chosen);
   const vol = volatilityOf(pSel);
 
+  // The end-chance dots follow the knight square by square (also during a run);
+  // the next-hop squares only show while the round waits for a decision.
   const showOdds = phase === 'idle' || phase === 'checkpoint';
-  const dist = useMemo(() => (showOdds ? endDistribution(at, left) : null), [showOdds, at, left]);
+  const showDots = phase !== 'over';
+  const dist = useMemo(() => (showDots ? endDistribution(at, left) : null), [showDots, at, left]);
   const next = useMemo(
     () => (showOdds && left > 0 ? new Map(MOVES[at].map((y) => [y, chance(y, left - 1, target)] as const)) : null),
     [showOdds, at, left, target],
   );
 
-  const pickable = (s: number) => (region === 'square' ? reachable(turns, s) : region === 'corner');
-  const onPick = live
-    ? null
-    : (s: number) => change(() => (region === 'square' ? setSquare(s) : setCorner(cornerOf(s))));
+  // Single squares: only light ones, the only squares the knight can finish on.
+  const pickable = (s: number) => (region === 'square' ? reachable(s) : region === 'corner');
+  const onPick = live ? null : (s: number) => change(() => (region === 'square' ? setSquare(s) : setCorner(cornerOf(s))));
 
-  let status = `Ready · ${T} moves · target ${targetName(target)}`;
-  if (phase === 'moving') status = `Move ${taken + 1} of ${T}`;
-  if (phase === 'checkpoint') status = `Checkpoint · ${left} move${left === 1 ? '' : 's'} left`;
-  if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${T} moves`;
+  let status = `${HOPS} random hops · finish on green`;
+  if (phase === 'moving') status = `${running ? 'Running · ' : ''}Hop ${taken + 1} of ${HOPS}`;
+  if (phase === 'checkpoint') status = `Cash out or hop on · ${left} left`;
+  if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${HOPS} hops`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   // Put the result card over the half of the board without the knight, and
@@ -224,8 +240,7 @@ export default function Game() {
   const cardScore = (pl: 'top' | 'bottom') => (covered(pl, at) ? 100 : 0) + targetSquares.filter((s) => covered(pl, s)).length;
   const placement = cardScore('top') <= cardScore('bottom') ? 'top' : 'bottom';
 
-  const regionHint =
-    region === 'square' ? `${squareName(chosen.square)} · tap the board` : region === 'corner' ? `${chosen.corner} quadrant · tap the board` : null;
+  const rule = `The knight makes ${HOPS} random knight moves; you win if it ends on a green square.`;
 
   return (
     <GameLayout
@@ -235,16 +250,7 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint={<VolBadge level={vol} />}>Moves</Label>
-          <Chips
-            label="Number of moves"
-            options={TURNS.map((v) => ({ value: v, label: v }))}
-            value={turns}
-            disabled={live}
-            onChange={(v) => change(() => setTurns(v))}
-          />
-
-          <Label hint={regionHint}>Target</Label>
+          <Label hint={<VolBadge level={vol} />}>Target</Label>
           <Chips
             label="Target region"
             options={REGIONS.map((v) => ({ value: v, label: REGION_LABEL[v] }))}
@@ -253,14 +259,18 @@ export default function Game() {
             onChange={(v) => change(() => setRegion(v))}
           />
           {region === 'corner' && (
-            <Chips
-              label="Corner quadrant"
-              options={CORNERS.map((v) => ({ value: v, label: CORNER_LABEL[v] }))}
-              value={corner}
-              disabled={live}
-              onChange={(v) => change(() => setCorner(v))}
-            />
+            <>
+              <Label hint="or tap the board">Quadrant</Label>
+              <Chips
+                label="Corner quadrant"
+                options={CORNERS.map((v) => ({ value: v, label: CORNER_LABEL[v] }))}
+                value={corner}
+                disabled={live}
+                onChange={(v) => change(() => setCorner(v))}
+              />
+            </>
           )}
+          {region === 'square' && <Label hint="tap a light square">Square {squareName(square)}</Label>}
 
           <dl className="og-stats">
             <dt>Chance to win</dt>
@@ -269,18 +279,21 @@ export default function Game() {
             <dd>{fmtMult(RTP / pSel)}</dd>
           </dl>
 
-          {phase === 'checkpoint' ? (
+          {live ? (
             <>
-              <ActionButton kind="cash" onClick={cashOut}>
+              <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" onClick={() => round && jump(round)}>
-                {left === 1 ? 'Last move' : `Move ${taken + 1} of ${T}`} · {fmtChance(pNow)} to win
+              <ActionButton kind="secondary" className="knight-next" disabled={phase !== 'checkpoint'} onClick={() => round && hop(round, false)}>
+                {phase === 'moving' ? (running ? 'Running…' : 'Hopping…') : left === 1 ? 'Last hop' : `Next hop (${taken + 1} of ${HOPS})`}
+              </ActionButton>
+              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => round && hop(round, true)}>
+                Run to the end
               </ActionButton>
             </>
           ) : (
-            <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-              {phase === 'moving' ? 'Jumping…' : phase === 'over' ? 'Bet again' : 'Bet'}
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              {phase === 'over' ? 'Bet again' : 'Bet'}
             </ActionButton>
           )}
 
@@ -295,16 +308,16 @@ export default function Game() {
           {
             label: 'Chance to win',
             value: phase === 'over' ? (round?.outcome === 'cashed' ? '—' : (round?.cash ?? 0) > 0 ? '100%' : '0%') : fmtChance(live ? pNow : p0),
-            sub: live ? `${left} move${left === 1 ? '' : 's'} left` : `${T} moves from g1`,
+            sub: live ? `${plural(left, 'hop')} left` : phase === 'over' ? `after ${taken} of ${HOPS} hops` : `${HOPS} hops from g1`,
             tone: 'chance',
           },
           {
             label: 'Cash out now',
             value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first move',
+            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first hop',
             tone: 'cash',
           },
-          { label: 'Prize', value: fmtMult(prize), sub: `if it ends on ${targetName(target)}`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), sub: 'if it ends on green', tone: 'prize' },
         ]}
       />
 
@@ -316,6 +329,7 @@ export default function Game() {
           moveMs={moveMs}
           dist={dist}
           next={next}
+          now={pNow}
           outcome={phase === 'over' ? round?.outcome ?? null : null}
           onPick={onPick}
           pickable={pickable}
@@ -334,17 +348,17 @@ export default function Game() {
           />
         )}
       </Board>
+      <Legend next={next} now={pNow} left={left} />
 
       {live ? (
         <ChanceBar
           p={pNow}
-          label={`Chance to end on ${targetName(target)}`}
-          note="Dot area = chance the knight ends on that square; the green dots add up to your chance. The boxed squares are the next jumps, each with your chance if it lands there: your chance now is their average."
+          label="Chance to end on green"
+          note={`${rule} Your chance is the average of the dashed squares.`}
         />
       ) : (
         <Caption>
-          From g1, {T} random moves end on {targetName(target)} {fmtChance(p0)} of the time (exact matrix power). Each square's number is its count of
-          moves: in the long run the knight is found on a square in proportion to it. RTP {(RTP * 100).toFixed(0)}%.
+          {rule} Target: {targetName(target)}, {fmtChance(p0)} from g1 (exact), prize {fmtMult(prize)}. RTP {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
 
@@ -352,44 +366,43 @@ export default function Game() {
         <InfoModal title="Knight" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A knight starts on g1 and makes a fixed number of moves, each one chosen completely at random among its legal moves. If its final square is in
-              your target, you win the prize.
+              A knight starts on g1 and makes {HOPS} hops, each one a chess knight's move (two squares one way, one square to the side) chosen completely
+              at random among its legal moves. If its final square is green, you win the prize.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick the number of moves and a target: the rim, the centre 4×4, one corner quadrant, or a single square (tap the board to choose).</li>
-              <li>The first move is made for you. After every move you can cash out, or make the next move (Space).</li>
-              <li>If the target can no longer be reached, the round is lost at once; if every way of finishing hits it, it pays at once.</li>
+              <li>Pick a target: the rim, the centre 4×4, one corner quadrant, or a single square (tap the board to choose). That is the only setting.</li>
+              <li>The first hop is made for you. Then the knight waits: cash out, press Next hop (Space) for one more hop, or Run to the end.</li>
+              <li>If no green square can still be reached, the round is lost at once; if every way of finishing is green, it pays at once.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each square's small number is its <b>degree</b>, the number of legal knight moves from it (2 in a corner, 8 in the middle). The dots show where
-              the knight can still end: a dot's area is the chance of finishing on that square. <b style={{ color: 'var(--green)' }}>Green</b> dots lie in
-              your target, so together they are exactly your chance to win.
+              The dots show where the knight can still finish: a dot's area is the chance of finishing on that square.{' '}
+              <b style={{ color: 'var(--green)' }}>Green</b> dots lie in your target, so together they are exactly your chance to win.
             </p>
             <p>
-              The boxed squares are where the next move can land, each labelled with your chance if it lands there. Every one is equally likely, so your
-              chance now is the plain average of those numbers.
+              The dashed squares are where the next hop can land, each labelled with your chance if it lands there. Every one is equally likely, so your
+              chance now is the plain average of those numbers. A green outline means that hop would raise your chance, red means it would lower it.
+            </p>
+            <p>
+              Every knight move changes square colour, and g1 is dark, so after {HOPS} hops the knight is always on a light square. That is why only light
+              squares are filled green and only light squares can be picked.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              The knight performs a random walk on the knight's graph. With t moves left from square x, the chance h<sub>t</sub>(x) of ending in the target
-              is the average of h<sub>t−1</sub> over x's neighbours, so the game computes it exactly by repeated averaging (a power of the transition matrix).
-            </p>
-            <p>
-              For a random walk on any graph the long-run share of time on a vertex is <b>deg(x) / Σ deg</b>; on the 8×8 board Σ deg = 336. Knight moves
-              always change square colour, so after T moves the knight is on one colour only and P(x) ≈ 2·deg(x)/336 there. The rim holds degrees 96 of 336
-              and the centre 128 of 336, which is why the long-run chances settle near 29% and 38%.
+              The knight performs a random walk (a Markov chain) on the knight's graph. By first-step analysis, the chance h<sub>t</sub>(x) of ending
+              green with t hops left from square x is the average of h<sub>t−1</sub> over x's legal moves, with h<sub>0</sub>(x) = 1 on green and 0
+              elsewhere. The game computes it exactly by repeated averaging (a power of the transition matrix), never by sampling.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              The prize is {(RTP * 100).toFixed(0)}% ÷ (chance at the start), and cashing out pays prize × (chance now). Each move averages your chance over
-              the possible landing squares, so the cash-out is a fair bet at every move (a martingale): any way of deciding when to stop returns exactly{' '}
-              {(RTP * 100).toFixed(0)}% of your stake. Choosing a different target only changes the prize, never that value.
+              The prize is {(RTP * 100).toFixed(0)}% ÷ (chance at the start), and cashing out pays prize × (chance now). Each hop averages your chance over
+              the possible landing squares, so the cash-out is a fair bet at every hop (a martingale): any way of deciding when to stop, including Run to
+              the end, returns exactly {(RTP * 100).toFixed(0)}% of your stake. Choosing a different target only changes the prize, never that value.
             </p>
           </InfoSection>
         </InfoModal>

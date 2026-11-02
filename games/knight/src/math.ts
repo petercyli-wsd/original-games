@@ -1,37 +1,36 @@
-// Knight: a knight starts on g1 and makes T uniformly random legal moves on an
-// 8×8 board. You bet on where it ends: the rim, the centre 4×4, one corner
-// quadrant, or a single square you pick.
+// Knight: a knight starts on g1 and makes HOPS = 5 uniformly random legal
+// knight moves on an 8×8 board. You win if its final square is in your target:
+// the rim, the centre 4×4, one corner quadrant, or a single square you pick.
+// The target is the only risk control; the number of hops is fixed.
 //
 // The knight's walk is a Markov chain on the 64 squares. Let h_t(x) be the
-// chance of ending in the target with t moves left from square x. Then
+// chance of ending in the target with t hops left from square x. Then
 //
 //   h_0(x) = [x is in the target],   h_t(x) = mean of h_{t−1}(y) over the deg(x) legal moves x → y,
 //
-// a 12-row table of exact dyadic-style averages (computed in floating point,
-// no sampling). The first-step identity above is exactly the martingale
-// property: the expected chance after the next move is the chance now.
+// a 6-row table of exact averages (computed in floating point, no sampling).
+// The first-step identity above is exactly the martingale property: the
+// expected chance after the next hop is the chance now.
 //
-// Pricing (fixed prize): prize = RTP / h_T(g1); cash-out at (x, t) = prize × h_t(x).
+// Pricing (fixed prize): prize = RTP / h_5(g1); cash-out at (x, t) = prize × h_t(x).
 // The cash-out is a bounded martingale that starts at RTP, so by optional
-// stopping every way of deciding when to cash out returns exactly RTP. The
-// payout can never exceed the prize, so maxMultiplier is the largest prize
-// over every setting the panel offers. Picking a different target before the
-// bet only changes the prize, never the 99% value.
+// stopping every way of deciding when to cash out (including "run to the end")
+// returns exactly RTP. The payout can never exceed the prize, so maxMultiplier
+// is the largest prize over every target the panel offers. Picking a different
+// target before the bet only changes the prize, never the 99% value.
 //
-// Long-run behaviour: a random walk on a graph has stationary distribution
-// π(x) = deg(x) / Σ deg = deg(x) / 336, the number printed on each square.
-// The knight graph is bipartite (every move changes square colour), so after
-// T moves the knight sits on squares of one colour and P(x) ≈ 2·deg(x)/336
-// there; the game always uses the exact finite-T table, never the limit.
+// Colour: every knight move changes square colour and g1 is dark, so after an
+// odd number of hops the knight is always on a light square. Only light squares
+// can be the final square; the board fills only those target squares green and
+// only light squares can be picked as a single-square target.
 
 import type { Volatility } from '@originals/game-sdk';
 
 export const RTP = 0.99;
 /** g1: file g, rank 1. Squares are numbered x + 8y with a1 = 0, h8 = 63. */
 export const START = 6;
-export const TURNS = [3, 5, 8, 12] as const;
-export type Turns = (typeof TURNS)[number];
-export const MAX_T = 12;
+/** Hops per round (fixed). */
+export const HOPS = 5;
 
 export type Region = 'rim' | 'centre' | 'corner' | 'square';
 export const REGIONS: Region[] = ['rim', 'centre', 'corner', 'square'];
@@ -104,13 +103,13 @@ export const targetKey = (t: Target) => (t.region === 'corner' ? `corner:${t.cor
 
 const tables = new Map<string, Float64Array[]>();
 
-/** rows[t][x] = chance of ending in the target with t moves left from x (t = 0…12). */
+/** rows[t][x] = chance of ending in the target with t hops left from x (t = 0…HOPS). */
 export function table(t: Target): Float64Array[] {
   const key = targetKey(t);
   const hit = tables.get(key);
   if (hit) return hit;
   const rows = [Float64Array.from({ length: 64 }, (_, s) => (inTarget(s, t) ? 1 : 0))];
-  for (let k = 1; k <= MAX_T; k++) {
+  for (let k = 1; k <= HOPS; k++) {
     const prev = rows[k - 1];
     rows.push(Float64Array.from(MOVES, (ms) => ms.reduce((a, y) => a + prev[y], 0) / ms.length));
   }
@@ -118,14 +117,14 @@ export function table(t: Target): Float64Array[] {
   return rows;
 }
 
-/** Chance to end in the target with `left` moves to go from square s. */
+/** Chance to end in the target with `left` hops to go from square s. */
 export const chance = (s: number, left: number, t: Target) => table(t)[left][s];
 
 /** Win chance at the start of a round. */
-export const startChance = (turns: number, t: Target) => chance(START, turns, t);
-export const prizeFor = (turns: number, t: Target) => RTP / startChance(turns, t);
+export const startChance = (t: Target) => chance(START, HOPS, t);
+export const prizeFor = (t: Target) => RTP / startChance(t);
 
-/** Distribution of the knight's square after k more moves from s (row s of the k-th matrix power). */
+/** Distribution of the knight's square after k more hops from s (row s of the k-th matrix power). */
 export function endDistribution(s: number, k: number): Float64Array {
   let v = new Float64Array(64);
   v[s] = 1;
@@ -141,29 +140,14 @@ export function endDistribution(s: number, k: number): Float64Array {
   return v;
 }
 
-/** Whether a square can be the target after `turns` moves (right colour and reachable). */
-export const reachable = (turns: number, s: number) => startChance(turns, { region: 'square', corner: 'a8', square: s }) > 0;
-
-/** The reachable square closest to s (ties go to the lower index). */
-export function nearestReachable(turns: number, s: number): number {
-  let best = -1;
-  let bestD = Infinity;
-  for (let y = 0; y < 64; y++) {
-    if (!reachable(turns, y)) continue;
-    const d = (fileOf(y) - fileOf(s)) ** 2 + (rankOf(y) - rankOf(s)) ** 2;
-    if (d < bestD) {
-      bestD = d;
-      best = y;
-    }
-  }
-  return best;
-}
+/** Whether the knight can finish on square s (after 5 hops from g1: exactly the light squares). */
+export const reachable = (s: number) => startChance({ region: 'square', corner: 'a8', square: s }) > 0;
 
 export function volatilityOf(p: number): Volatility {
   return p > 0.2 ? 'low' : p > 0.06 ? 'medium' : p > 0.015 ? 'high' : 'extreme';
 }
 
-/** Cash-out after the knight lands on s with `left` moves to go. */
+/** Cash-out after the knight lands on s with `left` hops to go. */
 export const cashAt = (prize: number, s: number, left: number, t: Target) => prize * chance(s, left, t);
 
 export type Verdict = 'win' | 'lost' | null;
@@ -175,39 +159,47 @@ export function verdict(s: number, left: number, t: Target): Verdict {
   return null;
 }
 
-/** Every target the panel can offer. */
+/**
+ * Draws the hops for one button press, all decided up front: one hop ("Next
+ * hop"), or every remaining hop until the result is certain ("Run to the end").
+ * `pick(n)` returns a uniform index in 0…n−1 (host.rng.int).
+ */
+export function drawHops(from: number, left: number, t: Target, all: boolean, pick: (n: number) => number): number[] {
+  const out: number[] = [];
+  let s = from;
+  for (let k = left; k > 0; k--) {
+    s = MOVES[s][pick(MOVES[s].length)];
+    out.push(s);
+    if (!all || verdict(s, k - 1, t)) break;
+  }
+  return out;
+}
+
+/** Every target the panel can offer (single squares only where the knight can finish). */
 export function allTargets(): Target[] {
   const out: Target[] = [
     { region: 'rim', corner: 'a8', square: 0 },
     { region: 'centre', corner: 'a8', square: 0 },
   ];
   for (const corner of CORNERS) out.push({ region: 'corner', corner, square: 0 });
-  for (let s = 0; s < 64; s++) out.push({ region: 'square', corner: 'a8', square: s });
+  for (let s = 0; s < 64; s++) if (reachable(s)) out.push({ region: 'square', corner: 'a8', square: s });
   return out;
 }
 
-/** The payout never exceeds the prize, so the largest prize over all settings bounds every payout. */
-export const MAX_MULTIPLIER = Math.max(
-  ...TURNS.flatMap((T) =>
-    allTargets()
-      .map((t) => startChance(T, t))
-      .filter((p) => p > 0)
-      .map((p) => RTP / p),
-  ),
-);
+/** The payout never exceeds the prize, so the largest prize over all targets bounds every payout. */
+export const MAX_MULTIPLIER = Math.max(...allTargets().map((t) => prizeFor(t)));
 
 export interface Config {
-  turns: Turns;
   target: Target;
 }
 
 const sq = (name: string) => 'abcdefgh'.indexOf(name[0]) + 8 * (Number(name[1]) - 1);
 
 export const VOLATILITY: Record<Volatility, Config> = {
-  low: { turns: 8, target: { region: 'centre', corner: 'a8', square: 0 } },
-  medium: { turns: 5, target: { region: 'corner', corner: 'a8', square: 0 } },
-  high: { turns: 8, target: { region: 'square', corner: 'a8', square: sq('e5') } },
-  extreme: { turns: 5, target: { region: 'square', corner: 'a8', square: sq('a8') } },
+  low: { target: { region: 'centre', corner: 'a8', square: 0 } },
+  medium: { target: { region: 'corner', corner: 'a8', square: 0 } },
+  high: { target: { region: 'square', corner: 'a8', square: sq('e6') } },
+  extreme: { target: { region: 'square', corner: 'a8', square: sq('a8') } },
 };
 
 export const squareIndex = sq;
