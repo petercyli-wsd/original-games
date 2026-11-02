@@ -196,7 +196,11 @@ async function buildLocal() {
     const evidence = readJson<GameEvidence>(f);
     index.set(id, evidence);
     const card = join(WORK, id, 'card.json');
-    if (existsSync(card)) await evals.saveRulesCard(id, evidence.codeHash, readJson(card), 'cached');
+    if (!existsSync(card)) continue;
+    // A card that doesn't match the schema would break every prompt that lists it as a reference.
+    const missing = RULES_CARD_SCHEMA.required.filter((k) => !(k in readJson<Record<string, unknown>>(card)));
+    if (missing.length) console.log(`! ${id}: card.json is missing ${missing.join(', ')}; rerun its rules-card step. Left out of the catalogue.`);
+    else await evals.saveRulesCard(id, evidence.codeHash, readJson(card), 'cached');
   }
   const ratings = createMemoryStore();
   for (const [i, r] of team.entries()) await ratings.upsert(r.gameId, `voter-${r.reviewer || `anon-${i}`}`, r.stars, r.comment ?? '', r.reviewer ?? '', (r.facets ?? {}) as never);
