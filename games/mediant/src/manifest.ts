@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Mediant',
   tagline: 'A fair coin walks down the Stern–Brocot tree. Pick a window on the number line; the lit fractions are your odds.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
