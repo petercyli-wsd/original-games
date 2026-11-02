@@ -22,11 +22,25 @@ import {
   linePay,
   playRound,
   reelSet,
+  reelWindows,
+  spinOdds,
   windowAt,
   winTier,
+  type ReelSet,
+  type SpinOdds,
 } from './math';
 
 const sets = VOLS.map(reelSet);
+
+/** The outcome class of one finished spin, straight from evaluate(): the odds bar's 0/1 end state. */
+function classify(set: ReelSet, grid: number[][], lines: number, mult: number, fsOpen: boolean): SpinOdds {
+  const { linePays, scatterCells } = evaluate(set, grid, lines);
+  const free = fsOpen && scatterCells.length >= 3 ? 1 : 0;
+  const win = (linePays / lines) * mult;
+  const more = !free && win > 1 ? 1 : 0;
+  const less = !free && win > 0 && win <= 1 ? 1 : 0;
+  return { pays: free + more + less, free, more, less };
+}
 
 /** Per-reel symbol frequencies, read off the strips themselves. */
 const freqs = (strips: number[][]) =>
@@ -245,6 +259,85 @@ describe('Reels maths', () => {
     expect(b.spins[0].free).toBe(true);
     expect(b.freeSpins).toBeGreaterThanOrEqual(BUY_SPINS);
     expect(b.multiplier).toBeCloseTo(b.total / set.buyPrice, 12);
+  });
+
+  it('odds bar, all reels stopped: exactly the spin’s own outcome class from evaluate()', () => {
+    const rng = createRng(seededSource(77));
+    for (const set of sets) {
+      for (let i = 0; i < 1500; i++) {
+        const lines = 1 + rng.int(LINES);
+        const mult = rng.int(2) ? 2 : 1;
+        const fsOpen = rng.int(5) > 0;
+        const grid = windowAt(set, set.strips.map((s) => rng.int(s.length)));
+        expect(spinOdds(set, lines, mult, grid, fsOpen)).toEqual(classify(set, grid, lines, mult, fsOpen));
+      }
+      // A screen of diamonds beats the stake on any line count; a scatter on reels 1–3 starts free spins.
+      const full = Array.from({ length: REELS }, () => [0, 0, 0]);
+      expect(spinOdds(set, 1, 1, full).more).toBe(1);
+      const sc = [[SCATTER, 6, 5], [SCATTER, 5, 6], [SCATTER, 6, 5], [5, 6, 5], [6, 5, 6]];
+      expect(spinOdds(set, LINES, 1, sc).free).toBe(1);
+      expect(spinOdds(set, LINES, 1, sc, false).free).toBe(0);
+    }
+  });
+
+  it('odds bar is a martingale reel by reel (tower property), so every shown figure is the exact conditional chance', () => {
+    const rng = createRng(seededSource(78));
+    const keys = ['pays', 'free', 'more', 'less'] as const;
+    for (const set of sets) {
+      const W = reelWindows(set);
+      W.forEach((ws) => expect(ws.reduce((a, w) => a + w.p, 0)).toBeCloseTo(1, 14));
+      for (let trial = 0; trial < 6; trial++) {
+        const lines = trial === 0 ? LINES : 1 + rng.int(LINES);
+        const mult = trial % 2 ? 2 : 1;
+        const grid = windowAt(set, set.strips.map((s) => rng.int(s.length)));
+        for (let k = 0; k < REELS; k++) {
+          // k = 0 (before any reel stops) is the costliest count: check it on two trials per set.
+          if (k === 0 && trial > 1) continue;
+          const now = spinOdds(set, lines, mult, grid.slice(0, k));
+          const avg = { pays: 0, free: 0, more: 0, less: 0 };
+          for (const w of W[k]) {
+            const after = spinOdds(set, lines, mult, [...grid.slice(0, k), w.win]);
+            for (const key of keys) avg[key] += w.p * after[key];
+          }
+          for (const key of keys) expect(Math.abs(avg[key] - now[key])).toBeLessThan(1e-12);
+          expect(now.pays).toBeCloseTo(now.free + now.more + now.less, 14);
+        }
+      }
+    }
+  });
+
+  it('odds bar before a spin matches a direct simulation; on one line every line win beats the stake', () => {
+    for (const set of sets) {
+      for (const lines of [1, LINES]) {
+        const o = spinOdds(set, lines, 1);
+        const rng = createRng(seededSource(90 + lines));
+        const n = 60_000;
+        const hits = { pays: 0, free: 0, more: 0, less: 0 };
+        for (let i = 0; i < n; i++) {
+          const c = classify(set, windowAt(set, set.strips.map((s) => rng.int(s.length))), lines, 1, true);
+          hits.pays += c.pays;
+          hits.free += c.free;
+          hits.more += c.more;
+          hits.less += c.less;
+        }
+        for (const key of ['pays', 'free', 'more', 'less'] as const) {
+          const p = o[key];
+          const se = Math.sqrt(Math.max(p * (1 - p), 1e-9) / n);
+          expect(Math.abs(hits[key] / n - p)).toBeLessThan(4 * se + 1e-12);
+        }
+        expect(o.free).toBeCloseTo(set.trigger, 14);
+        // Any single line pay is at least 4 line bets, so on one line every line win beats the stake.
+        if (lines === 1) expect(o.less).toBe(0);
+      }
+    }
+  });
+
+  it('odds bar stays fast: a full pre-spin count is well under the frame budget', () => {
+    for (const set of sets) {
+      const t = performance.now();
+      spinOdds(set, LINES - 1, 2, [], false);
+      expect(performance.now() - t).toBeLessThan(250);
+    }
   });
 
   it('win banners by size', () => {
