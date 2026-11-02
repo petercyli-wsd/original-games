@@ -37,6 +37,16 @@ export function GamePage() {
         <div>
           <h1>{manifest.name}</h1>
           <p>{manifest.tagline}</p>
+          {manifest.revision && manifest.status !== 'retired' && (
+            <p className="revision-note">
+              <strong>{manifest.revision.kind === 'new' ? 'New' : 'Improved'}</strong> {manifest.revision.date}: {manifest.revision.note}
+            </p>
+          )}
+          {manifest.supersededBy && findGame(manifest.supersededBy) && (
+            <p className="revision-note">
+              An earlier version, kept with its reviews. <Link to={`/play/${manifest.supersededBy}`}>Play the current version →</Link>
+            </p>
+          )}
         </div>
         {manifest.status !== 'live' && <span className={`status status-${manifest.status}`}>{manifest.status}</span>}
         {adjacent && (

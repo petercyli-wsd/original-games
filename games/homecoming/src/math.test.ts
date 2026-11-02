@@ -3,24 +3,29 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  BUDGETS,
+  BUDGET,
   DIMS,
   MAX_MULTIPLIER,
   RTP,
   SIDES,
   applyMove,
   cashAt,
+  closerCount,
   homeChance,
+  isCloser,
   isHome,
   l1,
-  moveChances,
   movesOf,
   origin,
   prizeFor,
   randomMove,
+  reachOn,
+  sideChance,
+  slotIndex,
+  slotsOf,
   startChance,
   verdict,
-  walkBurst,
+  walkStep,
   type Dim,
   type Settings,
 } from './math';
@@ -66,13 +71,34 @@ function renewal(dim: Dim, T: number) {
   return f.reduce((a, b) => a + b, 0);
 }
 
+/** Every live state (sorted absolute coordinates, steps left) the walk can reach in a round. */
+function liveStates(dim: Dim): { p: number[]; left: number }[] {
+  const out: { p: number[]; left: number }[] = [];
+  const seen = new Set<string>();
+  let frontier = [origin(dim)];
+  for (let taken = 1; taken < BUDGET; taken++) {
+    const next: number[][] = [];
+    for (const p of frontier)
+      for (const m of movesOf(dim)) {
+        const q = applyMove(p, m).map(Math.abs).sort((a, b) => b - a);
+        const k = `${taken}:${q}`;
+        if (seen.has(k) || verdict('home', q, BUDGET - taken)) continue;
+        seen.add(k);
+        next.push(q);
+        out.push({ p: q, left: BUDGET - taken });
+      }
+    frontier = next;
+  }
+  return out;
+}
+
 describe('Homecoming maths', () => {
   it('1D: P(no return in 2n steps) = C(2n, n) / 4^n', () => {
-    for (const T of BUDGETS) expect(1 - homeChance(1, [0], T)).toBeCloseTo(central(T / 2), 12);
+    for (const T of [10, 20, BUDGET, 40]) expect(1 - homeChance(1, [0], T)).toBeCloseTo(central(T / 2), 12);
   });
 
   it('the DP matches the renewal equation from exact return counts in 1D, 2D and 3D', () => {
-    for (const dim of DIMS) for (const T of BUDGETS) expect(homeChance(dim, origin(dim), T)).toBeCloseTo(renewal(dim, T), 10);
+    for (const dim of DIMS) for (const T of [10, 20, BUDGET, 40]) expect(homeChance(dim, origin(dim), T)).toBeCloseTo(renewal(dim, T), 10);
   });
 
   it('Pólya: 1D and 2D creep up towards certainty, 3D stays well below 0.3405', () => {
@@ -82,83 +108,107 @@ describe('Homecoming maths', () => {
     expect(homeChance(3, [0, 0, 0], 2)).toBeCloseTo(1 / 6, 14);
   });
 
+  it('dimension is the risk knob: Home falls from 1D to 3D, Away rises', () => {
+    const home = DIMS.map((dim) => startChance({ dim, side: 'home' }));
+    expect(home[0]).toBeGreaterThan(home[1]);
+    expect(home[1]).toBeGreaterThan(home[2]);
+    for (const dim of DIMS) expect(startChance({ dim, side: 'away' })).toBeCloseTo(1 - startChance({ dim, side: 'home' }), 14);
+  });
+
   it('playing to the end wins exactly as often as the formula says (direct simulation)', () => {
     for (const dim of DIMS) {
-      for (const T of BUDGETS) {
-        const rounds = 12000;
-        let home = 0;
-        for (let r = 0; r < rounds; r++) {
-          const p = origin(dim);
-          for (let s = 0; s < T; s++) {
-            p[rng.int(dim)] += rng.next() < 0.5 ? 1 : -1;
-            if (isHome(p)) {
-              home++;
-              break;
-            }
+      const rounds = 20000;
+      let home = 0;
+      for (let r = 0; r < rounds; r++) {
+        const p = origin(dim);
+        for (let s = 0; s < BUDGET; s++) {
+          p[rng.int(dim)] += rng.next() < 0.5 ? 1 : -1;
+          if (isHome(p)) {
+            home++;
+            break;
           }
         }
-        const q = homeChance(dim, origin(dim), T);
-        expect(Math.abs(home / rounds - q)).toBeLessThan(4 * Math.sqrt((q * (1 - q)) / rounds));
       }
+      const q = homeChance(dim, origin(dim), BUDGET);
+      expect(Math.abs(home / rounds - q)).toBeLessThan(4 * Math.sqrt((q * (1 - q)) / rounds));
     }
   });
 
   it('the cash-out is a martingale: its average over the 2d moves equals its value now', () => {
     for (const dim of DIMS) {
-      for (const budget of BUDGETS) {
-        for (const side of SIDES) {
-          const s: Settings = { dim, budget, side };
-          for (let trial = 0; trial < 30; trial++) {
-            // A random live state.
-            let p = origin(dim);
-            let left = budget;
-            const k = 1 + rng.int(budget - 1);
-            for (let i = 0; i < k && left > 0; i++) {
-              const q = applyMove(p, randomMove(dim, rng.next()));
-              if (verdict(side, q, left - 1)) break;
-              p = q;
-              left--;
-            }
-            const now = left === budget ? RTP : cashAt(s, p, left);
-            const next = movesOf(dim).map((m) => cashAt(s, applyMove(p, m), left - 1));
-            expect(next.reduce((a, b) => a + b, 0) / next.length).toBeCloseTo(now, 9);
+      for (const side of SIDES) {
+        const s: Settings = { dim, side };
+        for (let trial = 0; trial < 40; trial++) {
+          // A random live state (sometimes the start itself).
+          let p = origin(dim);
+          let left = BUDGET;
+          const k = rng.int(BUDGET - 1);
+          for (let i = 0; i < k && left > 0; i++) {
+            const q = applyMove(p, randomMove(dim, rng.next()));
+            if (verdict(side, q, left - 1)) break;
+            p = q;
+            left--;
           }
+          const now = cashAt(s, p, left);
+          const next = movesOf(dim).map((m) => cashAt(s, applyMove(p, m), left - 1));
+          expect(next.reduce((a, b) => a + b, 0) / next.length).toBeCloseTo(now, 9);
         }
       }
     }
   });
 
-  it('the first step is free and the start is worth RTP', () => {
+  it('the start is worth RTP, and so is the position after the first step', () => {
     for (const dim of DIMS)
-      for (const budget of BUDGETS)
-        for (const side of SIDES) {
-          const s: Settings = { dim, budget, side };
-          expect(prizeFor(s) * startChance(s)).toBeCloseTo(RTP, 12);
-          expect(cashAt(s, applyMove(origin(dim), { axis: dim - 1, sign: -1 }), budget - 1)).toBeCloseTo(RTP, 12);
-        }
+      for (const side of SIDES) {
+        const s: Settings = { dim, side };
+        expect(prizeFor(s) * startChance(s)).toBeCloseTo(RTP, 12);
+        expect(cashAt(s, origin(dim), BUDGET)).toBe(RTP);
+        expect(cashAt(s, applyMove(origin(dim), { axis: dim - 1, sign: -1 }), BUDGET - 1)).toBeCloseTo(RTP, 12);
+      }
   });
 
-  it('the drawn move bars are the true odds, and their average is the chance drawn as "now"', () => {
+  it('the next-step picture is the true split: closer slots are the moves that cut the distance', () => {
     for (const dim of DIMS) {
-      const s: Settings = { dim, budget: 20, side: 'home' };
-      const p = dim === 1 ? [3] : dim === 2 ? [2, -1] : [1, 0, -2];
-      const bars = moveChances(s, p, 9);
-      const avg = bars.reduce((a, b) => a + b, 0) / bars.length;
-      expect(avg).toBeCloseTo(homeChance(dim, p, 9), 12);
-      // Each bar is the exact chance after that move: check one by simulation.
-      const q = applyMove(p, movesOf(dim)[1]);
-      const rounds = 20000;
-      let hits = 0;
-      for (let r = 0; r < rounds; r++) {
-        const w = [...q];
-        for (let t = 0; t < 8; t++) {
-          if (isHome(w)) break;
-          w[rng.int(dim)] += rng.next() < 0.5 ? 1 : -1;
+      for (const { p, left } of liveStates(dim)) {
+        const slots = slotsOf(dim, p);
+        expect(slots.length).toBe(2 * dim);
+        const closer = movesOf(dim).filter((m) => l1(applyMove(p, m)) < l1(p));
+        expect(slots.filter((x) => x.closer).length).toBe(closer.length);
+        expect(closerCount(p)).toBe(closer.length);
+        for (const m of movesOf(dim)) {
+          const slot = slots[slotIndex(dim, p, m)];
+          expect(slot.axis).toBe(m.axis);
+          expect(slot.closer).toBe(isCloser(p, m));
         }
-        if (isHome(w)) hits++;
+        // Colouring closer moves "good for Home" is honest: every closer move
+        // leaves Home at least as likely as every further move.
+        const after = (m: (typeof closer)[number]) => {
+          const q = applyMove(p, m);
+          return isHome(q) ? 1 : homeChance(dim, q, left - 1);
+        };
+        const moves = movesOf(dim);
+        const minCloser = Math.min(...moves.filter((m) => isCloser(p, m)).map(after));
+        const maxFurther = Math.max(...moves.filter((m) => !isCloser(p, m)).map(after));
+        if (closer.length) expect(minCloser).toBeGreaterThanOrEqual(maxFurther - 1e-15);
       }
-      const b = bars[1];
-      expect(Math.abs(hits / rounds - b)).toBeLessThan(4 * Math.sqrt((b * (1 - b)) / rounds) + 1e-9);
+    }
+  });
+
+  it('the shaded out-of-reach stretch on each track is exactly where Home is lost', () => {
+    for (const dim of DIMS) {
+      for (const { p, left } of liveStates(dim)) {
+        // Sweep the dot along each track, other axes fixed, with one step taken.
+        for (let i = 0; i < dim; i++) {
+          for (let v = 0; v <= BUDGET / 2 + 2; v++) {
+            const q = [...p];
+            q[i] = v;
+            if ((l1(q) + left) % 2 !== (l1(p) + left) % 2 || isHome(q)) continue;
+            const shaded = v > reachOn(q, i, left);
+            expect(shaded).toBe(homeChance(dim, q, left) === 0);
+            expect(shaded).toBe(verdict('home', q, left) === 'lost');
+          }
+        }
+      }
     }
   });
 
@@ -173,16 +223,19 @@ describe('Homecoming maths', () => {
     expect(l1([3, -2, 1])).toBe(6);
   });
 
-  it('a burst stops the moment the round settles', () => {
-    const s: Settings = { dim: 1, budget: 40, side: 'home' };
-    for (let r = 0; r < 200; r++) {
-      const b = walkBurst(s, [1], 20, () => rng.next());
-      expect(walkBurst(s, [0], 40, () => rng.next()).path.length).toBe(1);
-      const last = b.path[b.path.length - 1];
-      if (b.verdict) expect(b.path.slice(0, -1).every((p) => !isHome(p))).toBe(true);
-      else expect(b.path.length).toBe(4);
-      if (b.verdict === 'won') expect(isHome(last)).toBe(true);
-    }
+  it('each press is exactly one step, settled the moment it lands', () => {
+    for (const dim of DIMS)
+      for (const side of SIDES) {
+        const s: Settings = { dim, side };
+        for (let r = 0; r < 200; r++) {
+          const from = dim === 1 ? [1] : dim === 2 ? [1, 0] : [1, 0, 0];
+          const st = walkStep(s, from, 9, rng.next());
+          expect(l1(st.to) - l1(from)).toBe(isCloser(from, st.move) ? -1 : 1);
+          if (st.verdict === null) expect(st.cash).toBeCloseTo(prizeFor(s) * sideChance(side, dim, st.to, 8), 12);
+          else expect(st.cash).toBe(st.verdict === 'won' ? prizeFor(s) : 0);
+          if (isHome(st.to)) expect(st.verdict).toBe(side === 'home' ? 'won' : 'lost');
+        }
+      }
   });
 
   it('simulated RTP matches the manifest under random stopping', () => {
@@ -190,7 +243,7 @@ describe('Homecoming maths', () => {
       expect(Math.abs(r.rtp - manifest.rtp)).toBeLessThan(4 * r.stdError);
       expect(r.max).toBeLessThanOrEqual(manifest.maxMultiplier);
     }
-    // The largest prize: backing Away in 1D over 40 steps, RTP / (C(40, 20) / 2^40).
-    expect(MAX_MULTIPLIER).toBeCloseTo(RTP / central(20), 9);
+    // The largest prize: backing Away in 1D, RTP / (C(T, T/2) / 2^T).
+    expect(MAX_MULTIPLIER).toBeCloseTo(RTP / central(BUDGET / 2), 9);
   });
 });

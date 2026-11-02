@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Call It',
   tagline: 'Cards turn one by one. Call "next is red" whenever you like. The red share of the deck bar is your chance, and no timing beats it.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

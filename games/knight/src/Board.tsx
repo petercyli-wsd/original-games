@@ -1,6 +1,6 @@
 import { fmtChance } from '@originals/game-sdk/ui';
 import { useEffect, useState } from 'react';
-import { degree, fileOf, inTarget, rankOf, squareName, type Target } from './math';
+import { fileOf, inTarget, isLight, rankOf, squareName, type Target } from './math';
 
 /** Square size and board origin in viewBox units. */
 const S = 47;
@@ -8,6 +8,10 @@ const X0 = 18;
 const Y0 = 4;
 /** Dot radius for probability 1: dot area is proportional to the chance of ending there. */
 const DOT_K = 28;
+/** Chances closer than this count as unchanged when colouring the next hops. */
+const EPS = 1e-12;
+/** Whether a next hop to a square with chance p raises or lowers the chance now. */
+const trendOf = (p: number, now: number) => (p > now + EPS ? 'up' : p < now - EPS ? 'down' : 'same');
 
 const sx = (s: number) => X0 + fileOf(s) * S;
 const sy = (s: number) => Y0 + (7 - rankOf(s)) * S;
@@ -69,15 +73,17 @@ export interface BoardProps {
   moveMs: number;
   /** Where the knight can end from its committed square (dot area ∝ chance). Null hides the dots. */
   dist: Float64Array | null;
-  /** Chance to win after each possible next jump (null hides the labels). */
+  /** Chance to win after each possible next hop (null hides them). */
   next: Map<number, number> | null;
+  /** The chance to win now, which the next hops raise or lower. */
+  now: number;
   outcome: BoardOutcome | null;
   /** Squares that may be clicked to pick the target (idle or over), null when locked. */
   onPick: ((s: number) => void) | null;
   pickable: (s: number) => boolean;
 }
 
-export default function Board({ target, path, move, moveMs, dist, next, outcome, onPick, pickable }: BoardProps) {
+export default function Board({ target, path, move, moveMs, dist, next, now, outcome, onPick, pickable }: BoardProps) {
   const at = move ? move.to : path[path.length - 1];
   const u = ease(useProgress(move?.id ?? null, moveMs));
   const pos = move ? alongL(move.from, move.to, u) : { x: cx(at), y: cy(at) };
@@ -85,10 +91,13 @@ export default function Board({ target, path, move, moveMs, dist, next, outcome,
   const tokenClass = 'token' + (outcome === 'win' || outcome === 'sure' ? ' won' : outcome === 'miss' || outcome === 'reach' ? ' lost' : '');
   const pickMode = onPick && (target.region === 'square' || target.region === 'corner');
 
+  const hops = next ? [...next.entries()] : [];
+
   return (
-    <svg viewBox="0 0 400 400" className="knight" role="img" aria-label={`Knight on ${squareName(at)}`}>
+    <svg viewBox={`0 0 400 ${Y0 + 8 * S + 16}`} className="knight" role="img" aria-label={`Knight on ${squareName(at)}`}>
       {squares.map((s) => {
-        const hit = inTarget(s, target);
+        // Only light squares can be the final square, so only those are filled green.
+        const hit = inTarget(s, target) && isLight(s);
         const can = !!pickMode && pickable(s);
         return (
           <g
@@ -98,11 +107,8 @@ export default function Board({ target, path, move, moveMs, dist, next, outcome,
             role={can ? 'button' : undefined}
             aria-label={can ? `Target ${target.region === 'corner' ? 'the quadrant of ' : ''}${squareName(s)}` : undefined}
           >
-            <rect x={sx(s)} y={sy(s)} width={S} height={S} className={(fileOf(s) + rankOf(s)) % 2 ? 'light' : 'dark'} />
+            <rect x={sx(s)} y={sy(s)} width={S} height={S} className={isLight(s) ? 'light' : 'dark'} />
             {hit && <rect x={sx(s) + 1} y={sy(s) + 1} width={S - 2} height={S - 2} className="target" />}
-            <text x={sx(s) + 4} y={sy(s) + 11} className="deg">
-              {degree(s)}
-            </text>
           </g>
         );
       })}
@@ -137,21 +143,61 @@ export default function Board({ target, path, move, moveMs, dist, next, outcome,
       ))}
       {move && <path key={'m' + move.id} d={lPath(move.from, move.to)} pathLength={1} className="trail fresh" style={{ animationDuration: `${moveMs}ms` }} />}
 
-      {/* The next jump: each ringed square shows your chance if the knight lands there. */}
-      {next &&
-        [...next.entries()].map(([s, p]) => (
-          <g key={'n' + s} className="next">
-            <rect x={sx(s) + 1.5} y={sy(s) + 1.5} width={S - 3} height={S - 3} rx={3} className={'ring' + (p >= 1 ? ' sure' : p <= 0 ? ' dead' : '')} />
-            <text x={cx(s)} y={sy(s) + S - 6} className="pct">
-              {fmtChance(p)}
-            </text>
-          </g>
-        ))}
+      {/* The next hop: each dashed square shows your chance if the knight lands there (green = better than now, red = worse). */}
+      {hops.map(([s, p]) => (
+        <g key={'n' + s} className="next">
+          <rect x={sx(s) + 1.5} y={sy(s) + 1.5} width={S - 3} height={S - 3} rx={3} className={'ring ' + trendOf(p, now)} />
+          <text x={cx(s)} y={sy(s) + S - 6} className="pct">
+            {fmtChance(p)}
+          </text>
+        </g>
+      ))}
 
       <g className="token-move" transform={`translate(${pos.x.toFixed(2)} ${pos.y.toFixed(2)})`}>
         <circle r={14} className={tokenClass} />
         <path d="M -3 -7 L -3 6 L 5 6" className="glyph" />
       </g>
     </svg>
+  );
+}
+
+/** The key under the board: every symbol on it, in a few words each. */
+export function Legend({ next, now, left }: { next: Map<number, number> | null; now: number; left: number }) {
+  const hops = next ? [...next.values()] : [];
+  const up = hops.filter((p) => trendOf(p, now) === 'up').length;
+  const nextText = !next
+    ? 'Dashed squares: where the next hop can land'
+    : left === 1
+      ? `Last hop: ${up} of ${hops.length} squares win`
+      : `Next hop: ${up} of ${hops.length} squares raise your chance`;
+  return (
+    <div className="knight-legend">
+      <span>
+        <svg viewBox="0 0 24 14" aria-hidden="true">
+          <circle cx={4} cy={7} r={2.5} className="mass" />
+          <circle cx={15} cy={7} r={5.5} className="mass" />
+        </svg>
+        Dot size = chance it ends there
+      </span>
+      <span>
+        <svg viewBox="0 0 24 14" aria-hidden="true">
+          <circle cx={12} cy={7} r={5.5} className="mass in" />
+        </svg>
+        Green dots add up to your chance
+      </span>
+      <span>
+        <svg viewBox="0 0 24 14" aria-hidden="true">
+          <rect x={1} y={1.5} width={9} height={11} rx={2} className="ring up" />
+          <rect x={13} y={1.5} width={9} height={11} rx={2} className="ring down" />
+        </svg>
+        {nextText}
+      </span>
+      <span>
+        <svg viewBox="0 0 24 14" aria-hidden="true">
+          <rect x={1} y={1.5} width={22} height={11} rx={2} className="swatch" />
+        </svg>
+        Each hop flips colour: it ends on light
+      </span>
+    </div>
   );
 }

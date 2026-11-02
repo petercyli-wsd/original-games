@@ -1,9 +1,9 @@
 import { defineEval } from '@originals/game-sdk';
-import { HOME_LABEL, RTP, VOLATILITY, dist, homeChance, prizeFor, stepFrom, verdict, type Home, type Pt, type Steps } from './math';
+import { HOME_LABEL, RTP, START, VOLATILITY, dist, homeChance, prizeFor, stepFrom, verdict, type Home, type Pt, type Steps } from './math';
 
 // Each simulated player follows one of four stopping rules, sampled per
 // round, so the eval covers very different strategies:
-//   - walk to the end,
+//   - walk to the end (Run to the end),
 //   - stop after a random number of steps,
 //   - stop-loss: cash out once the cash-out falls below a random share of the stake,
 //   - take-profit: cash out once it climbs above a random multiple of the stake.
@@ -20,7 +20,8 @@ export default defineEval<{ steps: Steps; home: Home }>({
     const floor = mode >= 0.55 && mode < 0.78 ? RTP * (0.15 + 0.6 * rng.next()) : 0;
     const target = mode >= 0.78 ? RTP * (1.1 + 2.5 * rng.next()) : Infinity;
 
-    let p: Pt = { x: 0, y: 0 };
+    // The walker starts one step out; every step is a random draw.
+    let p: Pt = { x: START, y: 0 };
     for (let taken = 1; ; taken++) {
       p = stepFrom(p, rng.next() * 2 * Math.PI);
       const left = steps - taken;

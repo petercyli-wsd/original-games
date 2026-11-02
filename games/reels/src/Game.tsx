@@ -10,7 +10,6 @@ import {
   GameLayout,
   InfoModal,
   InfoSection,
-  InstantResult,
   Label,
   ModeTabs,
   PanelFoot,
@@ -27,7 +26,7 @@ import {
   useTurbo,
 } from '@originals/game-sdk/ui';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
-import { Reels, SymbolArt, SymbolDefs, lineColour } from './Board';
+import { OddsMeter, Reels, RuleStrip, SymbolArt, SymbolDefs, lineColour } from './Board';
 import {
   BUY_SPINS,
   FREE_SPINS,
@@ -45,6 +44,7 @@ import {
   WILD,
   playRound,
   reelSet,
+  spinOdds,
   windowAt,
   winTier,
   type ReelSet,
@@ -72,6 +72,14 @@ interface Present {
   stake: number;
 }
 
+/** The spin on the reels, for the odds bar: its drawn windows (revealed reel by reel as they stop). */
+interface SpinCtx {
+  grid: number[][];
+  mult: number;
+  /** False once the feature has hit its free-spin cap, so scatters add nothing. */
+  fsOpen: boolean;
+}
+
 interface Feature {
   /** Free spin being played (1-based; 0 before the first). */
   n: number;
@@ -95,6 +103,15 @@ const fmtExact = (x: number) => {
   return (t.split('.')[1] ?? '').length > 2 ? t : x.toFixed(2);
 };
 const buyCostOf = (stake: number, price: number) => Math.round(stake * price * 1e8) / 1e8;
+
+/** How a round's result reads: a win only when it returns more than was paid. */
+function resultWords(won: number, paid: number): { text: string; tone: 'won' | 'part' | 'lost' } {
+  const net = won - paid;
+  const netTxt = `${net >= 0 ? '+' : '−'}${fmtMoney(Math.abs(net))}`;
+  if (won <= 0) return { text: 'No win', tone: 'lost' };
+  if (net > 1e-9) return { text: `Won ${fmtMoney(won)} (${netTxt})`, tone: 'won' };
+  return { text: `Returned ${fmtMoney(won)} (${netTxt})`, tone: 'part' };
+}
 
 /** Counts up to `amount` for the big-win banner. */
 function CountUp({ amount, ms }: { amount: number; ms: number }) {
@@ -135,6 +152,8 @@ export default function Game() {
   const [banner, setBanner] = useState<Banner | null>(null);
   const [spinWin, setSpinWin] = useState(0);
   const [hoverLine, setHoverLine] = useState<number | null>(null);
+  const [pinLine, setPinLine] = useState<number | null>(null);
+  const [spinCtx, setSpinCtx] = useState<SpinCtx | null>(null);
   const [buyArmed, setBuyArmed] = useState(false);
   const [stopOnFeature, setStopOnFeature] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -191,7 +210,7 @@ export default function Game() {
   const T = (ms: number) => (turbo.turbo ? Math.round(ms * 0.3) : ms);
 
   /** Spins all five reels along their real strips to `stops`. */
-  async function spinReels(rs: ReelSet, stops: number[]) {
+  async function spinReels(rs: ReelSet, stops: number[], ctx: Omit<SpinCtx, 'grid'>) {
     const grid = windowAt(rs, stops);
     const prev = stopsRef.current;
     const base = T(780);
@@ -219,6 +238,7 @@ export default function Game() {
       return Array.from({ length: filler + ROWS }, (_, i) => strip[(s + i) % len]);
     });
     setCols(longCols);
+    setSpinCtx({ grid, ...ctx });
     setSpinningReels(new Array(REELS).fill(true));
     setAnticip(anti);
     await nextCommit();
@@ -274,6 +294,7 @@ export default function Game() {
 
     setBusy(true);
     setBuyArmed(false);
+    setPinLine(null);
     setBanner(null);
     setPresent(null);
     setCycle(-1);
@@ -292,7 +313,9 @@ export default function Game() {
       const sp = round.spins[i];
       setPresent(null);
       if (sp.free) setFeature((f) => (f ? { ...f, n: sp.n } : f));
-      await spinReels(rs, sp.stops);
+      // Free spins already awarded before this one: at the cap, scatters add nothing.
+      const before = sp.free ? sp.n + sp.left - sp.awarded : 0;
+      await spinReels(rs, sp.stops, { mult: sp.mult, fsOpen: before < FS_CAP });
       if (!alive.current) return mult;
       setPresent({ spin: sp, lines: n, stake });
       setSpinWin(sp.win * stake);
@@ -394,6 +417,7 @@ export default function Game() {
     }
     setVol(v);
     setLines(n);
+    setSpinCtx(null);
     setLast(null);
     setPresent(null);
     setCycle(-1);
@@ -459,18 +483,32 @@ export default function Game() {
   const lineBet = bet.value / lines;
   const volLevel = vol === 'high' && lines <= 3 ? 'extreme' : vol;
 
+  const result = last ? resultWords(last.won, last.paid) : null;
   const status = busy
     ? feature
       ? feature.n > 0
         ? `Free spin ${feature.n} of ${feature.of}`
         : 'Free spins!'
       : 'Spinning…'
-    : last
-      ? last.won > 0
-        ? `Won ${fmtMoney(last.won)}${last.freeSpins ? ` · ${last.freeSpins} free spins` : ''}`
-        : 'No win'
+    : last && result
+      ? `${result.text}${last.freeSpins ? ` · ${last.freeSpins} free spins` : ''}`
       : `${VOL_LABEL[vol]} reels · ${lines} line${lines > 1 ? 's' : ''}`;
-  const tone = busy ? 'live' : last ? (last.won > 0 ? 'won' : 'lost') : 'idle';
+  const pillShown = !!last && !busy && banner?.kind !== 'big';
+  const tone = busy ? 'live' : result ? (result.tone === 'part' ? 'idle' : result.tone) : 'idle';
+
+  // ---- The odds bar: exact chance this spin pays, given the reels already stopped ----
+  const nextOdds = spinOdds(set, lines, 1);
+  let stopped = 0;
+  if (spinCtx) while (stopped < REELS && !spinningReels[stopped]) stopped++;
+  const odds = spinCtx ? spinOdds(set, lines, spinCtx.mult, spinCtx.grid.slice(0, stopped), spinCtx.fsOpen) : nextOdds;
+  const oddsFrom = spinCtx && stopped > 0 ? spinOdds(set, lines, spinCtx.mult, spinCtx.grid.slice(0, stopped - 1), spinCtx.fsOpen).pays : null;
+  // After a feature the bar still shows its last free spin, so say so (the round total is in the HUD).
+  const oddsLabel = !spinCtx ? 'Chance a spin pays' : !busy && last?.freeSpins ? 'Last free spin paid' : 'Chance this spin pays';
+  const oddsNote = !spinCtx
+    ? `${lines} line${lines > 1 ? 's' : ''}`
+    : stopped === 0
+      ? 'reels spinning'
+      : `${stopped}/${REELS} reels stopped`;
 
   let caption: ReactNode;
   if (present && shownWins.length === 1 && wins.length) {
@@ -492,11 +530,7 @@ export default function Game() {
   } else if (scatterHit) {
     caption = <>{present!.spin.scatterCells.length} scatters: free spins!</>;
   } else {
-    caption = (
-      <>
-        Lines pay left to right from reel 1. Wild stands in on reels 2–4; 3+ scatters anywhere start free spins with every win ×{FS_MULT}.
-      </>
-    );
+    caption = <>The bar is the exact chance this spin pays. It updates as each reel stops.</>;
   }
 
   return (
@@ -518,7 +552,7 @@ export default function Game() {
             options={VOLS.map((v) => ({
               value: v,
               label: VOL_LABEL[v],
-              title: `Line wins ${fmtChance(reelSet(v).lineHit)} · free spins ${fmtOneIn(reelSet(v).trigger)} · top ${reelSet(v).maxLine}× line bet`,
+              title: `Free spins ${fmtOneIn(reelSet(v).trigger)} · top ${reelSet(v).maxLine}× line bet`,
             }))}
           />
 
@@ -543,8 +577,10 @@ export default function Game() {
 
           {auto.mode === 'manual' && (
           <dl className="og-stats">
-            <dt>Each line wins</dt>
-            <dd>{fmtChance(set.lineHit)}</dd>
+            <dt>Spin pays something</dt>
+            <dd>{fmtChance(nextOdds.pays)}</dd>
+            <dt>Pays more than bet</dt>
+            <dd>{fmtChance(nextOdds.more)}</dd>
             <dt>Free spins</dt>
             <dd>{fmtOneIn(set.trigger)}</dd>
             <dt>Top line pay</dt>
@@ -616,14 +652,13 @@ export default function Game() {
               </>
             ) : (
               <>
-                <span className={'rl-brand' + (last && !busy && banner?.kind !== 'big' ? ' hidden' : '')}>
-                  <i />
-                  REELS
-                  <i />
+                <span className={'rl-topbar-hint' + (pillShown ? ' hidden' : '')}>
+                  <b>{lines} line{lines > 1 ? 's' : ''}</b> · tap a number to trace it
                 </span>
-                <span className="rl-topbar-note">
+                <span className={'rl-topbar-narrow' + (pillShown ? ' hidden' : '')}>
                   {lines} line{lines > 1 ? 's' : ''} · {VOL_LABEL[vol]}
                 </span>
+                <span className="rl-topbar-note">{VOL_LABEL[vol]} reels</span>
               </>
             )}
           </div>
@@ -636,8 +671,9 @@ export default function Game() {
             shownLines={busy && spinningReels.some(Boolean) ? [] : shownWins.map((w) => w.line)}
             lineCounts={lineCounts}
             activeLines={lines}
-            hoverLine={busy ? null : hoverLine}
+            hoverLine={busy ? null : (hoverLine ?? pinLine)}
             onHoverLine={setHoverLine}
+            onPinLine={(l) => setPinLine((p) => (p === l ? null : l))}
             free={!!feature}
           />
           <div className="rl-hud">
@@ -654,6 +690,7 @@ export default function Game() {
               <b>{fmtSmall(lineBet)}</b>
             </div>
           </div>
+          <OddsMeter odds={odds} label={oddsLabel} note={oddsNote} from={oddsFrom} />
 
           {banner && banner.kind !== 'big' && (
             <div className={'rl-banner ' + banner.kind} role="status" onClick={slam}>
@@ -683,9 +720,15 @@ export default function Game() {
             </div>
           )}
         </div>
-        <InstantResult multiplier={last && !busy && banner?.kind !== 'big' ? last.multiplier : null} stake={last?.paid ?? 0} id={last?.id ?? 0} />
+        {pillShown && last && result && (
+          <div key={last.id} className={'og-instant rl-result ' + result.tone} role="status">
+            <b>{last.multiplier.toFixed(2)}×</b>
+            <span>{result.text}</span>
+          </div>
+        )}
       </Board>
 
+      <RuleStrip mult={FS_MULT} />
       <Caption>{caption}</Caption>
 
       <div className={'rl-paytable' + (ptOpen ? ' open' : '')} aria-label="Paytable">
@@ -752,9 +795,19 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each reel stops at a uniformly random point on its strip, and every row of a reel shows each symbol as often as it appears on the strip. So
-              all 20 lines have the same odds: on the {VOL_LABEL[vol]} reels a line wins {fmtChance(set.lineHit)} of spins, and free spins trigger{' '}
-              {fmtOneIn(set.trigger)} spins ({fmtChance(set.trigger)}). Hovering a line number on either side of the reels draws that line.
+              The bar under the reels is the exact chance that this spin pays anything. Its coloured share splits into free spins (gold: three or more
+              scatters, whatever the lines pay), line wins worth more than your bet (green) and line wins worth up to your bet (pale green); the red rest
+              pays nothing. On the {VOL_LABEL[vol]} reels with {lines} line{lines > 1 ? 's' : ''} a spin pays something {fmtChance(nextOdds.pays)} of
+              the time and more than your bet {fmtChance(nextOdds.more)}; free spins start {fmtOneIn(set.trigger)} spins.
+            </p>
+            <p>
+              The reels stop left to right, and after each one the bar shows the chance given the reels already stopped, so you watch it rise (two
+              matching reels, a second scatter) or collapse (a dead start). When the last reel stops it is 100% or 0%. More lines raise the chance of
+              a win but split the bet thinner, so each win is smaller; the return is the same.
+            </p>
+            <p>
+              Every line has the same odds (each row of a reel shows each symbol as often as it sits on the strip): one line wins {fmtChance(set.lineHit)}{' '}
+              of spins. Hover or tap a line number on either side of the reels to draw that line; tap it again to let go.
             </p>
             <div className="rl-paylines">
               {PAYLINES.map((p, l) => (
@@ -784,6 +837,13 @@ export default function Game() {
               <b>Free spins.</b> A free spin is worth {FS_MULT}L and awards μ = E[F(K)] new spins on average, so m awarded spins play m ÷ (1 − μ) spins
               (a geometric series). RTP = L · (1 + μ) ÷ (1 − μ), less a sub-0.0001% correction for the {FS_CAP}-spin cap, which is computed exactly by
               dynamic programming. On these reels: L = {set.lineEv.toFixed(5)}, μ = {set.mu.toFixed(5)}.
+            </p>
+            <p>
+              <b>The odds bar.</b> The five windows are independent, each uniform over its strip&apos;s stops, so the chance given the reels already stopped is a finite sum
+              over the windows still to come. It is computed reel by reel: reel 1 fixes each line&apos;s symbol, and after each reel the state is which
+              lines are still running, the line pays already banked and the scatters seen. Windows that let the same lines through are merged; nothing is
+              simulated. The bar is a martingale: its value now is the average of its values after the
+              next reel.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">

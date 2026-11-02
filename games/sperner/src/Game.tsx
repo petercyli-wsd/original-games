@@ -296,15 +296,14 @@ export default function Game() {
               <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <div className={'sp-actions' + (rest > 1 || phase !== 'checkpoint' ? '' : ' one')}>
+              {/* Both buttons always show: a row of one vertex (the top row) still has a "Colour row". */}
+              <div className="sp-actions">
                 <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={colourNext}>
                   Colour next
                 </ActionButton>
-                {(rest > 1 || phase !== 'checkpoint') && (
-                  <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={colourRow}>
-                    Colour row{rest > 1 ? ` ×${rest}` : ''}
-                  </ActionButton>
-                )}
+                <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={colourRow}>
+                  Colour row{rest > 1 ? ` ×${rest}` : ''}
+                </ActionButton>
               </div>
             </>
           ) : (

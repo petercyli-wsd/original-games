@@ -1,6 +1,5 @@
-// Line Cut: random lines are cut across a disc arena of radius 1 that holds
-// five convex shapes. You pick one shape and back Hit (at least one line
-// crosses it) or Miss (no line touches it).
+// Line Cut: one random line is cut across a disc arena of radius 1 that holds
+// the one shape you picked. You win if the line cuts your shape.
 //
 // A random line is drawn with the Crofton measure, the only one that doesn't
 // care where or which way the arena sits: a direction φ uniform over a
@@ -10,41 +9,37 @@
 // always on the left of the screen; any half-turn gives the same lines,
 // because (φ + π, −p) is the same line as (φ, p).
 //
-// The theorem (Cauchy–Crofton). Given φ, the line hits a convex shape K
+// The theorem (Cauchy–Crofton). Given φ, the line cuts a convex shape K
 // exactly when p lands in K's shadow on the ruler, the interval
-// [min x·u, max x·u] over x in K. So P(hit | φ) = w_K(φ) / 2, where w_K(φ) is
+// [min x·u, max x·u] over x in K. So P(cut | φ) = w_K(φ) / 2, where w_K(φ) is
 // K's width in direction u and 2 is the ruler's length. Cauchy's formula says
 // the mean width over all directions is perimeter / π, so
 //
-//     P(hit) = perimeter(K) / 2π = perimeter(K) / perimeter(arena).
+//     P(cut) = E[w_K(φ)] / 2 = perimeter(K) / 2π.
 //
-// Only the outline's length matters, not the area or the position: a rod of
-// length L (perimeter 2L, both sides) is as easy to hit as a disc of radius
-// L / π. Here the rod and the circle both have a 30% chance per line, but
-// they ride differently: a disc's shadow is its diameter in every direction,
-// so its odds never move at the checkpoint, while the rod's shadow swings
-// from nothing (end-on) to its full length (47% of the ruler).
+// Only the outline's length matters, not the area or the position, which is
+// why each shape sits at the centre of the arena. The shape is the one risk
+// knob: pin 2%, triangle 10%, square 20%, rod 30%, plank 60%. None of them is
+// round, so the direction always matters: a shape is wider seen from some
+// sides than others (the rod's shadow swings from nothing, end-on, to 47%
+// of the ruler, side-on).
 //
-// The round. With c = P(hit) per line, m = 1 − c and N ∈ {1, 2, 3, 5, 8} lines,
-//     P(win) = 1 − m^N (Hit),   m^N (Miss).
-// Each line is revealed in two stages: its direction (the ruler spins and the
-// shape's shadow appears; the checkpoint) and then its offset (the cut lands).
-// With k lines still to cut and the current one aimed with shadow share
-// s = w(φ)/2,
-//     P(win | S) = 1 − (1 − s)·m^(k−1) (Hit),   (1 − s)·m^(k−1) (Miss).
+// The round has two reveals. First the direction (the ruler spins and the
+// shadow appears, with share s = w(φ)/2): the checkpoint. Then the offset
+// (the line lands, cutting with chance exactly s).
 //
-// Pricing (fixed prize). A win pays prize = RTP / P(win), and the cash-out at
-// any state is prize × P(win | S). P(win | S) is a conditional probability of
-// one fixed event, so it is a martingale: averaging the aimed formula over φ
-// gives back the unaimed one because E[s] = c (Cauchy), and averaging over p
-// gives back the aimed one because the line hits with chance exactly s. By
-// optional stopping every cash-out rule returns exactly RTP, and every shape,
-// side and line count is a fair choice because the prize is set from its own
-// P(win). Payouts never exceed the prize, so the largest is RTP / min P(win)
-// = 0.99 / 0.02 = 49.5× (Hit the dot with one line).
+//     P(win | start) = c = perimeter / 2π,   P(win | aimed) = s,   then 1 or 0.
+//
+// Pricing (fixed prize). A win pays prize = RTP / c, and the cash-out at any
+// state is prize × P(win | state). P(win | state) is a conditional
+// probability of one fixed event, so it is a martingale: averaging s over φ
+// gives back c (Cauchy), and the line cuts with chance exactly s. By optional
+// stopping every cash-out rule returns exactly RTP, and every shape is a fair
+// choice because its prize is set from its own c. Payouts never exceed the
+// prize, so the largest is RTP / 0.02 = 49.5× (cut the pin).
 //
 // Tie rule: a line that only touches a shape (p exactly at a shadow end)
-// counts as a hit. That set has probability zero.
+// counts as a cut. That set has probability zero.
 
 import type { Volatility } from '@originals/game-sdk';
 
@@ -55,69 +50,67 @@ export interface Pt {
   y: number;
 }
 
-export type ShapeId = 'circle' | 'rod' | 'square' | 'triangle' | 'dot';
-export type Side = 'hit' | 'miss';
+export type ShapeId = 'pin' | 'triangle' | 'square' | 'rod' | 'plank';
 
-export const LINE_COUNTS = [1, 2, 3, 5, 8] as const;
-export type Lines = (typeof LINE_COUNTS)[number];
-
-interface Base {
+/** A convex polygon (a rod is a 2-gon), centred on the arena's centre. */
+export interface Shape {
   id: ShapeId;
   name: string;
-}
-export type Shape = (Base & { kind: 'disc'; c: Pt; r: number }) | (Base & { kind: 'poly'; verts: Pt[] });
-
-/** Vertices of a regular n-gon with circumradius r, first vertex at angle a0 (radians, SVG orientation). */
-function regular(c: Pt, n: number, r: number, a0: number): Pt[] {
-  return Array.from({ length: n }, (_, i) => {
-    const a = a0 + (2 * Math.PI * i) / n;
-    return { x: c.x + r * Math.cos(a), y: c.y + r * Math.sin(a) };
-  });
+  verts: Pt[];
 }
 
-function rod(c: Pt, length: number, angle: number): Pt[] {
-  const dx = (length / 2) * Math.cos(angle);
-  const dy = (length / 2) * Math.sin(angle);
+const rot = (p: Pt, a: number): Pt => ({ x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) });
+
+/** A segment of the given length through the centre, at angle a (radians, SVG orientation). */
+function rod(length: number, a: number): Pt[] {
+  return [rot({ x: -length / 2, y: 0 }, a), rot({ x: length / 2, y: 0 }, a)];
+}
+
+/** A w × h rectangle centred on the centre, turned by a. */
+function rect(w: number, h: number, a: number): Pt[] {
   return [
-    { x: c.x - dx, y: c.y - dy },
-    { x: c.x + dx, y: c.y + dy },
-  ];
+    { x: -w / 2, y: -h / 2 },
+    { x: w / 2, y: -h / 2 },
+    { x: w / 2, y: h / 2 },
+    { x: -w / 2, y: h / 2 },
+  ].map((p) => rot(p, a));
 }
 
-/** Side of the square and the triangle: π/10, so they're hit 20% and 15% of the time. */
-const SIDE = Math.PI / 10;
+/** An isosceles triangle with base b and outline P, centroid on the centre, apex up, turned by a. */
+function wedge(b: number, P: number, a: number): Pt[] {
+  const leg = (P - b) / 2;
+  const h = Math.sqrt(leg * leg - (b * b) / 4);
+  return [
+    { x: 0, y: (-2 * h) / 3 },
+    { x: b / 2, y: h / 3 },
+    { x: -b / 2, y: h / 3 },
+  ].map((p) => rot(p, a));
+}
 
 /**
- * The fixed layout, in arena units (radius 1, y pointing down as on screen).
- * Every shape sits wholly inside the arena, so every line that can hit it is
- * a line through the arena.
+ * The shapes, in arena units (radius 1, y pointing down as on screen). Each
+ * outline is set so that perimeter / 2π is a round chance. Every shape sits
+ * wholly inside the arena, so every line that can cut it is a line through
+ * the arena.
  */
 export const SHAPES: Record<ShapeId, Shape> = {
-  circle: { id: 'circle', name: 'Circle', kind: 'disc', c: { x: -0.38, y: -0.37 }, r: 0.3 },
-  rod: { id: 'rod', name: 'Rod', kind: 'poly', verts: rod({ x: -0.2, y: 0.5 }, 0.3 * Math.PI, 0.52) },
-  square: { id: 'square', name: 'Square', kind: 'poly', verts: regular({ x: 0.42, y: -0.38 }, 4, SIDE / Math.SQRT2, Math.PI / 4 + 0.26) },
-  triangle: { id: 'triangle', name: 'Triangle', kind: 'poly', verts: regular({ x: 0.5, y: 0.2 }, 3, SIDE / Math.sqrt(3), -Math.PI / 2) },
-  dot: { id: 'dot', name: 'Dot', kind: 'disc', c: { x: 0.12, y: 0.12 }, r: 0.02 },
+  pin: { id: 'pin', name: 'Pin', verts: rod(0.02 * Math.PI, -0.6) },
+  triangle: { id: 'triangle', name: 'Triangle', verts: wedge(0.04 * Math.PI, 0.2 * Math.PI, 0.35) },
+  square: { id: 'square', name: 'Square', verts: rect(0.1 * Math.PI, 0.1 * Math.PI, 0.26) },
+  rod: { id: 'rod', name: 'Rod', verts: rod(0.3 * Math.PI, -0.52) },
+  plank: { id: 'plank', name: 'Plank', verts: rect(0.6 * Math.PI - 0.4, 0.4, -0.3) },
 };
 
-export const SHAPE_IDS: ShapeId[] = ['circle', 'rod', 'square', 'triangle', 'dot'];
+export const SHAPE_IDS: ShapeId[] = ['pin', 'triangle', 'square', 'rod', 'plank'];
 
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** The shape's centre (centroid of the vertices for a polygon). */
-export function centre(s: Shape): Pt {
-  if (s.kind === 'disc') return s.c;
-  const n = s.verts.length;
-  return { x: s.verts.reduce((a, v) => a + v.x, 0) / n, y: s.verts.reduce((a, v) => a + v.y, 0) / n };
-}
-
 /** Length of the outline. A rod (a 2-gon) has perimeter twice its length. */
 export function perimeter(s: Shape): number {
-  if (s.kind === 'disc') return 2 * Math.PI * s.r;
   return s.verts.reduce((sum, v, i) => sum + dist(v, s.verts[(i + 1) % s.verts.length]), 0);
 }
 
-/** Chance that one random line hits the shape (Cauchy–Crofton): perimeter / 2π. */
+/** Chance that one random line cuts the shape (Cauchy–Crofton): perimeter / 2π. */
 export const cutChance = (s: Shape) => perimeter(s) / (2 * Math.PI);
 
 export const unit = (phi: number): Pt => ({ x: Math.cos(phi), y: Math.sin(phi) });
@@ -133,13 +126,9 @@ export interface Interval {
   hi: number;
 }
 
-/** The shape's shadow on the ruler at direction φ: the offsets p whose line hits it. */
+/** The shape's shadow on the ruler at direction φ: the offsets p whose line cuts it. */
 export function shadow(s: Shape, phi: number): Interval {
   const u = unit(phi);
-  if (s.kind === 'disc') {
-    const m = s.c.x * u.x + s.c.y * u.y;
-    return { lo: m - s.r, hi: m + s.r };
-  }
   let lo = Infinity;
   let hi = -Infinity;
   for (const v of s.verts) {
@@ -150,50 +139,48 @@ export function shadow(s: Shape, phi: number): Interval {
   return { lo, hi };
 }
 
-/** P(hit | direction φ): the shadow's share of the ruler, w(φ) / 2. */
+/** P(cut | direction φ): the shadow's share of the ruler, w(φ) / 2. */
 export function aimedCutChance(s: Shape, phi: number): number {
   const { lo, hi } = shadow(s, phi);
   return (hi - lo) / 2;
 }
 
-/** Whether the line at direction φ and offset p hits the shape (touching counts). */
+/** Whether the line at direction φ and offset p cuts the shape (touching counts). */
 export function lineHits(s: Shape, phi: number, p: number): boolean {
   const { lo, hi } = shadow(s, phi);
   return p >= lo && p <= hi;
 }
 
-/** P(win) with `left` lines still to come, none of them aimed yet. */
-export function winChanceLeft(side: Side, left: number, c: number): number {
-  const allMiss = (1 - c) ** left;
-  return side === 'hit' ? 1 - allMiss : allMiss;
+/**
+ * The narrowest and widest shadow over all directions, as shares of the ruler.
+ * Exact for a convex polygon: the widest width is its diameter (the longest
+ * vertex-to-vertex distance), the narrowest is attained square to an edge.
+ */
+export function shadowRange(s: Shape): Interval {
+  const vs = s.verts;
+  let hi = 0;
+  for (const a of vs) for (const b of vs) hi = Math.max(hi, dist(a, b));
+  let lo = Infinity;
+  vs.forEach((a, i) => {
+    const b = vs[(i + 1) % vs.length];
+    const len = dist(a, b);
+    const far = Math.max(...vs.map((v) => Math.abs((b.x - a.x) * (v.y - a.y) - (b.y - a.y) * (v.x - a.x)) / len));
+    lo = Math.min(lo, far);
+  });
+  // A rod's narrowest shadow is exactly 0; don't show rounding noise.
+  return { lo: lo < 1e-12 ? 0 : lo / 2, hi: hi / 2 };
 }
 
-/** P(win) with `left` lines to come (counting the current one), the current one aimed with shadow share s. */
-export function winChanceAimed(side: Side, left: number, s: number, c: number): number {
-  const allMiss = (1 - s) * (1 - c) ** (left - 1);
-  return side === 'hit' ? 1 - allMiss : allMiss;
-}
-
-/** P(win) at the start of a round. */
-export const winChance = (shape: ShapeId, side: Side, lines: Lines) => winChanceLeft(side, lines, cutChance(SHAPES[shape]));
+/** P(win) at the start of a round: the shape's average shadow. */
+export const winChance = (shape: ShapeId) => cutChance(SHAPES[shape]);
 
 /** The full prize: RTP / P(win). */
-export const prizeFor = (shape: ShapeId, side: Side, lines: Lines) => RTP / winChance(shape, side, lines);
+export const prizeFor = (shape: ShapeId) => RTP / winChance(shape);
 
-export interface Setting {
-  shape: ShapeId;
-  side: Side;
-  lines: Lines;
-}
-
-export const ALL_SETTINGS: Setting[] = SHAPE_IDS.flatMap((shape) =>
-  (['hit', 'miss'] as const).flatMap((side) => LINE_COUNTS.map((lines) => ({ shape, side, lines }))),
-);
-
-/** The volatility level of a setting, from its win chance. */
+/** The volatility level of a shape, from its win chance. */
 export function volatilityOf(p: number): Volatility {
-  return p >= 0.6 ? 'low' : p >= 0.3 ? 'medium' : p >= 0.1 ? 'high' : 'extreme';
+  return p >= 0.5 ? 'low' : p >= 0.25 ? 'medium' : p >= 0.05 ? 'high' : 'extreme';
 }
 
 /** Every payout is at most the prize, so this bounds any multiplier. */
-export const MAX_MULTIPLIER = Math.max(...ALL_SETTINGS.map((s) => prizeFor(s.shape, s.side, s.lines)));
+export const MAX_MULTIPLIER = Math.max(...SHAPE_IDS.map(prizeFor));

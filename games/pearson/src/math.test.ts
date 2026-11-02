@@ -5,8 +5,8 @@ import manifest from './manifest';
 import {
   HOMES,
   RTP,
+  START,
   STEPS,
-  contours,
   dist,
   homeChance,
   integrate,
@@ -55,18 +55,19 @@ describe('Pearson Walk maths', () => {
       expect(Math.abs(homeChance(n, 0, 1) - 1 / (n + 1))).toBeLessThan(1e-9);
       expect(Math.abs(homeChance(n - 1, 1, 1) - 1 / (n + 1))).toBeLessThan(1e-9);
     }
-    for (const n of STEPS) expect(winChance(n, 1)).toBe(1 / (n + 1));
+    // Starting one step out with N steps to go is an (N+1)-step walk from the centre: 1/(N+2).
+    for (const n of STEPS) expect(winChance(n, 1)).toBe(1 / (n + 2));
   });
 
   it('the headline chances match the live tables and the closed forms', () => {
     for (const rho of HOMES) {
       for (const n of STEPS) {
         const p = winChance(n, rho);
-        expect(Math.abs(homeChance(n - 1, 1, rho) - p)).toBeLessThan(1e-9);
-        expect(Math.abs(homeChance(n, 0, rho) - p)).toBeLessThan(1e-9);
+        expect(Math.abs(homeChance(n, START, rho) - p)).toBeLessThan(1e-9);
+        if (n + 1 <= KMAX) expect(Math.abs(homeChance(n + 1, 0, rho) - p)).toBeLessThan(1e-9);
       }
-      // Two steps: |S₂| = 2|cos(θ/2)|, so P(|S₂| ≤ ρ) = (2/π)·asin(ρ/2).
-      expect(Math.abs(winChance(2, rho) - (2 / Math.PI) * Math.asin(rho / 2))).toBeLessThan(1e-15);
+      // Two steps from the centre: |S₂| = 2|cos(θ/2)|, so P(|S₂| ≤ ρ) = (2/π)·asin(ρ/2).
+      expect(Math.abs(homeChance(2, 0, rho) - (2 / Math.PI) * Math.asin(rho / 2))).toBeLessThan(1e-9);
     }
   });
 
@@ -109,13 +110,13 @@ describe('Pearson Walk maths', () => {
     }
   });
 
-  it('simulated raw walks end home as often as the formula says', () => {
+  it('simulated raw walks from one step out end home as often as the formula says', () => {
     for (const rho of HOMES) {
       for (const n of STEPS) {
         const rounds = 20_000;
         let wins = 0;
         for (let i = 0; i < rounds; i++) {
-          let x = 0;
+          let x = START;
           let y = 0;
           for (let s = 0; s < n; s++) {
             const a = rng.next() * 2 * Math.PI;
@@ -136,10 +137,10 @@ describe('Pearson Walk maths', () => {
       for (const n of STEPS) {
         const prize = prizeFor(n, rho);
         for (let trial = 0; trial < 12; trial++) {
-          // Walk a random number of steps, staying in live states.
-          let p: Pt = stepFrom({ x: 0, y: 0 }, rng.next() * 2 * Math.PI);
-          let left = n - 1;
-          const stop = 1 + rng.int(n - 1);
+          // From the start, walk a random number of steps, staying in live states.
+          let p: Pt = { x: START, y: 0 };
+          let left = n;
+          const stop = rng.int(n);
           while (n - left < stop) {
             const q = stepFrom(p, rng.next() * 2 * Math.PI);
             if (verdict(left - 1, dist(q), rho)) continue;
@@ -155,11 +156,26 @@ describe('Pearson Walk maths', () => {
     expect(worst).toBeLessThan(1e-7);
   });
 
-  it('the first step is free: the cash-out after it is exactly the RTP', () => {
-    for (const rho of HOMES) for (const n of STEPS) expect(Math.abs(prizeFor(n, rho) * homeChance(n - 1, 1, rho) - RTP)).toBeLessThan(1e-8);
+  it('the start is worth exactly the RTP: prize × P_N(1) = RTP', () => {
+    for (const rho of HOMES) for (const n of STEPS) expect(Math.abs(prizeFor(n, rho) * homeChance(n, START, rho) - RTP)).toBeLessThan(1e-8);
   });
 
-  it('the drawn odds are the true odds: the last step’s green arc, the rising arcs and the labelled rings', () => {
+  it('turning the board is free: the odds and the drawn arcs depend only on the distance', () => {
+    for (const rho of HOMES) {
+      for (let trial = 0; trial < 20; trial++) {
+        const k = 1 + rng.int(6);
+        const r = 0.05 + (k + rho - 0.1) * rng.next();
+        if (verdict(k, r, rho)) continue;
+        const a = rng.next() * 2 * Math.PI;
+        const onRay = stepArcs(k, { x: 0, y: -r }, rho)!;
+        const turned = stepArcs(k, { x: r * Math.cos(a), y: r * Math.sin(a) }, rho)!;
+        expect(Math.abs(upShare(onRay) - upShare(turned))).toBeLessThan(1e-12);
+        expect(onRay.length).toBe(turned.length);
+      }
+    }
+  });
+
+  it('the drawn odds are the true odds: the last step’s green arc and the rising arcs', () => {
     for (const rho of HOMES) {
       for (let trial = 0; trial < 30; trial++) {
         const k = 1 + rng.int(6);
@@ -182,9 +198,6 @@ describe('Pearson Walk maths', () => {
           if (edge < 2e-3) continue;
           expect(arc.up).toBe(valueAt(k - 1, dist(stepFrom(p, t)), rho) > now);
         }
-      }
-      for (let k = 1; k <= KMAX; k++) {
-        for (const c of contours(k, rho, Math.min(k + rho, 7))) expect(Math.abs(homeChance(k, c.radius, rho) - c.level)).toBeLessThan(1e-9);
       }
     }
   });

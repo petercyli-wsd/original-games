@@ -82,6 +82,9 @@
 }
 
 /* ---------- Cabinet ---------- */
+.reels .og-stage {
+  gap: 10px;
+}
 .rl-board .og-instant {
   top: 2px;
 }
@@ -97,9 +100,9 @@
 }
 .rl-cabinet {
   position: relative;
-  width: min(100%, 640px);
+  width: min(100%, 560px);
   margin: 0 auto;
-  padding: 10px 10px 12px;
+  padding: 8px 10px 10px;
   border-radius: 18px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, #14141c) 0%, #0d0d13 60%),
@@ -130,34 +133,27 @@
   align-items: center;
   justify-content: center;
   gap: 12px;
-  min-height: 30px;
-  margin-bottom: 8px;
+  min-height: 28px;
+  margin-bottom: 6px;
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
-.rl-brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0.32em;
-  color: var(--accent);
-  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent);
+.rl-topbar-hint {
+  font-size: 12px;
+  font-weight: 600;
 }
-.rl-brand.hidden {
+.rl-topbar-hint b {
+  font-size: 13px;
+  color: var(--text);
+}
+.rl-topbar-hint.hidden,
+.rl-topbar-narrow.hidden {
   visibility: hidden;
 }
-.rl-brand i {
-  width: 28px;
-  height: 2px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--accent));
-}
-.rl-brand i:last-child {
-  transform: scaleX(-1);
+.rl-topbar-narrow {
+  display: none;
 }
 .rl-topbar-note {
   position: absolute;
@@ -195,24 +191,30 @@
 .rl-markers {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
+  /* The tabs take the reels' height; they never stretch the reels. */
+  contain: size;
+  padding: 4px 0;
 }
 .rl-marker-row {
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 2px;
+  min-height: 0;
 }
 .rl-marker {
   display: grid;
   place-items: center;
-  height: 15px;
+  flex: 0 1 15px;
+  min-height: 0;
+  line-height: 1;
   border-radius: 4px;
   font-size: 9px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   color: #fff6;
   background: #ffffff0d;
-  cursor: default;
+  cursor: pointer;
   transition:
     background 0.15s,
     color 0.15s,
@@ -344,14 +346,14 @@
   display: grid;
   grid-template-columns: 1fr 1.3fr 1fr;
   gap: 8px;
-  margin-top: 10px;
+  margin-top: 8px;
 }
 .rl-hud > div {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   border-radius: 10px;
   background: #07070b;
   border: 1px solid #ffffff10;
@@ -379,6 +381,156 @@
 .rl-hud-win.on b {
   color: var(--gold);
   animation: rl-pop 0.3s ease-out both;
+}
+
+/* ---------- Odds bar ---------- */
+.rl-odds {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 6px 10px 7px;
+  border-radius: 10px;
+  background: #07070b;
+  border: 1px solid #ffffff10;
+}
+.rl-odds-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.rl-odds-head small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.rl-odds-head em {
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  animation: rl-pop 0.3s ease-out both;
+}
+.rl-odds-head em.up {
+  color: var(--green);
+}
+.rl-odds-head em.down {
+  color: var(--red);
+}
+.rl-odds-head b {
+  margin-left: auto;
+  font-size: 18px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.rl-odds-track {
+  display: flex;
+  height: 12px;
+  border-radius: 99px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--red) 28%, var(--bg));
+}
+.rl-odds-track i {
+  display: block;
+  height: 100%;
+  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.rl-odds i.more {
+  background: var(--green);
+}
+.rl-odds i.less {
+  background: color-mix(in srgb, var(--green) 45%, var(--bg));
+}
+.rl-odds i.free {
+  background: var(--gold);
+}
+.rl-odds-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.rl-odds-key span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.rl-odds-key i {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+.rl-odds-key .none i {
+  background: color-mix(in srgb, var(--red) 28%, var(--bg));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 50%, transparent);
+}
+.rl-odds-key b {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Rule strip ---------- */
+.rl-rule {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 14px;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.rl-rule > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.rl-rule b {
+  color: var(--text);
+}
+.rl-rule .rl-sym {
+  width: 20px;
+  height: 20px;
+}
+.rl-rule-icons {
+  display: inline-flex;
+}
+.rl-rule-icons .rl-sym {
+  width: 16px;
+  height: 16px;
+  margin-right: -3px;
+}
+
+.rl-board .og-instant {
+  white-space: nowrap;
+}
+/* A result that returns less than the stake is neither a win nor a loss colour. */
+.rl-board .og-instant.part {
+  border-color: var(--line-strong, #ffffff40);
+}
+.rl-board .og-instant.part b {
+  color: var(--text);
+}
+.rl-board .og-instant.won {
+  border-color: var(--green);
+  box-shadow: 0 0 30px -10px var(--green);
+}
+.rl-board .og-instant.won b {
+  color: var(--green);
+}
+.rl-board .og-instant.lost {
+  border-color: var(--red);
+}
+.rl-board .og-instant.lost b {
+  color: var(--red);
 }
 
 /* ---------- Banners ---------- */
@@ -487,7 +639,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  padding: 4px 8px;
   border-radius: var(--radius);
   background: var(--bg);
   border: 1px solid var(--line);
@@ -501,9 +653,9 @@
   box-shadow: 0 0 18px -8px var(--gold);
 }
 .rl-pt .rl-sym {
-  flex: 0 0 34px;
-  width: 34px;
-  height: 34px;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
 }
 .rl-pt dl {
   display: grid;
@@ -656,8 +808,27 @@
   .rl-cabinet {
     padding: 8px 6px 10px;
   }
-  .rl-topbar-note {
+  .rl-topbar-note,
+  .rl-topbar-hint {
     display: none;
+  }
+  .rl-topbar-narrow {
+    display: inline;
+  }
+  .rl-odds-key {
+    gap: 3px 10px;
+    font-size: 10.5px;
+  }
+  .rl-odds-head {
+    gap: 6px;
+    font-size: 12px;
+  }
+  .rl-odds-head small,
+  .rl-odds-head em {
+    font-size: 10px;
+  }
+  .rl-odds-head b {
+    font-size: 16px;
   }
   .rl-hud b {
     font-size: 14px;

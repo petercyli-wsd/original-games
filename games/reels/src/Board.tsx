@@ -2,8 +2,9 @@
 // line markers. Reel motion is driven by Game (WAAPI on the strip elements);
 // this file only renders what it's given.
 
+import { fmtChance } from '@originals/game-sdk/ui';
 import { type CSSProperties, type MutableRefObject, type ReactNode } from 'react';
-import { LINES, PAYLINES, REELS, ROWS, SCATTER, WILD } from './math';
+import { LINES, PAYLINES, REELS, ROWS, SCATTER, WILD, type SpinOdds } from './math';
 
 /** A distinct colour per payline (golden-angle hues). */
 export const lineColour = (l: number) => `hsl(${Math.round((l * 137.508 + 20) % 360)} 90% 62%)`;
@@ -151,11 +152,27 @@ export interface ReelsProps {
   activeLines: number;
   hoverLine: number | null;
   onHoverLine(l: number | null): void;
+  /** Tapping a tab pins its line (tap again to unpin). */
+  onPinLine(l: number): void;
   free: boolean;
 }
 
 /** Left / right line markers: numbered tabs at each line's entry and exit row. */
-function Markers({ side, activeLines, hoverLine, onHoverLine, shown }: { side: 0 | 4; activeLines: number; hoverLine: number | null; onHoverLine(l: number | null): void; shown: Set<number> }) {
+function Markers({
+  side,
+  activeLines,
+  hoverLine,
+  onHoverLine,
+  onPinLine,
+  shown,
+}: {
+  side: 0 | 4;
+  activeLines: number;
+  hoverLine: number | null;
+  onHoverLine(l: number | null): void;
+  onPinLine(l: number): void;
+  shown: Set<number>;
+}) {
   return (
     <div className={'rl-markers ' + (side === 0 ? 'left' : 'right')} aria-hidden="true">
       {[0, 1, 2].map((row) => (
@@ -167,8 +184,10 @@ function Markers({ side, activeLines, hoverLine, onHoverLine, shown }: { side: 0
                 key={l}
                 className={'rl-marker' + (l < activeLines ? ' on' : '') + (shown.has(l) || hoverLine === l ? ' lit' : '')}
                 style={{ '--lc': lineColour(l) } as CSSProperties}
+                title={`Line ${l + 1}${l < activeLines ? '' : ' (not played)'}`}
                 onMouseEnter={() => onHoverLine(l)}
                 onMouseLeave={() => onHoverLine(null)}
+                onClick={() => onPinLine(l)}
               >
                 {l + 1}
               </span>
@@ -179,12 +198,12 @@ function Markers({ side, activeLines, hoverLine, onHoverLine, shown }: { side: 0
   );
 }
 
-export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lineCounts, activeLines, hoverLine, onHoverLine, free }: ReelsProps) {
+export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lineCounts, activeLines, hoverLine, onHoverLine, onPinLine, free }: ReelsProps) {
   const shown = new Set(shownLines);
   const drawn = hoverLine !== null && !shown.has(hoverLine) ? [...shownLines, hoverLine] : shownLines;
   return (
     <div className={'rl-machine' + (free ? ' free' : '')}>
-      <Markers side={0} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} shown={shown} />
+      <Markers side={0} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} onPinLine={onPinLine} shown={shown} />
       <div className="rl-window">
         <div className="rl-reels">
           {cols.map((col, r) => (
@@ -222,9 +241,79 @@ export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lin
           })}
         </svg>
       </div>
-      <Markers side={4} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} shown={shown} />
+      <Markers side={4} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} onPinLine={onPinLine} shown={shown} />
     </div>
   );
 }
 
 export const ALL_LINES = Array.from({ length: LINES }, (_, i) => i);
+
+/**
+ * The spin's odds as a bar: its filled share is the exact chance the spin pays
+ * anything, split into free spins, more than the bet and up to the bet. While
+ * the reels land it shows the chance given the reels already stopped.
+ */
+export function OddsMeter({ odds, label, note, from }: { odds: SpinOdds; label: string; note?: ReactNode; from?: number | null }) {
+  const parts = [
+    { k: 'more', p: odds.more, name: 'More than bet' },
+    { k: 'less', p: odds.less, name: 'Up to bet' },
+    { k: 'free', p: odds.free, name: 'Free spins' },
+  ];
+  const up = from != null && odds.pays > from + 1e-12;
+  const down = from != null && odds.pays < from - 1e-12;
+  return (
+    <div className="rl-odds" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={1} aria-valuenow={odds.pays}>
+      <div className="rl-odds-head">
+        <span>{label}</span>
+        {note != null && <small>{note}</small>}
+        {from != null && (up || down) && (
+          <em key={`${from}-${odds.pays}`} className={up ? 'up' : 'down'}>
+            {up ? '▲' : '▼'} from {fmtChance(from)}
+          </em>
+        )}
+        <b>{fmtChance(odds.pays)}</b>
+      </div>
+      <div className="rl-odds-track">
+        {parts.map((x) => (
+          <i key={x.k} className={x.k} style={{ width: `${x.p * 100}%` }} />
+        ))}
+      </div>
+      <div className="rl-odds-key">
+        {parts.map((x) => (
+          <span key={x.k}>
+            <i className={x.k} />
+            {x.name} <b>{fmtChance(x.p)}</b>
+          </span>
+        ))}
+        <span className="none">
+          <i />
+          Nothing <b>{fmtChance(Math.max(0, 1 - odds.pays))}</b>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** The whole rule, under the reels, in three short pieces. */
+export function RuleStrip({ mult }: { mult: number }) {
+  return (
+    <div className="rl-rule" aria-label="Rules">
+      <span>
+        <span className="rl-rule-icons">
+          <SymbolArt sym={4} />
+          <SymbolArt sym={4} />
+          <SymbolArt sym={4} />
+        </span>
+        <b>Pays:</b> 3+ alike from the left on a line
+      </span>
+      <span>
+        <SymbolArt sym={WILD} />
+        <b>Wild</b> stands in on reels 2–4
+      </span>
+      <span>
+        <SymbolArt sym={SCATTER} />
+        <b>3+ anywhere:</b> free spins, wins ×{mult}
+      </span>
+    </div>
+  );
+}

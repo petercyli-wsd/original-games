@@ -2,10 +2,20 @@ import { formatAmount, formatMultiplier, type BetTicket } from '@originals/game-
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
-import Sparkline from './components/Sparkline';
+import Tally from './components/Tally';
 import Urn from './components/Urn';
-import { currentCash, drawsLeft, initialState, reducer, startingBalls, type Outcome, type Round } from './game';
-import { PACES, PRESETS, PRESET_IDS, RTP, blueNeeded, prize, winProbability, type Pace, type PresetId } from './math';
+import {
+  currentCash,
+  currentChance,
+  drawnCounts,
+  initialState,
+  newRound,
+  reducer,
+  settledValue,
+  type Outcome,
+  type Round,
+} from './game';
+import { DRAWS, MAJORITY, PRESETS, PRESET_IDS, RTP, prize, type PresetId } from './math';
 
 // Readable win chance: never shows 0% or 100% while the round is still open.
 function chance(p: number) {
@@ -18,44 +28,19 @@ function chance(p: number) {
 const OUTCOME_TITLE: Record<Outcome, string> = {
   cashed: 'Cashed out',
   won: 'Blue wins',
-  clinched: 'Blue clinched it',
   lost: 'Red wins',
-  sealed: 'Red sealed it',
 };
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
-
 function outcomeText(outcome: Outcome, r: Round, mult: number) {
-  const score = `${r.blue} to ${r.red}`;
-  const spare = plural(drawsLeft(r), 'draw');
+  const { blue, red } = drawnCounts(r);
   switch (outcome) {
     case 'cashed':
       return `Cashed out at ${formatMultiplier(mult)}.`;
     case 'won':
-      return `Blue holds the majority, ${score}. Paid ${formatMultiplier(mult)}.`;
-    case 'clinched':
-      return `Blue's majority is locked in with ${spare} to spare. Paid ${formatMultiplier(mult)}.`;
+      return `Blue reached ${MAJORITY} first, ${blue} to ${red}.`;
     case 'lost':
-      return `Red holds the majority, ${score}.`;
-    case 'sealed':
-      return `Red can't be caught with ${spare} left. Round over.`;
+      return `Red reached ${MAJORITY} first, ${red} to ${blue}.`;
   }
-}
-
-/** A preview round for the selected settings, shown before the first bet. */
-function previewRound(preset: PresetId, draws: number): Round {
-  const { blue, red } = PRESETS[preset];
-  return {
-    preset,
-    draws,
-    bet: 0,
-    prize: prize(preset, draws),
-    balls: startingBalls(preset),
-    blue,
-    red,
-    history: [],
-    probs: [winProbability(blue, red, draws)],
-  };
 }
 
 export default function App() {
@@ -66,7 +51,6 @@ export default function App() {
   const turbo = host.turbo || localTurbo;
 
   const [preset, setPreset] = useState<PresetId>('wild');
-  const [pace, setPace] = useState<Pace>(21);
   const [betText, setBetText] = useState('1.00');
   const [infoOpen, setInfoOpen] = useState(false);
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
@@ -74,21 +58,16 @@ export default function App() {
   const placing = useRef(false);
   const [error, setError] = useState('');
 
-  const { phase, round, picked, burst, result } = state;
-  const inRound = phase === 'drawing' || phase === 'checkpoint';
+  const { phase, round, drawing, result } = state;
+  const inRound = phase === 'live' || phase === 'drawing';
 
-  // Animate a draw in two beats: lift a random ball out, then drop its twin in.
+  // A draw plays in two beats: the ball out on its own, then with its twin,
+  // then both go into the urn. The ball was chosen when Draw was pressed.
   useEffect(() => {
-    if (phase !== 'drawing' || !round) return;
-    const fast = turbo || burst > 1;
-    const delay = picked === null ? (turbo ? 40 : fast ? 70 : 160) : turbo ? 120 : fast ? 240 : 560;
-    const t = setTimeout(
-      () => dispatch(picked === null ? { type: 'pick', index: rng.int(round.balls.length) } : { type: 'apply' }),
-      delay,
-    );
+    if (phase !== 'drawing' || !drawing) return;
+    const t = setTimeout(() => dispatch({ type: drawing.twin ? 'apply' : 'twin' }), turbo ? 150 : drawing.twin ? 650 : 550);
     return () => clearTimeout(t);
-    // Re-run per beat: a new pick, or a new draw applied.
-  }, [phase, picked, round?.history.length]);
+  }, [phase, drawing?.twin, turbo]);
 
   // Settle when a round ends.
   useEffect(() => {
@@ -97,20 +76,19 @@ export default function App() {
     ticket.current = null;
   }, [phase, result]);
 
-  // Every pause between draws is a checkpoint.
+  // Every pause after a draw is a checkpoint.
   useEffect(() => {
-    if (phase === 'checkpoint' && round) {
-      track({ type: 'checkpoint', multiplier: currentCash(round), winChance: round.probs[round.probs.length - 1] });
+    if (phase === 'live' && round && round.history.length > 0) {
+      track({ type: 'checkpoint', multiplier: currentCash(round), winChance: currentChance(round) });
     }
   }, [phase, round?.history.length]);
 
-  // Leaving mid-round cashes out at the current fair value, prize × P_t.
+  // Leaving mid-round cashes out at the fair value, counting a draw under way as made.
   const latest = useRef(state);
   latest.current = state;
   useEffect(
     () => () => {
-      const r = latest.current.round;
-      if (ticket.current && r) void ticket.current.settle(currentCash(r));
+      if (ticket.current && latest.current.round) void ticket.current.settle(settledValue(latest.current));
     },
     [],
   );
@@ -124,13 +102,17 @@ export default function App() {
     try {
       ticket.current = await wallet.placeBet(bet);
       setError('');
-      dispatch({ type: 'start', bet, preset, draws: pace });
+      dispatch({ type: 'start', bet, preset });
     } catch {
       setError(bet > balance ? 'Not enough balance.' : 'Enter a valid bet.');
     } finally {
       placing.current = false;
     }
-  }, [wallet, bet, balance, preset, pace]);
+  }, [wallet, bet, balance, preset]);
+
+  const draw = useCallback(() => {
+    if (phase === 'live' && round) dispatch({ type: 'draw', index: rng.int(round.balls.length) });
+  }, [phase, round, rng]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -138,7 +120,7 @@ export default function App() {
       if (infoOpen || target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
       if (e.code === 'Space') {
         e.preventDefault();
-        if (phase === 'checkpoint') dispatch({ type: 'draw', count: 1 });
+        if (phase === 'live') draw();
         else if ((phase === 'idle' || phase === 'over') && !betInvalid) void start();
       } else if (e.key.toLowerCase() === 'c') {
         dispatch({ type: 'cashOut' });
@@ -146,7 +128,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [phase, start, infoOpen, betInvalid]);
+  }, [phase, start, draw, infoOpen, betInvalid]);
 
   // Changing settings after a round clears the finished board.
   const change = (apply: () => void) => {
@@ -154,22 +136,23 @@ export default function App() {
     dispatch({ type: 'clear' });
   };
 
-  const view = round ?? previewRound(preset, pace);
-  const p = view.probs[view.probs.length - 1];
-  const left = drawsLeft(view);
-  const total = view.blue + view.red;
-  const share = view.blue / total;
+  const view = round ?? newRound(preset, bet);
+  const p = currentChance(view);
   const cash = currentCash(view);
   const stake = round?.bet ?? bet;
-  const finalSize = view.balls.length - view.history.length + view.draws;
-  const need = blueNeeded(view.blue, view.red, left);
+  const drawn = drawnCounts(view);
+  const canCash = phase === 'live' && view.history.length > 0;
+  const urnBlue = view.balls.filter((c) => c === 'blue').length;
+  const share = urnBlue / view.balls.length;
+  // Rounded so the two sides always add up to 100.
+  const bluePct = Math.round(share * 100);
+  const initial = view.balls.length - view.history.length;
 
-  let message: { text: string; tone: 'neutral' | 'win' | 'lose' } = {
-    text: `You are blue. Hold a strict majority of the ${finalSize} balls after ${view.draws} draws.`,
-    tone: 'neutral',
-  };
-  if (phase === 'drawing') message = { text: burst > 1 ? `Drawing ${plural(state.pending, 'ball')}…` : 'Drawing…', tone: 'neutral' };
-  if (phase === 'checkpoint') message = { text: `Blue needs ${need} of the last ${plural(left, 'draw')}. Cash out or draw on.`, tone: 'neutral' };
+  let message: { text: string; tone: 'neutral' | 'win' | 'lose' } = { text: 'You are blue. Pick an urn, then Bet.', tone: 'neutral' };
+  if (phase === 'live') {
+    message = { text: view.history.length === 0 ? 'Bet placed. Press Draw ball.' : 'Cash out, or draw the next ball.', tone: 'neutral' };
+  }
+  if (phase === 'drawing') message = { text: 'Drawing…', tone: 'neutral' };
   // A cash-out below 1× is a partial refund: neither a win nor a loss.
   const tone = !result ? 'neutral' : result.mult >= 1 ? 'win' : result.mult > 0 ? 'neutral' : 'lose';
   if (phase === 'over' && result && round) message = { text: outcomeText(result.outcome, round, result.mult), tone };
@@ -200,7 +183,7 @@ export default function App() {
 
         <div className="field">
           <span className="label">
-            Urn <span className="hint">blue : red at the start</span>
+            Starting urn <span className="hint">blue : red · prize</span>
           </span>
           <div className="presets" role="radiogroup" aria-label="Starting urn">
             {PRESET_IDS.map((id) => {
@@ -219,7 +202,7 @@ export default function App() {
                   <span className="ratio">
                     <b className="t-blue">{s.blue}</b>:<b className="t-red">{s.red}</b>
                   </span>
-                  <span className="preset-prize">{formatMultiplier(prize(id, pace))}</span>
+                  <span className="preset-prize">{formatMultiplier(prize(id))}</span>
                 </button>
               );
             })}
@@ -227,39 +210,27 @@ export default function App() {
           <span className="blurb">{PRESETS[preset].blurb}</span>
         </div>
 
-        <div className="field">
-          <span className="label">
-            Draws <span className="hint">more = longer round</span>
-          </span>
-          <div className="segmented">
-            {PACES.map((n) => (
-              <button key={n} className={n === pace ? 'on' : ''} disabled={inRound} onClick={() => change(() => setPace(n))}>
-                {n}
-              </button>
-            ))}
+        {inRound ? (
+          <div className="actions">
+            <button key="draw" className="primary" disabled={phase !== 'live'} onClick={draw}>
+              {phase === 'drawing' ? 'Drawing…' : 'Draw ball'}
+            </button>
+            <button key="cash" className="primary cash" disabled={!canCash} onClick={() => dispatch({ type: 'cashOut' })}>
+              {canCash ? (
+                <>
+                  Cash out {formatAmount(stake * cash, 2)}
+                  <small>{formatMultiplier(cash)}</small>
+                </>
+              ) : (
+                'Cash out after a draw'
+              )}
+            </button>
           </div>
-        </div>
-
-        {phase === 'checkpoint' && round ? (
-          <button key="cash" className="primary cash" onClick={() => dispatch({ type: 'cashOut' })}>
-            Cash out {formatAmount(round.bet * cash, 2)}
-            <small>{formatMultiplier(cash)}</small>
-          </button>
         ) : (
-          <button key="bet" className="primary" disabled={phase === 'drawing' || betInvalid} onClick={() => void start()}>
-            {phase === 'drawing' ? 'Drawing…' : phase === 'over' ? 'Bet again' : 'Bet'}
+          <button key="bet" className="primary" disabled={betInvalid} onClick={() => void start()}>
+            {phase === 'over' ? 'Bet again' : 'Bet'}
           </button>
         )}
-        <div className="draws">
-          {[1, 5].map((n) => (
-            <button key={n} className="secondary" disabled={phase !== 'checkpoint'} onClick={() => dispatch({ type: 'draw', count: n })}>
-              Draw {phase === 'checkpoint' ? Math.min(n, left) : n}
-            </button>
-          ))}
-          <button className="secondary" disabled={phase !== 'checkpoint'} onClick={() => dispatch({ type: 'draw', count: left })}>
-            Draw all
-          </button>
-        </div>
 
         <dl className="stats">
           <div>
@@ -267,7 +238,7 @@ export default function App() {
             <dd>{formatMultiplier(view.prize)}</dd>
           </div>
           <div>
-            <dt>Starting win chance</dt>
+            <dt>Chance to win at the start</dt>
             <dd>{chance(view.probs[0])}</dd>
           </div>
           <div>
@@ -290,18 +261,18 @@ export default function App() {
       <section className="stage">
         <div className="readout">
           <div className="tile win-tile">
-            <span className="tile-label">Win chance</span>
+            <span className="tile-label">Blue wins</span>
             <b className="big" aria-live="polite">
               {chance(p)}
             </b>
-            <span className="meter" aria-hidden="true">
+            <span className="meter" role="img" aria-label={`Blue wins ${chance(p)}`}>
               <i style={{ width: `${p * 100}%` }} />
             </span>
           </div>
           <div className="tile">
             <span className="tile-label">Cash out now</span>
-            <b className="mid">{phase === 'checkpoint' ? formatMultiplier(cash) : '–'}</b>
-            <span className="sub">{phase === 'checkpoint' ? formatAmount(stake * cash, 2) : 'after each draw'}</span>
+            <b className="mid">{canCash ? formatMultiplier(cash) : '–'}</b>
+            <span className="sub">{canCash ? formatAmount(stake * cash, 2) : 'after each draw'}</span>
           </div>
           <div className="tile">
             <span className="tile-label">Prize</span>
@@ -310,25 +281,17 @@ export default function App() {
           </div>
         </div>
 
-        <div className="share">
-          <div className="share-head">
-            <span className="t-blue">
-              <b>{view.blue}</b> blue · {(share * 100).toFixed(0)}%
-            </span>
-            <span className="share-goal">majority</span>
-            <span className="t-red">
-              {((1 - share) * 100).toFixed(0)}% · <b>{view.red}</b> red
-            </span>
-          </div>
-          <div className="share-bar" role="img" aria-label={`Blue holds ${(share * 100).toFixed(0)}% of the urn`}>
-            <i className="share-blue" style={{ width: `${share * 100}%` }} />
-            <span className="share-line" />
-          </div>
-        </div>
+        <Tally blue={drawn.blue} red={drawn.red} live={phase === 'live'} />
 
         <div className="board">
           <div className="urn-wrap">
-            <Urn balls={view.balls} initial={total - view.history.length} capacity={finalSize} picked={picked} />
+            <Urn
+              balls={view.balls}
+              initial={initial}
+              capacity={initial + DRAWS}
+              drawing={drawing}
+              lastDrawn={round ? state.lastDrawn : null}
+            />
             {phase === 'over' && result && round && (
               <RoundOver
                 key={state.recent[0]?.id}
@@ -347,23 +310,35 @@ export default function App() {
           <div className="side">
             <div className="card">
               <div className="card-head">
-                <span>Win chance by draw</span>
-                <span className="muted">fair at every step</span>
+                <span>Next ball</span>
+                <span className="muted">share of the urn</span>
               </div>
-              <Sparkline probs={view.probs} draws={view.draws} />
-            </div>
-            <div className="card">
-              <div className="card-head">
-                <span>Draws</span>
-                <span className="muted">
-                  {view.history.length} / {view.draws}
+              <div className="share-head">
+                <span className="t-blue">
+                  <b>{bluePct}%</b> blue
+                </span>
+                <span className="t-red">
+                  red <b>{100 - bluePct}%</b>
                 </span>
               </div>
-              <ol className="strip" aria-label="Draw history">
-                {Array.from({ length: view.draws }, (_, i) => (
-                  <li key={i} className={view.history[i] ?? (i === view.history.length && inRound ? 'next' : '')} />
-                ))}
-              </ol>
+              <div className="share-bar" role="img" aria-label={`Next ball: ${bluePct}% blue`}>
+                <i className="share-blue" style={{ width: `${share * 100}%` }} />
+              </div>
+              <div className="share-count muted">
+                {urnBlue} blue · {view.balls.length - urnBlue} red in the urn
+              </div>
+            </div>
+            <div className="card twin-rule">
+              <span className="rule-pic" aria-hidden="true">
+                <i className="ball blue" />
+                <span className="arrow">→</span>
+                <i className="ball blue" />
+                <i className="ball blue" />
+              </span>
+              <span>
+                <b>Each drawn ball goes back with a twin.</b>
+                <span className="muted rule-sub">The urn grows by one per draw.</span>
+              </span>
             </div>
           </div>
         </div>

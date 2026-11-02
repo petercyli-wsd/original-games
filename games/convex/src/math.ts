@@ -1,48 +1,50 @@
-// Convex: points drop uniformly into an arena (a square or a triangle), one
-// at a time. You survive while every point is a corner of the convex hull,
-// i.e. while the points are in convex position. Reach the target number of
-// corners and the round pays out.
+// Convex: dots drop uniformly into a square, one at a time. Each dot must
+// land in the green zone; a dot that lands in red loses the round. Place the
+// chosen number of dots and the round pays out.
 //
-// The bust region. Let the hull have corners v1..vn (counter-clockwise) and
+// What green and red mean. Green is exactly where a new dot keeps every dot a
+// corner of the shape they make (their convex hull), i.e. keeps the dots in
+// convex position. Let the hull have corners v1..vn (counter-clockwise) and
 // edges ei = (vi, vi+1). Seen from a point p outside a convex polygon, the
 // edges whose lines p lies beyond form one contiguous chain. So p either
-//   - lies beyond no edge line: it is inside the hull, not a corner: lost;
+//   - lies beyond no edge line: it is inside the shape: red;
 //   - lies beyond two or more edge lines: the chain then contains two edges
-//     that meet at a corner v, p is in v's "swallow cone"
-//     {v + s(v − u) + t(v − w) : s, t ≥ 0} (u, w are v's neighbours), and v
-//     falls inside the new hull: lost;
+//     that meet at a corner v, p is in v's "shadow"
+//     {v + s(v - u) + t(v - w) : s, t >= 0} (u, w are v's neighbours), and v
+//     falls inside the new hull: red;
 //   - lies beyond exactly one edge line ei: the new hull is
-//     v1..vi, p, vi+1..vn and every point is still a corner: safe.
-// The safe region is therefore n disjoint convex "caps",
-//   cap_i = arena ∩ beyond(ei) ∩ inside(ej) for every j ≠ i,
+//     v1..vi, p, vi+1..vn and every dot is still a corner: green.
+// The green zone is therefore n disjoint convex "caps",
+//   cap_i = square ∩ beyond(ei) ∩ inside(ej) for every j ≠ i,
 // each an exact convex polygon clip (Sutherland–Hodgman against half-planes),
-// and the bust chance of the next drop is
-//   q = 1 − Σ area(cap_i) / area(arena),
-// the red share of the arena on the board (hull ∪ swallow cones). There is
-// no sampling anywhere: the areas are shoelace sums of exact clip vertices.
+// and the chance the next dot lands in red is
+//   q = 1 − Σ area(cap_i) / area(square),
+// the red share of the square on the board (inside + shadows, one region).
+// There is no sampling anywhere: the areas are shoelace sums of exact clip
+// vertices.
 //
-// Pricing (per-step fair factor). Surviving a drop with bust chance q
+// Pricing (per-step fair factor). Surviving a drop with red share q
 // multiplies the cash-out by 1/(1 − q), so E[cash-out after the drop] =
 // (1 − q)·cash/(1 − q) + q·0 = cash. The cash-out is a martingale that starts
 // at RTP, every round ends within `target` drops, and by optional stopping
 // every strategy (any cash-out rule, the auto-drop rule, playing to the end)
 // returns exactly RTP. The first three drops are free (q = 0): three random
-// points always make a triangle.
+// points always make a triangle. There is no fixed full prize: placing the
+// last dot pays the cash-out at that moment, which the board shows live.
 //
-// Max win. The safe caps can be arbitrarily thin (a hull hugging the arena's
-// corners), so 1/(1 − q) is unbounded. Before a drop, if surviving would push
-// the cash-out above MAX_WIN, the round auto-cashes instead. That is a
-// stopping rule, so RTP is unchanged, and MAX_WIN bounds every payout. A drop
-// with q = 1 is never offered either (same rule).
+// Max win. The green caps can be arbitrarily thin (a hull hugging the
+// square's corners), so 1/(1 − q) is unbounded. Before a drop, if surviving
+// would push the cash-out above MAX_WIN, the round auto-cashes instead. That
+// is a stopping rule, so RTP is unchanged, and MAX_WIN bounds every payout. A
+// drop with q = 1 is never offered either (same rule).
 //
-// Headline odds (Valtr 1995). n uniform points in a parallelogram are in
-// convex position with probability (C(2n−2, n−1) / n!)²; in a triangle,
-// 2ⁿ·(3n−3)! / ((n−1)!³·(2n)!). Convex position is hereditary (a subset of a
-// convex-position set is one too), so dropping points until the first failure
-// reaches n corners with exactly this probability. n = 4 is Sylvester's
-// four-point problem: 25/36 in a square, 2/3 in a triangle. Because the
-// played-to-the-end payout is a martingale that is 0 on a loss,
-// E[full prize | complete] = RTP / P(complete): the "average full prize".
+// Chance to place all n dots (Valtr 1995). n uniform points in a
+// parallelogram are in convex position with probability (C(2n−2, n−1) / n!)².
+// Convex position is hereditary (a subset of a convex-position set is one
+// too), so dropping dots until the first red one places all n with exactly
+// this probability. n = 4 is Sylvester's four-point problem: 25/36. This is
+// exact only before the first drop; once dots are down the game shows the
+// exact chance of the next drop (1 − q) instead.
 //
 // Tie rule: a point exactly on an edge line counts as not beyond it. Lines
 // have zero area, so this never changes a probability.
@@ -57,27 +59,16 @@ export const MAX_WIN = 10_000;
 /** Free drops at the start: any three points are in convex position. */
 export const FREE_DROPS = 3;
 
-export const ARENAS = ['square', 'triangle'] as const;
-export type Arena = (typeof ARENAS)[number];
-
-/** Corners to build (the round pays out when the last one lands safe). 4 is Sylvester's problem. */
+/** Dots to place (the round pays out when the last one lands in green). 4 is Sylvester's problem. */
 export const TARGETS = [4, 5, 6, 7, 8] as const;
 export type Target = (typeof TARGETS)[number];
 
-export const POLYGON_NAME: Record<Target, string> = {
-  4: 'quadrilateral',
-  5: 'pentagon',
-  6: 'hexagon',
-  7: 'heptagon',
-  8: 'octagon',
-};
-
 /** The eval's configs, one per volatility level. */
-export const VOLATILITY: Record<Volatility, { arena: Arena; target: Target }> = {
-  low: { arena: 'square', target: 5 },
-  medium: { arena: 'triangle', target: 6 },
-  high: { arena: 'square', target: 7 },
-  extreme: { arena: 'triangle', target: 8 },
+export const VOLATILITY: Record<Volatility, { target: Target }> = {
+  low: { target: 5 },
+  medium: { target: 6 },
+  high: { target: 7 },
+  extreme: { target: 8 },
 };
 
 export interface Pt {
@@ -85,25 +76,13 @@ export interface Pt {
   y: number;
 }
 
-const H = Math.sqrt(3) / 2;
-const LIFT = (1 - H) / 2;
-
-/** The arenas in unit coordinates (y up), counter-clockwise. The triangle is equilateral and centred in the unit box. */
-const ARENA_POLY: Record<Arena, Pt[]> = {
-  square: [
-    { x: 0, y: 0 },
-    { x: 1, y: 0 },
-    { x: 1, y: 1 },
-    { x: 0, y: 1 },
-  ],
-  triangle: [
-    { x: 0, y: LIFT },
-    { x: 1, y: LIFT },
-    { x: 0.5, y: LIFT + H },
-  ],
-};
-
-export const arenaPolygon = (arena: Arena): readonly Pt[] => ARENA_POLY[arena];
+/** The square, in unit coordinates (y up), counter-clockwise. */
+export const SQUARE: readonly Pt[] = [
+  { x: 0, y: 0 },
+  { x: 1, y: 0 },
+  { x: 1, y: 1 },
+  { x: 0, y: 1 },
+];
 
 /** cross((a − o), (b − o)): > 0 when b is left of the directed line o → a. */
 export const cross = (o: Pt, a: Pt, b: Pt) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
@@ -119,17 +98,8 @@ export function polygonArea(poly: readonly Pt[]): number {
   return Math.abs(s) / 2;
 }
 
-export const arenaArea = (arena: Arena) => polygonArea(ARENA_POLY[arena]);
-
-/** A uniform point in the arena, from two uniforms. The triangle folds the unit square onto itself (exactly uniform). */
-export function samplePoint(arena: Arena, next: () => number): Pt {
-  const u = next();
-  const v = next();
-  if (arena === 'square') return { x: u, y: v };
-  const [a, b, c] = ARENA_POLY.triangle;
-  const [s, t] = u + v > 1 ? [1 - u, 1 - v] : [u, v];
-  return { x: a.x + s * (b.x - a.x) + t * (c.x - a.x), y: a.y + s * (b.y - a.y) + t * (c.y - a.y) };
-}
+/** A uniform point in the square, from two uniforms. */
+export const samplePoint = (next: () => number): Pt => ({ x: next(), y: next() });
 
 /** Strict convex hull, counter-clockwise (Andrew's monotone chain). Collinear points are dropped. Keeps the input objects. */
 export function hull(points: readonly Pt[]): Pt[] {
@@ -195,21 +165,21 @@ export function newWedge(h: readonly Pt[], p: Pt): [Pt, Pt, Pt] | null {
 export interface Zones {
   /** The hull, counter-clockwise. */
   hull: Pt[];
-  /** The safe landing caps, one per hull edge (empty caps are dropped). */
+  /** The green landing caps, one per hull edge (empty caps are dropped). */
   caps: Pt[][];
-  /** Chance the next drop busts: the red share of the arena. */
+  /** Chance the next dot lands in red: the red share of the square. */
   q: number;
 }
 
-/** The safe caps and the exact bust chance for the next drop. */
-export function zones(points: readonly Pt[], arena: Arena): Zones {
+/** The green caps and the exact chance the next dot lands in red. The square has area 1. */
+export function zones(points: readonly Pt[]): Zones {
   if (points.length < FREE_DROPS) return { hull: hull(points), caps: [], q: 0 };
   const h = hull(points);
   const n = h.length;
   const caps: Pt[][] = [];
   let safe = 0;
   for (let i = 0; i < n; i++) {
-    let cap: Pt[] = clip(ARENA_POLY[arena], h[i], h[(i + 1) % n], -1);
+    let cap: Pt[] = clip(SQUARE, h[i], h[(i + 1) % n], -1);
     for (let j = 0; j < n && cap.length >= 3; j++) if (j !== i) cap = clip(cap, h[j], h[(j + 1) % n], 1);
     if (cap.length < 3) continue;
     const a = polygonArea(cap);
@@ -217,7 +187,7 @@ export function zones(points: readonly Pt[], arena: Arena): Zones {
     caps.push(cap);
     safe += a;
   }
-  const q = Math.min(1, Math.max(0, 1 - safe / arenaArea(arena)));
+  const q = Math.min(1, Math.max(0, 1 - safe));
   return { hull: h, caps, q };
 }
 
@@ -238,14 +208,10 @@ const choose = (n: number, k: number) => {
   return c;
 };
 
-/** Valtr: exact chance that n uniform points in the arena are in convex position. */
-export function convexChance(n: number, arena: Arena): number {
+/** Valtr: exact chance that n uniform points in the square are in convex position (= placing all n dots in green). */
+export function convexChance(n: number): number {
   if (n <= 3) return 1;
-  if (arena === 'square') return (choose(2 * n - 2, n - 1) / factorial(n)) ** 2;
-  return (2 ** n * factorial(3 * n - 3)) / (factorial(n - 1) ** 3 * factorial(2 * n));
+  return (choose(2 * n - 2, n - 1) / factorial(n)) ** 2;
 }
-
-/** E[full prize | the polygon completes] = RTP / P(complete) (ignoring the rarely-binding max-win stop). */
-export const averageFullPrize = (n: number, arena: Arena) => RTP / convexChance(n, arena);
 
 export const MAX_MULTIPLIER = MAX_WIN;

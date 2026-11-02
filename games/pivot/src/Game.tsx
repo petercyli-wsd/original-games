@@ -4,7 +4,6 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -28,23 +27,20 @@ import { formatAmount } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
 import Field from './Board';
 import {
-  COMMITTEES,
-  COMMITTEE_IDS,
+  LINE,
   RTP,
+  SIZES,
+  blockName,
   cashValue,
-  coalitionSum,
   columns,
   newRound,
   nextLoss,
   plan,
   prizeFor,
-  shapley,
-  tipZone,
-  voterName,
+  startChance,
+  totalOf,
   volatilityOf,
   winChance,
-  zoneText,
-  type CommitteeId,
   type Ending,
   type Round,
 } from './math';
@@ -54,17 +50,14 @@ type Phase = 'idle' | 'joining' | 'checkpoint' | 'over';
 const ACCENT = '#ffb703';
 
 function title(r: Round, ending: Ending): string {
-  const you = voterName(r.backed);
-  const last = voterName(r.order[r.order.length - 1] ?? 0);
+  const you = blockName(r.backed);
   switch (ending) {
-    case 'tipped':
-      return `Pivot! ${you} tipped it`;
+    case 'won':
+      return `${you} crossed the line!`;
     case 'early':
-      return `${you} joined too early`;
-    case 'beaten':
-      return `${last} tipped it first`;
-    case 'reach':
-      return 'Out of reach';
+      return `${you} landed short: too early`;
+    case 'passed':
+      return `${blockName(r.order[r.order.length - 1])} crossed the line first`;
     case 'cashed':
       return 'Cashed out';
   }
@@ -77,13 +70,12 @@ export default function Game() {
   const timers = useTimers();
   const [history, pushHistory] = useHistory();
 
-  const [committee, setCommittee] = useState<CommitteeId>('council');
   const [backed, setBacked] = useState(1);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [stake, setStake] = useState(0);
   const [paid, setPaid] = useState(0);
-  // The state the columns describe (the one before the join in flight), and who is joining.
+  // The state the waiting blocks describe (the one before the join in flight), and who is joining.
   const [before, setBefore] = useState<Round | null>(null);
   const [pick, setPick] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -107,7 +99,7 @@ export default function Game() {
   async function advance(r: Round) {
     const joins = plan(r, rng);
     const last = joins[joins.length - 1];
-    resolved.current = last.status === 'won' ? prizeFor(r.committee, r.backed) : last.status === 'lost' ? 0 : cashValue(last);
+    resolved.current = last.status === 'won' ? prizeFor(r.backed) : last.status === 'lost' ? 0 : cashValue(last);
     setPhase('joining');
     let prev = r;
     for (const next of joins) {
@@ -129,7 +121,7 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const r = newRound(committee, backed);
+    const r = newRound(backed);
     setStake(bet.value);
     setRound(r);
     setPaid(0);
@@ -152,18 +144,12 @@ export default function Game() {
     setPhase('idle');
   }
 
-  // Changing a setting after a round clears the finished board to a preview.
-  const change = (apply: () => void) => {
+  // Changing the block after a round clears the finished board to a preview.
+  const pickBlock = (b: number) => {
     if (live) return;
-    apply();
+    setBacked(b);
     if (phase === 'over') clear();
   };
-
-  const pickCommittee = (c: CommitteeId) =>
-    change(() => {
-      setCommittee(c);
-      setBacked((b) => Math.min(b, COMMITTEES[c].weights.length - 1));
-    });
 
   useHotkeys(
     {
@@ -173,29 +159,21 @@ export default function Game() {
     !infoOpen,
   );
 
-  // What the board shows: the live or finished round, else a preview of the settings.
-  const shown = round ?? newRound(committee, backed);
-  const cid = shown.committee;
-  const { weights, quota } = COMMITTEES[cid];
-  const you = `${voterName(shown.backed)}·${weights[shown.backed]}`;
-  const prize = prizeFor(cid, shown.backed);
-  const phi = shapley(cid, shown.backed);
+  // What the board shows: the live or finished round, else a preview of the chosen block.
+  const shown = round ?? newRound(backed);
+  const you = blockName(shown.backed);
+  const prize = prizeFor(shown.backed);
   const colState = before ?? (shown.status === 'live' ? shown : null);
-  const cols = colState ? columns(colState) : [];
-  const chanceNow = colState ? winChance(colState) : 0;
-  const p = round && round.status === 'live' ? winChance(round) : phi;
+  const cols = round && colState ? columns(colState) : [];
+  const p = round && round.status === 'live' ? winChance(round) : startChance(shown.backed);
   const cash = round ? (phase === 'over' ? paid : cashValue(round)) : RTP;
-  const s = coalitionSum(cid, shown.order);
-  const zone = tipZone(cid, shown.backed);
+  const s = totalOf(shown.order);
   const loss = phase === 'checkpoint' && round ? nextLoss(columns(round)) : 0;
   const ending = phase === 'over' ? shown.ending : null;
 
-  const setPhi = shapley(committee, backed);
-  const vol = volatilityOf(committee, backed);
-
-  let status = `Ready · ${COMMITTEES[cid].name}, quota ${quota}`;
-  if (phase === 'joining' && pick !== null) status = `${voterName(pick)} is joining…`;
-  if (phase === 'checkpoint') status = `Checkpoint · total ${s} of ${quota}`;
+  let status = 'Ready · pick a block';
+  if (phase === 'joining' && pick !== null) status = `${blockName(pick)} is joining…`;
+  if (phase === 'checkpoint') status = `Stack ${s} · ${you} still to join`;
   if (phase === 'over' && ending) status = title(shown, ending);
   const tone = phase === 'over' ? (paid > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
@@ -207,29 +185,20 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint={`quota ${COMMITTEES[committee].quota} of ${COMMITTEES[committee].weights.reduce((a, b) => a + b, 0)}`}>Committee</Label>
+          <Label hint={<VolBadge level={volatilityOf(backed)} />}>Your block</Label>
           <Chips
-            label="Committee"
-            options={COMMITTEE_IDS.map((c) => ({ value: c, label: COMMITTEES[c].name, title: `weights ${COMMITTEES[c].weights.join(', ')}` }))}
-            value={committee}
-            disabled={live}
-            onChange={pickCommittee}
-          />
-
-          <Label hint={<VolBadge level={vol} />}>Back a voter (letter·weight)</Label>
-          <Chips
-            label="Back a voter"
+            label="Your block"
             wrap
-            options={COMMITTEES[committee].weights.map((w, i) => ({ value: i, label: `${voterName(i)}·${w}` }))}
+            options={SIZES.map((w, i) => ({ value: i, label: `${blockName(i)} +${w}`, title: `${fmtChance(startChance(i))} to win, pays ${fmtMult(prizeFor(i))}` }))}
             value={backed}
             disabled={live}
-            onChange={(v) => change(() => setBacked(v))}
+            onChange={pickBlock}
           />
           <dl className="og-stats">
-            <dt>Chance to be the pivot</dt>
-            <dd>{fmtChance(setPhi)}</dd>
+            <dt>Chance to win</dt>
+            <dd>{fmtChance(startChance(backed))}</dd>
             <dt>Prize</dt>
-            <dd>{fmtMult(RTP / setPhi)}</dd>
+            <dd>{fmtMult(prizeFor(backed))}</dd>
           </dl>
 
           {phase === 'checkpoint' ? (
@@ -238,7 +207,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && void advance(round)}>
-                Next voter · {fmtChance(1 - loss)} keep you in
+                Next block · {fmtChance(1 - loss)} safe
               </ActionButton>
             </>
           ) : (
@@ -256,27 +225,29 @@ export default function Game() {
       <Readouts
         items={[
           {
-            label: `Chance ${voterName(shown.backed)} tips it`,
-            value: phase === 'over' ? (paid > 0 && shown.ending === 'tipped' ? '100%' : shown.ending === 'cashed' ? '—' : '0%') : fmtChance(p),
-            sub: live ? `total ${s} of ${quota}` : phase === 'over' ? 'round over' : 'Shapley–Shubik index',
+            label: `Chance ${you} wins`,
+            value: phase === 'over' ? (shown.ending === 'won' ? '100%' : shown.ending === 'cashed' ? '—' : '0%') : fmtChance(p),
+            sub: shown.ending === 'cashed' ? 'round over' : (
+              <span className="pv-meter" title="The green length is the chance">
+                <i style={{ width: `${(phase === 'over' ? (shown.ending === 'won' ? 1 : 0) : p) * 100}%` }} />
+              </span>
+            ),
             tone: 'chance',
           },
           { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: formatAmount((round ? stake : bet.value) * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: `if ${you} is the pivot`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), sub: `if ${you} crosses the line`, tone: 'prize' },
         ]}
       />
 
       <Board>
         <Field
-          committee={cid}
           backed={shown.backed}
           order={shown.order}
           cols={cols}
-          chance={chanceNow || (phase === 'idle' ? phi : 0)}
           pick={pick}
           ending={ending}
-          live={live}
-          onPick={live ? undefined : (v) => change(() => setBacked(v))}
+          picking={!round}
+          onPick={live ? undefined : pickBlock}
         />
         {phase === 'over' && ending && (
           <RoundOver
@@ -293,65 +264,55 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={p}
-          label={`Chance ${you} is the pivot`}
-          note="The same as the green share of the columns: each is one voter who may join next, filled to your chance if it does."
-        />
-      ) : (
-        <Caption>
-          Voters join in a random order; the one whose weight takes the total to {quota} is the pivot. {you} is the pivot in {fmtChance(phi)} of orders
-          (its Shapley–Shubik index), when it joins at a total of {zoneText(zone)}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>
+        Blocks stack up in a random order. You win if {you} is the block that takes the stack over the line at {LINE}. If {you} lands with the stack
+        still short of the line, or another block crosses first, you lose.
+      </Caption>
 
       {infoOpen && (
         <InfoModal title="Pivot" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A committee of weighted voters joins a coalition one at a time, in a random order. The voter whose weight first takes the coalition's total to
-              the quota is the pivot. Back the voter you think will be the pivot.
+              Six blocks of sizes 7, 5, 4, 3, 2 and 1 stack up one at a time, in a random order. Back one block. You win if your block is the one whose top
+              end takes the stack over the line at {LINE}.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick a committee and the voter to back (on the chips or by clicking its column), then bet.</li>
-              <li>Voters join one at a time. After each join you can cash out, or let the next voter join (Space).</li>
+              <li>Pick your block (on the chips or by clicking it on the board). Under each block is its chance to win and what it pays. Then bet.</li>
+              <li>Blocks join the stack one at a time. After each join you can cash out, or let the next block join (Space).</li>
               <li>
-                You win the prize when your voter joins and tips the total to the quota. You lose if it joins too early (the total stays short), if another
-                voter reaches the quota first, or if too little weight is left for your voter ever to tip it.
+                You lose if your block joins <b style={{ color: 'var(--red)' }}>too early</b> (its top lands short of the line), or if another block{' '}
+                <b style={{ color: 'var(--red)' }}>crosses the line first</b>. Once the result is no longer in doubt, the remaining blocks join by themselves.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              On the coalition bar, the <b style={{ color: 'var(--green)' }}>green tip zone</b> is the set of totals at which your voter's joining crosses the
-              quota line; the dashed block shows where it would land right now.
+              The blocks still waiting stand on top of the stack at full size, so you can see where each would reach if it joined next. All are equally
+              likely to be next. Yours is <b style={{ color: 'var(--green)' }}>green</b> when it would cross the line and{' '}
+              <b style={{ color: 'var(--red)' }}>red</b> when it would land short. Another block is <b style={{ color: 'var(--red)' }}>red ✕</b> when its
+              joining next would leave you no way to win: it crosses the line first, or (a dead end) no order of the rest lets yours cross. The count of
+              safe blocks is the button's "safe" share.
             </p>
-            <p>
-              Below, each column is a voter who might join next. All are equally likely, and each column is filled to your chance if that voter joins next
-              (a <b style={{ color: 'var(--red)' }}>✕</b> means the round would end against you). So the filled share of the columns is exactly your chance
-              now, marked by the dashed line.
-            </p>
+            <p>The headline shows your chance to win from here, with a bar whose green length is that chance.</p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              The chance that a voter is the pivot of a random order is its <b>Shapley–Shubik power index</b> φ. Power is not proportional to weight: in the
-              Council (weights 5, 4, 3, 2, 1, quota 9) the indices are 11/30, 17/60, 1/5, 7/60 and 1/30.
+              The chance that a block is the one to cross the line in a random order is its <b>Shapley–Shubik power index</b> φ. It is not proportional to
+              size: here the six blocks have 27/60, 12/60, 9/60, 7/60, 4/60 and 1/60.
             </p>
             <p>
-              Mid-round, with the coalition at total s and m voters still out, the voters ahead of yours are a uniformly random number k of the others,
-              chosen uniformly. Your voter tips it when q − w ≤ s + (their weight) ≤ q − 1, so P = Σ<sub>k</sub> N<sub>k</sub>·k!(m−1−k)!/m!, where N
-              <sub>k</sub> counts k-sets of the others whose weight lands in that gap (an exact subset-sum count).
+              Mid-round, with the stack at s and m blocks still out, the blocks ahead of yours are a uniformly random number k of the others, chosen
+              uniformly. Your block (size w) crosses the line when {LINE} − w ≤ s + (their sizes) ≤ {LINE - 1}, so P = Σ<sub>k</sub> N<sub>k</sub>
+              ·k!(m−1−k)!/m!, where N<sub>k</sub> counts k-sets of the others whose sizes land in that gap (an exact subset-sum count).
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              Backing a voter with index φ pays a prize of {(RTP * 100).toFixed(0)}% / φ. The cash-out is always prize × your exact chance from here. Every
-              voter is equally likely to join next, so that value is the average of the values after each possible join: a fair bet at every step. The round
-              is worth {(RTP * 100).toFixed(0)}% of your stake whichever voter you back and whenever you cash out. If your voter becomes certain to tip the
-              quota, the remaining joins play out by themselves.
+              Backing a block with chance φ pays a prize of {(RTP * 100).toFixed(0)}% / φ. The cash-out is always prize × your exact chance from here. Every
+              block is equally likely to join next, so that value is the average of the values after each possible join: a fair bet at every step. The round
+              is worth {(RTP * 100).toFixed(0)}% of your stake whichever block you back and whenever you cash out.
             </p>
           </InfoSection>
         </InfoModal>

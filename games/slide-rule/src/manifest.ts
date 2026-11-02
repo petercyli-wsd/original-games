@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Slide Rule',
   tagline: 'Multiply random factors on a log dial. Call the leading digit. Benford says 1 wins 30% of the time.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

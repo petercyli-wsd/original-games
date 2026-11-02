@@ -4,9 +4,10 @@ import { MAX_MULTIPLIER, RTP } from './math';
 export default defineManifest({
   id: 'records',
   name: 'Records',
-  tagline: 'Items arrive in random order. Item t beats everything before it with chance 1 in t. Collect enough records to win.',
+  tagline: 'Item t drops into one of t equal slots; only the top slot is a new record. Get enough records before the 20 items run out.',
   mechanic: 'combinatorics',
   status: 'prototype',
+  revision: { kind: 'improved', date: '2026-11-02', note: 'Each item now drops a ball into one of t equal slots, with the green slot as the record; the height skyline is gone and one setting picks how many records you need.' },
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

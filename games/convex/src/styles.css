@@ -17,7 +17,7 @@
   text-anchor: end;
 }
 
-/* Arena and its 1% grid. */
+/* The square and its 1% grid. */
 .cvx .arena {
   fill: color-mix(in srgb, var(--bg) 85%, transparent);
 }
@@ -32,30 +32,18 @@
   stroke-width: 1;
 }
 
-/* Risk: red is the bust area (hull + swallow cones), green caps are safe. */
+/* Risk: one solid red region (inside the shape + the shadows behind its dots); green caps are safe. */
 .cvx .zones {
   animation: cvx-fade var(--fade-ms) ease both;
 }
 .cvx .bust-area {
-  fill: color-mix(in srgb, var(--red) 26%, transparent);
-}
-.cvx .bust-hatch {
-  fill: url(#cvx-hatch);
-}
-.cvx .hatch-line {
-  stroke: color-mix(in srgb, var(--red) 55%, transparent);
-  stroke-width: 1.5;
+  fill: color-mix(in srgb, var(--red) 34%, transparent);
 }
 .cvx .cap {
-  fill: color-mix(in srgb, var(--green) 9%, transparent);
-  stroke: color-mix(in srgb, var(--green) 55%, transparent);
-  stroke-width: 1.4;
+  fill: color-mix(in srgb, var(--green) 24%, transparent);
+  stroke: var(--green);
+  stroke-width: 1.6;
   stroke-linejoin: round;
-}
-.cvx .ext {
-  stroke: color-mix(in srgb, var(--text) 26%, transparent);
-  stroke-width: 1;
-  stroke-dasharray: 3 5;
 }
 .cvx .cap-label {
   font-size: 14px;
@@ -67,10 +55,28 @@
   stroke-linejoin: round;
   animation: cvx-fade var(--fade-ms) ease both;
 }
+.cvx .lose-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  fill: var(--red);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  animation: cvx-fade var(--fade-ms) ease both;
+}
 .cvx.over .zones,
 .cvx.over .cap-label {
-  opacity: 0.5;
+  opacity: 0.45;
   animation: none;
+}
+/* A loss keeps the red the dot landed in at full strength. */
+.cvx.over.lost .zones {
+  opacity: 1;
+}
+.cvx.over.lost .cap-label {
+  opacity: 0.8;
 }
 
 /* Your shape. */
@@ -83,6 +89,7 @@
 }
 .cvx .hull.over-red {
   fill: none;
+  stroke-width: 2;
 }
 .cvx .hull.hit {
   stroke: var(--red);
@@ -101,15 +108,6 @@
   stroke: none;
   animation: cvx-wedge calc(var(--fade-ms) * 3) ease-out both;
 }
-.cvx .would-be {
-  fill: none;
-  stroke: var(--red);
-  stroke-width: 2;
-  stroke-dasharray: 6 4;
-  stroke-linejoin: round;
-  animation: cvx-fade var(--fade-ms) ease both;
-}
-
 /* Points. */
 .cvx .pt {
   fill: var(--text);
@@ -147,7 +145,7 @@
   fill: none;
   stroke: var(--red);
   stroke-width: 3;
-  animation: cvx-ring 0.9s ease-in-out infinite alternate;
+  animation: cvx-ring 0.45s ease-in-out 6 alternate;
   transform-box: fill-box;
   transform-origin: center;
 }
@@ -220,7 +218,7 @@
   fill: var(--text);
 }
 
-/* Corner progress above the arena. */
+/* Dot progress above the square. */
 .cvx .pip {
   fill: none;
   stroke: var(--line-strong);
@@ -254,7 +252,7 @@
   fill: var(--text);
 }
 
-/* Legend under the arena. */
+/* Legend under the square. */
 .cvx .lg {
   font-size: 14px;
   font-weight: 800;
@@ -327,23 +325,7 @@
   }
 }
 
-/* Panel bits: arena icons in the chips, the odds table in the modal. */
-.cvx-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-.cvx-chip svg {
-  width: 13px;
-  height: 13px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.6;
-  stroke-linejoin: round;
-}
-.og-chip.on .cvx-chip svg {
-  stroke: var(--accent);
-}
+/* The odds table in the How-to-play modal. */
 .cvx-table {
   width: 100%;
   border-collapse: collapse;

@@ -14,7 +14,7 @@ const SECTIONS: { title: string; subtitle: string; section: number; folded?: boo
   { title: `Core ${BRAND.product}`, subtitle: 'Click any game to play instantly', section: 0 },
   { title: 'Casino Classics', subtitle: 'Proven formats from the biggest crypto casinos, rebuilt to house standard', section: 1 },
   { title: 'Experimental', subtitle: 'Fresh probability prototypes and new mechanics', section: 2 },
-  { title: 'Retired', subtitle: 'Dropped after review, kept here to play and compare', section: 3, folded: true },
+  { title: 'Archive', subtitle: 'Retired games and earlier versions, kept playable with their reviews', section: 3, folded: true },
   { title: 'Templates', subtitle: 'Starting points for new games (dev only)', section: 4 },
 ];
 

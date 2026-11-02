@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Quadrant',
   tagline: 'A point lands in a tilted Gaussian cloud: x first, then y. The green share of the cloud is your chance.',
   mechanic: 'geometry',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

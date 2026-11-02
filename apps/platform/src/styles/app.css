@@ -517,6 +517,27 @@ button:disabled {
   opacity: 0.5;
 }
 
+.tile-badge {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 3;
+  padding: 3px 9px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 20px;
+  border: 1px solid currentColor;
+  background: var(--og-bg);
+}
+.tile-badge-new {
+  color: var(--og-gold);
+}
+.tile-badge-improved {
+  color: var(--og-primary);
+}
+
 .tile-body {
   display: flex;
   flex-direction: column;
@@ -582,6 +603,16 @@ button:disabled {
 .game-heading p {
   font-size: 13px;
   color: var(--og-text-muted);
+}
+.game-heading .revision-note {
+  margin-top: 4px;
+}
+.game-heading .revision-note strong {
+  color: var(--og-gold);
+  font-weight: 700;
+}
+.game-heading .revision-note a {
+  color: var(--og-primary);
 }
 .back-link {
   flex: none;

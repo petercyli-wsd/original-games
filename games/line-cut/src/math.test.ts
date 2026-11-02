@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  ALL_SETTINGS,
   MAX_MULTIPLIER,
   RTP,
   SHAPES,
@@ -14,10 +13,11 @@ import {
   lineHits,
   offset,
   perimeter,
+  prizeFor,
   shadow,
+  shadowRange,
+  volatilityOf,
   winChance,
-  winChanceAimed,
-  winChanceLeft,
   type Pt,
   type Shape,
 } from './math';
@@ -26,15 +26,13 @@ const rng = createRng(seededSource(11));
 
 /**
  * An independent hit test that never looks at the shadow: intersect the line
- * q + t·v (q = p·u, v ⟂ u) with every edge of the polygon, or measure the
- * disc centre's distance to it.
+ * q + t·v (q = p·u, v ⟂ u) with every edge of the polygon.
  */
 function crosses(s: Shape, phi: number, p: number): boolean {
   const u = { x: Math.cos(phi), y: Math.sin(phi) };
   const v = { x: -u.y, y: u.x };
   const q = { x: p * u.x, y: p * u.y };
   const cross = (a: Pt, b: Pt) => a.x * b.y - a.y * b.x;
-  if (s.kind === 'disc') return Math.abs(cross({ x: s.c.x - q.x, y: s.c.y - q.y }, v)) <= s.r;
   return s.verts.some((a, i) => {
     const b = s.verts[(i + 1) % s.verts.length];
     const d = { x: b.x - a.x, y: b.y - a.y };
@@ -56,33 +54,16 @@ const within4se = (hits: number, n: number, p: number) =>
   expect(Math.abs(hits / n - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / n) + 1e-9);
 
 describe('Line Cut maths', () => {
-  it('lays every shape wholly inside the arena, without overlaps', () => {
-    for (const id of SHAPE_IDS) {
-      const s = SHAPES[id];
-      if (s.kind === 'disc') expect(Math.hypot(s.c.x, s.c.y) + s.r).toBeLessThan(0.9);
-      else for (const v of s.verts) expect(Math.hypot(v.x, v.y)).toBeLessThan(0.9);
-    }
-    // No two shapes' shadows overlap in every direction, so they are disjoint (separating axis).
-    for (const a of SHAPE_IDS)
-      for (const b of SHAPE_IDS) {
-        if (a >= b) continue;
-        let separated = false;
-        for (let i = 0; i < 720 && !separated; i++) {
-          const phi = (i / 720) * Math.PI;
-          const x = shadow(SHAPES[a], phi);
-          const y = shadow(SHAPES[b], phi);
-          separated = x.hi + 0.04 < y.lo || y.hi + 0.04 < x.lo;
-        }
-        expect(separated, `${a} and ${b} overlap`).toBe(true);
-      }
+  it('every shape sits wholly inside the arena', () => {
+    for (const id of SHAPE_IDS) for (const v of SHAPES[id].verts) expect(Math.hypot(v.x, v.y)).toBeLessThan(0.9);
   });
 
-  it('the per-line chances are the advertised ones: rod = circle', () => {
-    expect(cutChance(SHAPES.circle)).toBeCloseTo(0.3, 12);
-    expect(cutChance(SHAPES.rod)).toBeCloseTo(0.3, 12);
+  it('the per-line chances are the advertised ones', () => {
+    expect(cutChance(SHAPES.pin)).toBeCloseTo(0.02, 12);
+    expect(cutChance(SHAPES.triangle)).toBeCloseTo(0.1, 12);
     expect(cutChance(SHAPES.square)).toBeCloseTo(0.2, 12);
-    expect(cutChance(SHAPES.triangle)).toBeCloseTo(0.15, 12);
-    expect(cutChance(SHAPES.dot)).toBeCloseTo(0.02, 12);
+    expect(cutChance(SHAPES.rod)).toBeCloseTo(0.3, 12);
+    expect(cutChance(SHAPES.plank)).toBeCloseTo(0.6, 12);
   });
 
   it('any half-turn of directions gives the same odds: the shadow just flips', () => {
@@ -99,19 +80,24 @@ describe('Line Cut maths', () => {
     expect(offset(0)).toBe(-1);
   });
 
-  it("the circle's shadow never moves; the rod's swings from 0 to 47%", () => {
-    let lo = 1;
-    let hi = 0;
-    for (let i = 0; i < 3600; i++) {
-      const phi = direction(i / 3600);
-      expect(aimedCutChance(SHAPES.circle, phi)).toBeCloseTo(0.3, 12);
-      expect(aimedCutChance(SHAPES.dot, phi)).toBeCloseTo(0.02, 12);
-      const r = aimedCutChance(SHAPES.rod, phi);
-      lo = Math.min(lo, r);
-      hi = Math.max(hi, r);
+  it('the direction matters for every shape: the printed shadow range is the true one', () => {
+    for (const id of SHAPE_IDS) {
+      const s = SHAPES[id];
+      let lo = 1;
+      let hi = 0;
+      for (let i = 0; i < 36_000; i++) {
+        const sh = aimedCutChance(s, direction(i / 36_000));
+        lo = Math.min(lo, sh);
+        hi = Math.max(hi, sh);
+      }
+      const r = shadowRange(s);
+      expect(Math.abs(lo - r.lo)).toBeLessThan(1e-4);
+      expect(Math.abs(hi - r.hi)).toBeLessThan(1e-4);
+      // No shape casts the same shadow from every side.
+      expect(r.hi / Math.max(r.lo, 1e-12)).toBeGreaterThan(1.4);
     }
-    expect(lo).toBeLessThan(0.001);
-    expect(hi).toBeCloseTo((0.3 * Math.PI) / 2, 5);
+    expect(shadowRange(SHAPES.rod).lo).toBeLessThan(1e-12);
+    expect(shadowRange(SHAPES.rod).hi).toBeCloseTo((0.3 * Math.PI) / 2, 12);
   });
 
   it('Cauchy: the mean shadow over all directions is perimeter / π', () => {
@@ -122,30 +108,17 @@ describe('Line Cut maths', () => {
     }
   });
 
-  it('Crofton: random lines hit each shape perimeter / 2π of the time (raw simulation)', () => {
+  it('Crofton: a random line cuts each shape perimeter / 2π of the time (raw simulation)', () => {
     const n = 60_000;
     for (const id of SHAPE_IDS) {
       const s = SHAPES[id];
       let hits = 0;
       for (let i = 0; i < n; i++) if (crosses(s, direction(rng.next()), offset(rng.next()))) hits++;
-      within4se(hits, n, cutChance(s));
+      within4se(hits, n, winChance(id));
     }
   });
 
-  it('whole rounds win exactly as often as the closed form says (raw simulation)', () => {
-    const n = 12_000;
-    for (const { shape, side, lines } of ALL_SETTINGS) {
-      let wins = 0;
-      for (let r = 0; r < n; r++) {
-        let hit = false;
-        for (let k = 0; k < lines && !hit; k++) hit = crosses(SHAPES[shape], direction(rng.next()), offset(rng.next()));
-        if (hit === (side === 'hit')) wins++;
-      }
-      within4se(wins, n, winChance(shape, side, lines));
-    }
-  });
-
-  it('the drawn shadow is exactly the set of offsets whose line hits the shape', () => {
+  it('the drawn shadow is exactly the set of offsets whose line cuts the shape', () => {
     const N = 4000;
     for (const id of SHAPE_IDS) {
       const s = SHAPES[id];
@@ -170,45 +143,36 @@ describe('Line Cut maths', () => {
   });
 
   it('every reveal is a fair bet: E[cash-out after] = cash-out before', () => {
-    for (let trial = 0; trial < 40; trial++) {
-      const { shape, side, lines } = ALL_SETTINGS[rng.int(ALL_SETTINGS.length)];
-      const s = SHAPES[shape];
-      const c = cutChance(s);
-      const prize = RTP / winChance(shape, side, lines);
-      const left = 1 + rng.int(lines); // lines still to cut, all earlier ones missed
-
-      // Direction reveal: averaging the aimed value over φ gives the unaimed value.
-      const before = prize * winChanceLeft(side, left, c);
-      const afterAim = meanOverDirections((phi) => prize * winChanceAimed(side, left, aimedCutChance(s, phi), c), 50_000);
-      expect(Math.abs(afterAim - before)).toBeLessThan(1e-9);
-
-      // Offset reveal: hit with chance s (ends the round), else the next line comes unaimed.
-      const phi = rng.next() * Math.PI;
-      const sh = aimedCutChance(s, phi);
-      const aimed = prize * winChanceAimed(side, left, sh, c);
-      const onHit = side === 'hit' ? prize : 0;
-      const onMiss = prize * winChanceLeft(side, left - 1, c);
-      expect(sh * onHit + (1 - sh) * onMiss).toBeCloseTo(aimed, 12);
-    }
-  });
-
-  it('Hit and Miss are complementary, and the start is worth RTP', () => {
-    for (const { shape, lines } of ALL_SETTINGS) {
-      expect(winChance(shape, 'hit', lines) + winChance(shape, 'miss', lines)).toBeCloseTo(1, 14);
-      for (const side of ['hit', 'miss'] as const) {
-        expect((RTP / winChance(shape, side, lines)) * winChance(shape, side, lines)).toBeCloseTo(RTP, 14);
+    for (const id of SHAPE_IDS) {
+      const s = SHAPES[id];
+      const prize = prizeFor(id);
+      // Start: the stake's worth is RTP.
+      expect(prize * winChance(id)).toBeCloseTo(RTP, 14);
+      // Direction reveal: averaging the aimed value prize × s over φ gives back RTP.
+      const afterAim = meanOverDirections((phi) => prize * aimedCutChance(s, phi), 50_000);
+      expect(Math.abs(afterAim - RTP)).toBeLessThan(1e-9);
+      // Offset reveal: the line cuts with chance s (pays the prize), else pays 0.
+      for (let trial = 0; trial < 20; trial++) {
+        const phi = direction(rng.next());
+        const sh = aimedCutChance(s, phi);
+        const n = 2000;
+        let hits = 0;
+        for (let i = 0; i < n; i++) if (lineHits(s, phi, -1 + (2 * (i + 0.5)) / n)) hits++;
+        expect(Math.abs((hits / n) * prize - sh * prize)).toBeLessThan((2 / n) * prize + 1e-12);
       }
     }
   });
 
-  it('the controls move the win chance over at least 25:1', () => {
-    const ps = ALL_SETTINGS.map((s) => winChance(s.shape, s.side, s.lines));
-    expect(Math.max(...ps) / Math.min(...ps)).toBeGreaterThan(25);
+  it('the shape knob moves the win chance over at least 25:1, one shape per level', () => {
+    const ps = SHAPE_IDS.map(winChance);
+    expect(Math.max(...ps) / Math.min(...ps)).toBeGreaterThanOrEqual(25 - 1e-9);
+    expect(new Set(ps.map(volatilityOf))).toEqual(new Set(['low', 'medium', 'high', 'extreme']));
     expect(MAX_MULTIPLIER).toBeCloseTo(RTP / 0.02, 9);
   });
 
   it('simulated RTP matches the manifest under sampled strategies', () => {
-    for (const r of runEval(evalSpec, { rounds: 50_000 })) {
+    const results = runEval(evalSpec, { rounds: 50_000 });
+    for (const r of results) {
       expect(Math.abs(r.rtp - manifest.rtp)).toBeLessThan(4 * r.stdError);
       expect(r.max).toBeLessThanOrEqual(manifest.maxMultiplier);
     }

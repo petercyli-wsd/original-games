@@ -26,38 +26,17 @@ import {
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Field, { Glyph, type CutLine } from './Board';
-import {
-  LINE_COUNTS,
-  RTP,
-  SHAPES,
-  SHAPE_IDS,
-  aimedCutChance,
-  cutChance,
-  direction,
-  lineHits,
-  offset,
-  volatilityOf,
-  winChance,
-  winChanceAimed,
-  winChanceLeft,
-  type Lines,
-  type ShapeId,
-  type Side,
-} from './math';
+import Field, { Glyph } from './Board';
+import { RTP, SHAPES, SHAPE_IDS, aimedCutChance, cutChance, direction, lineHits, offset, prizeFor, shadowRange, volatilityOf, winChance, type ShapeId } from './math';
 
 type Phase = 'idle' | 'aiming' | 'checkpoint' | 'cutting' | 'over';
-type Outcome = 'cut' | 'missed' | 'spared' | 'touched' | 'cashed';
+type Outcome = 'cut' | 'missed' | 'cashed';
 
 interface Round {
   shape: ShapeId;
-  side: Side;
-  lines: Lines;
   stake: number;
   prize: number;
-  /** Earlier lines, all of which missed. */
-  done: CutLine[];
-  /** The current line's direction, once aimed. */
+  /** The line's direction, once aimed. */
   phi: number | null;
   /** The cash-out value now: prize × P(win | what's on the board). */
   cash: number;
@@ -66,14 +45,10 @@ interface Round {
 
 const OUTCOME_TITLE: Record<Outcome, string> = {
   cut: 'Cut!',
-  missed: 'Every line missed',
-  spared: 'Spared',
-  touched: 'Cut through',
+  missed: 'Missed',
   cashed: 'Cashed out',
 };
-const titleOf = (o: Outcome, lines: number) => (o === 'missed' && lines === 1 ? 'Missed' : OUTCOME_TITLE[o]);
 
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 const mod = (x: number, m: number) => ((x % m) + m) % m;
 
@@ -117,8 +92,6 @@ export default function Game() {
   const [history, pushHistory] = useHistory();
 
   const [shape, setShape] = useState<ShapeId>('rod');
-  const [side, setSide] = useState<Side>('hit');
-  const [lines, setLines] = useState<Lines>(1);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [angle, setAngle] = useState<number | null>(null);
@@ -134,7 +107,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'aiming' || phase === 'cutting' ? resolved.current : round?.cash ?? 0));
 
-  const spinMs = turbo.turbo ? 200 : 780;
+  const spinMs = turbo.turbo ? 220 : 900;
   const cutMs = turbo.turbo ? 260 : 1000;
   const live = phase === 'aiming' || phase === 'checkpoint' || phase === 'cutting';
 
@@ -146,12 +119,10 @@ export default function Game() {
     setPhase('over');
   }
 
-  /** Stage 1: the ruler spins to the next line's direction and the shadow appears. */
+  /** Stage 1: the ruler spins to the line's direction and the shadow appears. */
   function aim(r: Round) {
     const phi = direction(rng.next());
-    const s = SHAPES[r.shape];
-    const left = r.lines - r.done.length;
-    const cash = r.prize * winChanceAimed(r.side, left, aimedCutChance(s, phi), cutChance(s));
+    const cash = r.prize * aimedCutChance(SHAPES[r.shape], phi);
     resolved.current = cash;
     stepping.current = true;
     setRound(r);
@@ -178,21 +149,9 @@ export default function Game() {
   function cut(r: Round) {
     if (r.phi === null || stepping.current) return;
     stepping.current = true;
-    const s = SHAPES[r.shape];
     const p = offset(rng.next());
-    const hit = lineHits(s, r.phi, p);
-    const left = r.lines - r.done.length;
-    let outcome: Outcome | null = null;
-    let cash: number;
-    if (hit) {
-      outcome = r.side === 'hit' ? 'cut' : 'touched';
-      cash = r.side === 'hit' ? r.prize : 0;
-    } else if (left === 1) {
-      outcome = r.side === 'hit' ? 'missed' : 'spared';
-      cash = r.side === 'hit' ? 0 : r.prize;
-    } else {
-      cash = r.prize * winChanceLeft(r.side, left - 1, cutChance(s));
-    }
+    const hit = lineHits(SHAPES[r.shape], r.phi, p);
+    const cash = hit ? r.prize : 0;
     resolved.current = cash;
     setLanded(false);
     setPhase('cutting');
@@ -207,10 +166,7 @@ export default function Game() {
       () => {
         setCutAt(p);
         setLanded(true);
-        if (outcome) return finish(r, outcome, cash);
-        // A miss with lines to go: let it register, then aim the next line.
-        const next: Round = { ...r, done: [...r.done, { phi: r.phi!, p, hit }], phi: null, cash };
-        timers.after(turbo.turbo ? 80 : 320, () => aim(next));
+        finish(r, hit ? 'cut' : 'missed', cash);
       },
     );
   }
@@ -220,18 +176,7 @@ export default function Game() {
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
     anim.cancel();
-    const r: Round = {
-      shape,
-      side,
-      lines,
-      stake: bet.value,
-      prize: RTP / winChance(shape, side, lines),
-      done: [],
-      phi: null,
-      cash: RTP,
-      outcome: null,
-    };
-    aim(r);
+    aim({ shape, stake: bet.value, prize: prizeFor(shape), phi: null, cash: RTP, outcome: null });
   }
 
   function cashOut() {
@@ -250,10 +195,10 @@ export default function Game() {
     setPhase('idle');
   }
 
-  // Changing a setting after a round clears the finished board to a preview.
-  const change = (apply: () => void) => {
+  // Changing the shape after a round clears the finished board to a preview.
+  const pick = (id: ShapeId) => {
     if (live) return;
-    apply();
+    setShape(id);
     if (phase === 'over') clear();
   };
 
@@ -265,39 +210,33 @@ export default function Game() {
     !infoOpen,
   );
 
-  // What the board shows: the live or finished round, else a preview of the settings.
+  // What the board shows: the live or finished round, else a preview of the chosen shape.
   const sh = SHAPES[round?.shape ?? shape];
-  const sd = round?.side ?? side;
-  const n = round?.lines ?? lines;
-  const c = cutChance(sh);
-  const p0 = winChance(sh.id, sd, n);
-  const prize = round?.prize ?? RTP / p0;
+  const avg = cutChance(sh);
+  const prize = round?.prize ?? prizeFor(sh.id);
   const cash = round?.cash ?? RTP;
-  const pNow = round ? cash / prize : p0;
+  const pNow = round ? cash / prize : avg;
   const stake = round?.stake ?? bet.value;
-  const lineNo = (round?.done.length ?? 0) + 1;
-  const linesLeft = n - lineNo;
   const aimedShare = round?.phi != null ? aimedCutChance(sh, round.phi) : null;
-  const target = sh.name.toLowerCase();
-  const backing = sd === 'hit' ? `cut the ${target}` : `miss the ${target}`;
+  const name = sh.name.toLowerCase();
+  const range = shadowRange(sh);
 
-  let status = `Ready · ${n === 1 ? 'one line' : plural(n, 'line')} must ${backing}`;
-  if (sd === 'hit' && n > 1) status = `Ready · one of ${n} lines must cut the ${target}`;
-  if (sd === 'miss' && n > 1) status = `Ready · all ${n} lines must miss the ${target}`;
-  if (phase === 'aiming') status = `Aiming line ${lineNo} of ${n}`;
-  if (phase === 'checkpoint') status = `Checkpoint · line ${lineNo} of ${n} aimed`;
-  if (phase === 'cutting') status = `Dropping line ${lineNo} of ${n}`;
-  if (phase === 'over' && round?.outcome) status = titleOf(round.outcome, n) + (n > 1 ? ` · line ${lineNo} of ${n}` : '');
+  let status = `Ready · one line must cut the ${name}`;
+  if (phase === 'aiming') status = 'Turning the ruler';
+  if (phase === 'checkpoint') status = `Aimed · shadow ${fmtChance(aimedShare ?? 0)} of the ruler`;
+  if (phase === 'cutting') status = 'Dropping the line';
+  if (phase === 'over' && round?.outcome) status = OUTCOME_TITLE[round.outcome];
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
   const result =
     phase === 'over' && round?.outcome && round.outcome !== 'cashed' ? (round.cash > 0 ? 'win' : 'lose') : null;
 
-  // After this line, what remains: for the ChanceBar note.
-  const restNote =
-    linesLeft > 0 ? ` Then ${plural(linesLeft, 'more line')} at ${fmtChance(c)} each.` : ' This is the last line.';
-
-  const vol = volatilityOf(winChance(shape, side, lines));
-  const chanceFor = (id: ShapeId) => cutChance(SHAPES[id]);
+  const vol = volatilityOf(winChance(shape));
+  const compare =
+    aimedShare === null
+      ? ''
+      : Math.abs(aimedShare - avg) < 0.005
+        ? `about its ${fmtChance(avg)} average`
+        : `${aimedShare > avg ? 'wider' : 'narrower'} than its ${fmtChance(avg)} average`;
 
   return (
     <GameLayout
@@ -312,47 +251,24 @@ export default function Game() {
             label="Shape"
             options={SHAPE_IDS.map((id) => ({
               value: id,
-              title: `${SHAPES[id].name}: one line cuts it ${fmtChance(chanceFor(id))} of the time`,
+              title: `${SHAPES[id].name}: the line cuts it ${fmtChance(winChance(id))} of the time`,
               label: (
                 <span className="lc-chip">
                   <Glyph id={id} />
-                  <small>{Math.round(chanceFor(id) * 100)}%</small>
+                  <small>{Math.round(winChance(id) * 100)}%</small>
                 </span>
               ),
             }))}
             value={shape}
             disabled={live}
-            onChange={(v) => change(() => setShape(v))}
-          />
-
-          <Label hint={side === 'hit' ? 'win if a line cuts it' : 'win if no line touches it'}>Back</Label>
-          <Chips
-            label="Back"
-            options={[
-              { value: 'hit' as Side, label: 'Hit' },
-              { value: 'miss' as Side, label: 'Miss' },
-            ]}
-            value={side}
-            disabled={live}
-            onChange={(v) => change(() => setSide(v))}
-          />
-
-          <Label hint="a checkpoint before each">Lines</Label>
-          <Chips
-            label="Lines"
-            options={LINE_COUNTS.map((v) => ({ value: v, label: v }))}
-            value={lines}
-            disabled={live}
-            onChange={(v) => change(() => setLines(v))}
+            onChange={pick}
           />
 
           <dl className="og-stats">
-            <dt>Cut chance per line</dt>
-            <dd>{fmtChance(cutChance(SHAPES[shape]))}</dd>
             <dt>Chance to win</dt>
-            <dd>{fmtChance(winChance(shape, side, lines))}</dd>
+            <dd>{fmtChance(winChance(shape))}</dd>
             <dt>Prize</dt>
-            <dd>{fmtMult(RTP / winChance(shape, side, lines))}</dd>
+            <dd>{fmtMult(prizeFor(shape))}</dd>
           </dl>
 
           {phase === 'checkpoint' && round ? (
@@ -361,12 +277,12 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => cut(round)}>
-                Drop line {lineNo} · {fmtChance(aimedShare ?? 0)} to cut
+                Drop the line · {fmtChance(aimedShare ?? 0)} to cut
               </ActionButton>
             </>
           ) : (
             <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-              {phase === 'aiming' ? 'Aiming…' : phase === 'cutting' ? 'Dropping…' : phase === 'over' ? 'Bet again' : 'Bet'}
+              {phase === 'aiming' ? 'Turning…' : phase === 'cutting' ? 'Dropping…' : phase === 'over' ? 'Bet again' : 'Bet'}
             </ActionButton>
           )}
 
@@ -381,13 +297,13 @@ export default function Game() {
           {
             label: 'Win chance',
             value: fmtChance(pNow),
-            sub: sd === 'hit' ? `a line cuts the ${target}` : `no line cuts the ${target}`,
+            sub: round?.outcome ? (round.outcome === 'cashed' ? 'cashed out' : round.outcome === 'cut' ? `the line cut the ${name}` : 'the line missed') : aimedShare === null ? 'average shadow' : 'shadow on the ruler',
             tone: 'chance',
           },
           {
             label: 'Cash out now',
             value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'from the first checkpoint',
+            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'once the ruler stops',
             tone: 'cash',
           },
           { label: 'Prize', value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
@@ -397,21 +313,16 @@ export default function Game() {
       <Board>
         <Field
           shape={sh.id}
-          side={sd}
-          lines={n}
           mode={phase === 'idle' ? 'idle' : phase === 'over' ? 'over' : 'live'}
           angle={angle}
           p={cutAt}
           settled={landed}
-          past={round?.done ?? []}
           result={result}
-          spinning={phase === 'aiming'}
-          onPick={live ? undefined : (id) => change(() => setShape(id))}
         />
         {phase === 'over' && round?.outcome && (
           <RoundOver
             key={history[0]?.id}
-            title={titleOf(round.outcome, round.lines)}
+            title={OUTCOME_TITLE[round.outcome]}
             multiplier={round.cash}
             stake={round.stake}
             nextBet={bet.value}
@@ -428,44 +339,38 @@ export default function Game() {
           p={pNow}
           label="Win chance"
           note={
-            phase === 'checkpoint' || phase === 'cutting'
-              ? `This line cuts the ${target} ${fmtChance(aimedShare ?? 0)} of the time: the shadow's share of the ruler.${restNote}`
-              : `Each line cuts the ${target} ${fmtChance(c)} of the time: its outline's share of the rim.`
+            phase === 'aiming'
+              ? `The ruler turns to a random direction. The ${name}'s shadow on it is your chance: ${fmtChance(range.lo)} to ${fmtChance(range.hi)}, ${fmtChance(avg)} on average.`
+              : `Turned this way the ${name} is ${compare}. The line lands at a random spot on the ruler, square to it: inside the green shadow it cuts the ${name}.`
           }
         />
       ) : (
         <Caption>
-          Crofton: a random line cuts a convex shape with chance outline ÷ rim. The rod's outline (both sides) is as long as the circle's, so both are cut{' '}
-          30% of the time. RTP {(RTP * 100).toFixed(0)}%.
+          A random line crosses the arena; win if it cuts your shape. Your chance is the shape's shadow: its green share of the ruler. RTP{' '}
+          {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
 
       {infoOpen && (
         <InfoModal title="Line Cut" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
-            <p>
-              Random straight lines cut across a round arena holding five shapes. Pick a shape and back <b>Hit</b> (at least one line cuts it) or{' '}
-              <b>Miss</b> (no line touches it).
-            </p>
+            <p>A random straight line crosses the round arena. You win if it cuts your shape.</p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick a shape (on the board or in the panel), Hit or Miss, and how many lines will fall. Then bet.</li>
-              <li>Each line comes in two steps. First the ruler spins to the line's direction and the shape's shadow appears on it: a checkpoint.</li>
-              <li>Cash out (C), or drop the line (Space). It lands at a random spot along the ruler, square to it.</li>
-              <li>Hit pays as soon as a line cuts your shape. Miss pays when the last line has missed.</li>
+              <li>Pick a shape. A bigger outline is cut more often and pays less. Then bet.</li>
+              <li>The ruler (a line through the middle) turns to a random direction, and your shape's shadow appears on it in green: a checkpoint.</li>
+              <li>Cash out (C), or drop the line (Space). It lands at a random spot along the ruler, square to it, and cuts your shape if it lands in the shadow.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The line will cross the ruler at a uniformly random spot. It cuts your shape exactly when it crosses inside the shape's <b>shadow</b> on the ruler, so the
-              shadow's share of the ruler is the chance this line cuts. The flat ruler under the arena shows the same shadow, with its percentage. Green is
-              where a line wins for you and red where it loses; grey means "on to the next line".
+              Every spot on the ruler is equally likely, so the shadow's green share of the ruler is your chance to win. The flat bar under the arena is the same
+              ruler laid flat.
             </p>
-            <p>Before a line is aimed, its chance is the shape's outline length divided by the arena's rim: the arc drawn on the rim.</p>
             <p>
-              A circle's shadow is its diameter whichever way the ruler points, so its odds never move at the checkpoint. The rod's shadow swings from
-              nothing (end-on) to its full length: the same 30% on average, a much wilder ride.
+              A shape looks wider from some sides than others. The rod seen side-on casts a long shadow (up to 47% of the ruler); seen end-on it casts almost none.
+              Before the ruler turns, the chance is the shape's average shadow over all directions, shown in the panel and dashed on the bar once the ruler stops.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -474,16 +379,15 @@ export default function Game() {
               For a fixed direction the chance is K's width in that direction ÷ 2 (the shadow), and Cauchy's formula says the average width is perimeter / π.
             </p>
             <p>
-              Only the outline matters. A rod of length L has perimeter 2L (both sides count), so a rod of length 0.3π is cut exactly as often as a disc of
-              radius 0.3: 30% per line. With c per line and N lines, Hit wins with chance 1 − (1 − c)<sup>N</sup> and Miss with (1 − c)<sup>N</sup>.
+              Only the outline's length matters, not the area or where the shape sits. Each outline is chosen for a round chance: pin 2%, triangle 10%, square 20%,
+              rod 30% (a rod's outline counts both sides) and plank 60%.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              A win pays RTP ÷ P(win) for your settings. At every checkpoint the cash-out is that prize × your exact chance of winning from there:
-              1 − (1 − s)(1 − c)<sup>k−1</sup> for Hit or (1 − s)(1 − c)<sup>k−1</sup> for Miss, with s the shadow share and k lines to go. That value is a fair
-              bet at every step, so every shape, side, line count and cash-out rule returns exactly {(RTP * 100).toFixed(0)}%. A line that only grazes the
-              shape counts as a cut. The largest prize is {fmtMult(RTP / winChance('dot', 'hit', 1))} (hit the dot with one line).
+              A cut pays RTP ÷ (average chance) for your shape. At the checkpoint the cash-out is that prize × the shadow share: your exact chance of winning from
+              there. Averaged over all directions that is exactly what you staked × {(RTP * 100).toFixed(0)}%, so every shape and every cash-out choice returns
+              exactly {(RTP * 100).toFixed(0)}%. A line that only grazes the shape counts as a cut. The largest prize is {fmtMult(prizeFor('pin'))} (cut the pin).
             </p>
           </InfoSection>
         </InfoModal>

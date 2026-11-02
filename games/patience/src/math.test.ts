@@ -3,30 +3,26 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  ALL_BETS,
-  DECKS,
+  K_OPTIONS,
   MAX_MULTIPLIER,
+  N,
   RTP,
+  VOLATILITY,
   cashValue,
-  columnsFor,
+  catchBands,
   decided,
   ended,
   factorial,
   finalCounts,
-  forecast,
-  ghosts,
   newDeal,
   newPileCards,
   place,
   prizeFor,
-  risingRun,
   shelfOf,
   startChance,
   topsOf,
   winChance,
   winCount,
-  winsAt,
-  type Bet,
   type Deal,
 } from './math';
 
@@ -78,8 +74,8 @@ function hookCount(shape: number[]): number {
 }
 
 /** A random reachable state: a few cards dealt from a fresh shuffle. */
-function randomDeal(n: number, dealt: number): Deal {
-  let d = newDeal(n);
+function randomDeal(dealt: number): Deal {
+  let d = newDeal();
   for (let i = 0; i < dealt; i++) d = place(d, d.remaining[rng.int(d.remaining.length)]);
   return d;
 }
@@ -87,22 +83,12 @@ function randomDeal(n: number, dealt: number): Deal {
 describe('Patience maths', () => {
   it('patience sorting makes exactly as many piles as the longest increasing subsequence', () => {
     for (let t = 0; t < 400; t++) {
-      const seq = rng.shuffle(Array.from({ length: 12 }, (_, i) => i + 1));
+      const seq = rng.shuffle(Array.from({ length: N }, (_, i) => i + 1));
       expect(piles(seq)).toBe(lis(seq));
-      // The drawn rising run is a real increasing subsequence of that length.
-      let d = newDeal(12);
-      const cut = 1 + rng.int(12);
-      for (const c of seq.slice(0, cut)) d = place(d, c);
-      const run = risingRun(d);
-      expect(run.length).toBe(d.piles.length);
-      expect(run.length).toBe(lis(seq.slice(0, cut)));
-      run.forEach((c, i) => {
-        expect(d.piles[i]).toContain(c);
-        if (i > 0) {
-          expect(c).toBeGreaterThan(run[i - 1]);
-          expect(seq.indexOf(c)).toBeGreaterThan(seq.indexOf(run[i - 1]));
-        }
-      });
+      let d = newDeal();
+      for (const c of seq) d = place(d, c);
+      expect(d.piles.length).toBe(lis(seq));
+      expect(topsOf(d).every((x, i, a) => i === 0 || a[i - 1] < x)).toBe(true);
     }
   });
 
@@ -116,7 +102,7 @@ describe('Patience maths', () => {
   });
 
   it('exact counts match Robinson–Schensted: Σ f_λ² over shapes with first row ℓ', () => {
-    for (const n of [9, 10, 12]) {
+    for (const n of [9, N]) {
       const rsk = new Array<number>(n + 1).fill(0);
       for (const shape of partitions(n)) rsk[shape[0]] += hookCount(shape) ** 2;
       const counts = finalCounts(newDeal(n));
@@ -128,123 +114,129 @@ describe('Patience maths', () => {
   });
 
   it('the headline win chance matches a direct simulation of shuffling and sorting', () => {
-    const bets: Bet[] = [
-      { n: 8, mode: 'fit', k: 3 },
-      { n: 10, mode: 'fit', k: 4 },
-      { n: 10, mode: 'reach', k: 6 },
-      { n: 12, mode: 'fit', k: 3 },
-      { n: 12, mode: 'reach', k: 7 },
-    ];
-    for (const bet of bets) {
+    const deck = Array.from({ length: N }, (_, i) => i + 1);
+    for (const k of K_OPTIONS) {
       const rounds = 30_000;
       let wins = 0;
-      const deck = Array.from({ length: bet.n }, (_, i) => i + 1);
-      for (let r = 0; r < rounds; r++) if (winsAt(bet, piles(rng.shuffle(deck)))) wins++;
-      const p = startChance(bet);
+      for (let r = 0; r < rounds; r++) if (piles(rng.shuffle(deck)) <= k) wins++;
+      const p = startChance(k);
       expect(Math.abs(wins / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds) + 1e-4);
     }
   });
 
   it('live odds from any state match brute force over every order of the cards left', () => {
     for (let t = 0; t < 30; t++) {
-      const n = DECKS[t % 3];
-      const d = randomDeal(n, n - 6 - (t % 2));
-      const order = d.piles.flat().length;
-      expect(order).toBe(n - d.remaining.length);
-      const counts = new Array<number>(n + 1).fill(0);
+      const d = randomDeal(N - 6 - (t % 2));
+      const counts = new Array<number>(N + 1).fill(0);
       for (const p of permutations(d.remaining.length)) {
         let s = d;
         for (const i of p) s = place(s, d.remaining[i - 1]);
         counts[s.piles.length]++;
       }
       const exact = finalCounts(d);
-      for (let f = 0; f <= n; f++) expect(exact[f] ?? 0).toBe(counts[f]);
+      for (let f = 0; f <= N; f++) expect(exact[f] ?? 0).toBe(counts[f]);
     }
   });
 
   it('martingale: the counts split exactly over the next card, and E[cash-out after] = cash-out now', () => {
-    for (const bet of ALL_BETS) {
-      for (let t = 0; t < 6; t++) {
-        const d = randomDeal(bet.n, rng.int(bet.n - 1));
-        if (ended(bet, d)) continue;
-        const now = winCount(bet, d);
+    for (const k of K_OPTIONS) {
+      for (let t = 0; t < 25; t++) {
+        const d = randomDeal(rng.int(N - 1));
+        if (ended(k, d)) continue;
+        const now = winCount(k, d);
         let sumWin = 0;
         let sumTotal = 0;
         let sumCash = 0;
         for (const c of d.remaining) {
-          const next = winCount(bet, place(d, c));
-          sumWin += next.win;
-          sumTotal += next.total;
-          sumCash += cashValue(bet, place(d, c));
+          const next = place(d, c);
+          const w = winCount(k, next);
+          sumWin += w.win;
+          sumTotal += w.total;
+          sumCash += cashValue(k, next);
         }
         expect(sumWin).toBe(now.win);
         expect(sumTotal).toBe(now.total);
-        expect(sumCash / d.remaining.length).toBeCloseTo(cashValue(bet, d), 9);
+        expect(sumCash / d.remaining.length).toBeCloseTo(cashValue(k, d), 9);
       }
-      expect(cashValue(bet, newDeal(bet.n))).toBeCloseTo(RTP, 12);
+      expect(cashValue(k, newDeal())).toBeCloseTo(RTP, 12);
     }
   });
 
-  it('what is drawn is the true risk: lit deck cards, landing rings, forecast bars', () => {
-    for (const bet of ALL_BETS) {
-      for (let t = 0; t < 5; t++) {
-        const d = randomDeal(bet.n, rng.int(bet.n - 1));
-        if (ended(bet, d)) continue;
+  it('what is drawn is the true risk: the marked deck cards are exactly the ones that open a pile', () => {
+    for (const k of K_OPTIONS) {
+      for (let t = 0; t < 25; t++) {
+        const d = randomDeal(rng.int(N - 1));
+        if (ended(k, d)) continue;
         const shelf = shelfOf(d);
-        const lit = newPileCards(d);
-        const g = ghosts(bet, d);
+        const marked = new Set(newPileCards(d));
         // Sweep every card left by actually dealing it.
         let opened = 0;
-        for (const ghost of g) {
-          const after = place(d, ghost.card);
-          const pile = after.piles.findIndex((p) => p[p.length - 1] === ghost.card);
-          expect(pile).toBe(ghost.pile);
-          const opens = after.piles.length > d.piles.length;
-          expect(ghost.opens).toBe(opens);
-          expect(opens).toBe(ghost.card > shelf);
+        for (const c of d.remaining) {
+          const opens = place(d, c).piles.length > d.piles.length;
+          expect(marked.has(c)).toBe(opens);
+          expect(opens).toBe(c > shelf);
           if (opens) opened++;
-          expect(ghost.chance).toBe(winChance(bet, after));
         }
-        // Lit cards in the deck are exactly the ones that open a pile.
-        expect(lit.length).toBe(opened);
-        // The rings average to the win chance now.
-        expect(g.reduce((a, x) => a + x.chance, 0) / g.length).toBeCloseTo(winChance(bet, d), 12);
-        // If any card left is above the top shelf, another pile is certain.
-        if (lit.length > 0) {
-          const counts = finalCounts(d);
-          expect(counts[d.piles.length] ?? 0).toBe(0);
-        }
-        // Forecast bars: they sum to 1 and the win columns sum to the win chance.
-        const bars = forecast(bet, d);
-        expect(bars.length).toBe(columnsFor(bet));
-        expect(bars.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
-        const green = bars.reduce((a, b, j) => a + (winsAt(bet, j + 1) ? b : 0), 0);
-        expect(green).toBeCloseTo(winChance(bet, d), 12);
-        expect(topsOf(d).every((x, i, a) => i === 0 || a[i - 1] < x)).toBe(true);
+        // The count shown over the cards left is the chance the next card opens a pile.
+        expect(marked.size / d.remaining.length).toBe(opened / d.remaining.length);
+        // If any card left is above the shelf, another pile is certain.
+        if (marked.size > 0) expect(finalCounts(d)[d.piles.length] ?? 0).toBe(0);
+        // So with k piles open, a marked card means the round is already lost.
+        if (d.piles.length === k && marked.size > 0) expect(decided(k, d)).toBe('lost');
+      }
+    }
+  });
+
+  it('the catch bands cut 1..n into one band per pile plus the red new-pile band, and every card lands on its band', () => {
+    for (let t = 0; t < 300; t++) {
+      const d = randomDeal(rng.int(N));
+      const bands = catchBands(d);
+      expect(bands.length).toBe(d.piles.length + 1);
+      // The bands tile the values 1..n, bottom to top, with no gaps or overlaps.
+      let next = 1;
+      for (const b of bands) {
+        expect(b.lo).toBe(next);
+        next = b.hi + 1;
+        // Band j stops just under pile j's top, so the tops fill the gaps.
+        if (b.pile < d.piles.length) next++;
+      }
+      expect(next).toBe(N + 1);
+      // Deal every card left: it lands on the pile whose band holds it.
+      for (const c of d.remaining) {
+        const b = bands.find((x) => x.lo <= c && c <= x.hi);
+        expect(b).toBeDefined();
+        const after = place(d, c);
+        const j = after.piles.findIndex((p) => p[p.length - 1] === c);
+        expect(j).toBe(b!.pile);
+        // The red band is exactly the cards that open a pile.
+        expect(b!.pile === d.piles.length).toBe(newPileCards(d).includes(c));
+        // A card that lands on the last pile grows the red band down to just above it.
+        if (j === d.piles.length - 1) expect(catchBands(after)[after.piles.length].lo).toBe(c + 1);
       }
     }
   });
 
   it('a decided round has exactly 0 or 1 to win, and the natural end is always decided', () => {
-    for (const bet of ALL_BETS) {
-      for (let t = 0; t < 8; t++) {
-        let d = newDeal(bet.n);
-        while (!ended(bet, d)) d = place(d, d.remaining[rng.int(d.remaining.length)]);
-        const won = winsAt(bet, d.piles.length) && (bet.mode === 'reach' || d.remaining.length === 0);
-        expect(decided(bet, d)).toBe(won ? 'won' : 'lost');
-        expect(winChance(bet, d)).toBe(won ? 1 : 0);
+    for (const k of K_OPTIONS) {
+      for (let t = 0; t < 20; t++) {
+        let d = newDeal();
+        while (!ended(k, d)) d = place(d, d.remaining[rng.int(d.remaining.length)]);
+        const won = d.piles.length <= k;
+        expect(decided(k, d)).toBe(won ? 'won' : 'lost');
+        expect(winChance(k, d)).toBe(won ? 1 : 0);
+        // A loss ends the moment pile k+1 opens, never later.
+        if (!won) expect(d.piles.length).toBe(k + 1);
       }
     }
   });
 
-  it('no cash-out can exceed the largest prize on offer', () => {
-    expect(Math.max(...ALL_BETS.map(prizeFor))).toBe(MAX_MULTIPLIER);
+  it('one knob: k moves the win chance by more than 25:1, and no cash-out exceeds the largest prize', () => {
+    const chances = K_OPTIONS.map(startChance);
+    expect(Math.max(...chances) / Math.min(...chances)).toBeGreaterThan(25);
+    expect(Object.values(VOLATILITY).sort()).toEqual([...K_OPTIONS]);
+    expect(Math.max(...K_OPTIONS.map(prizeFor))).toBe(MAX_MULTIPLIER);
     expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
-    for (const bet of ALL_BETS) {
-      expect(startChance(bet)).toBeGreaterThan(0);
-      const p = startChance(bet);
-      expect(prizeFor(bet) * p).toBeCloseTo(RTP, 12);
-    }
+    for (const k of K_OPTIONS) expect(prizeFor(k) * startChance(k)).toBeCloseTo(RTP, 12);
   });
 
   it('simulated RTP matches the manifest under mixed stopping rules', () => {

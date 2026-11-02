@@ -1,88 +1,85 @@
-// Pivot: a committee of weighted voters joins a coalition one at a time, in a
-// uniformly random order. The pivot is the voter whose weight first takes the
-// coalition's total to the quota or beyond. You back one voter before the
-// round; you win if your voter is the pivot.
+// Pivot: six blocks of sizes 7, 5, 4, 3, 2, 1 stack up one at a time, in a
+// uniformly random order. The block whose top end first takes the stack to the
+// line (16) or over it is the pivot. You back one block before the round; you
+// win if your block is the pivot. Put plainly: your block wins if, sitting on
+// the stack when it joins, its top end crosses the line. If it lands with its
+// top still under the line it is too early; if another block crosses first,
+// you are out.
 //
-// Shapley–Shubik. The chance that voter i is the pivot of a uniformly random
-// order is its Shapley–Shubik power index φᵢ. The indices of a committee add
-// up to 1 (every order has exactly one pivot) and are not proportional to the
-// weights: in the Council [5, 4, 3, 2, 1] with quota 9 they are
-// 11/30, 17/60, 1/5, 7/60, 1/30.
+// Shapley–Shubik. The chance that block i is the pivot of a uniformly random
+// order is its Shapley–Shubik power index φᵢ. The indices add up to 1 (every
+// order has exactly one pivot) and are not proportional to the sizes: here
+// they are 27/60, 12/60, 9/60, 7/60, 4/60, 1/60, so the one board runs from
+// near even money (A, 45%) to a long shot (F, 1 in 60), a 27:1 range.
 //
-// Exact odds mid-round. Say the voters in J have joined (total s < quota q)
-// and your voter i (weight w) has not. The rest R (m voters, i among them)
-// join in a uniformly random order, so the set T of voters ahead of i is: a
-// size k uniform on 0…m−1, then a uniform k-subset of R∖{i}. Voter i tips the
-// quota exactly when q − w ≤ s + sum(T) ≤ q − 1 (no prefix of T can reach the
-// quota first, since its sum is smaller still). So
+// Exact odds mid-round. Say the blocks in J have joined (stack s < line q)
+// and your block i (size w) has not. The rest R (m blocks, i among them) join
+// in a uniformly random order, so the set T of blocks ahead of i is: a size k
+// uniform on 0…m−1, then a uniform k-subset of R∖{i}. Block i crosses the line
+// exactly when q − w ≤ s + sum(T) ≤ q − 1 (no prefix of T can reach the line
+// first, since its sum is smaller still). So
 //   P(i pivots | J) = Σₖ N_k · k!·(m−1−k)! / m!,
-// where N_k counts k-subsets of R∖{i} whose weight lands in that gap: a
-// subset-sum DP over (size, sum). The numerator is an integer ≤ 10!, so
+// where N_k counts k-subsets of R∖{i} whose size lands in that gap: a
+// subset-sum DP over (count, sum). The numerator is an integer ≤ 6!, so
 // "certain" (numerator = m!) and "impossible" (0) are exact tests.
 //
-// Pricing (fixed prize). Backing voter i pays prize = RTP / φᵢ, and the
-// cash-out is prize · P(i pivots | J). The next voter to join is uniform over
+// Pricing (fixed prize). Backing block i pays prize = RTP / φᵢ, and the
+// cash-out is prize · P(i pivots | J). The next block to join is uniform over
 // R, so P(· | J) is the plain average over R of the chance after each possible
 // join: the cash-out is a martingale starting at RTP, and every stopping rule
-// returns exactly RTP. Choosing which voter to back only moves φᵢ (so the
-// volatility), never the value. The board draws that average: one equal-width
-// column per voter who could join next, filled to your chance if it does; the
-// green share of the columns is your chance now.
+// returns exactly RTP. Choosing which block to back only moves φᵢ (so the
+// volatility), never the value.
 //
-// Rules that end the round early (all leave every value unchanged): if your
-// chance hits 0 the round is lost at once; if it hits 1 the remaining joins
-// play out by themselves. The largest payout is the biggest prize,
-// RTP / min φ ≈ 42.3× (a weight-1 voter in the Boss committee).
+// The board draws every waiting block standing on the current stack at its
+// full size, so the player sees which ones would cross the line if they joined
+// next. A waiting block is red exactly when its joining next leaves you no
+// chance: another block crossing first, yours landing short, or a "dead end"
+// (no order of the rest lets yours cross). The red count over the waiting
+// count is the next join's risk, the figure on the "Next block" button.
+//
+// Joins that need no decision play out by themselves (both leave every value
+// unchanged): while your chance is 1 (you are sure to win) or 0 (the round can
+// only end with yours short or another block crossing first), the next blocks
+// keep joining until the round ends. So every loss the player sees is one of
+// those two. The largest payout is the biggest prize, RTP / (1/60) = 59.4×.
 
 import type { Rng, Volatility } from '@originals/game-sdk';
 
 export const RTP = 0.99;
 
-export interface Committee {
-  id: CommitteeId;
-  name: string;
-  weights: readonly number[];
-  quota: number;
-}
+/** Block sizes, A to F. */
+export const SIZES: readonly number[] = [7, 5, 4, 3, 2, 1];
+/** The line: the block that takes the stack here or over it is the pivot. */
+export const LINE = 16;
+export const TOTAL = SIZES.reduce((a, b) => a + b, 0);
+export const BLOCKS = SIZES.length;
 
-export const COMMITTEE_IDS = ['council', 'board', 'assembly', 'boss'] as const;
-export type CommitteeId = (typeof COMMITTEE_IDS)[number];
+export const blockName = (i: number) => String.fromCharCode(65 + i);
 
-export const COMMITTEES: Record<CommitteeId, Committee> = {
-  council: { id: 'council', name: 'Council', weights: [5, 4, 3, 2, 1], quota: 9 },
-  board: { id: 'board', name: 'Board', weights: [4, 3, 3, 2, 2, 1], quota: 8 },
-  assembly: { id: 'assembly', name: 'Senate', weights: [6, 5, 4, 3, 2, 2, 1, 1, 1], quota: 13 },
-  boss: { id: 'boss', name: 'Boss', weights: [10, 2, 2, 1, 1, 1, 1, 1, 1, 1], quota: 13 },
-};
-
-export const totalWeight = (c: Committee) => c.weights.reduce((a, b) => a + b, 0);
-export const voterName = (i: number) => String.fromCharCode(65 + i);
-
-const FACT = [1, 1, 2, 6, 24, 120, 720, 5040, 40320, 362880, 3628800, 39916800];
+const FACT = [1, 1, 2, 6, 24, 120, 720, 5040];
 
 const memo = new Map<string, number>();
 
 /**
- * m!·P(voter i is the pivot | the voters in `joined` are in), as an exact
+ * m!·P(block i is the pivot | the blocks in `joined` are in), as an exact
  * integer, where m is the number still to join (i among them). Returns 0 if i
- * has joined or the quota is already reached.
+ * has joined or the line is already reached.
  */
-export function pivotCount(cid: CommitteeId, i: number, joined: number): number {
-  const key = `${cid}:${i}:${joined}`;
+export function pivotCount(i: number, joined: number): number {
+  const key = `${i}:${joined}`;
   const hit = memo.get(key);
   if (hit !== undefined) return hit;
-  const { weights, quota } = COMMITTEES[cid];
   let s = 0;
   const others: number[] = [];
-  weights.forEach((w, j) => {
+  SIZES.forEach((w, j) => {
     if (joined & (1 << j)) s += w;
     else if (j !== i) others.push(w);
   });
   let out = 0;
-  if (!(joined & (1 << i)) && s < quota) {
-    const lo = quota - weights[i] - s;
-    const hi = quota - 1 - s;
-    // N[k][t]: k-subsets of the others with weight t (t capped at hi + 1).
+  if (!(joined & (1 << i)) && s < LINE) {
+    const lo = LINE - SIZES[i] - s;
+    const hi = LINE - 1 - s;
+    // N[k][t]: k-subsets of the others with size t (t capped at hi + 1).
     const cap = hi + 1;
     let N: number[][] = [Array.from({ length: cap + 1 }, (_, t) => (t === 0 ? 1 : 0))];
     for (const w of others) {
@@ -106,69 +103,60 @@ export function pivotCount(cid: CommitteeId, i: number, joined: number): number 
   return out;
 }
 
-const remainingCount = (cid: CommitteeId, joined: number) =>
-  COMMITTEES[cid].weights.filter((_, j) => !(joined & (1 << j))).length;
+const remainingCount = (joined: number) => SIZES.filter((_, j) => !(joined & (1 << j))).length;
 
-/** Exact chance that voter i is the pivot, given who has joined. */
-export const pivotChance = (cid: CommitteeId, i: number, joined: number) => pivotCount(cid, i, joined) / FACT[remainingCount(cid, joined)];
+/** Exact chance that block i is the pivot, given who has joined. */
+export const pivotChance = (i: number, joined: number) => pivotCount(i, joined) / FACT[remainingCount(joined)];
 
-/** The Shapley–Shubik power index: voter i's chance to be the pivot of a random order. */
-export const shapley = (cid: CommitteeId, i: number) => pivotChance(cid, i, 0);
-export const prizeFor = (cid: CommitteeId, i: number) => RTP / shapley(cid, i);
+/** The Shapley–Shubik power index: block i's chance to be the pivot of a random order. */
+export const startChance = (i: number) => pivotChance(i, 0);
+export const prizeFor = (i: number) => RTP / startChance(i);
 
-/** The range of coalition totals at which your voter's joining tips the quota: [from, to]. */
-export function tipZone(cid: CommitteeId, i: number): { from: number; to: number } {
-  const { weights, quota } = COMMITTEES[cid];
-  return { from: Math.max(0, quota - weights[i]), to: quota - 1 };
-}
-
-/** "5–8", or "12" for a single total. */
-export const zoneText = (z: { from: number; to: number }) => (z.from === z.to ? `${z.from}` : `${z.from}–${z.to}`);
-
-export type Ending = 'tipped' | 'early' | 'beaten' | 'reach' | 'cashed';
+export type Ending = 'won' | 'early' | 'passed' | 'cashed';
 
 export interface Round {
-  committee: CommitteeId;
   backed: number;
-  /** Voters in the coalition, in join order. */
+  /** Blocks on the stack, in join order, bottom first. */
   order: number[];
   status: 'live' | 'won' | 'lost';
   ending: Ending | null;
 }
 
-export const newRound = (committee: CommitteeId, backed: number): Round => ({ committee, backed, order: [], status: 'live', ending: null });
+export const newRound = (backed: number): Round => ({ backed, order: [], status: 'live', ending: null });
 
 export const maskOf = (order: readonly number[]) => order.reduce((m, j) => m | (1 << j), 0);
-export const coalitionSum = (cid: CommitteeId, order: readonly number[]) => order.reduce((s, j) => s + COMMITTEES[cid].weights[j], 0);
-export const remaining = (r: Round) => COMMITTEES[r.committee].weights.flatMap((_, j) => (r.order.includes(j) ? [] : [j]));
+export const totalOf = (order: readonly number[]) => order.reduce((s, j) => s + SIZES[j], 0);
+export const remaining = (r: Round) => SIZES.flatMap((_, j) => (r.order.includes(j) ? [] : [j]));
 
 /** Chance to win from here. */
 export function winChance(r: Round): number {
   if (r.status !== 'live') return r.status === 'won' ? 1 : 0;
-  return pivotChance(r.committee, r.backed, maskOf(r.order));
+  return pivotChance(r.backed, maskOf(r.order));
 }
 
-export const certain = (r: Round) =>
-  r.status === 'live' && pivotCount(r.committee, r.backed, maskOf(r.order)) === FACT[remainingCount(r.committee, maskOf(r.order))];
+/** True while the next join needs no decision: the round is already sure to be won, or sure to be lost. */
+export function decided(r: Round): boolean {
+  if (r.status !== 'live') return false;
+  const n = pivotCount(r.backed, maskOf(r.order));
+  return n === 0 || n === FACT[remainingCount(maskOf(r.order))];
+}
 
-export const cashValue = (r: Round) => prizeFor(r.committee, r.backed) * winChance(r);
+export const cashValue = (r: Round) => prizeFor(r.backed) * winChance(r);
 
-/** Voter j joins the coalition. */
+/** Block j joins the top of the stack. */
 export function join(r: Round, j: number): Round {
-  if (r.status !== 'live' || r.order.includes(j)) throw new Error(`voter ${j} cannot join`);
-  const { weights, quota } = COMMITTEES[r.committee];
-  const s = coalitionSum(r.committee, r.order);
+  if (r.status !== 'live' || r.order.includes(j)) throw new Error(`block ${j} cannot join`);
+  const s = totalOf(r.order);
   const order = [...r.order, j];
-  if (j === r.backed) return s + weights[j] >= quota ? { ...r, order, status: 'won', ending: 'tipped' } : { ...r, order, status: 'lost', ending: 'early' };
-  if (s + weights[j] >= quota) return { ...r, order, status: 'lost', ending: 'beaten' };
-  const next: Round = { ...r, order };
-  return pivotCount(r.committee, r.backed, maskOf(order)) === 0 ? { ...next, status: 'lost', ending: 'reach' } : next;
+  if (j === r.backed) return s + SIZES[j] >= LINE ? { ...r, order, status: 'won', ending: 'won' } : { ...r, order, status: 'lost', ending: 'early' };
+  if (s + SIZES[j] >= LINE) return { ...r, order, status: 'lost', ending: 'passed' };
+  return { ...r, order };
 }
 
 /**
- * One player action, drawn in full before anything animates: the next voter
- * joins, and while your voter is then certain to tip the quota the rest keep
- * joining by themselves until it does.
+ * One player action, drawn in full before anything animates: the next block
+ * joins, and while the result is then already decided (chance 1 or 0) the rest
+ * keep joining by themselves until the round ends.
  */
 export function plan(r: Round, rng: Rng): Round[] {
   const out: Round[] = [];
@@ -177,44 +165,40 @@ export function plan(r: Round, rng: Rng): Round[] {
     const rest = remaining(cur);
     cur = join(cur, rest[rng.int(rest.length)]);
     out.push(cur);
-  } while (cur.status === 'live' && certain(cur));
+  } while (decided(cur));
   return out;
 }
 
+/** Would block j, joining next, take the stack over the line? */
+export const crosses = (r: Round, j: number) => totalOf(r.order) + SIZES[j] >= LINE;
+
 export interface Column {
-  voter: number;
-  /** Your chance if this voter joins next. */
+  block: number;
+  /** Your chance if this block joins next. */
   p: number;
   /** What happens to the round if it does (null while it goes on). */
   ends: 'won' | 'lost' | null;
 }
 
-/** Every voter who could join next, with your chance if it does. Their average is your chance now. */
+/** Every block waiting to join, with your chance if it joins next. Their average is your chance now. */
 export function columns(r: Round): Column[] {
   if (r.status !== 'live') return [];
-  return remaining(r).map((voter) => {
-    const n = join(r, voter);
-    return { voter, p: winChance(n), ends: n.status === 'live' ? null : n.status };
+  return remaining(r).map((block) => {
+    const n = join(r, block);
+    return { block, p: winChance(n), ends: n.status === 'live' ? null : n.status };
   });
 }
 
-/** The shaded share of the column chart: each column equally wide, filled to its p. */
-export const shadedShare = (cols: readonly Column[]) => (cols.length ? cols.reduce((a, c) => a + c.p, 0) / cols.length : 0);
+/** Share of waiting blocks drawn red: joining next would leave you no chance. */
+export const nextLoss = (cols: readonly Column[]) => (cols.length ? cols.filter((c) => c.p === 0).length / cols.length : 0);
 
-/** Share of next joins that end the round against you. */
-export const nextLoss = (cols: readonly Column[]) => (cols.length ? cols.filter((c) => c.ends === 'lost').length / cols.length : 0);
-
-export function volatilityOf(cid: CommitteeId, i: number): Volatility {
-  const p = shapley(cid, i);
-  return p > 0.4 ? 'low' : p > 0.15 ? 'medium' : p > 0.05 ? 'high' : 'extreme';
+export function volatilityOf(i: number): Volatility {
+  const p = startChance(i);
+  return p > 0.3 ? 'low' : p > 0.12 ? 'medium' : p > 0.04 ? 'high' : 'extreme';
 }
 
-export const VOLATILITY: Record<Volatility, { committee: CommitteeId; voter: number }> = {
-  low: { committee: 'boss', voter: 0 },
-  medium: { committee: 'council', voter: 1 },
-  high: { committee: 'assembly', voter: 3 },
-  extreme: { committee: 'boss', voter: 9 },
-};
+/** One block per level for the eval: A (45%), B (20%), D (11.7%), F (1.7%). */
+export const VOLATILITY: Record<Volatility, number> = { low: 0, medium: 1, high: 3, extreme: 5 };
 
 /** The prize is the largest payout: cash-outs are prize × a probability. */
-export const MAX_MULTIPLIER = Math.max(...COMMITTEE_IDS.flatMap((c) => COMMITTEES[c].weights.map((_, i) => prizeFor(c, i))));
+export const MAX_MULTIPLIER = Math.max(...SIZES.map((_, i) => prizeFor(i)));

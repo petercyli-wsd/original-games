@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Last Light',
   tagline: 'A random walker lights a ring of lamps. Back the one that lights last: every lamp has the same chance.',
   mechanic: 'random-walk',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

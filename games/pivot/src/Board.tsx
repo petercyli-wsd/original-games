@@ -1,159 +1,177 @@
-import { COMMITTEES, coalitionSum, tipZone, voterName, zoneText, type Column, type CommitteeId, type Ending } from './math';
+import { fmtChance, fmtMult } from '@originals/game-sdk/ui';
+import { LINE, SIZES, TOTAL, blockName, prizeFor, startChance, totalOf, type Column, type Ending } from './math';
 
-const X0 = 40;
-const X1 = 384;
-const BAR_Y = 52;
-const BAR_H = 40;
-const CH_TOP = 240;
-const CH_H = 150;
+// Vertical scale: one unit of block size is U px; the axis runs 0…TOTAL (22),
+// the highest any block can reach (stack 15 + the 7 block).
+const U = 12;
+const Y0 = 318;
+const y = (v: number) => Y0 - v * U;
+// The stack column and the row of waiting blocks.
+const SX0 = 42;
+const SX1 = 106;
+const TX0 = 118;
+const TX1 = 398;
+const SLOT = (TX1 - TX0) / SIZES.length;
+const TW = 32;
 
 export interface BoardProps {
-  committee: CommitteeId;
   backed: number;
-  /** Voters in the coalition, in join order. */
+  /** Blocks on the stack, in join order, bottom first. */
   order: number[];
-  /** Who could join next, with your chance if they do. */
+  /** Live: the blocks waiting to join, with your chance if each joins next. */
   cols: Column[];
-  /** Your chance now (the average of the columns). */
-  chance: number;
-  /** The voter joining right now, or the last to join once the round is over. */
+  /** The block joining right now. */
   pick: number | null;
   ending: Ending | null;
-  live: boolean;
-  /** Choose the backed voter by clicking a column (only between rounds). */
-  onPick?: (voter: number) => void;
+  /** Idle: the waiting blocks are the picker, labelled with chance and prize. */
+  picking: boolean;
+  /** Choose the backed block by clicking it (only between rounds). */
+  onPick?: (block: number) => void;
 }
 
-export default function Board({ committee, backed, order, cols, chance, pick, ending, live, onPick }: BoardProps) {
-  const { weights, quota } = COMMITTEES[committee];
-  const total = weights.reduce((a, b) => a + b, 0);
-  const u = (X1 - X0) / total;
-  const x = (v: number) => X0 + v * u;
-  const s = coalitionSum(committee, order);
-  const zone = tipZone(committee, backed);
-  const joined = order.includes(backed);
-  const inZone = s >= zone.from && s <= zone.to;
-  const you = `${voterName(backed)}·${weights[backed]}`;
+export default function Board({ backed, order, cols, pick, ending, picking, onPick }: BoardProps) {
+  const s = totalOf(order);
+  const you = blockName(backed);
+  const live = !picking && !ending;
 
-  // Coalition blocks, in join order.
+  // Blocks on the stack, bottom first.
   let at = 0;
-  const blocks = order.map((j, k) => {
-    const b = { j, from: at, w: weights[j], last: k === order.length - 1 };
-    at += weights[j];
+  const stack = order.map((j, k) => {
+    const b = { j, from: at, w: SIZES[j], last: k === order.length - 1 };
+    at += SIZES[j];
     return b;
   });
 
-  const m = cols.length;
-  const cw = m ? Math.min(62, (X1 - X0) / m) : 0;
-  const cx0 = X0 + (X1 - X0 - cw * m) / 2;
-  const chanceY = CH_TOP + CH_H * (1 - chance);
-  const tokenR = Math.min(15, cw / 2 - 3);
+  // The waiting blocks, each in its own fixed slot, standing on top of the stack.
+  type Tile = { block: number; kind: 'wait' | 'out' | 'win' };
+  const tiles: Tile[] = picking
+    ? SIZES.map((_, block) => ({ block, kind: 'wait' }))
+    : live
+      ? cols.map((c) => ({ block: c.block, kind: c.ends === 'won' ? 'win' : c.p === 0 ? 'out' : 'wait' }))
+      : [];
+  const red = tiles.filter((t) => t.kind === 'out').length;
+  const base = picking ? 0 : s;
+
+  let note = '';
+  const yours = stack.find((b) => b.j === backed);
+  if (ending === 'won') note = `${you} landed on ${yours!.from} and crossed the line`;
+  else if (ending === 'early' && yours) note = `${you} landed on ${yours.from}, topped out at ${s}: short`;
+  else if (ending === 'passed') note = `${blockName(order[order.length - 1])} crossed the line before ${you} joined`;
+  else if (ending === 'cashed') note = `Cashed out with the stack at ${s}`;
 
   return (
-    <svg viewBox="0 0 400 426" className="pivot" role="img" aria-label={`Coalition ${s} of quota ${quota}; your voter ${you}`}>
-      {/* ---- The coalition bar ---- */}
-      <text x={X0} y={22} className="sec">
-        COALITION
+    <svg viewBox="0 0 400 356" className="pivot" role="img" aria-label={`Stack ${s} of ${LINE}; ${you} wins if it is the block that takes the stack over the line`}>
+      <text x={8} y={16} className="head">
+        {you} must take the stack over the line
       </text>
-      <text x={X1} y={22} className="sec end">
-        total {s} · quota {quota} of {total}
+      <text x={TX1} y={16} className="sec end">
+        stack {s}
       </text>
 
-      <rect x={x(zone.from)} y={BAR_Y - 10} width={(zone.to + 1 - zone.from) * u} height={BAR_H + 20} rx={4} className={'zone' + (inZone && !joined && live ? ' hot' : '')} />
-      <rect x={X0} y={BAR_Y} width={X1 - X0} height={BAR_H} rx={6} className="track" />
-      {Array.from({ length: total - 1 }, (_, k) => (
-        <line key={k} x1={x(k + 1)} x2={x(k + 1)} y1={BAR_Y + BAR_H - 6} y2={BAR_Y + BAR_H} className="tick" />
+      {/* Scale: a tick per unit, 0 at the floor, the line at 16. */}
+      {Array.from({ length: TOTAL }, (_, k) => (
+        <line key={k} x1={SX0 - 5} x2={SX0 - 1} y1={y(k + 1)} y2={y(k + 1)} className="tick" />
       ))}
+      <text x={SX0 - 9} y={Y0 + 4} className="axis">
+        0
+      </text>
+      <line x1={SX0 - 6} x2={TX1} y1={Y0} y2={Y0} className="floor" />
 
-      {blocks.map((b) => {
-        const crossed = b.from + b.w >= quota;
-        const cls = b.j === backed ? (crossed ? 'blk you won' : 'blk you lost') : crossed ? 'blk beat' : 'blk';
+      {/* The stack. */}
+      <rect x={SX0} y={y(TOTAL)} width={SX1 - SX0} height={TOTAL * U} rx={4} className="col" />
+      {stack.map((b) => {
+        const over = b.from + b.w >= LINE;
+        const cls = b.j === backed ? (over ? 'blk you won' : ending === 'early' ? 'blk you lost' : 'blk you') : over ? 'blk beat' : 'blk';
         return (
-          <g key={b.j} className={b.last ? 'fresh' : undefined}>
-            <rect x={x(b.from) + 1} y={BAR_Y + 1} width={b.w * u - 2} height={BAR_H - 2} rx={5} className={cls} />
-            <text x={x(b.from + b.w / 2)} y={BAR_Y + BAR_H / 2 + 5} className="blk-t">
-              {b.w * u > 22 ? `${voterName(b.j)}${b.w > 1 && b.w * u > 40 ? '·' + b.w : ''}` : voterName(b.j)}
-            </text>
+          <g key={b.j} className={b.last && !picking ? 'fresh' : undefined}>
+            <rect x={SX0 + 1} y={y(b.from + b.w) + 1} width={SX1 - SX0 - 2} height={b.w * U - 2} rx={3} className={cls} />
           </g>
         );
       })}
-
-      {/* Your voter, drawn where it would land if it joined now. */}
-      {!joined && ending !== 'beaten' && (
-        <g className={'ghost' + (inZone ? ' tips' : '')}>
-          <rect x={x(s) + 1} y={BAR_Y + 1} width={Math.min(weights[backed], total - s) * u - 2} height={BAR_H - 2} rx={5} />
-          <text x={x(s + Math.min(weights[backed], total - s) / 2)} y={BAR_Y + BAR_H / 2 + 5}>
-            {voterName(backed)}
+      {/* Labels after every block, so a thin block's letter is never covered by the one above it. */}
+      {stack.map((b) => (
+        <text key={b.j} x={(SX0 + SX1) / 2} y={y(b.from + b.w / 2) + (b.w === 1 ? 3.5 : 4.5)} className={'blk-t' + (b.w === 1 ? ' thin' : '') + (b.last && !picking ? ' fresh' : '')}>
+          {blockName(b.j)}
+        </text>
+      ))}
+      {ending === 'early' && (
+        <g className="gap">
+          <line x1={SX1 + 8} x2={SX1 + 8} y1={y(LINE)} y2={y(s)} />
+          <text x={SX1 + 14} y={(y(LINE) + y(s)) / 2 + 4}>
+            {LINE - s} short
           </text>
         </g>
       )}
 
-      <line x1={x(quota)} x2={x(quota)} y1={BAR_Y - 16} y2={BAR_Y + BAR_H + 16} className="quota" />
-      <text x={x(quota)} y={BAR_Y - 20} className="quota-t">
-        quota {quota}
+      {/* The stack top, carried across to the waiting blocks standing on it. */}
+      {live && s > 0 && <line x1={SX1} x2={TX1} y1={y(s)} y2={y(s)} className="top" />}
+
+      {tiles.length > 0 && (
+        <text x={TX0 + 4} y={36} className="sec">
+          {picking ? 'PICK YOUR BLOCK' : `NEXT TO JOIN · ${tiles.length - red} of ${tiles.length} safe`}
+        </text>
+      )}
+      {tiles.map((t) => {
+        const w = SIZES[t.block];
+        const cx = TX0 + SLOT * t.block + SLOT / 2;
+        const isYou = t.block === backed;
+        const cls = 'tile ' + t.kind + (isYou ? ' you' : '') + (pick === t.block ? ' pick' : '') + (onPick ? ' clickable' : '');
+        const top = y(base + w);
+        return (
+          <g key={t.block} className={cls} onClick={onPick ? () => onPick(t.block) : undefined}>
+            <rect x={cx - TW / 2} y={top} width={TW} height={w * U} rx={3} className="tile-r" />
+            <text x={cx} y={top + (w * U) / 2 + (w === 1 ? 3.5 : 4.5)} className={'tile-t' + (w === 1 ? ' thin' : '')}>
+              {blockName(t.block)}
+            </text>
+            {!picking && t.kind !== 'wait' && (
+              // A block whose top stops one unit under the line would have its mark struck through by the line: lift it above.
+              <text x={cx} y={(base + w === LINE - 1 ? y(LINE) : top) - 6} className="mark">
+                {t.kind === 'win' ? 'WIN' : isYou ? 'short' : '✕'}
+              </text>
+            )}
+            {picking ? (
+              <>
+                <text x={cx} y={Y0 + 16} className="t-p">
+                  {fmtChance(startChance(t.block))}
+                </text>
+                <text x={cx} y={Y0 + 31} className="t-prize">
+                  {fmtMult(prizeFor(t.block))}
+                </text>
+              </>
+            ) : (
+              isYou && (
+                <text x={cx} y={Y0 + 15} className="t-you">
+                  you
+                </text>
+              )
+            )}
+          </g>
+        );
+      })}
+
+      {/* The one fixed line. */}
+      <line x1={SX0 - 6} x2={TX1} y1={y(LINE)} y2={y(LINE)} className="line" />
+      <text x={SX0 - 9} y={y(LINE) + 4} className="axis line-t">
+        {LINE}
+      </text>
+      <text x={SX0 - 9} y={y(LINE) - 8} className="axis">
+        line
       </text>
 
-      <text x={(x(zone.from) + x(zone.to + 1)) / 2} y={BAR_Y + BAR_H + 30} className="zone-t">
-        tip zone: total {zoneText(zone)}
-      </text>
-      <text x={200} y={BAR_Y + BAR_H + 58} className="note">
-        {ending === 'tipped'
-          ? `${you} joined at ${s - weights[backed]} and tipped the quota`
-          : ending === 'early'
-            ? `${you} joined at ${s - weights[backed]}: short of the tip zone`
-            : ending === 'beaten'
-              ? `${voterName(order[order.length - 1])} took the total to ${s} first`
-              : ending === 'reach'
-                ? `Too little weight left to reach the tip zone`
-                : joined
-                  ? ''
-                  : inZone
-                    ? `If ${you} joins now, it tips the quota`
-                    : `${you} tips it if it joins at a total of ${zoneText(zone)}`}
-      </text>
-
-      {/* ---- Who joins next: equal columns filled to your chance after each ---- */}
-      {m > 0 && (
-        <>
-          <text x={X0} y={CH_TOP - 64} className="sec">
-            {ending && ending !== 'cashed' ? 'THE LAST JOIN' : 'WHO JOINS NEXT'}
-          </text>
-          <text x={X1} y={CH_TOP - 64} className="sec end">
-            each equally likely · fill = your chance after
-          </text>
-          <rect x={cx0} y={CH_TOP} width={cw * m} height={CH_H} className="chart-bg" />
-          {cols.map((c, k) => {
-            const cx = cx0 + k * cw;
-            const isYou = c.voter === backed;
-            const fillH = CH_H * c.p;
-            const cls = 'col' + (isYou ? ' you' : '') + (c.ends === 'lost' ? ' dead' : '') + (pick === c.voter ? ' pick' : '') + (onPick ? ' clickable' : '');
-            return (
-              <g key={c.voter} className={cls} onClick={onPick ? () => onPick(c.voter) : undefined}>
-                <rect x={cx + 2} y={CH_TOP} width={cw - 4} height={CH_H} className="col-box" />
-                <rect x={cx + 2} y={CH_TOP + CH_H - fillH} width={cw - 4} height={fillH} className="col-fill" />
-                {c.ends === 'lost' && (
-                  <text x={cx + cw / 2} y={CH_TOP + CH_H - 10} className="col-x">
-                    ✕
-                  </text>
-                )}
-                <circle cx={cx + cw / 2} cy={CH_TOP - 32} r={tokenR} className="tok" />
-                <text x={cx + cw / 2} y={CH_TOP - 27} className="tok-t">
-                  {voterName(c.voter)}
-                </text>
-                <text x={cx + cw / 2} y={CH_TOP - 4} className="tok-w">
-                  {isYou ? 'you' : `w${weights[c.voter]}`}
-                </text>
-              </g>
-            );
-          })}
-          <line x1={cx0 - 4} x2={cx0 + cw * m + 2} y1={chanceY} y2={chanceY} className="avg" />
-          <text x={cx0 - 6} y={chanceY + 4} className="avg-t">
-            {Math.round(chance * 100)}%
-          </text>
-          <text x={200} y={CH_TOP + CH_H + 22} className="note">
-            Green share of the columns = your chance now
-          </text>
-        </>
+      {live && (
+        <text x={(TX0 + TX1) / 2} y={Y0 + 34} className="legend">
+          <tspan className="bad">red ✕</tspan> = you're out if next
+        </text>
+      )}
+      {picking && (
+        <text x={(SX0 + SX1) / 2} y={Y0 + 16} className="axis mid">
+          stack
+        </text>
+      )}
+      {note && (
+        <text key={note} x={(SX0 + TX1) / 2} y={40} className={'note' + (ending === 'won' ? ' win' : ending === 'cashed' ? '' : ' lose')}>
+          {note}
+        </text>
       )}
     </svg>
   );

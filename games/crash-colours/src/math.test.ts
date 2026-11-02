@@ -9,7 +9,11 @@ import {
   RTP,
   SPLITS,
   chances,
+  chancesFrom,
   crashFromU,
+  crashedBefore,
+  gridUp,
+  heightAt,
   crashPoint,
   distribution,
   expectedReturn,
@@ -141,6 +145,68 @@ describe('Crash Colours maths', () => {
       }
       expect(timeAt(crash, T)).toBeLessThan(T);
     }
+  });
+
+  it('the graph draws each band exactly as tall as its chance', () => {
+    for (const lines of ALL_LINES) {
+      const p = chances(lines);
+      // Heights are measured from the bottom (1.00×) on a 0..1 scale.
+      expect(heightAt(1)).toBe(0);
+      expect(heightAt(lines.split)).toBeCloseTo(p.red, 14); // Red: everything under the green line
+      expect(1 - heightAt(lines.split)).toBeCloseTo(p.green, 14); // Green: everything above it
+      expect(1 - heightAt(lines.moon)).toBeCloseTo(p.moon, 14); // Moon: the top slice
+      expect(heightAt(lines.split)).toBeCloseTo(crashedBefore(lines.split), 14);
+    }
+    // Every grid point (so every line and crash point) is at its exact height P(C < x),
+    // and the drawn height never decreases between them.
+    let prev = 0;
+    for (let c = 100; c <= 5000; c++) {
+      const x = c / 100;
+      expect(heightAt(x)).toBeCloseTo(1 - survival(x), 14);
+      for (const f of [0.25, 0.5, 0.75]) {
+        const h = heightAt((c + f) / 100);
+        expect(h).toBeGreaterThanOrEqual(prev - 1e-15);
+        prev = h;
+      }
+    }
+  });
+
+  it("the live card odds are each band's share of what is left above the line", () => {
+    for (const lines of ALL_LINES) {
+      const start = chancesFrom(lines, 1);
+      const p = chances(lines);
+      for (const b of BANDS) expect(start[b]).toBeCloseTo(p[b], 14);
+      for (const m of [1.004, 1.01, 1.37, lines.split - 0.005, lines.split, lines.split + 0.3, lines.moon - 0.01, lines.moon, lines.moon * 1.7]) {
+        const now = chancesFrom(lines, m);
+        const left = 1 - crashedBefore(m); // the unshaded height above the head
+        expect(now.green).toBeCloseTo(Math.min(1, (1 - crashedBefore(Math.max(lines.split, gridUp(m)))) / left), 12);
+        expect(now.red + now.green).toBeCloseTo(1, 14);
+        if (m >= lines.split) expect(now.red).toBe(0);
+        if (m >= lines.moon) expect(now.moon).toBe(1);
+      }
+    }
+  });
+
+  it('the live odds match a simulation of the crash point given it reached m (4 SE)', () => {
+    const rng = createRng(seededSource(21));
+    const lines = { split: 2, moon: 10 };
+    const m = 1.6;
+    let n = 0;
+    let green = 0;
+    let moon = 0;
+    for (let i = 0; i < 400_000; i++) {
+      const c = crashPoint(rng.next());
+      if (c < m) continue;
+      n++;
+      if (c >= lines.split) green++;
+      if (c >= lines.moon) moon++;
+    }
+    const now = chancesFrom(lines, m);
+    for (const [k, p] of [
+      [green, now.green],
+      [moon, now.moon],
+    ] as const)
+      expect(Math.abs(k / n - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / n));
   });
 
   it('auto-bet scaling keeps the mix and the total, so each round is the same 99% bet', () => {

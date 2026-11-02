@@ -1,11 +1,13 @@
 import { useEffect } from 'react';
+import { BITE } from '../math';
 
 interface Props {
   onClose: () => void;
   rtp: number;
+  teeth: number;
 }
 
-export default function InfoModal({ onClose, rtp }: Props) {
+export default function InfoModal({ onClose, rtp, teeth }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -24,60 +26,59 @@ export default function InfoModal({ onClose, rtp }: Props) {
 
         <div className="modal-body">
           <p className="lede">
-            You and the House take turns pressing the croc's teeth. Some teeth are bad. <b className="t-lose">Get bitten and you lose.</b>{' '}
-            <b className="t-win">If the House gets bitten, you win.</b>
+            Take turns pressing teeth with the House. <b className="t-lose">Press the bad tooth and you lose;</b>{' '}
+            <b className="t-win">if the House presses it, you win.</b> Cash out between rounds.
           </p>
 
-          <h3>A round</h3>
+          <h3>Goal</h3>
+          <p>
+            Don't be the one who gets bitten. The croc has {teeth} teeth and some of them are bad. Each round you press one tooth, then the House
+            presses one.
+          </p>
+
+          <h3>How to play</h3>
           <ol className="steps">
             <li>
               <span className="dot you" />
               <div>
-                <b>You press a tooth.</b> Pick any tooth, or use <i>Pick Random Tooth</i>. A bad tooth ends the game and you lose your bet.
+                <b>Pick how many bad teeth</b> (the one setting) and press <b>Bet</b>. More bad teeth: lower chance, bigger payouts.
+              </div>
+            </li>
+            <li>
+              <span className="dot you" />
+              <div>
+                <b>You press a tooth.</b> Click any tooth, or use <i>Press a random tooth</i>. A bad tooth ends the game and you lose your bet.
               </div>
             </li>
             <li>
               <span className="dot house" />
               <div>
-                <b>The House presses a tooth.</b> If it hits a bad tooth, you win that round's <span className="t-house">bite</span> payout.
+                <b>The House presses a tooth.</b> If it's bad, you win the <span className="t-house">House bitten</span> payout shown at the top.
               </div>
             </li>
             <li>
               <span className="dot win" />
               <div>
-                <b>Both safe? Checkpoint.</b> Your cash-out value goes up. <b>Cash Out</b> to bank it, or press another tooth to keep going.
+                <b>Both safe? Checkpoint.</b> Your cash-out moves to the next round card. <b>Cash Out</b> to bank it, or press another tooth.
               </div>
             </li>
           </ol>
           <p className="small">If all the good teeth get used up, you're cashed out automatically.</p>
 
-          <h3>Settings</h3>
+          <h3>Reading the odds</h3>
           <dl className="defs">
-            <dt>Teeth</dt>
-            <dd>How many teeth the croc has. More teeth make for longer games with smaller steps and a higher top multiplier.</dd>
-            <dt>Bad Teeth</dt>
-            <dd>How many teeth bite. More bad teeth make each press riskier, games shorter, and wins bigger.</dd>
-            <dt>Bite Bonus</dt>
+            <dt>Bite bar</dt>
             <dd>
-              Controls where the value goes. Toward <b>Ladder</b>, the cash-out value climbs faster each round. Toward <b>Duel</b>, the House getting
-              bitten pays more. At 2× with one bad tooth, it's a straight 50/50 for 1.98×.
+              One block per tooth still in play; <span className="t-lose">red</span> blocks are the bad teeth. It is the chance that the next press
+              bites.
             </dd>
-            <dt>Turbo</dt>
-            <dd>Makes the House take its turn almost instantly, so games play faster. It doesn't change the odds.</dd>
-          </dl>
-
-          <h3>Reading the screen</h3>
-          <dl className="defs">
-            <dt>Bite odds bar</dt>
+            <dt>Win bar</dt>
             <dd>
-              One block per tooth still in play. <span className="t-lose">Red</span> blocks are the bad teeth, so you can see the chance of a bite on the
-              next press.
+              The <span className="t-win">green</span> share is your chance of winning this game if you play to the end. It moves after every press,
+              yours and the House's.
             </dd>
-            <dt>Round strip</dt>
-            <dd>
-              Each card shows what surviving that round raises your cash-out to, plus the <span className="t-house">bite</span> payout if the House gets
-              bitten in that round.
-            </dd>
+            <dt>Round cards</dt>
+            <dd>Your cash-out after each round that both of you survive.</dd>
             <dt>Tooth colours</dt>
             <dd>
               <span className="swatch you" /> you pressed it · <span className="swatch house" /> the House pressed it · <span className="swatch bite" /> a
@@ -85,10 +86,17 @@ export default function InfoModal({ onClose, rtp }: Props) {
             </dd>
           </dl>
 
-          <h3>Fairness</h3>
+          <h3>The maths</h3>
           <p>
-            The payouts are set so that cashing out at any checkpoint, or playing to the end, returns {(rtp * 100).toFixed(1)}% on average. The House
-            presses at random and never knows where the bad teeth are.
+            Drawing without replacement. With n teeth left and k bad, your press bites with chance k/n; if it doesn't, the House's bites with chance
+            k/(n−1). A House bite pays {BITE}× the round card. Each card is set so that cash = P(House bitten)·{BITE}·card + P(both safe)·card, which
+            makes the cash-out a fair martingale.
+          </p>
+
+          <h3>Payouts and fairness</h3>
+          <p>
+            By the optional stopping theorem, cashing out at any checkpoint or playing to the end returns {(rtp * 100).toFixed(1)}% on average. The House
+            presses at random and never knows where the bad teeth are. Turbo only makes the House quicker.
           </p>
 
           <h3>Keyboard</h3>
@@ -100,7 +108,7 @@ export default function InfoModal({ onClose, rtp }: Props) {
               <kbd>C</kbd> cash out
             </span>
             <span>
-              <kbd>Esc</kbd> close this window
+              <kbd>Esc</kbd> close / clear the board
             </span>
           </div>
         </div>

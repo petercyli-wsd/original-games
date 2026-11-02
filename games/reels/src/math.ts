@@ -408,6 +408,175 @@ export function playRound(set: ReelSet, lines: number, next: () => number, buy =
   return { spins, total, multiplier: buy ? total / set.buyPrice : total, freeSpins: played, bought: buy };
 }
 
+// ---------------------------------------------------------------------------
+// The odds of one spin, before it and as each reel stops (left to right).
+//
+// A spin's outcome is a function of the five windows, which are independent,
+// each uniform over its strip's stops. So the conditional distribution given
+// the windows already stopped is an exact finite enumeration over the windows
+// still to come. It runs reel by reel with a compressed state: given reel 1's
+// window every active line knows its symbol X_l, and after reel j the state is
+// (lines still running as a bitmask, line-bet pays already banked by lines that
+// ended, scatters seen). A line still running after reel j has matched X_l or
+// wild on reels 1..j, exactly the rule in linePay. Banked pays only matter
+// against the stake, so they are capped at the first total that beats it, and
+// once no line is running only the scatter count is left, which is summed with
+// the remaining reels' scatter chances. The tests check the full-grid case
+// against evaluate() and the tower property E[odds after the next reel] = odds
+// now, which together make every figure the exact conditional probability.
+// ---------------------------------------------------------------------------
+
+/** Exact chances for one spin; the four outcome parts are disjoint. */
+export interface SpinOdds {
+  /** Pays anything: a line win or free spins (= free + more + less). */
+  pays: number;
+  /** Starts (or, in free spins, adds) free spins: 3+ scatters. */
+  free: number;
+  /** No free spins, and the line wins come to more than the stake. */
+  more: number;
+  /** No free spins, and the line wins come to more than 0 but at most the stake. */
+  less: number;
+}
+
+interface WindowP {
+  win: number[];
+  p: number;
+  scatter: boolean;
+}
+
+const windowCache = new WeakMap<ReelSet, WindowP[][]>();
+/** Each reel's distinct 3-symbol windows with their exact probabilities. */
+export function reelWindows(set: ReelSet): WindowP[][] {
+  let w = windowCache.get(set);
+  if (!w) {
+    w = set.strips.map((strip) => {
+      const m = new Map<string, WindowP>();
+      for (let stop = 0; stop < strip.length; stop++) {
+        const win = [0, 1, 2].map((k) => strip[(stop + k) % strip.length]);
+        const key = win.join(',');
+        const e = m.get(key);
+        if (e) e.p += 1 / strip.length;
+        else m.set(key, { win, p: 1 / strip.length, scatter: win.includes(SCATTER) });
+      }
+      return [...m.values()];
+    });
+    windowCache.set(set, w);
+  }
+  return w;
+}
+
+const oddsCache = new Map<string, SpinOdds>();
+
+/**
+ * Exact odds of a spin on `lines` lines with win multiplier `mult`, given the
+ * windows of the reels already stopped (`stopped[r]` for r < stopped.length).
+ * `fsOpen` is false when no more free spins can be awarded (the feature cap),
+ * so scatters then count for nothing.
+ */
+export function spinOdds(set: ReelSet, lines: number, mult: number, stopped: number[][] = [], fsOpen = true): SpinOdds {
+  const key = stopped.length ? '' : `${set.vol}|${lines}|${mult}|${fsOpen}`;
+  if (key) {
+    const hit = oddsCache.get(key);
+    if (hit) return hit;
+  }
+  const all = reelWindows(set);
+  const wins: WindowP[][] = all.map((ws, r) =>
+    r < stopped.length ? [{ win: stopped[r], p: 1, scatter: stopped[r].includes(SCATTER) }] : ws,
+  );
+  // Line wins (in line bets) beat the stake from C on: linePays · mult / lines > 1.
+  const C = Math.floor(lines / mult) + 1;
+  // tail[j][s]: chance reels j..4 show s scatters between them (s capped at 3).
+  const tail: number[][] = new Array(REELS + 1);
+  tail[REELS] = [1, 0, 0, 0];
+  for (let j = REELS - 1; j >= 0; j--) {
+    const q = wins[j].reduce((a, w) => a + (w.scatter ? w.p : 0), 0);
+    const t = tail[j + 1];
+    tail[j] = [t[0] * (1 - q), t[1] * (1 - q) + t[0] * q, t[2] * (1 - q) + t[1] * q, t[3] + t[2] * q];
+  }
+  const out: SpinOdds = { pays: 0, free: 0, more: 0, less: 0 };
+  const settle = (b: number, sc: number, p: number) => {
+    if (sc >= 3 && fsOpen) out.free += p;
+    else if (b >= C) out.more += p;
+    else if (b > 0) out.less += p;
+  };
+  const rows = PAYLINES.slice(0, lines);
+  const X = new Array<number>(lines);
+  for (const w0 of wins[0]) {
+    let alive = 0;
+    for (let l = 0; l < lines; l++) {
+      X[l] = w0.win[rows[l][0]];
+      if (X[l] < PAYING) alive |= 1 << l;
+    }
+    // state key: (mask · 32 + banked) · 4 + scatters
+    let states = new Map<number, number>([[(alive * 32) * 4 + (w0.scatter ? 1 : 0), w0.p]]);
+    for (let j = 1; j < REELS; j++) {
+      // Which lines carry on through each window of reel j. Windows that let
+      // the same lines through (and agree on the scatter) act alike: merge them.
+      const groups = new Map<number, number>();
+      for (const w of wins[j]) {
+        let m = 0;
+        for (let l = 0; l < lines; l++) {
+          const s = w.win[rows[l][j]];
+          if (s === X[l] || s === WILD) m |= 1 << l;
+        }
+        const g = m * 2 + (w.scatter ? 1 : 0);
+        groups.set(g, (groups.get(g) ?? 0) + w.p);
+      }
+      const gm: number[] = [];
+      const gs: number[] = [];
+      const gp: number[] = [];
+      for (const [g, p] of groups) {
+        gm.push(Math.floor(g / 2));
+        gs.push(g & 1);
+        gp.push(p);
+      }
+      const next = new Map<number, number>();
+      for (const [k, p] of states) {
+        const sc = k & 3;
+        const b = (k >> 2) & 31;
+        const mask = Math.floor(k / 128);
+        if (mask === 0) {
+          // Nothing left running: only scatters can still change the outcome.
+          const t = tail[j];
+          for (let s = 0; s <= 3; s++) if (t[s]) settle(b, Math.min(3, sc + s), p * t[s]);
+          continue;
+        }
+        for (let gi = 0; gi < gm.length; gi++) {
+          const m = mask & gm[gi];
+          let b2 = b;
+          if (j >= 3) {
+            let dead = mask & ~m;
+            while (dead && b2 < C) {
+              const l = 31 - Math.clz32(dead);
+              dead &= ~(1 << l);
+              b2 += set.pays[X[l]][j - 3];
+            }
+            if (b2 > C) b2 = C;
+          }
+          if (j === REELS - 1) {
+            // Last reel: the lines still running are five of a kind.
+            let five = m;
+            while (five && b2 < C) {
+              const l = 31 - Math.clz32(five);
+              five &= ~(1 << l);
+              b2 += set.pays[X[l]][2];
+            }
+            settle(b2, sc + gs[gi], p * gp[gi]);
+            continue;
+          }
+          // Once the stake is beaten, the running lines no longer matter.
+          const k2 = ((b2 >= C ? 0 : m) * 32 + b2) * 4 + Math.min(3, sc + gs[gi]);
+          next.set(k2, (next.get(k2) ?? 0) + p * gp[gi]);
+        }
+      }
+      states = next;
+    }
+  }
+  out.pays = out.free + out.more + out.less;
+  if (key) oddsCache.set(key, out);
+  return out;
+}
+
 /** Win-size tier for the banner, by the round's payout multiplier on the amount paid. */
 export function winTier(total: number): 'big' | 'mega' | 'epic' | null {
   if (total >= 100) return 'epic';

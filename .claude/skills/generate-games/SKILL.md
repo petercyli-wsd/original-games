@@ -16,6 +16,7 @@ Read, and pass the relevant parts on in the subagent tasks below:
 - `docs/DESIGN-RULES.md`: the rules from the team's reviews. This is the bar.
 - `docs/BUILDING-GAMES.md`: the maths and UI contracts.
 - `docs/CATALOGUE.md`: the roster and the rejected principles (don't re-propose them).
+- Every folder in `games/`, including archived ones (status `retired`): a new game must not reskin any of them.
 - `npm run evaluator -- results`: what scores well now, and why the low scorers fail.
 
 ## 2. Concepts (subagent)
@@ -40,23 +41,29 @@ Take the top <target> concepts that passed. If fewer passed, build only those an
 
 A build that can't pass its own checks after a fix attempt is dropped here.
 
+After the builds, run `npm install --package-lock-only --ignore-scripts`. Each new game is a workspace, and the deploy's `npm ci` fails if `package-lock.json` doesn't list it.
+
 ## 5. Evaluate
 
-Review every built game with the full `review-game` procedure (rules card, blind player, designer, submit), following its isolation rules. The blind player must never learn the game's id or name.
+Review every built game with the `review-game` procedure and its isolation rules. The blind player must never learn the game's id or name. One blind player per game, then `npm run evaluator -- preview <id>`. If the overall is between 3.25 and 3.75, widen to a panel: `player-prompt <id> --players 2 --more`, run the two new blind players, and redo the designer. Don't submit yet.
 
 ## 6. Gate
 
-Keep a game as a `prototype` only if all of these hold:
+`npm run evaluator -- preview <id>` scores the review locally and applies the keep gate. The same rule is used everywhere:
 
 - overall ≥ 3.5;
 - win condition, simplicity and odds each ≥ 3 (after caps);
-- the designer found no dead structure and no duplicate.
+- no dead structure and no reskin.
 
-Otherwise, give its review's cons and confusions to one repair subagent (same instructions as step 4, plus "fix these"), then review again. A game that fails twice isn't committed: delete `games/<id>` and add a line to the rejected principles in `docs/CATALOGUE.md` with the reason.
+If a game fails, give its review's cons and confusions to one repair subagent (same instructions as step 4, plus "fix these"), then run the panel review and preview again. A game that fails twice isn't committed: delete `games/<id>` and add a line to the rejected principles in `docs/CATALOGUE.md` with the reason.
 
 ## 7. Record
 
-- Commit each kept game on its own: `node scripts/commit-game.mjs <id> "Add <Name>: <one-line principle>"`.
+- For each kept game:
+  - set `revision: { kind: 'new', date: '<today>', note: '<one-line rule>' }` in its manifest;
+  - `npm run evaluator -- submit <id> --model claude-code` (queued if the API is down; `submit --pending` later);
+  - commit it on its own: `node scripts/commit-game.mjs <id> "Add <Name>: <one-line principle>"`.
+- Commit `package-lock.json` after the games.
 - Add a batch section to `docs/CATALOGUE.md`: the concept cards of the kept games, plus a results table (overall, the three clarity scores, RTP, volatility spread).
 - If two or more games failed for the same reason, add that pattern to `docs/DESIGN-RULES.md`.
 

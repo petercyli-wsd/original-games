@@ -29,6 +29,9 @@ import { formatAmount } from '@originals/game-sdk';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Scene from './Board';
 import {
+  DIST_MAX,
+  DIST_MIN,
+  DIST_STEP,
   FAN,
   H_MAX,
   H_MIN,
@@ -36,57 +39,49 @@ import {
   PRESETS,
   PRESET_IDS,
   RTP,
-  SHORE_MAX,
-  SHORE_MIN,
-  SHUTTERS,
-  W_MAX,
-  W_MIN,
+  WIDTH,
   chanceAt,
   fireAngle,
   headlineChance,
+  heightEffect,
+  heightEffectLabel,
   lands,
-  moveWindow,
   presetOf,
   prizeFor,
-  resizeWindow,
-  shutter,
-  shutterRisk,
+  snapDist,
   towerHeight,
   typicalHeight,
   volatilityOf,
+  windowAt,
   type PresetId,
-  type Shutters,
   type Wedge,
   type Win,
 } from './math';
 
-type Phase = 'idle' | 'rising' | 'checkpoint' | 'shutter' | 'firing' | 'over';
-type Outcome = 'lit' | 'miss' | 'dark' | 'cashed';
+type Phase = 'idle' | 'rising' | 'checkpoint' | 'firing' | 'over';
+type Outcome = 'lit' | 'miss' | 'cashed';
 
 interface Round {
   win: Win;
-  shutters: Shutters;
   stake: number;
   prize: number;
+  /** P(win) before the tower stopped. */
+  p0: number;
   /** Tower height, once it has stopped. */
   h: number | null;
-  wedge: Wedge;
-  /** Shutters closed so far. */
-  used: number;
   /** P(win | everything revealed so far). */
   p: number;
   outcome: Outcome | null;
-  theta: number | null;
 }
 
 /** What the board shows: animated towards the round's true state. */
 interface View {
   h: number | null;
-  wedge: Wedge;
   beam: number | null;
 }
 
-const OUTCOME_TITLE: Record<Outcome, string> = { lit: 'Window lit', miss: 'Missed', dark: 'In the dark', cashed: 'Cashed out' };
+const OUTCOME_TITLE: Record<Outcome, string> = { lit: 'Window lit', miss: 'Missed', cashed: 'Cashed out' };
+const RULE = 'The beam fires in a random direction; win if it lands in your window.';
 
 const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
@@ -111,7 +106,7 @@ function useAnimator() {
   return { run, stop };
 }
 
-/** The beam's sweep: lo → hi → lo → θ across the lit wedge, slowing to a stop. */
+/** The beam's sweep: lo → hi → lo → θ across the fan, slowing to a stop. */
 function sweepAt([lo, hi]: Wedge, theta: number, t: number) {
   const w = hi - lo;
   const s = easeOut(t) * (2 * w + (theta - lo));
@@ -127,21 +122,21 @@ export default function Game() {
   const anim = useAnimator();
   const [history, pushHistory] = useHistory();
 
-  const [win, setWin] = useState<Win>(PRESETS.mid.win);
-  const [shutters, setShutters] = useState<Shutters>(2);
+  const [dist, setDist] = useState<number>(PRESETS.mid.dist);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
-  const [view, setView] = useState<View>({ h: null, wedge: FAN, beam: null });
+  const [view, setView] = useState<View>({ h: null, beam: null });
   const [infoOpen, setInfoOpen] = useState(false);
   const [compact, setCompact] = useState(false);
+  const win = useMemo(() => windowAt(dist), [dist]);
 
   // A reveal is decided the moment it starts, so leaving mid-animation settles
   // at its real result, never at the pre-reveal value.
   const resolved = useRef(0);
-  const animating = phase === 'rising' || phase === 'shutter' || phase === 'firing';
+  const animating = phase === 'rising' || phase === 'firing';
   const ticket = useTicket(() => (animating ? resolved.current : round ? round.prize * round.p : 0));
 
-  const ms = turbo.turbo ? { rise: 240, shut: 170, fire: 400 } : { rise: 950, shut: 650, fire: 1500 };
+  const ms = turbo.turbo ? { rise: 380, fire: 400 } : { rise: 1500, fire: 1500 };
   const live = phase !== 'idle' && phase !== 'over';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -152,50 +147,18 @@ export default function Game() {
     resolved.current = cash;
   }
 
-  function reachCheckpoint(r: Round) {
-    setRound(r);
-    setPhase('checkpoint');
-    track({ type: 'checkpoint', multiplier: r.prize * r.p, winChance: r.p });
-  }
-
-  function fire(r: Round) {
-    const theta = fireAngle(r.wedge, rng.next());
+  function fire() {
+    if (phase !== 'checkpoint' || !round) return;
+    const r = round;
+    const theta = fireAngle(rng.next());
     const hit = lands(r.win, r.h!, theta);
     resolved.current = hit ? r.prize : 0;
-    setRound(r);
     setPhase('firing');
-    anim.run(ms.fire, (t) => setView((v) => ({ ...v, beam: sweepAt(r.wedge, theta, t) })));
+    anim.run(ms.fire, (t) => setView((v) => ({ ...v, beam: sweepAt(FAN, theta, t) })));
     timers.after(ms.fire + 40, () => {
       setView((v) => ({ ...v, beam: theta }));
-      const done = { ...r, theta, p: hit ? 1 : 0 };
-      finish(done, hit ? 'lit' : 'miss', hit ? r.prize : 0);
+      finish({ ...r, p: hit ? 1 : 0 }, hit ? 'lit' : 'miss', hit ? r.prize : 0);
     });
-  }
-
-  function closeShutter(r: Round) {
-    const wedge = shutter(r.wedge, rng.next());
-    const p = chanceAt(r.win, r.h!, wedge);
-    resolved.current = r.prize * p;
-    setPhase('shutter');
-    const from = r.wedge;
-    anim.run(ms.shut, (t) => {
-      const e = easeInOut(t);
-      setView((v) => ({ ...v, wedge: [lerp(from[0], wedge[0], e), lerp(from[1], wedge[1], e)] }));
-    });
-    timers.after(ms.shut + 40, () => {
-      setView((v) => ({ ...v, wedge }));
-      const next: Round = { ...r, wedge, p, used: r.used + 1 };
-      if (p === 0) return finish(next, 'dark', 0);
-      // The lit wedge lies inside the window: the beam can only light it.
-      if (p === 1) return fire(next);
-      reachCheckpoint(next);
-    });
-  }
-
-  function step() {
-    if (phase !== 'checkpoint' || !round) return;
-    if (round.used < round.shutters) closeShutter(round);
-    else fire(round);
   }
 
   async function start() {
@@ -204,17 +167,20 @@ export default function Game() {
     timers.clearAll();
     anim.stop();
     const prize = prizeFor(win);
+    const p0 = headlineChance(win);
     const h = towerHeight(rng.next());
     const p = chanceAt(win, h);
     resolved.current = prize * p;
-    const r: Round = { win, shutters, stake: bet.value, prize, h: null, wedge: FAN, used: 0, p: headlineChance(win), outcome: null, theta: null };
+    const r: Round = { win, stake: bet.value, prize, p0, h: null, p: p0, outcome: null };
     setRound(r);
     setPhase('rising');
-    setView({ h: H_MIN, wedge: FAN, beam: null });
+    setView({ h: H_MIN, beam: null });
     anim.run(ms.rise, (t) => setView((v) => ({ ...v, h: lerp(H_MIN, h, easeInOut(t)) })));
     timers.after(ms.rise + 40, () => {
       setView((v) => ({ ...v, h }));
-      reachCheckpoint({ ...r, h, p });
+      setRound({ ...r, h, p });
+      setPhase('checkpoint');
+      track({ type: 'checkpoint', multiplier: prize * p, winChance: p });
     });
   }
 
@@ -228,21 +194,20 @@ export default function Game() {
     timers.clearAll();
     anim.stop();
     setRound(null);
-    setView({ h: null, wedge: FAN, beam: null });
+    setView({ h: null, beam: null });
     setPhase('idle');
   }
 
-  // Changing a setting after a round clears the finished board to a preview.
-  const change = (apply: () => void) => {
+  // Changing the distance after a round clears the finished board to a preview.
+  const changeDist = (d: number) => {
     if (live) return;
-    apply();
+    setDist(d);
     if (phase === 'over') clear();
   };
-  const changeWindow = (w: Win) => change(() => setWin(w));
 
   useHotkeys(
     {
-      space: () => (phase === 'checkpoint' ? step() : !live ? void start() : undefined),
+      space: () => (phase === 'checkpoint' ? fire() : !live ? void start() : undefined),
       cashOut,
     },
     !infoOpen,
@@ -252,39 +217,28 @@ export default function Game() {
   const w = round?.win ?? win;
   const headline = useMemo(() => headlineChance(w), [w]);
   const typicalH = useMemo(() => typicalHeight(w), [w]);
+  const effect = useMemo(() => heightEffectLabel(heightEffect(w)), [w]);
   const settingsP = useMemo(() => headlineChance(win), [win]);
   const vol = volatilityOf(win);
-  const preset = presetOf(win);
+  const preset = presetOf(dist);
 
   const prize = round?.prize ?? prizeFor(w);
   const stake = round?.stake ?? bet.value;
   const p = round ? round.p : headline;
   const cash = round ? (round.outcome && round.outcome !== 'cashed' ? (round.outcome === 'lit' ? prize : 0) : prize * round.p) : RTP;
-  const nShutters = round?.shutters ?? shutters;
-  const more = round ? round.used < round.shutters : false;
-  const risk = round && round.h !== null && more ? shutterRisk(round.win, round.h, round.wedge) : 0;
-  const checkpointNo = round ? round.used + 1 : 0;
 
-  let status = `Ready · window ${fx(w.a)} → ${fx(w.b)} · ${nShutters === 0 ? 'no shutters' : `${nShutters} shutter${nShutters > 1 ? 's' : ''}`}`;
+  let status = `Ready · window at ${fx(dist)}`;
   if (phase === 'rising') status = 'Tower rising…';
-  if (phase === 'checkpoint') status = `Checkpoint ${checkpointNo} of ${nShutters + 1}`;
-  if (phase === 'shutter') status = `Shutter ${(round?.used ?? 0) + 1} of ${nShutters} closing…`;
+  if (phase === 'checkpoint' && round?.h != null) status = `Tower stopped at ${round.h.toFixed(2)}`;
   if (phase === 'firing') status = 'Beam sweeping…';
   if (phase === 'over' && round?.outcome) status = OUTCOME_TITLE[round.outcome];
   const tone = phase === 'over' ? (round && cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   let next = '';
-  if (phase === 'checkpoint' && round) {
-    next = more
-      ? risk === 0
-        ? 'Next shutter: your window is in both halves, so it stays lit either way.'
-        : 'Next shutter: a coin flip. One half keeps your window lit, the other leaves it in the dark.'
-      : 'Next: the beam sweeps and stops at a random angle inside the lit fan.';
-  } else if (phase === 'rising') next = 'The tower is rising. Its height redraws your window’s sector.';
-  else if (phase === 'shutter') next = 'A shutter is closing one half of the lamp’s fan.';
-  else if (phase === 'firing') next = 'Every direction in the lit fan is equally likely.';
-
-  const busyLabel = phase === 'rising' ? 'Tower rising…' : phase === 'shutter' ? 'Shutter closing…' : 'Beam sweeping…';
+  if (phase === 'rising') next = `The tower is rising: ${effect}. Watch the green cone.`;
+  else if (phase === 'checkpoint' && round)
+    next = `Your slice ${round.p >= round.p0 ? 'widened' : 'narrowed'} from ${fmtChance(round.p0)} to ${fmtChance(round.p)}. Cash out, or fire: ${RULE.charAt(0).toLowerCase()}${RULE.slice(1)}`;
+  else if (phase === 'firing') next = 'Every direction in the fan is equally likely.';
 
   // Over the sky in wide frames; below the board in narrow ones, where a card would cover the picture.
   const roundOver = (placement: 'top' | 'inline') =>
@@ -311,52 +265,24 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint={<VolBadge level={vol} />}>Window</Label>
+          <Label hint={<VolBadge level={vol} />}>Window distance</Label>
           <Chips<PresetId | 'custom'>
-            label="Window preset"
+            label="Window distance preset"
             options={PRESET_IDS.map((id) => ({ value: id, label: PRESETS[id].label }))}
             value={preset}
             disabled={live}
-            onChange={(id) => id !== 'custom' && changeWindow(PRESETS[id].win)}
+            onChange={(id) => id !== 'custom' && changeDist(PRESETS[id].dist)}
           />
           <Label
             hint={
               <>
-                <b>{fx(win.a)}</b> → <b>{fx(win.b)}</b>
+                <b>{fx(dist)}</b> from the tower
               </>
             }
           >
             Distance
           </Label>
-          <Slider
-            label="Window distance"
-            value={Number(((win.a + win.b) / 2).toFixed(2))}
-            min={Number((SHORE_MIN + (win.b - win.a) / 2).toFixed(2))}
-            max={Number((SHORE_MAX - (win.b - win.a) / 2).toFixed(2))}
-            step={0.1}
-            disabled={live}
-            onChange={(c) => changeWindow(moveWindow(win, c))}
-          />
-          <Label hint={<b>{fx(win.b - win.a)}</b>}>Width</Label>
-          <Slider
-            label="Window width"
-            value={Number((win.b - win.a).toFixed(1))}
-            min={W_MIN}
-            max={W_MAX}
-            step={0.1}
-            risk
-            disabled={live}
-            onChange={(v) => changeWindow(resizeWindow(win, v))}
-          />
-
-          <Label hint="a checkpoint after each">Shutters</Label>
-          <Chips<Shutters>
-            label="Shutters"
-            options={SHUTTERS.map((v) => ({ value: v, label: v === 0 ? 'None' : v }))}
-            value={shutters}
-            disabled={live}
-            onChange={(v) => change(() => setShutters(v))}
-          />
+          <Slider label="Window distance" value={dist} min={DIST_MIN} max={DIST_MAX} step={DIST_STEP} disabled={live} onChange={(d) => changeDist(snapDist(d))} />
 
           <dl className="og-stats">
             <dt>Chance to win</dt>
@@ -370,13 +296,13 @@ export default function Game() {
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" onClick={step}>
-                {more ? `Close shutter · ${risk === 0 ? 'stays lit' : '50/50'}` : `Fire beam · ${fmtChance(round.p)} hit`}
+              <ActionButton kind="secondary" onClick={fire}>
+                Fire beam · {fmtChance(round.p)} hit
               </ActionButton>
             </>
           ) : (
             <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-              {live ? busyLabel : phase === 'over' ? 'Bet again' : 'Bet'}
+              {phase === 'rising' ? 'Tower rising…' : phase === 'firing' ? 'Beam sweeping…' : phase === 'over' ? 'Bet again' : 'Bet'}
             </ActionButton>
           )}
 
@@ -392,21 +318,19 @@ export default function Game() {
             label: 'Win chance',
             value: fmtChance(p),
             sub:
-              phase === 'idle'
-                ? 'averaged over the tower'
+              phase === 'idle' || phase === 'rising'
+                ? 'before the tower stops'
                 : phase === 'over'
                   ? round?.outcome === 'cashed'
                     ? 'when you cashed out'
                     : 'round over'
-                  : round?.h === null
-                    ? 'before the tower stops'
-                    : 'green ÷ lit arc',
+                  : 'green share of the fan',
             tone: 'chance',
           },
           {
             label: phase === 'over' ? 'Paid' : 'Cash out now',
-            value: phase === 'idle' ? '—' : fmtMult(cash),
-            sub: phase === 'idle' ? 'at each checkpoint' : formatAmount(stake * cash, 2),
+            value: phase === 'idle' || phase === 'rising' ? '—' : fmtMult(cash),
+            sub: phase === 'idle' || phase === 'rising' ? 'once the tower stops' : formatAmount(stake * cash, 2),
             tone: 'cash',
           },
           { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
@@ -419,13 +343,12 @@ export default function Game() {
           h={view.h}
           typicalH={typicalH}
           headline={headline}
-          wedge={view.wedge}
           beam={view.beam}
-          result={phase === 'over' && round?.outcome && round.outcome !== 'cashed' ? round.outcome : null}
+          result={phase === 'over' && (round?.outcome === 'lit' || round?.outcome === 'miss') ? round.outcome : null}
           editable={!live}
-          motion={phase === 'rising' ? 'rise' : phase === 'shutter' ? 'shutter' : null}
-          heldP={p}
-          onWindow={changeWindow}
+          rising={phase === 'rising'}
+          effect={effect}
+          onDist={changeDist}
           onCompact={setCompact}
         />
         {!compact && roundOver('top')}
@@ -436,55 +359,52 @@ export default function Game() {
         <ChanceBar p={p} label="Beam lights your window" note={next} />
       ) : (
         <Caption>
-          Every beam angle is equally likely, so your chance is your window’s angle seen from the lamp, out of 180°. Averaged over the tower’s random height
-          ({H_MIN} to {H_MAX}): {fmtChance(headline)}. Drag the window or tap the shore to move it. RTP {(RTP * 100).toFixed(0)}%.
+          {RULE} First the tower stops at a random height between {H_MIN} and {H_MAX} ({effect}). Farther windows are rarer and pay more. Drag the window or
+          tap the shore to move it.
         </Caption>
       )}
 
       {infoOpen && (
         <InfoModal title="Lighthouse" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
-            <p>
-              A lighthouse stands on a straight shore. Its beam stops at a random angle and lands somewhere on the shore. Win if it lands inside your window.
-            </p>
+            <p>{RULE}</p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
               <li>
-                Place your window: pick a preset, use the sliders, drag it, or tap the shore. Near and wide is likely and pays little; far and narrow is rare
-                and pays up to {fmtMult(MAX_MULTIPLIER)}.
+                Choose how far from the tower your window sits (it is always {WIDTH} wide): pick a preset, use the slider, drag it, or tap the shore.
+                Near is likely and pays little; far is rare and pays up to {fmtMult(MAX_MULTIPLIER)}. Then bet.
               </li>
-              <li>Choose how many shutters (0 to 3). Each one adds a checkpoint. Then bet.</li>
-              <li>The tower rises to a random height between {H_MIN} and {H_MAX}. Checkpoint: cash out, or continue.</li>
-              <li>Each shutter closes one half of the lamp’s lit fan, chosen 50/50. Checkpoint after each.</li>
-              <li>Finally the beam sweeps and stops at a uniformly random angle inside the lit fan. Space continues, C cashes out.</li>
+              <li>The tower rises to a random height between {H_MIN} and {H_MAX}, and your window’s slice of the fan widens or narrows with it.</li>
+              <li>Checkpoint: cash out at the new value, or fire the beam. Space fires, C cashes out.</li>
+              <li>The beam sweeps and stops in a random direction. Win the prize if it lands in your window.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
               Every direction of the beam is equally likely, so what matters is angle, not distance along the shore. The{' '}
-              <b style={{ color: 'var(--green)' }}>green sector</b> runs from the lamp to the two ends of your window. On the{' '}
-              <b>lamp’s fan</b> dial (and the small ring round the lamp) it is the green arc. The <b style={{ color: 'var(--red)' }}>red arc</b> is lit
-              directions that miss, and the dark arc is shuttered. Your chance is green ÷ (green + red), shown on the dial and the bar below.
+              <b style={{ color: 'var(--green)' }}>green cone</b> runs from the lamp to the two ends of your window. On the{' '}
+              <b>share of the fan</b> dial (and the small ring round the lamp) it is the green part of the half circle; the{' '}
+              <b style={{ color: 'var(--red)' }}>red</b> part is every direction that misses. Ticks mark every 10%. Your chance is the green share.
             </p>
             <p>
-              A higher tower makes far windows bigger in angle and near windows smaller, so watch the sector when the tower stops. A shutter either keeps
-              your window (and its share of the lit fan doubles) or leaves it in the dark.
+              A taller tower looks down on near windows more steeply, so their slice narrows; far windows face it more squarely, so theirs widens. The
+              label by the tower says which way it goes for your window. Before the tower stops, the chance is the average over all heights.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
               The Cauchy distribution. A lamp at height h firing at a uniform angle θ in (−90°, 90°) hits the shore at x = h·tan θ. So the window [a, b] is
-              lit with chance P(win | h) = (atan(b/h) − atan(a/h)) / π, its angle over 180°. Averaged over the tower’s uniform height, using ∫ atan(c/h) dh
-              = h·atan(c/h) + (c/2)·ln(h² + c²), this gives the headline chance P₀ exactly. The tail is heavy: twice as far is about four times as hard.
+              lit with chance P(win | h) = (atan(b/h) − atan(a/h)) / π, its share of the fan. Averaged over the tower’s uniform height, using ∫ atan(c/h)
+              dh = h·atan(c/h) + (c/2)·ln(h² + c²), this gives the starting chance P₀ exactly. The tail is heavy: twice as far is about four times as
+              hard.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              A full win pays prize = {(RTP * 100).toFixed(0)}% ÷ P₀. At every checkpoint the cash-out is prize × P(win | what you have seen). That is the
-              conditional chance of one fixed event, so on average it never moves: over all tower heights it averages back to P₀, a shutter keeps each
-              half with chance ½ and the two halves’ green shares average to the current one, and the beam lands green with exactly the green share. Whenever you cash out, the round is worth{' '}
-              {(RTP * 100).toFixed(0)}% of your stake. The number of shutters changes the pace and the swings, never the value.
+              A full win pays prize = {(RTP * 100).toFixed(0)}% ÷ P₀. When the tower stops, the cash-out is prize × P(win | h). Averaged over all tower
+              heights that is prize × P₀ = {(RTP * 100).toFixed(0)}%, and firing wins the prize with exactly P(win | h). So whether you cash out or fire,
+              the round is worth {(RTP * 100).toFixed(0)}% of your stake.
             </p>
           </InfoSection>
         </InfoModal>

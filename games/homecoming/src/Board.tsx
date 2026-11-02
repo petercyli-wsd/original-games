@@ -1,158 +1,158 @@
-import { fmtChance } from '@originals/game-sdk/ui';
-import { l1, movesOf, type Dim, type Side } from './math';
+import { BUDGET, l1, reachOn, slotsOf, type Dim, type Side } from './math';
 
-// Three panels, top to bottom:
-//   1. one number line per coordinate (the walk projected onto x, y, z), with
-//      the home column at 0 and each coordinate's distance from home marked;
-//   2. the distance from home over time, with the out-of-reach wedge where
-//      the walk is further from home than it has steps left;
-//   3. the 2d equally likely next moves as bars: each bar is your chance after
-//      that move, and their average (the dashed line) is your chance now.
+// The board, top to bottom:
+//   1. one track per axis, folded to the distance from home (0 at the home
+//      column, further out to the right). The dot on each track is that
+//      axis's distance; home is every dot in the home column at once. The
+//      shaded end of each track is out of reach: a dot there is further from
+//      home than the steps left can cover (it closes in as steps are used);
+//   2. the steps left, one pip per step;
+//   3. the next step: the 2d equally likely moves as equal slots, closer moves
+//      first. While a step plays, the slot it drew lights up.
 
 const W = 400;
-const X0 = 52;
+const H = 300;
+const L = 22;
+const X0 = 54;
 const X1 = 384;
+const R = BUDGET / 2;
 const AXES = ['x', 'y', 'z'];
 
-const TRACK_Y: Record<Dim, number[]> = { 1: [78], 2: [58, 102], 3: [42, 80, 118] };
-const BAND_TOP = 18;
-const BAND_BOT = 138;
+const TRACK_Y: Record<Dim, number[]> = { 1: [100], 2: [78, 122], 3: [60, 100, 140] };
+const COL_TOP = 38;
+const COL_BOT = 162;
 
-const CH_TOP = 178;
-const CH_BOT = 278;
+const PIP_LABEL_Y = 188;
+const PIP_Y = 196;
+const PIP_H = 10;
 
-const BAR_TOP = 326;
-const BAR_BOT = 388;
+const NEXT_LABEL_Y = 234;
+const SLOT_Y = 244;
+const SLOT_H = 46;
 
 export type BoardOutcome = 'came-home' | 'too-far' | 'stayed-away' | 'caught' | 'cashed';
 
 export interface BoardProps {
   dim: Dim;
-  budget: number;
   side: Side;
-  /** Positions visited, starting at the origin. */
-  path: number[][];
-  /** Chance of the backed side now. */
-  chance: number;
-  /** Chance after each next move (movesOf order), or null when the round is settled. */
-  bars: number[] | null;
+  /** Where the walk is now (signed coordinates). */
+  pos: number[];
+  /** Steps left. */
+  left: number;
+  /** The position the next-step slots are drawn for (the pre-step position while a step plays). */
+  slotsFrom: number[] | null;
+  /** The slot the current step drew, while it plays. */
+  drawn: number | null;
   stepMs: number;
   outcome: BoardOutcome | null;
 }
 
-export default function Board({ dim, budget, side, path, chance, bars, stepMs, outcome }: BoardProps) {
-  const R = budget / 2;
-  const unit = (X1 - X0) / (2 * R);
-  const cx = (X0 + X1) / 2;
-  const xOf = (v: number) => cx + Math.max(-R - 0.6, Math.min(R + 0.6, v)) * unit;
-  const pos = path[path.length - 1];
-  const taken = path.length - 1;
-  const left = budget - taken;
+export default function Board({ dim, side, pos, left, slotsFrom, drawn, stepMs, outcome }: BoardProps) {
+  const unit = (X1 - X0) / (R + 1);
+  const xOf = (v: number) => X0 + Math.min(R + 1, v) * unit;
   const dist = l1(pos);
   const homeGood = side === 'home';
+  const good = (closer: boolean) => (closer === homeGood ? 'good' : 'bad');
   const homeCls = homeGood ? 'good' : 'bad';
   const reachCls = homeGood ? 'bad' : 'good';
   const t = { transitionDuration: `${stepMs}ms` };
+  const hit = outcome === 'came-home' || outcome === 'caught';
 
-  // Distance chart.
-  const sx = (s: number) => X0 + (s / budget) * (X1 - X0);
-  const dy = (d: number) => CH_BOT - (Math.min(d, R + 0.5) / R) * (CH_BOT - CH_TOP);
-  const trail = path.map((p, i) => `${sx(i).toFixed(1)},${dy(l1(p)).toFixed(1)}`).join(' ');
-  const wedge = `${sx(budget - R)},${dy(R)} ${sx(budget)},${dy(0)} ${sx(budget)},${dy(R)}`;
-
-  // Move bars.
-  const moves = movesOf(dim);
-  const bx0 = 104;
-  const slot = (X1 - bx0) / moves.length;
-  const bw = Math.min(46, slot * 0.62);
-  const by = (p: number) => BAR_BOT - p * (BAR_BOT - BAR_TOP);
-  const avgY = by(chance);
+  const slots = slotsFrom ? slotsOf(dim, slotsFrom) : null;
+  const nCloser = slots ? slots.filter((s) => s.closer).length : 0;
+  const gap = 5;
+  const slotW = (X1 - L - gap * (2 * dim - 1)) / (2 * dim);
+  const pipStep = (X1 - L) / BUDGET;
+  // Label the out-of-reach stretch once, on the first track with room for it.
+  const labelOn = TRACK_Y[dim].findIndex((_, i) => X1 - xOf(Math.max(0, reachOn(pos, i, left) + 0.5)) > 78);
 
   return (
-    <svg viewBox={`0 0 ${W} 412`} className="homecoming" textAnchor="middle" role="img" aria-label={`Walk is ${dist} steps from home with ${left} steps left`}>
-      {/* 1. Coordinates */}
-      <rect x={cx - Math.max(5, unit * 0.45)} y={BAND_TOP} width={2 * Math.max(5, unit * 0.45)} height={BAND_BOT - BAND_TOP} rx={4} className={`home-col ${homeCls}${outcome === 'came-home' || outcome === 'caught' ? ' hit' : ''}`} />
-      <text x={cx} y={BAND_TOP - 6} className={`home-label ${homeCls}`}>
-        home {homeGood ? '· you win' : '· you lose'}
+    <svg viewBox={`0 0 ${W} ${H}`} className="homecoming" textAnchor="middle" role="img" aria-label={`The walk is ${dist} steps from home with ${left} steps left`}>
+      {/* 1. Tracks */}
+      <text x={X0 - 12} y={24} className={`home-label ${homeCls}`} textAnchor="start">
+        home · {homeGood ? 'win' : 'lose'} if it returns
       </text>
+      <text x={X1} y={24} className="dir-label" textAnchor="end">
+        distance from home →
+      </text>
+      <rect x={X0 - 12} y={COL_TOP} width={24} height={COL_BOT - COL_TOP} rx={6} className={`home-col ${homeCls}${hit ? ' hit' : ''}`} />
       {TRACK_Y[dim].map((y, i) => {
-        const v = pos[i];
+        const v = Math.abs(pos[i]);
+        const reach = reachOn(pos, i, left);
+        const shadeFrom = Math.max(0, reach + 0.5);
+        const shaded = shadeFrom < R + 1;
         return (
           <g key={i}>
-            <text x={X0 - 22} y={y + 4} className="axis">
+            <text x={L} y={y + 5} className="axis">
               {AXES[i]}
             </text>
             <line x1={X0} x2={X1} y1={y} y2={y} className="track" />
-            {Array.from({ length: 2 * R + 1 }, (_, k) => k - R).map((k) => (
-              <line key={k} x1={xOf(k)} x2={xOf(k)} y1={y - (k % 5 === 0 ? 5 : 3)} y2={y + (k % 5 === 0 ? 5 : 3)} className={'tick' + (k % 5 === 0 ? ' major' : '')} />
+            {shaded && (
+              <g className="reach">
+                <rect x={xOf(shadeFrom)} y={y - 13} width={X1 + 6 - xOf(shadeFrom)} height={26} rx={5} className={`out ${reachCls}`} style={t} />
+                {i === labelOn && (
+                  <text x={X1 - 2} y={y - 16} className={`out-label ${reachCls}`} textAnchor="end">
+                    out of reach
+                  </text>
+                )}
+              </g>
+            )}
+            {Array.from({ length: R + 2 }, (_, k) => k).map((k) => (
+              <line key={k} x1={xOf(k)} x2={xOf(k)} y1={y - (k % 5 === 0 ? 6 : 3)} y2={y + (k % 5 === 0 ? 6 : 3)} className={'tick' + (k % 5 === 0 ? ' major' : '')} />
             ))}
-            <text x={X0} y={y + 18} className="tick-label">
-              −{R}
-            </text>
-            <text x={X1} y={y + 18} className="tick-label">
-              +{R}
-            </text>
-            {v !== 0 && <line x1={xOf(0)} x2={xOf(v)} y1={y} y2={y} className="gap" />}
-            <circle cx={0} cy={y} r={7} className="coord" style={{ ...t, transform: `translateX(${xOf(v)}px)` }} />
+            {v > 0 && <line x1={xOf(0)} x2={xOf(v)} y1={y} y2={y} className="gap" style={t} />}
+            <g className="coord" style={{ ...t, transform: `translateX(${xOf(v)}px)` }}>
+              <circle cx={0} cy={y} r={10} />
+              <text x={0} y={y + 4} className="coord-num">
+                {v}
+              </text>
+            </g>
           </g>
         );
       })}
+      {[5, 10, 15].map((k) => (
+        <text key={k} x={xOf(k)} y={COL_BOT + 12} className="tick-label">
+          {k}
+        </text>
+      ))}
 
-      {/* 2. Distance from home over time */}
-      <text x={X0 - 4} y={CH_TOP - 14} className="title" textAnchor="start">
-        Steps from home: <tspan className="num">{dist}</tspan>
+      {/* 2. Steps left */}
+      <text x={L} y={PIP_LABEL_Y} className="title" textAnchor="start">
+        Steps left: <tspan className="num">{left}</tspan> of {BUDGET}
       </text>
-      <text x={X1} y={CH_TOP - 14} className="title" textAnchor="end">
-        Steps left: <tspan className="num">{left}</tspan> of {budget}
+      <text x={X1} y={PIP_LABEL_Y} className="title" textAnchor="end">
+        {dist === 0 ? 'at home' : `${dist} from home`}
       </text>
-      <rect x={X0} y={CH_TOP} width={X1 - X0} height={CH_BOT - CH_TOP} className="chart-bg" />
-      <polygon points={wedge} className={`wedge ${reachCls}`} />
-      <text x={sx(budget) - 6} y={dy(R) + 14} className={`wedge-label ${reachCls}`} textAnchor="end">
-        out of reach
-      </text>
-      <line x1={X0} x2={X1} y1={dy(0)} y2={dy(0)} className={`home-line ${homeCls}`} />
-      <text x={X0 - 6} y={dy(0) + 4} className={`side-label ${homeCls}`} textAnchor="end">
-        home
-      </text>
-      <text x={X0 - 6} y={dy(R) + 4} className="side-label" textAnchor="end">
-        {R}
-      </text>
-      {path.length > 1 && <polyline points={trail} className="trail" />}
-      <circle cx={sx(taken)} cy={dy(dist)} r={5} className="now-dot" />
+      {Array.from({ length: BUDGET }, (_, k) => (
+        <rect key={k} x={L + k * pipStep + 1} y={PIP_Y} width={pipStep - 3} height={PIP_H} rx={2.5} className={'pip' + (k < BUDGET - left ? ' used' : '')} />
+      ))}
 
-      {/* 3. Next move bars */}
-      {bars ? (
+      {/* 3. Next step */}
+      {slots && (
         <g>
-          <text x={X0 - 4} y={BAR_TOP - 24} className="title" textAnchor="start">
-            Next step: {moves.length} moves, each 1 in {moves.length}. Bar = your chance after it
+          <text x={L} y={NEXT_LABEL_Y} className="title" textAnchor="start">
+            Next step: {2 * dim} equally likely moves
           </text>
-          {moves.map((m, i) => {
-            const p = bars[i];
-            const x = bx0 + slot * (i + 0.5) - bw / 2;
-            const up = p >= chance - 1e-12;
+          <text x={X1} y={NEXT_LABEL_Y} className="title" textAnchor="end">
+            <tspan className={good(true)}>{nCloser} closer</tspan> · <tspan className={good(false)}>{2 * dim - nCloser} further</tspan>
+          </text>
+          {slots.map((s, i) => {
+            const x = L + i * (slotW + gap);
+            const cls = `slot ${good(s.closer)}${drawn === null ? '' : drawn === i ? ' drawn' : ' dim'}`;
             return (
-              <g key={i}>
-                <rect x={x} y={BAR_TOP} width={bw} height={BAR_BOT - BAR_TOP} rx={3} className="bar-bg" />
-                <rect x={x} y={by(p)} width={bw} height={Math.max(0, BAR_BOT - by(p))} rx={3} className={'bar ' + (up ? 'up' : 'down')} />
-                <text x={x + bw / 2} y={BAR_BOT + 14} className="bar-label">
-                  {m.sign > 0 ? '+' : '−'}
-                  {AXES[m.axis]}
+              <g key={i} className={cls}>
+                <rect x={x} y={SLOT_Y} width={slotW} height={SLOT_H} rx={6} />
+                <text x={x + slotW / 2} y={SLOT_Y + 21} className="slot-arrow">
+                  {s.closer ? '←' : '→'} {AXES[s.axis]}
                 </text>
-                <text x={x + bw / 2} y={BAR_TOP - 5} className={'bar-val' + (p >= 1 ? ' good' : p <= 0 ? ' bad' : '')}>
-                  {p >= 1 ? '100%' : p <= 0 ? '0%' : `${(p * 100).toFixed(1)}%`}
+                <text x={x + slotW / 2} y={SLOT_Y + 37} className="slot-word">
+                  {s.closer ? 'closer' : 'further'}
                 </text>
               </g>
             );
           })}
-          <line x1={bx0 - 6} x2={X1} y1={avgY} y2={avgY} className="avg" />
-          <text x={bx0 - 10} y={avgY - 3} className="avg-label" textAnchor="end">
-            average
-          </text>
-          <text x={bx0 - 10} y={avgY + 11} className="avg-num" textAnchor="end">
-            {fmtChance(chance)}
-          </text>
         </g>
-      ) : null}
+      )}
     </svg>
   );
 }

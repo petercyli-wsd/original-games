@@ -100,6 +100,46 @@
   /* Room for the result pill above the graph. */
   padding-top: 50px;
 }
+/* The result in words, above the graph. */
+.cc-result {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  column-gap: 7px;
+  row-gap: 1px;
+  width: max-content;
+  max-width: calc(100% - 20px);
+  padding: 7px 16px;
+  border-radius: 18px;
+  background: rgba(16, 16, 22, 0.92);
+  border: 1.5px solid var(--gold);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  transform: translateX(-50%);
+  animation: cc-result-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+  pointer-events: none;
+}
+.cc-result i { font-style: normal; opacity: 0.6; margin: 0 2px; }
+.cc-result b { font-weight: 800; }
+.cc-result b.red { color: var(--c-red); }
+.cc-result b.green { color: var(--c-green); }
+.cc-result b.moon { color: var(--c-moon); }
+.cc-result-you { color: var(--text); font-weight: 700; }
+.cc-result.win { border-color: var(--green); box-shadow: 0 0 30px -10px var(--green); }
+.cc-result.win .cc-result-you { color: var(--green); }
+.cc-result.lose { border-color: var(--red); }
+.cc-result.lose .cc-result-you { color: var(--red); }
+.cc-result.even .cc-result-you { color: var(--gold); }
+@keyframes cc-result-in { from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.94); } }
+
 .cc-graph-wrap {
   display: grid;
   place-items: center;
@@ -121,21 +161,31 @@
 .cc-stop.green { stop-color: var(--c-green); }
 .cc-stop.moon { stop-color: var(--c-moon); }
 
-.cc-region { transition: y 0.12s linear, height 0.12s linear; }
-.cc-region.red { fill: color-mix(in srgb, var(--c-red) 9%, transparent); }
-.cc-region.green { fill: color-mix(in srgb, var(--c-green) 6%, transparent); }
-.cc-region.moon { fill: color-mix(in srgb, var(--c-moon) 9%, transparent); }
+.cc-region { transition: y 0.2s ease, height 0.2s ease; }
+.cc-region.red { fill: color-mix(in srgb, var(--c-red) 13%, transparent); }
+.cc-region.green { fill: color-mix(in srgb, var(--c-green) 9%, transparent); }
+.cc-region.moon { fill: color-mix(in srgb, var(--c-moon) 16%, transparent); }
+/* The part of the odds the climb has already used up. */
+.cc-spent rect { fill: color-mix(in srgb, var(--card) 80%, transparent); }
+.cc-spent line { stroke: color-mix(in srgb, var(--text) 40%, transparent); stroke-width: 1; stroke-dasharray: 2 4; }
 .cc-region-label {
   text-anchor: end;
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 1.2px;
-  opacity: 0.55;
+  letter-spacing: 0.8px;
+  paint-order: stroke;
+  stroke: var(--card);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  transition: opacity 0.25s ease;
 }
 .cc-region-label.start { text-anchor: start; }
 .cc-region-label.red { fill: var(--c-red); }
 .cc-region-label.green { fill: var(--c-green); }
 .cc-region-label.moon { fill: var(--c-moon); }
+.cc-region-label.out { opacity: 0.3; }
+.cc-region-pct { font-size: 15px; letter-spacing: 0; }
+.cc-region-sub { font-size: 12px; font-weight: 600; letter-spacing: 0; fill: var(--muted); }
 
 .cc-tick line {
   stroke: rgba(255, 255, 255, 0.06);
@@ -177,19 +227,6 @@
   0% { stroke-width: 8; opacity: 1; }
   100% { stroke-width: 2.5; }
 }
-.cc-moon-tag rect {
-  fill: color-mix(in srgb, var(--c-moon) 16%, var(--card));
-  stroke: var(--c-moon);
-  stroke-width: 1;
-}
-.cc-moon-tag text {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-anchor: middle;
-  fill: var(--c-moon);
-}
-
 .cc-curve {
   fill: none;
   stroke-width: 4.5;
@@ -207,7 +244,7 @@
 .cc-head.moon .cc-glow, .cc-head.moon .cc-burst { fill: var(--c-moon); }
 .cc-head:not(.crashed) .cc-glow { animation: cc-pulse 0.7s ease-in-out infinite alternate; }
 .cc-head.crashed .cc-dot { fill: var(--red); stroke: #fff; stroke-width: 2; }
-.cc-burst { opacity: 0; animation: cc-burst 0.55s ease-out; transform-origin: center; }
+.cc-burst { opacity: 0; animation: cc-burst 0.55s ease-out; transform-box: fill-box; transform-origin: center; }
 @keyframes cc-pulse {
   from { opacity: 0.2; }
   to { opacity: 0.55; }
@@ -217,40 +254,35 @@
   100% { opacity: 0; transform: scale(4); }
 }
 
-.cc-readout text { text-anchor: middle; }
-.cc-readout-num {
-  font-size: 68px;
-  font-weight: 800;
-  letter-spacing: -1px;
+.cc-readout {
+  text-anchor: middle;
   paint-order: stroke;
   stroke: var(--card);
-  stroke-width: 8px;
+  stroke-width: 6px;
   stroke-linejoin: round;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.cc-readout-num {
+  font-size: 50px;
+  font-weight: 800;
+  letter-spacing: -1px;
 }
 .cc-readout.idle .cc-readout-num { fill: color-mix(in srgb, var(--text) 75%, transparent); }
 .cc-readout.red .cc-readout-num { fill: var(--c-red); }
 .cc-readout.green .cc-readout-num { fill: var(--c-green); }
 .cc-readout.moon .cc-readout-num { fill: var(--c-moon); }
-.cc-readout.crashed .cc-readout-num { animation: cc-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.3); transform-origin: 0 0; transform-box: fill-box; }
+.cc-readout.crashed { animation: cc-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.3); }
 .cc-readout-top {
   font-size: 15px;
   font-weight: 800;
   letter-spacing: 2px;
   fill: var(--muted);
-  paint-order: stroke;
-  stroke: var(--card);
-  stroke-width: 5px;
 }
-.cc-readout-sub {
-  font-size: 15px;
-  font-weight: 600;
-  fill: var(--muted);
-}
-.cc-readout.compact .cc-readout-num { font-size: 50px; stroke-width: 6px; }
-.cc-readout.compact .cc-readout-top { font-size: 12px; }
-.cc-readout.compact .cc-readout-sub { font-size: 13px; }
+.cc-readout.compact .cc-readout-num { font-size: 38px; }
+.cc-readout.compact .cc-readout-top { font-size: 12px; letter-spacing: 1px; }
 @keyframes cc-pop {
-  from { transform: scale(1.12); }
+  from { transform: scale(1.1); }
 }
 
 /* ---------- band cards under the graph ---------- */
@@ -310,7 +342,18 @@
   background: var(--band);
   transition: width 0.2s ease;
 }
+.cc-band-head small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.cc-band-note {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--muted);
+}
 .cc-band-foot {
+  margin-top: auto;
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -345,5 +388,8 @@
   .cc-band { padding: 8px 9px 9px; gap: 4px; }
   .cc-band-head b { font-size: 14px; }
   .cc-band-head span, .cc-band-cond, .cc-band-foot { font-size: 11px; }
+  .cc-band-note { font-size: 10px; }
+  .cc-result { flex-direction: column; align-items: center; font-size: 13px; padding: 5px 14px; }
+  .cc-result-sep { display: none; }
   .cc-band-foot { flex-direction: column; gap: 1px; }
 }

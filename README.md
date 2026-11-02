@@ -12,8 +12,8 @@ original-games/
 │   ├── template/            Reference game ("Arc Climb"), copied by `npm run new-game`
 │   ├── half-moon/           Reference for kit-based games (see docs/BUILDING-GAMES.md)
 │   └── <id>/                One folder per game
-├── scripts/              eval runner, evidence builder, evaluator CLI, new-game scaffolder, headless play driver, report
-├── .claude/skills/       Claude Code skills: /review-game, /review-games, /refine-evaluator
+├── scripts/              eval runner, evidence builder, evaluator CLI, new-game scaffolder, game fork, headless play driver, report
+├── .claude/skills/       Claude Code skills: /review-game, /review-games, /refine-evaluator, /generate-games, /iterate-game
 ├── docs/IDEAS.md         Concept backlog + eval rubric
 ├── docs/CATALOGUE.md     Maths-first batch: theorem → game specs, uniqueness, results
 ├── docs/BUILDING-GAMES.md   The build and pricing contract for kit-based games
@@ -107,7 +107,7 @@ node scripts/commit-game.mjs <id> "message"             # commit one game folder
 
 | Page | What's there |
 |---|---|
-| **Lobby** `/` | Every game as a tile with RTP, max win, its team rating and AI score. Search, sort (featured, AI score, team score, A–Z), filter by maths family or to games you haven't rated; the view is kept in the URL, so Back returns to it. `prototype` games are under Experimental. |
+| **Lobby** `/` | Every game as a tile with RTP, max win, its team rating and AI score. Search, sort (featured, AI score, team score, A–Z), filter by maths family or to games you haven't rated; the view is kept in the URL, so Back returns to it. `prototype` games are under Experimental. Games with a `revision` in their manifest carry a **New** or **Improved** badge, and the game page shows its one-line note. **Archive** (folded until you open it, search or filter) holds `retired` games and earlier versions, still playable with their reviews; a superseded version links to its replacement. |
 | **Game** `/play/<id>` | Previous/next links to step through games in lobby order. The game, session stats (observed RTP, hit rate, round time), then **Team reviews** (the score breakdown, your review with pros and cons, and everyone else's reviews, folded until you've saved yours so they don't sway it; after saving, a link to the next game you haven't rated) and **AI review** (overall score, recommendation, per-criterion scores with reasoning, pros/cons, reskin warning, measured checks, the rules card it judged). |
 | **Rankings** `/rankings` | Every game ranked overall or on any one facet (pace, volatility control, win condition…), by the team (weighted by vote count) or by the AI; classics are tagged. Rate any game inline. **Latest reviews** (`/rankings?view=reviews`) lists everyone's reviews across games, filterable by reviewer or to written ones. |
 | **Evaluator** `/evaluator` | The active prompt (weights, guidance, reference games, agreement metrics), candidate versions side by side with the active one, the team-vs-AI table, and **Promote**. Unlock with the admin passphrase. |
@@ -142,7 +142,11 @@ The play balance is a demo wallet stored in the browser; **Refill** resets it.
 
 The overall score is computed in code: a weighted mean (win condition, simplicity and odds 3 each; volatility and uniqueness 1.5; fun 0.75; checkpoints, pace and geometry 0.25 each), then the caps. **Clarity cap:** the overall can't exceed 1.5 + 0.75 × the weakest of win condition, simplicity and odds (a 1 caps at 2.25, a 2 at 3, a 3 at 3.75). **Uniqueness gate** (prototypes only): the same formula on uniqueness, and a confirmed reskin caps at 2.25. **Dead-structure gate** (prototypes only): `some` caps the overall at 3 and fun at 3, `most` caps them at 2.25 and 2. Classics are exempt from both gates: they are the originals of their formats.
 
-Why: in the team's first reviews, every game people rated 2★ was one they found unreadable (win condition and odds rated 1–2), while the AI, reading the code, rated the same games 3–4. Pace, checkpoints and geometry scored 4–5 for almost every game, so they barely separate good games from bad ones. An AI player, even blind, could still follow games built on a maths idea (a hidden coin inferred from flips, chords that must not cross, a grid that fills, a family tree that survives) and rated them clear; the team rated every one of them 1–2. Asking the player factual questions and capping in code fixed that, where asking it to be strict did not. The next batch of reviews found a second flaw no criterion covered: games that were clear but built around structure that doesn't matter (Halo, Zigzag, Spanning; "all of the game is irrelevant except the row the A is on"), and a reskin gate that fired on shared maths the team didn't mind (Last Slice 4★ against Half-Life 1★, same maths). The dead-structure check and the narrower reskin rule (v6) raised agreement with the team from ρ 0.63 to 0.77 in an A/B backtest with the same blind-player runs.
+Why: in the team's first reviews, every game people rated 2★ was one they found unreadable (win condition and odds rated 1–2), while the AI, reading the code, rated the same games 3–4. Pace, checkpoints and geometry scored 4–5 for almost every game, so they barely separate good games from bad ones. An AI player, even blind, could still follow games built on a maths idea (a hidden coin inferred from flips, chords that must not cross, a grid that fills, a family tree that survives) and rated them clear; the team rated every one of them 1–2. Asking the player factual questions and capping in code fixed that, where asking it to be strict did not. The next batch of reviews found a second flaw no criterion covered: games that were clear but built around structure that doesn't matter (Halo, Zigzag, Spanning; "all of the game is irrelevant except the row the A is on"), and a reskin gate that fired on shared maths the team didn't mind (Last Slice 4★ against Half-Life 1★, same maths). The dead-structure check and the narrower reskin rule (v6) raised agreement with the team from ρ 0.63 to 0.77 in an A/B backtest with the same blind-player runs. v7 then fixed two systematic misses against the team's facet scores: odds legibility now needs a visible cause for every change in the chance (not just a displayed chance), and simplicity judges the default round, so optional settings cost at most a point. On the 16 team-rated games with 3-player panels, v7 scored ρ 0.80 and an average gap of 0.55 stars, against v6's 0.73 and 0.56.
+
+**Panel.** One blind player's quirks can move a game across the gate, so when a game's overall lands between 3.25 and 3.75 it gets two more independent plays (`player-prompt <id> --players 2 --more`). Its player scores are then the medians of the three, its factual checks a majority vote with ties going to the stricter answer (`apps/api/src/evaluator/panel.ts`). Away from the gate a panel changed no decision in an A/B, so one play is the default.
+
+**Keep gate.** A game stays in the lobby if its overall is ≥ 3.5, win condition, simplicity and odds are each ≥ 3, and it has no dead structure and isn't a reskin (`npm run evaluator -- gate`). Where the team has already rated a game, the team's average (Pierre 3×) decides instead, so a game the team likes is never reworked to please the evaluator.
 
 Facts a machine can measure (RTP, volatility spread ≥ 5×, round length, checkpoints) are computed from Monte Carlo evals, not judged.
 
@@ -162,7 +166,8 @@ Reviews run in a Claude Code session on the team's subscription; results are sto
 | `/review-game drift slice` | Reviews specific games |
 | `/review-games` | Reviews every game that's new or changed since its last review (`/review-games all` for everything), in parallel |
 | `/refine-evaluator` | Proposes a better prompt from the team's reviews, backtests it, and recommends whether to promote |
-| `/generate-games 4` | Generates a batch of new games: concepts screened against `docs/DESIGN-RULES.md`, built on the kit, reviewed, and kept only if they pass the evaluator's gates |
+| `/generate-games 4` | Generates a batch of new games: concepts screened against `docs/DESIGN-RULES.md` (and against every existing and archived game for reskins), built on the kit, reviewed, and kept only if they pass the keep gate (one repair round allowed); marked **New** |
+| `/iterate-game knight shells` | Improves existing games: a brief from the latest AI and team reviews, a repair, a fresh review, then accept (passes the gate, or +0.25 with no new cap), a second round, or revert. A prototype that still fails after two rounds goes to the Archive. Team-reviewed games are forked (`node scripts/fork-game.mjs <id>`) so the reviewed version stays archived with its reviews; improved games are marked **Improved** |
 
 Each judgement runs in its own subagent that sees only its prompt file (and, for the blind player, the screenshots its play command takes), so no judge scores from the code. The skills drive `npm run evaluator` (`scripts/evaluator.ts`), which builds prompts with the same code the API uses and validates every result before storing it. Working files go to `.evaluator/` (git-ignored).
 
@@ -192,11 +197,13 @@ Not every reviewed game goes into the prompt. Showing all of them would bloat th
 
 The skills call these for you; they're also handy on their own. All need `ORIGINALS_API_URL` and `ORIGINALS_ADMIN_KEY` in `.env.local`.
 
+**Without the API.** When the API doesn't answer, `prepare`, `player-prompt`, `judge-prompt`, `gate`, `preview` and `review` run the API's own code locally on in-memory stores, seeded from the active version and team reviews cached in `.evaluator/` the last time it answered; `submit` queues to `.evaluator/_pending.json`, and `submit --pending` sends the queue later. A file `.evaluator/_local` forces the same while the API is up (team reviews still refresh): use it to roll out a prompt version the API doesn't have yet, from `.evaluator/_active-version.json`.
+
 | `npm run evaluator -- …` | What it does |
 |---|---|
 | `todo [--all]` | Games with no review under the active prompt, or whose code changed since |
 | `prepare <id...>` | Builds evidence and the rules-card prompt (`.evaluator/<id>/extract.md`), or restores a cached card |
-| `player-prompt <id...> [--version N] [--pool train]` | Writes the blind player prompt under a fresh alias (`.evaluator/_blind/<alias>/player.md`): rubric for the player criteria, unnamed team scale references, and the play tool |
+| `player-prompt <id...> [--version N] [--pool train] [--players N] [--more]` | Writes the blind player prompt under a fresh alias (`.evaluator/_blind/<alias>/player.md`): rubric for the player criteria, unnamed team scale references, and the play tool. `--players N` makes N aliases for a panel; `--more` adds them to the game's current panel |
 | `play <alias> "<steps>"` | The blind player's sandbox: plays the UI with prose, rules and modals hidden; only `shot`, `text`, `mouse`, `key` and `wait` steps; numbered screenshots in `.evaluator/<id>/ui/run-N/` |
 | `judge-prompt <id...> [--version N] [--pool train]` | Writes the designer prompt (`judge.md`), including what the blind player understood (`player.json`). `--pool train` limits references to train games (backtests) |
 | `submit <id...> [--model name]` | Validates `review.json` (and `player.json`) and stores them with the rules card and measured checks; prints the overall score |
@@ -207,12 +214,17 @@ The skills call these for you; they're also handy on their own. All need `ORIGIN
 | `promote <version>` | Makes a version active |
 | `seed-version ["changelog"]` | Stores the rubric in `apps/api/src/evaluator/rubric.ts` as a candidate version (promote it after) |
 | `results [--json]` | Every AI-reviewed game ranked by overall, with facet scores and the classics vs prototypes mean |
+| `gate <id...> [--all] [--json]` | Pass/fail against the keep gate (team rating decides for rated games); exits 1 if any fails |
+| `preview <id...> [--json]` | Scores the local review files (merging a panel) with the API's code and checks the gate, storing nothing |
+| `review <id...>` | A game's latest AI review (each facet's reasoning, pros, cons, gate) and its team reviews: the input to `/iterate-game` |
+| `submit --pending` | Sends the reviews queued while the API was down or in local mode |
 
 ### Where things live
 
 | File | Contents |
 |---|---|
-| `apps/api/src/evaluator/rubric.ts` | Version 1 of the rubric: the nine criteria, weights, 1/3/5 descriptions, starting guidance |
+| `apps/api/src/evaluator/rubric.ts` | The current rubric (v7): the nine criteria, weights, 1/3/5 descriptions, guidance; `seed-version` stores it as a candidate |
+| `apps/api/src/evaluator/panel.ts` | Merges a panel of blind plays (medians, majority checks) |
 | `apps/api/src/evaluator/anchors.ts` | Retired text anchors (the benchmarks in `service.ts` replaced them) |
 | `apps/api/src/evaluator/prompts.ts` | The extract, judge and refine prompts and their JSON schemas |
 | `apps/api/src/evaluator/service.ts` | Reference selection, train/holdout, refine, backtest and metrics |

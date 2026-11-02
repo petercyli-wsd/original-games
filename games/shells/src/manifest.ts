@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Shells',
   tagline: 'Follow the ball under the cups; blind swaps blur where it is. Back the cup it ends under.',
   mechanic: 'inference',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],

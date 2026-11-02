@@ -49,20 +49,20 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
     judge: 'player',
     descriptors: {
       1: 'Several interacting rules, unexplained symbols, numbers or charts; it would need a tutorial.',
-      3: 'One core idea, but extra rules, bet types or settings that take a few rounds to make sense of.',
-      5: 'One rule and nothing extra: it explains itself at a glance.',
+      3: 'One core idea, but the default round has extra rules or symbols that take a few rounds to make sense of.',
+      5: 'One rule and nothing extra in the default round: it explains itself at a glance. Optional settings a player can leave alone (presets, editors, extra bets) cost at most 1 point.',
     },
   },
   {
     key: 'odds_legibility',
     name: 'Odds on screen',
-    question: 'Can the player see on the board, without calculating, both their overall chance of winning and how each move changes it?',
+    question: 'Can the player see on the board, without calculating, their overall chance of winning and what each draw does to it?',
     weight: 3,
     judge: 'player',
     descriptors: {
       1: 'No feel for the odds from the screen, or only numbers and charts whose meaning is not obvious.',
-      3: 'The odds appear as a percentage or meter, or only for the next move, but the board itself does not make the overall chance obvious.',
-      5: 'The board is the probability (the green share of a slider, the tiles left, a position, an area): the overall chance and the next-move risk read at a glance.',
+      3: 'The chance appears as a percentage, meter or shaded share, but the player cannot see what moves it: it changes without a visible cause, or much of the motion on screen does not affect it.',
+      5: 'The board is the probability (the green share of a slider, the tiles left, a position, an area), and every draw visibly moves it: the overall chance and what the next draw would do to it read at a glance, even when the starting chance is surprising.',
     },
   },
   {
@@ -82,7 +82,7 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
     question: 'Is it a distinct format rather than a reskin of an existing game?',
     weight: 1.5,
     descriptors: {
-      1: 'A reskin: the same maths and decision as a catalogue or market game under a new look or theme.',
+      1: 'A reskin: the same board, visible draw and decision as a catalogue or market game under a new look or theme.',
       3: 'A known family (a mines-style ladder, a crash curve, a random walk) with a genuinely different danger law, reveal or decision.',
       5: 'A distinct format: a proven classic that defines its own format (Dice, Crash, Plinko), or a new dynamic not found in the catalogue or on the market that still plays simply.',
     },
@@ -136,8 +136,8 @@ export const DEFAULT_CRITERIA: CriterionDef[] = [
 
 export const DEFAULT_GUIDANCE = `Games are for players, not mathematicians. The team's low scores came from games whose win condition and odds a player could not read from the screen, even when the maths was elegant and the code clear. Being clever is not the same as being legible.
 
-Player judge (win condition, simplicity, odds, fun): judge only what one casual play of the UI teaches. Play as a typical online casino player who skims and does not study numbers. If you had to stop and think, read labels twice, or infer rules from a chart, score it down. Extra bet types, interacting settings and unexplained symbols cost simplicity. Odds count only when the player can see them: the overall chance of the bet as well as the risk of the next step. A next-step number alone is a 3 unless the board makes the whole bet obvious. The clearest games are decided by a draw the player watches (a roll, a card, a tile, where a ball lands, where a multiplier stops, who wins a race). Games decided by a pattern the player has to check (lines crossing, a grid filling, a population surviving) or by a hidden state they only see clues about were rated 1-2 by the team on win condition and odds, however elegant.
+Player judge (win condition, simplicity, odds, fun): judge only what one casual play of the UI teaches. Play as a typical online casino player who skims and does not study numbers. If you had to stop and think, read labels twice, or infer rules from a chart, score it down. Judge simplicity on the default round: extra rules in it and unexplained symbols cost simplicity, while optional settings a player can leave alone (presets, editors, extra bet types) cost at most 1 point. Odds count only when the player can see them: the overall chance of the bet as well as the risk of the next step. A next-step number alone is a 3 unless the board makes the whole bet obvious. So is a chance that changes without a visible cause: if a dot or line wanders in directions that do not change your chance, you see motion but not why your odds moved. The clearest games are decided by a draw the player watches (a roll, a card, a tile, where a ball lands, where a multiplier stops, who wins a race). Games decided by a pattern the player has to check (lines crossing, a grid filling, a population surviving) or by a hidden state they only see clues about were rated 1-2 by the team on win condition and odds, however elegant.
 
-Designer judge (uniqueness, volatility, checkpoints, pace, geometry): use the rules card and the measured facts. Volatility is about how well the dial lets a player choose risk: one natural, visible knob beats several interacting ones, and the measured spread must be real. Pace, checkpoints and geometry are baseline expectations that most games meet (4-5); score them low only when the format truly fails them, or when timing is the point and the game gets it wrong. Uniqueness: same maths and decision as an existing game under a new look is a reskin (1); a known family with a genuinely different law, reveal or decision is 3; the original of a format or a new dynamic that still plays simply is 5.
+Designer judge (uniqueness, volatility, checkpoints, pace, geometry): use the rules card and the measured facts. Volatility is about how well the dial lets a player choose risk: one natural, visible knob beats several interacting ones, and the measured spread must be real. Pace, checkpoints and geometry are baseline expectations that most games meet (4-5); score them low only when the format truly fails them, or when timing is the point and the game gets it wrong. Uniqueness: the same board, draw and decision as an existing game under a new look is a reskin (1); a known maths family (a fair cash-out ladder, an exponential race) met through a genuinely different board, draw or decision is 3 or more, since the team judges what the player meets, not the maths underneath; the original of a format or a new dynamic that still plays simply is 5.
 
 Benchmarks: the classics (Dice, Limbo, Crash, Mines, Plinko, Keno, Wheel, Tower, HiLo, Roulette and the table games) are proven. Most should land around 4 or above, with the core Originals (Dice, Limbo, Crash, Mines, Plinko, Keno) at the top. Table games with many bet types can be legitimately less simple. A prototype should only out-score a comparable classic where it is clearly better.`;

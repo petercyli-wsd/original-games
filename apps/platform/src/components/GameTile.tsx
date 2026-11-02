@@ -18,6 +18,9 @@ export function GameTile({ manifest, index }: { manifest: GameManifest; index: n
     <Link to={`/play/${manifest.id}`} className="game-tile" style={style} onPointerMove={trackPointer} aria-label={`Play ${manifest.name}`}>
       <span className="tile-aura" />
       <span className="tile-sheen" />
+      {manifest.revision && manifest.status !== 'retired' && (
+        <span className={`tile-badge tile-badge-${manifest.revision.kind}`}>{manifest.revision.kind === 'new' ? 'New' : 'Improved'}</span>
+      )}
       <Emblem mechanic={manifest.mechanic} />
       <div className="tile-body">
         <h3 className="tile-name">{manifest.name}</h3>
@@ -30,6 +33,7 @@ export function GameTile({ manifest, index }: { manifest: GameManifest; index: n
       <div className="tile-foot">
         <span className="tile-chip">RTP {formatPercent(manifest.rtp)}</span>
         <span className="tile-chip">Max {formatMultiplier(manifest.maxMultiplier)}</span>
+        {manifest.supersededBy && <span className="tile-chip">Earlier version</span>}
         <span className="tile-play">Play →</span>
       </div>
     </Link>

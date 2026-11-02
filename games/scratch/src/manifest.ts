@@ -7,7 +7,7 @@ export default defineManifest({
   tagline: 'One winning card. A few goes. Every miss drains your odds.',
   // Mines-family maths: uniform hidden tile, fair value = prize × goes / cards left.
   mechanic: 'mines',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: MODE_NAMES,

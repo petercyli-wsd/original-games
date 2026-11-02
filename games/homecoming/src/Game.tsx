@@ -27,39 +27,31 @@ import {
 import { formatAmount } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
 import Field, { type BoardOutcome } from './Board';
-import {
-  BUDGETS,
-  DIMS,
-  RTP,
-  l1,
-  moveChances,
-  origin,
-  pressSize,
-  prizeFor,
-  sideChance,
-  startChance,
-  volatilityOf,
-  walkBurst,
-  type Budget,
-  type Dim,
-  type Settings,
-  type Side,
-} from './math';
+import { BUDGET, DIMS, RTP, isHome, l1, origin, prizeFor, sideChance, slotIndex, startChance, volatilityOf, walkStep, type Dim, type Settings, type Side } from './math';
 
-type Phase = 'idle' | 'walking' | 'checkpoint' | 'over';
+type Phase = 'idle' | 'live' | 'stepping' | 'over';
 
 interface Round {
   s: Settings;
   stake: number;
   prize: number;
+  /** Positions visited, starting at home. */
   path: number[][];
   cash: number;
   outcome: BoardOutcome | null;
 }
 
+/** The step being played: drawn from `from`, shown as slot `slot`. */
+interface Pending {
+  from: number[];
+  slot: number;
+  /** Which step this is (1-based). */
+  n: number;
+}
+
 const OUTCOME_TITLE: Record<BoardOutcome, string> = {
   'came-home': 'Came home',
-  'too-far': 'Never came home',
+  'too-far': 'Out of reach',
   'stayed-away': 'Stayed away',
   caught: 'Came home',
   cashed: 'Cashed out',
@@ -67,11 +59,7 @@ const OUTCOME_TITLE: Record<BoardOutcome, string> = {
 
 const ACCENT = '#e0aaff';
 const SIDE_LABEL: Record<Side, string> = { home: 'Home', away: 'Away' };
-const POLYA: Record<Dim, string> = {
-  1: 'In 1D a walk is certain to come home eventually',
-  2: 'In 2D a walk is still certain to come home eventually, just slowly',
-  3: 'In 3D a walk comes home only ≈ 34% of the time, ever',
-};
+const RULE = 'The dot steps at random. Back it to get home before the steps run out (or not to). Cash out any time.';
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -81,45 +69,47 @@ export default function Game() {
   const [history, pushHistory] = useHistory();
 
   const [dim, setDim] = useState<Dim>(2);
-  const [budget, setBudget] = useState<Budget>(20);
   const [side, setSide] = useState<Side>('home');
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
+  const [pending, setPending] = useState<Pending | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A burst of steps is decided when it starts, so leaving mid-walk settles
-  // at its real result, never at the pre-burst value.
+  // A step is decided when it starts, so leaving mid-step settles at its real
+  // result, never at the pre-step value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'walking' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : round?.cash ?? 0));
 
-  const stepMs = turbo.turbo ? 70 : 260;
-  const live = phase === 'walking' || phase === 'checkpoint';
+  const stepMs = turbo.turbo ? 80 : 320;
+  const live = phase === 'live' || phase === 'stepping';
 
   function finish(r: Round, outcome: BoardOutcome, cash: number) {
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
+    setPending(null);
     setPhase('over');
   }
 
-  function walk(r: Round) {
+  function step(r: Round) {
     const from = r.path[r.path.length - 1];
-    const left = r.s.budget - (r.path.length - 1);
-    const b = walkBurst(r.s, from, left, () => rng.next());
-    resolved.current = b.cash;
-    setPhase('walking');
-    b.path.forEach((_, i) => timers.after(i * stepMs, () => setRound((cur) => (cur ? { ...cur, path: [...r.path, ...b.path.slice(0, i + 1)] } : cur))));
-    timers.after(b.path.length * stepMs + 120, () => {
-      const next = { ...r, path: [...r.path, ...b.path], cash: b.cash };
-      if (b.verdict) {
-        const home = l1(next.path[next.path.length - 1]) === 0;
+    const left = BUDGET - (r.path.length - 1);
+    const st = walkStep(r.s, from, left, rng.next());
+    resolved.current = st.cash;
+    setPhase('stepping');
+    // First the drawn move lights up, then the dot moves, then the step settles.
+    setPending({ from, slot: slotIndex(r.s.dim, from, st.move), n: r.path.length });
+    const next: Round = { ...r, path: [...r.path, st.to], cash: st.cash };
+    timers.after(Math.round(stepMs * 0.7), () => setRound(next));
+    timers.after(Math.round(stepMs * 0.7) + stepMs + 60, () => {
+      if (st.verdict) {
+        const home = isHome(st.to);
         const outcome: BoardOutcome = r.s.side === 'home' ? (home ? 'came-home' : 'too-far') : home ? 'caught' : 'stayed-away';
-        return finish(next, outcome, b.cash);
+        return finish(next, outcome, st.cash);
       }
-      setRound(next);
-      setPhase('checkpoint');
-      const now = next.path[next.path.length - 1];
-      track({ type: 'checkpoint', multiplier: b.cash, winChance: sideChance(r.s.side, r.s.dim, now, left - b.path.length) });
+      setPending(null);
+      setPhase('live');
+      track({ type: 'checkpoint', multiplier: st.cash, winChance: sideChance(r.s.side, r.s.dim, st.to, left - 1) });
     });
   }
 
@@ -127,14 +117,14 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const s: Settings = { dim, budget, side };
-    const r: Round = { s, stake: bet.value, prize: prizeFor(s), path: [origin(dim)], cash: RTP, outcome: null };
-    setRound(r);
-    walk(r);
+    const s: Settings = { dim, side };
+    setPending(null);
+    setRound({ s, stake: bet.value, prize: prizeFor(s), path: [origin(dim)], cash: RTP, outcome: null });
+    setPhase('live');
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'live' || !round) return;
     finish(round, 'cashed', round.cash);
   }
 
@@ -142,6 +132,7 @@ export default function Game() {
     if (live) return;
     timers.clearAll();
     setRound(null);
+    setPending(null);
     setPhase('idle');
   }
 
@@ -153,35 +144,35 @@ export default function Game() {
 
   useHotkeys(
     {
-      space: () => (phase === 'checkpoint' && round ? walk(round) : !live ? void start() : undefined),
+      space: () => (phase === 'live' && round ? step(round) : !live ? void start() : undefined),
       cashOut,
     },
     !infoOpen,
   );
 
   // What the board shows: the live or finished round, else a preview of the settings.
-  const s: Settings = round?.s ?? { dim, budget, side };
+  const s: Settings = round?.s ?? { dim, side };
   const path = round?.path ?? [origin(s.dim)];
   const taken = path.length - 1;
-  const left = s.budget - taken;
+  const left = BUDGET - taken;
   const pos = path[path.length - 1];
   const dist = l1(pos);
   const prize = round?.prize ?? prizeFor(s);
   const settled = phase === 'over';
   const chance = settled ? (round?.cash ?? 0) / prize : taken === 0 ? startChance(s) : sideChance(s.side, s.dim, pos, left);
-  const bars = settled ? null : moveChances(s, pos, left);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const sel: Settings = { dim, budget, side };
+  const sel: Settings = { dim, side };
   const pSel = startChance(sel);
+  const pHome = startChance({ dim, side: 'home' });
   const vol = volatilityOf(sel);
-  const nextSteps = pressSize(s.budget, left);
   const sideWord = s.side === 'home' ? 'comes home' : 'stays away';
+  const slotsFrom = settled ? null : pending ? pending.from : pos;
 
-  let status = `Ready · ${s.dim}D · ${s.budget} steps · back ${SIDE_LABEL[s.side]}`;
-  if (phase === 'walking') status = `Walking · step ${Math.max(1, taken)} of ${s.budget}`;
-  if (phase === 'checkpoint') status = `Checkpoint · ${dist} from home · ${left} steps left`;
-  if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${s.budget} steps`;
+  let status = `Ready · ${s.dim}D · back ${SIDE_LABEL[s.side]}`;
+  if (phase === 'live') status = taken === 0 ? `Bet placed · ${BUDGET} steps to go` : `Step ${taken} of ${BUDGET} · ${dist} from home`;
+  if (phase === 'stepping' && pending) status = `Step ${pending.n} of ${BUDGET}…`;
+  if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${BUDGET} steps`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   return (
@@ -201,21 +192,12 @@ export default function Game() {
             onChange={(v) => change(() => setDim(v))}
           />
 
-          <Label hint="time to get home">Steps</Label>
-          <Chips
-            label="Step budget"
-            options={BUDGETS.map((v) => ({ value: v, label: v }))}
-            value={budget}
-            disabled={live}
-            onChange={(v) => change(() => setBudget(v))}
-          />
-
-          <Label hint="both are fairly priced">Back</Label>
+          <Label hint={`home in time ${fmtChance(pHome)}`}>Back</Label>
           <Chips
             label="Back a side"
             options={[
-              { value: 'home' as Side, label: 'Home', title: 'Win if the walk returns to the start in time' },
-              { value: 'away' as Side, label: 'Away', title: 'Win if it never returns in time' },
+              { value: 'home' as Side, label: 'Home', title: `Win if the dot gets home within ${BUDGET} steps` },
+              { value: 'away' as Side, label: 'Away', title: `Win if it doesn't get home within ${BUDGET} steps` },
             ]}
             value={side}
             disabled={live}
@@ -229,18 +211,18 @@ export default function Game() {
             <dd>{fmtMult(RTP / pSel)}</dd>
           </dl>
 
-          {phase === 'checkpoint' ? (
+          {live ? (
             <>
-              <ActionButton kind="cash" onClick={cashOut}>
+              <ActionButton kind="cash" disabled={phase !== 'live'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" onClick={() => round && walk(round)}>
-                Walk {nextSteps} step{nextSteps === 1 ? '' : 's'} · {fmtChance(chance)} to win
+              <ActionButton kind="secondary" disabled={phase !== 'live'} onClick={() => round && step(round)}>
+                Step
               </ActionButton>
             </>
           ) : (
-            <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-              {phase === 'walking' ? 'Walking…' : phase === 'over' ? 'Bet again' : 'Bet'}
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              {phase === 'over' ? 'Bet again' : 'Bet'}
             </ActionButton>
           )}
 
@@ -255,21 +237,30 @@ export default function Game() {
           {
             label: `Chance it ${sideWord}`,
             value: settled ? (round?.outcome === 'cashed' ? '—' : chance >= 1 ? '100%' : '0%') : fmtChance(chance),
-            sub: live ? `${dist} from home · ${left} steps left` : `${s.dim}D · ${s.budget} steps`,
+            sub: `${dist} from home · ${left} steps left`,
             tone: 'chance',
           },
           {
             label: 'Cash out now',
             value: live || settled ? fmtMult(cash) : '—',
-            sub: live || settled ? formatAmount(stake * cash, 2) : `${fmtMult(RTP)} after the free first step`,
+            sub: live || settled ? formatAmount(stake * cash, 2) : `starts at ${fmtMult(RTP)}`,
             tone: 'cash',
           },
-          { label: 'Prize', value: fmtMult(prize), sub: `if the walk ${sideWord}`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), sub: `if it ${sideWord}`, tone: 'prize' },
         ]}
       />
 
       <Board className="homecoming-board">
-        <Field dim={s.dim} budget={s.budget} side={s.side} path={path} chance={chance} bars={bars} stepMs={stepMs} outcome={settled ? round?.outcome ?? null : null} />
+        <Field
+          dim={s.dim}
+          side={s.side}
+          pos={pos}
+          left={left}
+          slotsFrom={slotsFrom}
+          drawn={pending ? pending.slot : null}
+          stepMs={stepMs}
+          outcome={settled ? round?.outcome ?? null : null}
+        />
         {phase === 'over' && round?.outcome && (
           <RoundOver
             key={history[0]?.id}
@@ -286,15 +277,10 @@ export default function Game() {
       </Board>
 
       {live ? (
-        <ChanceBar
-          p={chance}
-          label={`Chance the walk ${sideWord}`}
-          note={`Each bar is your chance after one of the ${2 * s.dim} equally likely moves; the dashed line, their average, is your chance now.`}
-        />
+        <ChanceBar p={chance} label={`Chance it ${sideWord}`} note={RULE} />
       ) : (
         <Caption>
-          Pólya: {POLYA[s.dim]}. Within {s.budget} steps it comes home {fmtChance(startChance({ ...s, side: 'home' }))} of the time. RTP{' '}
-          {(RTP * 100).toFixed(0)}%.
+          {RULE} Home in time: {DIMS.map((d) => `${d}D ${fmtChance(startChance({ dim: d, side: 'home' }))}`).join(', ')}.
         </Caption>
       )}
 
@@ -302,52 +288,48 @@ export default function Game() {
         <InfoModal title="Homecoming" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A walker leaves home (the origin of a 1D, 2D or 3D grid) and takes random steps. Back <b>Home</b> to win if it comes back to the origin
-              within your step budget, or <b>Away</b> to win if it doesn't.
+              A dot leaves home and takes {BUDGET} random steps. Back <b>Home</b> to win if it gets back home before the steps run out, or <b>Away</b> to
+              win if it doesn't. You can cash out between any two steps.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick the dimension, the number of steps and a side, then bet.</li>
+              <li>Pick the dimension (1D, 2D or 3D) and a side, then bet.</li>
+              <li>Each press of Step (Space) moves the dot one step. Between steps you can cash out (C).</li>
               <li>
-                The first step is taken for you (it is free: every first step is the same distance from home). After that each press walks a few steps;
-                between presses you can cash out (C) or keep walking (Space).
-              </li>
-              <li>
-                The round settles the moment the walker reaches home, or once home is further away than the steps left (the out-of-reach wedge), or when
-                the steps run out.
+                The round ends the moment the dot is home, or once it is further from home than the steps left can cover (the shaded "out of reach" end of
+                the tracks), or when the steps run out.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each step moves one coordinate by ±1, chosen at random, so there are {2 * s.dim} equally likely moves. The number lines show the walk
-              projected onto each coordinate: home is when every coordinate is back on the home column at the same time, and the shaded gaps add up to
-              the steps from home.
+              The walk has one track per dimension. Each track shows how far the dot is from home along that direction; home is every track at 0 at the
+              same time. Each step picks one of the {2 * s.dim} equally likely moves shown under the board: a move takes one track a notch closer to home
+              or a notch further (a track already at home can only go further, so both of its moves do).
             </p>
             <p>
-              The bars at the bottom are your exact chance after each possible next move. Moves towards home are{' '}
-              <b style={{ color: 'var(--green)' }}>green</b> if you backed Home; moves away are green if you backed Away. The dashed line is their average, and
-              that average is your chance right now.
+              The shaded end of each track is out of reach: once a dot is there, the steps left cannot bring it home. It closes in as the steps are used.
+              The bar under the board is your exact chance right now; the panel shows it for the chosen settings before you bet.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              Pólya's recurrence theorem (1921): a simple random walk on the grid returns to its start with probability 1 in one and two dimensions, but only
-              with probability ≈ 0.3405 in three. Within T steps the chance is lower: in 1D exactly 1 − C(T, T/2)/2<sup>T</sup>.
+              Pólya's recurrence theorem (1921): a simple random walk on the grid returns home with probability 1 in one and two dimensions, but only with
+              probability ≈ 0.3405 in three. Within {BUDGET} steps the chance is lower, and it falls with every extra dimension: {DIMS.map((d) => `${d}D ${fmtChance(startChance({ dim: d, side: 'home' }))}`).join(', ')}. In 1D it is exactly 1 − C(T, T/2)/2<sup>T</sup>.
             </p>
             <p>
               The game computes the chance g(x, t) of reaching home from x within t steps exactly: g(x, 0) = 0, and g(x, t) is the average over the{' '}
-              {2 * s.dim} neighbours y of (1 if y is home, else g(y, t − 1)). Positions are reduced by symmetry (signs and the order of coordinates do not
-              matter), and the result is checked against the renewal equation for return probabilities.
+              {2 * s.dim} neighbours y of (1 if y is home, else g(y, t − 1)). Signs and the order of the directions do not matter, which is why the board
+              only shows distances; the result is checked against the renewal equation for return probabilities.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              The prize is {(RTP * 100).toFixed(0)}% ÷ (your side's chance at the start), and cashing out pays prize × (your chance now). Because the chance now
-              is the average of the chances after the next move, the cash-out is a fair bet at every step (a martingale): any way of deciding when to stop
-              returns exactly {(RTP * 100).toFixed(0)}% of your stake. Home and Away are each priced at their own odds, so the side you back changes the
-              swings, not the value.
+              The prize is {(RTP * 100).toFixed(0)}% ÷ (your side's chance at the start), and cashing out pays prize × (your chance now), starting at{' '}
+              {fmtMult(RTP)} the moment you bet. Because the chance now is the average of the chances after the {2 * s.dim} possible moves, the cash-out is a
+              fair bet at every step (a martingale): any way of deciding when to stop returns exactly {(RTP * 100).toFixed(0)}% of your stake. Home and Away
+              are each priced at their own odds, so the side you back changes the swings, not the value.
             </p>
           </InfoSection>
         </InfoModal>

@@ -1,15 +1,19 @@
-// Pearson Walk: a walker leaves the centre of a home disc and takes n unit
-// steps, each in a uniformly random direction (Pearson's random walk, 1905).
-// It wins if it ends inside home, a disc of radius ρ step lengths.
+// Pearson Walk: a walker starts one step from the centre of a home disc and
+// takes N unit steps, each in a uniformly random direction (Pearson's random
+// walk, 1905). It wins if it ends inside home, a disc of radius ρ step lengths.
 //
-// The theorem. Kluyver (1906) wrote the chance that the walk ends within ρ
-// of its start as a Bessel integral,
+// The theorem. Kluyver (1906) wrote the chance that an n-step walk from the
+// centre ends within ρ of it as a Bessel integral,
 //
 //     P(|S_n| ≤ ρ) = ρ ∫₀^∞ J₁(ρt) J₀(t)ⁿ dt.
 //
 // When home is exactly one step wide (ρ = 1) the integrand is
 // −(d/dt) J₀(t)ⁿ⁺¹ / (n+1), so the chance is exactly 1/(n+1), for every n ≥ 2.
-// Smaller or larger homes are the volatility knob.
+// A walk's first step from the centre always lands one step out, so starting
+// one step out with N steps to go is an (N+1)-step walk from the centre:
+// P_N(1) = P(|S_{N+1}| ≤ ρ), which is exactly 1/(N+2) when ρ = 1. Smaller or
+// larger homes are the volatility knob. (Starting one step out means every
+// step the player watches is a real draw that moves the odds.)
 //
 // Live odds. The walk is isotropic, so with k steps left the chance of ending
 // home depends only on the distance r from the centre:
@@ -19,16 +23,16 @@
 //              directions whose step lands inside home, drawn as a green arc)
 //     P_k(r) = (1/π) ∫₀^π P_{k−1}(√(r² + 1 + 2r cos φ)) dφ.
 //
-// The level sets of P_k are circles around home: the iso-odds rings on the
-// board. P_k is exactly 0 once home is out of reach (r ≥ k + ρ; for the last
-// step, |r − 1| ≥ ρ) and exactly 1 when every reachable point is home
-// (r + k ≤ ρ). Both end the round at once.
+// Because only r matters, the board turns after every step so the walker
+// always sits on one ray from the centre: the only motion left is in or out.
+// P_k is exactly 0 once home is out of reach (r ≥ k + ρ; for the last step,
+// |r − 1| ≥ ρ) and exactly 1 when every reachable point is home (r + k ≤ ρ).
+// Both end the round at once.
 //
-// Fairness. The full prize is RTP / P_n(0) and the cash-out in any state is
+// Fairness. The full prize is RTP / P_N(1) and the cash-out in any state is
 // prize × P_k(r). The recursion above *is* the one-step expectation, so the
 // cash-out is a martingale that starts at RTP; by optional stopping every
-// cash-out strategy returns exactly RTP. The first step is free: it always
-// lands on the unit circle, where P_{n−1}(1) = P_n(0).
+// cash-out strategy (including running to the end) returns exactly RTP.
 //
 // Numerics. P_1 is closed form. For k ≥ 2, P_k is tabulated on pieces between
 // its singular radii |m ± ρ| (where the circle of radius ρ around the walker
@@ -44,37 +48,39 @@ import type { Volatility } from '@originals/game-sdk';
 
 export const RTP = 0.99;
 
-/** Number of unit steps in a walk. */
+/** The walker starts this far from the centre (one step out). */
+export const START = 1;
+
+/** Number of random unit steps the walker takes from its start. */
 export const STEPS = [2, 3, 4, 6, 9, 12] as const;
 export type Steps = (typeof STEPS)[number];
 
-/** Home radius, in step lengths. 1 is Kluyver's case: chance exactly 1/(n+1). */
+/** Home radius, in step lengths. 1 is Kluyver's case: chance exactly 1/(N+2). */
 export const HOMES = [0.5, 0.75, 1, 1.5] as const;
 export type Home = (typeof HOMES)[number];
 
 export const HOME_LABEL: Record<Home, string> = { 0.5: '½', 0.75: '¾', 1: '1', 1.5: '1½' };
 
 export const VOLATILITY: Record<Volatility, { steps: Steps; home: Home }> = {
-  low: { steps: 3, home: 1.5 },
+  low: { steps: 2, home: 1.5 },
   medium: { steps: 4, home: 1 },
   high: { steps: 6, home: 0.75 },
   extreme: { steps: 12, home: 0.5 },
 };
 
-// P(|S_n| ≤ ρ) for ρ ≠ 1 and n ≥ 3, indexed like STEPS (n = 2 uses the closed
-// form (2/π)·asin(ρ/2)). Computed with this file's method on a 4× finer grid;
-// math.test.ts re-derives every value from the live tables.
-const KLUYVER_TABLE: Record<Exclude<Home, 1>, readonly number[]> = {
-  0.5: [0.1608612465103, 0.04806277567016, 0.06251435745068, 0.03884584821535, 0.02587862210562, 0.01979174296981],
-  0.75: [0.2447145870782, 0.1160041012928, 0.1240071671876, 0.08386112007479, 0.05740657218352, 0.04399856027470],
-  1.5: [0.5398930876748, 0.5116794934010, 0.3878744730545, 0.2932398377081, 0.2118154638967, 0.1651105502568],
+// P_N(1) = P(|S_{N+1}| ≤ ρ) for ρ ≠ 1, indexed like STEPS. Computed with this
+// file's method on a 4× finer grid; math.test.ts re-derives every value from
+// the live tables (and the ρ = 1 column reproduces 1/(N+2) to 1e-12).
+const WIN_TABLE: Record<Exclude<Home, 1>, readonly number[]> = {
+  0.5: [0.04806277567016, 0.06251435744966, 0.04134580166848, 0.03229237353635, 0.02353103005552, 0.01833609086233],
+  0.75: [0.1160041012928, 0.1240071671877, 0.09332523881272, 0.07172904876751, 0.05217249761723, 0.04080312580449],
+  1.5: [0.5116794934010, 0.3878744730555, 0.3435152212855, 0.2614123387730, 0.1934767417427, 0.1538309546320],
 };
 
-/** Chance that an n-step walk ends inside a home of radius ρ. */
+/** Chance that N steps from one step out end inside a home of radius ρ. */
 export function winChance(n: Steps, home: Home): number {
-  if (home === 1) return 1 / (n + 1);
-  if (n === 2) return (2 / Math.PI) * Math.asin(home / 2);
-  return KLUYVER_TABLE[home][STEPS.indexOf(n)];
+  if (home === 1) return 1 / (n + 2);
+  return WIN_TABLE[home][STEPS.indexOf(n)];
 }
 
 /** The full prize: what a walk that ends home pays, per unit staked. */
@@ -323,77 +329,6 @@ export const dist = (p: Pt) => Math.hypot(p.x, p.y);
 
 /** Where a unit step at angle a (radians) from p lands. */
 export const stepFrom = (p: Pt, a: number): Pt => ({ x: p.x + Math.cos(a), y: p.y + Math.sin(a) });
-
-// The drawing helpers sample from just off the centre: exactly at r = 0 with one
-// step left every direction lands on the unit circle, a measure-zero tie that
-// only matters for a 1-step walk (not offered).
-const NEAR_CENTRE = 1e-9;
-
-/** P_k sampled on [0, rMax], for the shaded odds field. */
-export function profile(k: number, rho: number, rMax: number, samples = 64): { r: number; p: number }[] {
-  const out: { r: number; p: number }[] = [];
-  for (let i = 0; i <= samples; i++) {
-    const r = Math.max(NEAR_CENTRE, (rMax * i) / samples);
-    out.push({ r, p: homeChance(k, r, rho) });
-  }
-  return out;
-}
-
-/** Round levels for the labelled iso-odds rings. */
-export const NICE_LEVELS = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.25, 0.2, 0.15, 0.1, 0.08, 0.06, 0.05, 0.04, 0.03, 0.02, 0.015, 0.01, 0.005, 0.002, 0.001];
-
-export interface Contour {
-  level: number;
-  radius: number;
-}
-
-/** Radii in [lo, hi] where P_k(r) = level (P_k need not be monotone, so there can be several). */
-export function levelRadii(k: number, rho: number, level: number, lo: number, hi: number, samples = 240): number[] {
-  const f = (r: number) => homeChance(k, r, rho) - level;
-  const out: number[] = [];
-  let a = lo;
-  let fa = f(a);
-  for (let i = 1; i <= samples; i++) {
-    const b = lo + ((hi - lo) * i) / samples;
-    const fb = f(b);
-    if ((fa > 0) !== (fb > 0)) {
-      let x0 = a;
-      let x1 = b;
-      let f0 = fa;
-      for (let it = 0; it < 50; it++) {
-        const m = (x0 + x1) / 2;
-        const fm = f(m);
-        if ((fm > 0) === (f0 > 0)) {
-          x0 = m;
-          f0 = fm;
-        } else x1 = m;
-      }
-      out.push((x0 + x1) / 2);
-    }
-    a = b;
-    fa = fb;
-  }
-  return out;
-}
-
-/**
- * Up to `max` labelled rings for the k-steps-left field: round levels spread
- * between the best odds on the board and a few percent of them.
- */
-export function contours(k: number, rho: number, rMax: number, max = 4): Contour[] {
-  if (k <= 0) return [];
-  const prof = profile(k, rho, rMax, 96);
-  const peak = Math.max(...prof.map((s) => s.p));
-  if (!(peak > 0)) return [];
-  const picked: number[] = [];
-  for (const f of [0.8, 0.5, 0.25, 0.1, 0.04]) {
-    const level = NICE_LEVELS.find((l) => l <= peak * f);
-    if (level !== undefined && !picked.includes(level)) picked.push(level);
-  }
-  const out: Contour[] = [];
-  for (const level of picked.slice(0, max)) for (const radius of levelRadii(k, rho, level, NEAR_CENTRE, rMax)) out.push({ level, radius });
-  return out.sort((a, b) => a.radius - b.radius);
-}
 
 export interface StepArc {
   /** Absolute angles in radians (SVG convention: 0 = +x, increasing clockwise on screen). */

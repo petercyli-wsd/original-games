@@ -82,11 +82,9 @@ export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
       <div className="drawer-body" key={version}>
         <h3>Maths</h3>
         <NumberRow label="RTP (0–1)" step={0.001} value={config.rtp} onChange={(rtp) => set({ rtp: Math.min(1, Math.max(0.5, rtp)) })} />
-        <ListRow label="Teeth options" value={config.teethOptions} onChange={(teethOptions) => set({ teethOptions })} />
+        <NumberRow label="Teeth" step={1} value={config.teeth} onChange={(teeth) => set({ teeth: Math.min(24, Math.max(4, Math.round(teeth))) })} />
         <ListRow label="Bad-teeth options" value={config.badTeethOptions} onChange={(badTeethOptions) => set({ badTeethOptions })} />
-        <NumberRow label="Bite Bonus min" step={0.1} value={config.biteBonusMin} onChange={(biteBonusMin) => set({ biteBonusMin: Math.max(1, biteBonusMin) })} />
-        <NumberRow label="Bite Bonus max" step={0.1} value={config.biteBonusMax} onChange={(biteBonusMax) => set({ biteBonusMax: Math.max(config.biteBonusMin, biteBonusMax) })} />
-        <p className="cfg-note">Maths changes apply from the next bet. Bite Bonus above 2× makes the cash-out value fall each round.</p>
+        <p className="cfg-note">Maths changes apply from the next bet.</p>
 
         <h3>Pace (ms)</h3>
         <NumberRow label="House thinking time" step={50} value={config.houseDelay} onChange={(houseDelay) => set({ houseDelay: Math.max(0, houseDelay) })} />

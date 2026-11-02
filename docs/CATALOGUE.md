@@ -567,3 +567,69 @@ All 10 are built, reviewed against the nine evaluator facets, fixed and committe
 | Maze | random-walk | 98.40%–100.89% (max \|z\| 1.4) | 0.57 → 4.31 | 7.5× | 3.9–8.2 | 41× | ✓ |
 | Majority | inference | 99.00%–99.42% (max \|z\| 1.2) | 0.53 → 4.26 | 8.1× | 7.5–11.6 | 94× | ✓ |
 | Last Slice | process | 95.51%–99.60% (max \|z\| 0.8) | 1.20 → 16.62 | 13.8× | 2.4–3.0 | 660× | ✓ |
+
+## Revamp (November 2026): evaluator v7, batch 4, iterations and the Archive
+
+Scores below are evaluator v7 overalls (blind player, plus a 3-player panel when the overall falls in 3.25–3.75). The keep gate is overall ≥ 3.5, every clarity facet ≥ 3, no reskin and no dead structure; a game the team has rated passes or fails on the team's average instead.
+
+### Batch 4: new games
+
+16 concepts were written by `/generate-games` and screened against the pre-build checklist in `docs/DESIGN-RULES.md`. 9 failed on paper (7 of them as reskins: Swallow, Carve, Whittle, Standoff, Streak, Rise, League; Roommates and Spark on board inventory). 7 were built and reviewed; 5 were kept.
+
+| id | Name | One-sentence rule | Maths | Closest → difference | v7 | Gate |
+|---|---|---|---|---|---|---|
+| sixes | Sixes | Roll up to three times; sixes stay put, and every die on six wins. | n independent races to six in 3 rolls, (1 − (5/6)^r)^f | Video Poker, Full Set → automatic holds, each die's chance is a bar under it | 3.75 | Pass |
+| tally | Tally | Balls drop onto unequal bins; back the first bin to stack three. | Poissonized race of Gamma clocks, P(i first) = ∫ fᵢ(t) Πⱼ≠ᵢ P(Poisson(pⱼt) < rⱼ) dt | Last Slice, Derby → bin width is the chance per ball; a race of stacks | 3.72 | Pass |
+| shut | Shut | Close tiles that add up to each two-dice roll; close every tile to win. | Best-play backward induction over open-tile sets, V(S) = Σₜ P(t) · max V(S \ C); choosing another option relocks at fair value | Landing → a tile choice each roll; the green share of the totals band is the next roll | 3.75 | Pass |
+| cross | Cross | Cards are turned from a 3 × 4 grid; each must miss the last card's colour and shape. | Memoised recursion over the turned cards and the last card (≤ 2¹² × 12 states) | HiLo, Mines → the red cross over the grid is the risk of the next card | 3.75 | Pass |
+| showdown | Showdown | You and the house flip from face-down piles (your evens, its odds); the higher card takes the round; take enough of 7. | The flips pair the two hands by a uniform random matching; exact count of matchings with enough wins | Dragon Tiger, Shootout → cards don't come back, so every win spends a card; the round stops when the bet is decided | 3.75 | Pass |
+
+Built and dropped (deleted, not archived):
+
+- **Parking** (2.52): cars park at random until no two-space gap is left; win if at most W spaces are wasted. The result is a counted pattern at the end, not a watched draw (rule 1).
+- **Zone** (3.17): a smaller square lands inside the current one; your dot must stay inside. No facet failed outright, but every one sat at 3, so it never reached the gate.
+
+### Iterated (Phase 2)
+
+The v7 re-score failed 62 of 109 games (47 passed). 31 failing games were iterated with `/iterate-game`, up to two rounds each.
+
+| Game | v7 before | After | What changed |
+|---|---|---|---|
+| Crash Colours | 3.43 | 4.28 | Band heights are their chances; live odds as the line climbs |
+| Hot Potato | 2.85 | 3.75 | A fuse dial decides blow or hop; one setting for seats backed |
+| Pascal | 3.00 | 3.75 | Moves drawn as a visible deck; the board stops at the gate row |
+| Records | 3.00 | 3.75 | Balls into equal slots; the green slot is the record; one setting |
+| Snowball | 3.41 | 3.75 | Each ball visibly returns with a twin; an 11-slot tally shows the race to 6; Bet no longer draws |
+| Convex | 2.80 | 3.72 | One square arena; dots land in green or red regions |
+| Chase v2 (fork) | 3.00 | 3.69 | Runner steps drawn as 1-in-k arrows; hunter reach outlined; race counter. Chase (team 3.25) is archived with `supersededBy` |
+| Crocodile Dentist | 3.43 | 3.65 | One setting (bad teeth), one cash-out number, a live chance bar |
+| Knight | 3.26 | 3.63 | Always 5 hops; the target is the one risk choice; end squares shown |
+| Line Cut | 3.00 | 3.63 | One line, Hit only; shape is the one setting |
+| Lighthouse | 2.83 | 3.59 | Shutters removed; window distance is the one setting |
+| Reels | 3.00 | 3.54 | A live chance-to-pay bar that updates as each reel stops |
+| Homecoming | 3.00 | 3.50 | Distance-from-home tracks; one step per press |
+| Pivot | 2.59 | 3.50 | One fixed line; waiting blocks at full size with knock-out zones |
+
+Reverted: **Leverage** (classic, 3.00; drawing the fee more explicitly scored no better, rule 11) stays as it was. **Roots** (2.37) stays archived.
+
+### Archived in the revamp
+
+Status `retired`: hidden in the folded Archive section of the lobby, playable, old reviews kept.
+
+| Game | v7 before | Best after | Reason |
+|---|---|---|---|
+| Call It | 3.00 | 3.00 | The result is a pattern to check, not a watched draw |
+| Last Light | 3.00 | 2.87 | Most of the walk can't change the chance (dead structure) |
+| Line of Sight | 3.00 | 3.00 | Fixed-chance draws dressed as a visibility pattern |
+| Mediant | 3.00 | 3.00 | Without the Stern–Brocot layout it is a Plinko reskin |
+| Polarizer | 3.41 | 3.00 | The repair added dead structure |
+| Quadrant | 3.00 | 3.00 | Dead structure survived a repair round |
+| Shells | 3.37 | 3.00 | Blind swaps between other cups read as dead structure |
+| Shunt | 2.93 | 3.15 | Simplicity stayed at 2 |
+| Probe | 2.81 | 3.17 | Improved version kept; still under the gate |
+| Patience | 2.39 | 3.41 | Improved version kept (ten cards, one setting, red new-pile band); still under the gate |
+| Mismatch | 2.96 | 3.41 | Round-1 version kept (slots fill in order, one target row); round 2 scored 3.19 |
+| Pearson | 3.00 | 3.31 | Round-1 version kept (walker turned back onto one line, so only its distance changes); round 2 brought back the dead-structure cap |
+| Slide Rule | 2.80 | 3.00 | A one-dial repair rose only 0.20; simplicity stayed at 2; original kept |
+| Waldegrave | 3.30 | 3.00 | Drawing duels between other seats added dead structure; original kept |
+| Scratch | 3.00 | 3.00 | Uniqueness 2 (Mines turned inside out) caps it at 3; not repaired |
