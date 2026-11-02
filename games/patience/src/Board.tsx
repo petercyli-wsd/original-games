@@ -1,17 +1,19 @@
-import { fmtChance } from '@originals/game-sdk/ui';
 import type { CSSProperties } from 'react';
-import { columnsFor, shelfOf, winsAt, type Bet, type Deal, type Ghost } from './math';
+import { catchBands, shelfOf, type Deal } from './math';
 
 // Rows are card values (high at the top), columns are piles. Every value sits
-// in exactly one row, so a dealt card slides along its own empty row from the
-// deck strip on the left to the pile it lands on. Pile tops are the lowest
-// card in each column and rise from left to right; the top of the rightmost
-// pile is the "top shelf". Cards still in the deck above it open a new pile.
+// in exactly one row, so a dealt card slides along its own row from the deck
+// strip on the left to the pile it lands on. Pile tops are the lowest card in
+// each column and rise from left to right. Under each top hangs that pile's
+// catch band: the rows between the previous pile's top and its own, the
+// values that fit under it and nowhere earlier. Above the last top (the
+// shelf) is the red new-pile band in the next column. The bands tile the rows,
+// so every row meets exactly one band and a card drops into the band on its
+// row. Columns 1..k are the piles allowed; column k+1 is the red bust column.
 
 const VW = 440;
-const VH = 468;
-const LABEL_W = 58;
-const GRID_TOP = 48;
+const LABEL_W = 62;
+const GRID_TOP = 50;
 
 export interface Moving {
   card: number;
@@ -21,36 +23,20 @@ export interface Moving {
 }
 
 export interface BoardProps {
-  bet: Bet;
+  k: number;
   deal: Deal;
-  /** Every card left, where it would land (null hides them). */
-  ghosts: Ghost[] | null;
-  /** Chance the deal ends on each column (null hides the forecast and crops the board). */
-  bars: number[] | null;
-  /** A longest rising run, one card per pile, drawn when the round is over. */
-  run: number[] | null;
-  /** Show the new-pile zone, the shelf and the deck count. */
+  /** Show the catch bands, the shelf and the count of cards that would open a pile. */
   showZone: boolean;
   moving: Moving | null;
   last: number | null;
-  finalCard: { card: number; tone: 'win' | 'lose' } | null;
-  winP: number;
+  /** The card that opened the bust pile, drawn in red when the round is over. */
+  bustCard: number | null;
 }
 
-function pie(cx: number, cy: number, r: number, p: number) {
-  const a = p * 2 * Math.PI;
-  const ex = cx + r * Math.sin(a);
-  const ey = cy - r * Math.cos(a);
-  return `M ${cx} ${cy} L ${cx} ${(cy - r).toFixed(2)} A ${r} ${r} 0 ${p > 0.5 ? 1 : 0} 1 ${ex.toFixed(2)} ${ey.toFixed(2)} Z`;
-}
-
-const pct = (p: number) => (p <= 0 ? '0%' : p >= 1 ? '100%' : p < 0.01 ? '<1%' : p > 0.99 ? '>99%' : `${Math.round(p * 100)}%`);
-
-export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, last, finalCard, winP }: BoardProps) {
+export default function Board({ k, deal, showZone, moving, last, bustCard }: BoardProps) {
   const n = deal.n;
   const s = Math.min(34, 300 / n);
-  const cols = columnsFor(bet);
-  // Columns are as wide as the board allows (up to a landscape tile), deck included.
+  const cols = k + 1;
   const cw = Math.max(s + 2, Math.min(s * 1.6, (VW - LABEL_W - 42) / (cols + 1) - 6));
   const pitch = cw + 6;
   const contentW = cw + 18 + cols * pitch - 4;
@@ -66,15 +52,15 @@ export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, 
   const shelf = shelfOf(deal);
   const shelfY = rowY(shelf);
   const zoneCol = deal.piles.length;
-  const fit = bet.mode === 'fit';
-  const limitCol = fit ? bet.k : bet.k - 1; // the overflow column (fit) or the goal column (reach)
-  const zoneTone = zoneCol === limitCol ? (fit ? 'lose' : 'win') : 'open';
+  const bustNext = zoneCol === k;
   const remaining = new Set(deal.remaining);
   const lit = deal.remaining.filter((c) => c > shelf).length;
   const movingCard = moving?.card ?? null;
+  const zone = showZone && zoneCol > 0 && zoneCol < cols;
 
-  const FB = gridBottom + 24 + 56; // forecast baseline
-  const FH = 56;
+  const bands = catchBands(deal);
+  /** A band's rows lo..hi as a rect; an empty band is a zero-height rect just under its top, so it can grow. */
+  const bandBox = (lo: number, hi: number) => ({ y: GRID_TOP + (n - hi) * s, height: Math.max(0, hi - lo + 1) * s });
 
   const tile = (card: number, pile: number, cls: string, style?: CSSProperties, key?: string | number) => (
     <g key={key ?? card} className={cls} style={style}>
@@ -85,13 +71,10 @@ export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, 
     </g>
   );
 
+  const countY = GRID_TOP + Math.max(16, (Math.min(shelfY, gridBottom) - GRID_TOP) / 2);
+
   return (
-    <svg
-      viewBox={`0 0 ${VW} ${bars ? VH : gridBottom + 34}`}
-      className="pat"
-      role="img"
-      aria-label={`${deal.piles.length} piles, ${deal.remaining.length} cards left`}
-    >
+    <svg viewBox={`0 0 ${VW} ${gridBottom + 12}`} className="pat" role="img" aria-label={`${deal.piles.length} piles, ${deal.remaining.length} cards left`}>
       <defs>
         <pattern id="pat-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <rect width="8" height="8" className="hatch-bg" />
@@ -99,29 +82,21 @@ export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, 
         </pattern>
       </defs>
 
-      {/* Headers */}
-      <text x={deckMid} y={GRID_TOP - 26} className="hdr">
+      {/* Headers: the deck, the k piles allowed, the bust pile. */}
+      <text x={deckMid} y={GRID_TOP - 28} className="hdr">
         deck
       </text>
-      {Array.from({ length: cols }, (_, j) => {
-        const special = j === limitCol;
-        return (
-          <g key={j}>
-            {special && (
-              <text x={midX(j)} y={GRID_TOP - 26} className={'hdr ' + (fit ? 'lose' : 'win')}>
-                {fit ? 'bust' : 'goal'}
-              </text>
-            )}
-            <text
-              x={midX(j)}
-              y={GRID_TOP - 9}
-              className={'colno' + (special ? (fit ? ' lose' : ' win') : '') + (j < deal.piles.length ? ' used' : '')}
-            >
-              {j + 1}
-            </text>
-          </g>
-        );
-      })}
+      <text x={(colX(0) + colX(k - 1) + cw) / 2} y={GRID_TOP - 28} className="hdr win">
+        {k * pitch >= 150 ? `${k} piles allowed` : `${k} allowed`}
+      </text>
+      <text x={midX(k)} y={GRID_TOP - 28} className="hdr lose">
+        bust
+      </text>
+      {Array.from({ length: cols }, (_, j) => (
+        <text key={j} x={midX(j)} y={GRID_TOP - 10} className={'colno' + (j === k ? ' lose' : j < deal.piles.length ? ' used' : '')}>
+          {j + 1}
+        </text>
+      ))}
 
       {/* Columns */}
       {Array.from({ length: cols }, (_, j) => (
@@ -132,31 +107,65 @@ export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, 
           width={cw}
           height={n * s}
           rx={6}
-          className={'col' + (j === limitCol ? (fit ? ' overflow' : ' goal') : '')}
-          fill={j === limitCol && fit ? 'url(#pat-hatch)' : undefined}
+          className={'col' + (j === k ? ' overflow' : '')}
+          fill={j === k ? 'url(#pat-hatch)' : undefined}
         />
       ))}
-      {/* Row guides */}
+      {/* Catch bands: under each pile's top, the values it takes. They shrink as a lower card covers the top. */}
+      {zone &&
+        bands.slice(0, -1).map((b) => {
+          const box = bandBox(b.lo, b.hi);
+          return (
+            <rect
+              key={`b${b.pile}`}
+              x={colX(b.pile) + 1}
+              width={cw - 2}
+              {...box}
+              style={box as CSSProperties}
+              rx={5}
+              className={'band' + (moving?.pile === b.pile ? ' hit' : '')}
+            />
+          );
+        })}
       {Array.from({ length: n - 1 }, (_, i) => (
         <line key={i} x1={x0} x2={colX(cols - 1) + cw} y1={GRID_TOP + (i + 1) * s} y2={GRID_TOP + (i + 1) * s} className="rowline" />
       ))}
-      {fit && <line x1={colX(limitCol) - 3} x2={colX(limitCol) - 3} y1={GRID_TOP - 4} y2={gridBottom + 4} className="limit" />}
+      <line x1={colX(k) - 3} x2={colX(k) - 3} y1={GRID_TOP - 4} y2={gridBottom + 4} className="limit" />
 
-      {/* The new-pile zone: rows above the top shelf in the next column. */}
-      {showZone && zoneCol < cols && shelf < n && (
-        <rect x={colX(zoneCol)} y={GRID_TOP} width={cw} height={shelfY - GRID_TOP} rx={6} className={`zone ${zoneTone}`} />
+      {/* The red new-pile band: a card higher than every top opens the next column. */}
+      {zone && (
+        <g className={'zone' + (bustNext ? ' lose' : '') + (moving?.pile === zoneCol ? ' hit' : '')}>
+          <rect x={colX(zoneCol)} width={cw} {...bandBox(shelf + 1, n)} style={bandBox(shelf + 1, n) as CSSProperties} rx={6} />
+          {!bustNext && shelfY - GRID_TOP >= 2 * s && (
+            <>
+              <text x={midX(zoneCol)} y={GRID_TOP + (shelfY - GRID_TOP) / 2 - 7} dy="0.35em" className="zone-label">
+                new
+              </text>
+              <text x={midX(zoneCol)} y={GRID_TOP + (shelfY - GRID_TOP) / 2 + 7} dy="0.35em" className="zone-label">
+                pile
+              </text>
+            </>
+          )}
+        </g>
       )}
-      {showZone && shelf > 0 && (
-        <line x1={x0 - 4} x2={colX(Math.min(zoneCol, cols - 1)) + cw + 4} y1={shelfY} y2={shelfY} className={`shelf ${zoneTone}`} />
+      {zone && (
+        <line
+          x1={x0 - 4}
+          x2={colX(zoneCol) + cw + 4}
+          y1={0}
+          y2={0}
+          style={{ transform: `translateY(${shelfY}px)` }}
+          className={'shelf' + (bustNext ? ' lose' : '')}
+        />
       )}
 
-      {/* Deck strip: one slot per value. */}
+      {/* Deck strip: one slot per value; cards above the shelf would open a pile. */}
       {Array.from({ length: n }, (_, i) => {
         const v = i + 1;
         const inDeck = remaining.has(v) && v !== movingCard;
-        const opens = showZone && inDeck && v > shelf;
+        const opens = zone && inDeck && v > shelf;
         return (
-          <g key={v} className={'slot' + (inDeck ? ' in' : ' out') + (opens ? ` opens ${zoneTone}` : '')}>
+          <g key={v} className={'slot' + (inDeck ? ' in' : ' out') + (opens ? ' opens' + (bustNext ? ' lose' : '') : '')}>
             <rect x={x0 + 2} y={rowY(v) + 1.5} width={cw - 4} height={s - 3} rx={4} />
             <text x={deckMid} y={rowY(v) + s / 2} dy="0.35em" fontSize={fs}>
               {v}
@@ -165,107 +174,40 @@ export default function Board({ bet, deal, ghosts, bars, run, showZone, moving, 
         );
       })}
 
-      {/* Deck count: cards above the shelf over cards left. */}
-      {showZone && deal.remaining.length > 0 && (
-        <g className={`count ${zoneTone}`}>
-          {shelf < n && <path d={`M ${x0 - 6} ${GRID_TOP + 3} h -5 V ${shelfY - 3} h 5`} className="bracket" />}
-          <text x={x0 - 14} y={GRID_TOP + Math.max(14, (Math.min(shelfY, gridBottom) - GRID_TOP) / 2) - 4} className="count-big">
-            {lit}/{deal.remaining.length}
+      {/* Count: deck cards above the shelf over cards left. */}
+      {zone && deal.remaining.length > 0 && (
+        <g className={'count' + (bustNext ? ' lose' : '')}>
+          <text x={x0 - 8} y={countY - 4} className="count-big">
+            {lit} of {deal.remaining.length}
           </text>
-          <text x={x0 - 14} y={GRID_TOP + Math.max(14, (Math.min(shelfY, gridBottom) - GRID_TOP) / 2) + 11} className="count-small">
-            new pile
+          <text x={x0 - 8} y={countY + 11} className="count-small">
+            {bustNext ? 'would' : 'open a'}
+          </text>
+          <text x={x0 - 8} y={countY + 25} className="count-small">
+            {bustNext ? 'bust' : 'new pile'}
           </text>
         </g>
       )}
 
       {/* Piles: a spine through each, covered cards dim, the top bright. */}
       {deal.piles.map((p, j) =>
-        p.length > 1 ? (
-          <line key={`sp${j}`} x1={midX(j)} x2={midX(j)} y1={rowY(p[0]) + s / 2} y2={rowY(p[p.length - 1]) + s / 2} className="spine" />
-        ) : null,
+        p.length > 1 ? <line key={`sp${j}`} x1={midX(j)} x2={midX(j)} y1={rowY(p[0]) + s / 2} y2={rowY(p[p.length - 1]) + s / 2} className="spine" /> : null,
       )}
-      {run && run.length > 1 && <polyline points={run.map((c, j) => `${midX(j)},${rowY(c) + s / 2}`).join(' ')} className="run" />}
       {deal.piles.flatMap((p, j) =>
-        p.map((card, i) => {
-          const top = i === p.length - 1;
-          const fin = finalCard?.card === card ? ` final ${finalCard.tone}` : '';
-          const inRun = run?.[j] === card ? ' in-run' : '';
-          return tile(card, j, 'card' + (top ? ' top' : ' covered') + (card === last ? ' last' : '') + inRun + fin);
-        }),
+        p.map((card, i) =>
+          tile(card, j, 'card' + (i === p.length - 1 ? ' top' : ' covered') + (card === last ? ' last' : '') + (card === bustCard ? ' final lose' : '')),
+        ),
       )}
-      {run && run.length > 0 && (
-        <text x={(x0 + colX(cols - 1) + cw) / 2} y={gridBottom + 24} className="run-caption">
-          Longest rising run {run.join('→')} = {run.length} {run.length === 1 ? 'pile' : 'piles'}
-        </text>
-      )}
-
-      {/* Where each card left would land, and the win chance if it comes next. */}
-      {ghosts?.map((g) => {
-        const cx = midX(g.pile);
-        const cy = rowY(g.card) + s / 2;
-        const r = Math.min(s * 0.33, cw * 0.3);
-        return (
-          <g key={`g${g.card}`} className="ghost">
-            <title>{`Card ${g.card} → pile ${g.pile + 1}${g.opens ? ' (new)' : ''} · win ${pct(g.chance)} if it comes next`}</title>
-            <circle cx={cx} cy={cy} r={r} className="ghost-bg" />
-            {g.chance >= 1 ? (
-              <circle cx={cx} cy={cy} r={r} className="ghost-win" />
-            ) : g.chance > 0 ? (
-              <path d={pie(cx, cy, r, g.chance)} className="ghost-win" />
-            ) : null}
-            <circle cx={cx} cy={cy} r={r} className="ghost-ring" />
-          </g>
-        );
-      })}
 
       {/* The card in flight slides along its row from the deck. */}
       {moving &&
         tile(
           moving.card,
           moving.pile,
-          'card top moving' + (moving.pile === limitCol ? (fit ? ' final lose' : ' final win') : ''),
-          {
-            '--dx': `${deckMid - midX(moving.pile)}px`,
-            animationDuration: `${moving.ms}ms`,
-          } as CSSProperties,
+          'card top moving' + (moving.pile === k ? ' final lose' : moving.pile === deal.piles.length ? ' opening' : ''),
+          { '--dx': `${deckMid - midX(moving.pile)}px`, animationDuration: `${moving.ms}ms` } as CSSProperties,
           `m${moving.key}`,
         )}
-
-      {/* Forecast: chance the deal ends with each column as its last pile. */}
-      {bars && (
-        <>
-          <line x1={gridLeft - 4} x2={colX(cols - 1) + cw + 4} y1={FB} y2={FB} className="base" />
-          {bars.map((p, j) => {
-            const win = winsAt(bet, j + 1);
-            return (
-              <g key={`b${j}`}>
-                <rect x={colX(j) + 4} y={FB - FH} width={cw - 8} height={FH} rx={3} className="bar-track" />
-                <rect
-                  x={colX(j) + 4}
-                  y={FB - FH}
-                  width={cw - 8}
-                  height={FH}
-                  rx={3}
-                  className={'bar ' + (win ? 'win' : 'lose')}
-                  style={{ transform: `scaleY(${p})` }}
-                />
-                <text x={midX(j)} y={FB - Math.max(p * FH, 0) - 5} className={'bar-pct ' + (win ? 'win' : 'lose')}>
-                  {p > 0 ? pct(p) : ''}
-                </text>
-              </g>
-            );
-          })}
-          <text x={x0 + cw / 2} y={FB - FH / 2 - 4} className="bar-label">
-            ends
-          </text>
-          <text x={x0 + cw / 2} y={FB - FH / 2 + 9} className="bar-label">
-            here
-          </text>
-          <text x={(x0 + colX(cols - 1) + cw) / 2} y={FB + 20} className="bar-caption">
-            Chance the deal ends on each pile · <tspan className="win">green = win {fmtChance(winP)}</tspan>
-          </text>
-        </>
-      )}
     </svg>
   );
 }

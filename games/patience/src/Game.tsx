@@ -4,7 +4,6 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -28,41 +27,34 @@ import { formatAmount } from '@originals/game-sdk';
 import { useMemo, useRef, useState } from 'react';
 import Field, { type Moving } from './Board';
 import {
-  DECKS,
-  DEFAULT_BET,
+  DEFAULT_K,
+  K_OPTIONS,
   MAX_MULTIPLIER,
+  N,
   RTP,
   cashValue,
-  clampK,
   decided,
   ended,
   finalCounts,
-  forecast,
-  ghosts,
-  kOptions,
   landing,
   newDeal,
   newPileCards,
-  risingRun,
   place,
   prizeFor,
   startChance,
   topsOf,
   volatilityOf,
   winChance,
-  type Bet,
   type Deal,
-  type Deck,
-  type Mode,
 } from './math';
 
 const ACCENT = '#90be6d';
 
 type Phase = 'idle' | 'dealing' | 'checkpoint' | 'over';
-type Outcome = 'bust' | 'fit' | 'reached' | 'short' | 'cashed';
+type Outcome = 'bust' | 'fit' | 'cashed';
 
 interface Round {
-  bet: Bet;
+  k: number;
   stake: number;
   deal: Deal;
   cash: number;
@@ -72,49 +64,50 @@ interface Round {
   last: number | null;
 }
 
-function outcomeTitle(o: Outcome, bet: Bet): string {
-  switch (o) {
+const plural = (x: number, w: string) => `${x} ${w}${x === 1 ? '' : 's'}`;
+
+function outcomeTitle(r: Round): string {
+  switch (r.outcome) {
     case 'bust':
-      return `Pile ${bet.k + 1} opened`;
+      return `Card ${r.last} opened pile ${r.k + 1}`;
     case 'fit':
-      return `Fits in ${bet.k} piles`;
-    case 'reached':
-      return `Pile ${bet.k} opened`;
-    case 'short':
-      return `Stopped short of ${bet.k}`;
-    case 'cashed':
+      return `All ${N} cards fit in ${plural(r.deal.piles.length, 'pile')}`;
+    default:
       return 'Cashed out';
   }
 }
 
-const outcomeOf = (bet: Bet, d: Deal): Outcome =>
-  bet.mode === 'fit' ? (d.piles.length > bet.k ? 'bust' : 'fit') : d.piles.length >= bet.k ? 'reached' : 'short';
-
-/** Why a settled round can no longer change, shown while the rest is dealt. */
-function sealNote(b: Bet, d: Deal, sealed: 'won' | 'lost'): string {
-  const lit = newPileCards(d);
-  const top = lit[lit.length - 1];
-  if (b.mode === 'fit') {
-    if (sealed === 'won') return `No order of the cards left can open pile ${b.k + 1}: the win is locked in. Dealing out the rest.`;
-    return lit.length && d.piles.length >= b.k
-      ? `Card ${top} is above the top shelf and the shelf can only drop, so pile ${b.k + 1} must open. Dealing out the rest.`
-      : `No order of the cards left fits in ${b.k} piles. Dealing out the rest.`;
-  }
-  if (sealed === 'lost') return `No order of the cards left can open pile ${b.k}. Dealing out the rest.`;
-  return lit.length && d.piles.length >= b.k - 1
-    ? `Card ${top} is above the top shelf and the shelf can only drop, so pile ${b.k} must open: the win is locked in.`
-    : `Pile ${b.k} opens whatever the order: the win is locked in.`;
+/**
+ * What the last card did: opened a pile, or dropped onto one. A card that
+ * covers the last pile's top lowers it, so the red new-pile band grows down to
+ * the card: the deck cards it swallows are why a safe card can cut the chance.
+ */
+function lastMove(d: Deal, card: number | null): string {
+  if (card == null) return '';
+  const j = d.piles.findIndex((p) => p[p.length - 1] === card);
+  if (j < 0) return '';
+  const pile = d.piles[j];
+  if (pile.length === 1) return `Card ${card} opened pile ${j + 1}`;
+  const was = pile[pile.length - 2];
+  const grew = j === d.piles.length - 1 ? d.remaining.filter((c) => c > card && c < was).length : 0;
+  return `Card ${card} → pile ${j + 1}` + (grew ? ` · ${plural(grew, 'more card')} turn red` : '');
 }
 
-/** Exact mean pile count for a fresh deck of n cards. */
-function meanPiles(n: number): number {
-  const counts = finalCounts(newDeal(n));
+/** Why a settled round can no longer change, shown while the rest is dealt. */
+function sealNote(k: number, d: Deal, sealed: 'won' | 'lost'): string {
+  if (sealed === 'won') return `No order of the cards left can open pile ${k + 1}: the win is locked in. Dealing out the rest.`;
+  const lit = newPileCards(d);
+  return lit.length && d.piles.length >= k
+    ? `Card ${lit[lit.length - 1]} is higher than every pile top, and the tops only drop, so pile ${k + 1} must open. Dealing out the rest.`
+    : `No order of the cards left fits in ${k} piles. Dealing out the rest.`;
+}
+
+/** Exact mean pile count for a fresh deck. */
+function meanPiles(): number {
+  const counts = finalCounts(newDeal());
   const total = counts.reduce((a, c) => a + c, 0);
   return counts.reduce((a, c, f) => a + f * c, 0) / total;
 }
-
-const betText = (b: Bet) => `${b.mode === 'fit' ? 'at most' : 'at least'} ${b.k} piles`;
-const plural = (x: number, w: string) => `${x} ${w}${x === 1 ? '' : 's'}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -123,9 +116,7 @@ export default function Game() {
   const timers = useTimers();
   const [history, pushHistory] = useHistory();
 
-  const [n, setN] = useState<Deck>(DEFAULT_BET.n);
-  const [mode, setMode] = useState<Mode>(DEFAULT_BET.mode);
-  const [k, setK] = useState(DEFAULT_BET.k);
+  const [k, setK] = useState<number>(DEFAULT_K);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [moving, setMoving] = useState<Moving | null>(null);
@@ -144,8 +135,6 @@ export default function Game() {
   const gapMs = turbo.turbo ? 30 : 110;
   const sealMs = turbo.turbo ? 160 : 520;
 
-  const settings: Bet = { n, mode, k };
-
   function finish(r: Round, outcome: Outcome, cash: number) {
     ticket.settle(cash);
     pushHistory(cash);
@@ -161,8 +150,8 @@ export default function Game() {
     const card = d.remaining[rng.int(d.remaining.length)];
     const pile = landing(topsOf(d), card);
     const next = place(d, card);
-    const sealed = r.sealed ?? decided(r.bet, next);
-    const cash = sealed === 'won' ? prizeFor(r.bet) : sealed === 'lost' ? 0 : cashValue(r.bet, next);
+    const sealed = r.sealed ?? decided(r.k, next);
+    const cash = sealed === 'won' ? prizeFor(r.k) : sealed === 'lost' ? 0 : cashValue(r.k, next);
     resolved.current = cash;
     const ms = all || r.sealed ? fastMs : dealMs;
     setPhase('dealing');
@@ -170,15 +159,11 @@ export default function Game() {
     timers.after(ms, () => {
       const cur: Round = { ...r, deal: next, cash, sealed, last: card };
       setMoving(null);
-      if (ended(r.bet, next)) return finish(cur, outcomeOf(r.bet, next), cash);
+      if (ended(r.k, next)) return finish(cur, next.piles.length > r.k ? 'bust' : 'fit', cash);
       setRound(cur);
       if (sealed || all) return timers.after(sealed && !r.sealed ? sealMs : gapMs, () => deal(cur, all));
       setPhase('checkpoint');
-      track({
-        type: 'checkpoint',
-        multiplier: cash,
-        winChance: winChance(r.bet, next),
-      });
+      track({ type: 'checkpoint', multiplier: cash, winChance: winChance(r.k, next) });
     });
   }
 
@@ -186,15 +171,7 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const r: Round = {
-      bet: settings,
-      stake: bet.value,
-      deal: newDeal(n),
-      cash: RTP,
-      outcome: null,
-      sealed: null,
-      last: null,
-    };
+    const r: Round = { k, stake: bet.value, deal: newDeal(), cash: RTP, outcome: null, sealed: null, last: null };
     setRound(r);
     setAuto(false);
     deal(r, false);
@@ -219,13 +196,11 @@ export default function Game() {
     setPhase('idle');
   }
 
-  // Changing a setting after a round clears the finished board to a preview.
-  const change = (apply: () => void) => {
-    apply();
+  // Changing the setting after a round clears the finished board to a preview.
+  const pickK = (v: number) => {
+    setK(v);
     if (phase === 'over') clear();
   };
-  const pickDeck = (v: Deck) => change(() => (setN(v), setK(clampK(v, mode, k))));
-  const pickMode = (m: Mode) => change(() => (setMode(m), setK(clampK(n, m, k))));
 
   useHotkeys(
     {
@@ -235,53 +210,42 @@ export default function Game() {
     !infoOpen,
   );
 
-  // What the board shows: the live or finished round, else a preview of the settings.
-  const b = round?.bet ?? settings;
-  const preview = useMemo(() => newDeal(n), [n]);
+  // What the board shows: the live or finished round, else a preview of the setting.
+  const bk = round?.k ?? k;
+  const preview = useMemo(() => newDeal(), []);
   const d = round?.deal ?? preview;
-  const p = winChance(b, d);
-  const p0 = startChance(b);
-  const prize = prizeFor(b);
+  const p = winChance(bk, d);
+  const p0 = startChance(bk);
+  const prize = prizeFor(bk);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const showOdds = phase === 'idle' || phase === 'checkpoint';
-  const rings = useMemo(() => (showOdds ? ghosts(b, d) : null), [showOdds, b.n, b.mode, b.k, d]);
-  const bars = forecast(b, d);
   const lit = newPileCards(d).length;
   const left = d.remaining.length;
-  const dealt = b.n - left;
-  const vol = volatilityOf(settings);
-  const chance0 = startChance(settings);
+  // One headline chance: the live chance, the setting's chance in idle, and the result once over.
+  const shownP = phase === 'idle' ? p0 : phase === 'over' ? (round?.outcome === 'cashed' ? null : round && round.cash > 0 ? 1 : 0) : p;
+  const dealt = N - left;
+  const piles = d.piles.length;
+  const chance0 = startChance(k);
   const busy = phase === 'dealing';
-
-  let status = `Ready · ${n} cards · ${betText(settings)}`;
-  if (phase === 'dealing')
-    status = round?.sealed
-      ? round.sealed === 'won'
-        ? 'Win locked in · dealing out'
-        : 'No way back · dealing out'
-      : auto
-        ? `Dealing all · card ${dealt + 1} of ${b.n}`
-        : `Dealing card ${dealt + 1} of ${b.n}`;
-  if (phase === 'checkpoint') status = `Checkpoint · ${plural(d.piles.length, 'pile')} · ${plural(left, 'card')} left`;
-  if (phase === 'over' && round?.outcome) status = `${outcomeTitle(round.outcome, b)} · ${plural(d.piles.length, 'pile')}`;
   const sealed = live ? (round?.sealed ?? null) : null;
+
+  let status = `Ready · at most ${k} piles`;
+  if (phase === 'dealing')
+    status = sealed
+      ? sealed === 'won'
+        ? 'Win locked in · dealing out'
+        : 'Bust is certain · dealing out'
+      : `${auto ? 'Dealing all' : 'Dealing'} · card ${dealt + 1} of ${N}`;
+  if (phase === 'checkpoint') status = `${lastMove(d, round?.last ?? null)} · ${left} left`;
+  if (phase === 'over' && round?.outcome) status = outcomeTitle(round);
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : sealed ? (sealed === 'won' ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const finalCard =
-    phase === 'over' && round?.last && (round.outcome === 'bust' || round.outcome === 'reached')
-      ? {
-          card: round.last,
-          tone: round.outcome === 'bust' ? ('lose' as const) : ('win' as const),
-        }
-      : null;
-
-  const prizeSub = b.mode === 'fit' ? `if it ends in ≤ ${b.k} piles` : `when pile ${b.k} opens`;
-  const nextNote =
-    b.mode === 'fit'
-      ? `${lit} of ${left} cards left would open a new pile (they sit above the dashed top shelf). Pile ${b.k + 1} loses.`
-      : `${lit} of ${left} cards left would open a new pile (they sit above the dashed top shelf). Pile ${b.k} wins.`;
-  const note = sealed ? sealNote(b, d, sealed) : nextNote;
+  const room = bk - piles;
+  const liveNote =
+    room === 0
+      ? `All ${bk} piles are open, so a red card now busts. Each card that drops onto pile ${bk} lowers its top and turns more deck cards red.`
+      : `${lit} of ${left} cards left are red: they are above every top and would open pile ${piles + 1}. ${plural(room, 'more pile')} allowed.`;
+  const note = sealed && round ? sealNote(bk, d, sealed) : liveNote;
 
   return (
     <GameLayout
@@ -291,42 +255,19 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint="more cards, longer rounds">Cards in the deck</Label>
-          <Chips label="Cards in the deck" options={DECKS.map((v) => ({ value: v, label: v }))} value={n} disabled={live} onChange={pickDeck} />
-
-          <Label hint={<VolBadge level={vol} />}>Finish with</Label>
+          <Label hint={<VolBadge level={volatilityOf(k)} />}>Piles allowed</Label>
           <Chips
-            label="At most or at least"
-            options={[
-              {
-                value: 'fit',
-                label: 'At most',
-                title: 'Win if the deal ends with at most this many piles',
-              },
-              {
-                value: 'reach',
-                label: 'At least',
-                title: 'Win as soon as this many piles are open',
-              },
-            ]}
-            value={mode}
-            disabled={live}
-            onChange={(m) => pickMode(m as Mode)}
-          />
-          <Chips
-            label="Number of piles"
-            options={kOptions(n, mode).map((v) => ({
+            label="Piles allowed"
+            options={K_OPTIONS.map((v) => ({
               value: v,
               label: v,
-              title: `${mode === 'fit' ? 'At most' : 'At least'} ${v} piles · ${fmtChance(startChance({ n, mode, k: v }))}`,
+              title: `Win if all ${N} cards fit in ${v} piles · ${fmtChance(startChance(v))}`,
             }))}
             value={k}
             disabled={live}
-            onChange={(v) => change(() => setK(v))}
+            onChange={pickK}
           />
           <dl className="og-stats">
-            <dt>Piles</dt>
-            <dd>{mode === 'fit' ? `≤ ${k}` : `≥ ${k}`}</dd>
             <dt>Chance to win</dt>
             <dd>{fmtChance(chance0)}</dd>
             <dt>Prize</dt>
@@ -338,13 +279,7 @@ export default function Game() {
               <ActionButton kind="cash" disabled={busy} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 8,
-                }}
-              >
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <ActionButton kind="secondary" disabled={busy} onClick={() => next(false)} title="Deal the next card (Space)">
                   Deal next
                 </ActionButton>
@@ -369,14 +304,15 @@ export default function Game() {
         items={[
           {
             label: 'Win chance',
-            value: fmtChance(phase === 'idle' ? p0 : p),
-            sub: live
-              ? `next card: ${lit}/${left} open a pile`
-              : phase === 'idle'
-                ? `${n} shuffled cards`
-                : round?.outcome === 'cashed'
-                  ? `when cashed, ${plural(left, 'card')} left`
-                  : `${plural(d.piles.length, 'pile')} at the end`,
+            value: shownP == null ? '—' : fmtChance(shownP),
+            sub:
+              shownP == null ? (
+                'cashed out'
+              ) : (
+                <span className="pat-meter" title="The green length is the chance to win">
+                  <i style={{ width: `${shownP * 100}%` }} />
+                </span>
+              ),
             tone: 'chance',
           },
           {
@@ -385,33 +321,37 @@ export default function Game() {
             sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first card',
             tone: 'cash',
           },
-          {
-            label: 'Full prize',
-            value: fmtMult(prize),
-            sub: prizeSub,
-            tone: 'prize',
-          },
+          { label: 'Full prize', value: fmtMult(prize), sub: `if all ${N} fit in ${bk} piles`, tone: 'prize' },
         ]}
       />
 
       <Board className="pat-board">
         <Field
-          bet={b}
+          k={bk}
           deal={d}
-          ghosts={rings}
-          bars={phase === 'over' ? null : bars}
-          run={phase === 'over' ? risingRun(d) : null}
-          showZone={showOdds || !!sealed}
+          showZone={live}
           moving={moving}
           last={round?.last ?? null}
-          finalCard={finalCard}
-          winP={phase === 'idle' ? p0 : p}
+          bustCard={phase === 'over' && round?.outcome === 'bust' ? round.last : null}
         />
+        <ul className="pat-rule" aria-label="Rule">
+          <li>
+            <i className="sw band" aria-hidden="true" />
+            <b>Each card</b> drops onto the first pile it fits under
+          </li>
+          <li>
+            <i className="sw zone" aria-hidden="true" />
+            <b>Higher than every pile</b> → opens a new pile
+          </li>
+          <li>
+            <b className="win">Win</b> if no more than {bk} piles open
+          </li>
+        </ul>
         {phase === 'over' && round?.outcome && (
-          // Inline under the grid, so the final piles and the rising run stay in view.
+          // Inline under the grid, so the final piles stay in view.
           <RoundOver
             key={history[0]?.id}
-            title={outcomeTitle(round.outcome, b)}
+            title={outcomeTitle(round)}
             multiplier={round.cash}
             stake={round.stake}
             nextBet={bet.value}
@@ -424,11 +364,11 @@ export default function Game() {
       </Board>
 
       {phase === 'over' ? null : live ? (
-        <ChanceBar p={p} label="Win chance" note={note} />
+        <Caption>{note}</Caption>
       ) : (
         <Caption>
-          Each card goes on the leftmost pile whose top is higher, else it opens a new pile, so the piles count the longest rising run in the shuffle.{' '}
-          {n} cards end with {betText(settings)} {fmtChance(chance0)} of the time. RTP {(RTP * 100).toFixed(0)}%.
+          {N} shuffled cards fit in {k} piles {fmtChance(chance0)} of the time, for a prize of {fmtMult(RTP / chance0)}. RTP{' '}
+          {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
 
@@ -436,48 +376,50 @@ export default function Game() {
         <InfoModal title="Patience" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              Cards 1 to {n} are shuffled and dealt one at a time into piles by <b>patience sorting</b>. Bet on how many piles there are at the end:{' '}
-              <b>at most</b> k, or <b>at least</b> k.
+              Cards 1 to {N} are shuffled and dealt one at a time onto piles. Win if all {N} fit in at most <b>{k} piles</b>. The round is lost the
+              moment pile {k + 1} opens.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick the deck size, at most or at least, and the number of piles, then bet. The first card is dealt at once.</li>
+              <li>Pick how many piles are allowed, then bet. The first card is dealt at once.</li>
               <li>
-                Each card goes on the <b>leftmost pile whose top card is higher</b>. If no top is higher, it opens a new pile on the right. Piles
-                never close, and the tops always rise from left to right.
+                Each card <b>drops onto the first pile it fits under</b> (the first pile whose top card is higher). A card higher than every pile{' '}
+                <b>opens a new pile</b> on the right. Piles never close.
               </li>
               <li>After each card, cash out (C) or deal the next one (Space). Deal all plays the rest without stopping.</li>
               <li>
-                <b>At most k:</b> the round is lost the moment pile k+1 opens, and pays the full prize when every card fits. <b>At least k:</b> the
-                round pays the moment pile k opens, and is lost if the deck runs out first. Once no order of the cards left can change the result, the
-                round settles and the rest is dealt quickly for show.
+                If pile {k + 1} (the red column) opens, you lose. If every card fits, you win the full prize. Once no order of the cards left can
+                change the result, the round settles and the rest is dealt quickly for show.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Rows are card values, highest at the top, and the strip on the left is the deck: lit slots are cards still to come. Each card slides
-              along its own row to the pile it lands on.
+              Rows are card values, highest at the top, and the strip on the left is the deck: filled slots are cards still to come. Each card
+              slides along its own row to its pile.
             </p>
             <p>
-              The dashed <b>top shelf</b> is the top card of the rightmost pile. A card above it opens a new pile. Those cards are outlined in the
-              deck and counted beside it, and their count over the cards left is the chance the next card opens a pile. If even one card left is above
-              the shelf, another pile is certain: the shelf can only drop until that card arrives.
+              Under each pile's top hangs a <b style={{ color: 'var(--accent)' }}>green band</b>: the values that pile catches (lower than its top,
+              higher than the pile before). Above the last top is the <b style={{ color: 'var(--red)' }}>red band</b> in the next column: cards
+              there open a new pile. The bands cover every row once, so each card drops into the band on its own row.
             </p>
             <p>
-              Every card left is drawn as a ring where it would land. Its <b style={{ color: 'var(--green)' }}>green slice</b> is your win chance if
-              it comes next. The next card is equally likely to be any of them, so the rings average out to your chance now. The bars under the piles
-              are the chance the deal ends on each pile; the green bars add up to your win chance.
+              Deck cards in the red band are <b style={{ color: 'var(--red)' }}>red</b> and counted beside the deck; that count over the cards left
+              is the chance the next card opens a pile. A card that drops onto the last pile lowers its top, so the red band grows down to it and
+              more deck cards turn red. That is why a card that lands safely can still cut your chance.
+            </p>
+            <p>
+              The red band only grows until a new pile opens, so if even one red card is left, another pile is certain. With all {k} piles open, a
+              red card means the bust is certain. The headline and its bar are your exact chance to win from here.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
               Patience sorting makes exactly as many piles as the <b>longest increasing subsequence</b> of the shuffle (Hammersley; Aldous and
-              Diaconis). By the Robinson–Schensted correspondence, the number of shuffles of n cards whose longest increasing run is ℓ is Σ f
+              Diaconis). By the Robinson–Schensted correspondence, the number of shuffles of n cards whose longest increasing subsequence is ℓ is Σ f
               <sub>λ</sub>² over shapes λ with first row ℓ, where f<sub>λ</sub> comes from the hook length formula. At most 2 piles happens
-              Catalan(n)/n! of the time. {n} cards make {meanPiles(n).toFixed(2)} piles on average; for long decks the mean grows like 2√n
-              (Vershik–Kerov, Logan–Shepp) and the spread around it follows the Tracy–Widom law (Baik–Deift–Johansson).
+              Catalan(n)/n! of the time. {N} cards make {meanPiles().toFixed(2)} piles on average.
             </p>
             <p>
               Live odds are exact: the future depends only on how the pile tops and the cards left interleave by value, and a memoised count over
@@ -488,8 +430,8 @@ export default function Game() {
             <p>
               The full prize is {(RTP * 100).toFixed(0)}% ÷ (chance to win at the start). The cash-out at any moment is prize × (chance to win now).
               The chance now is the average of the chances after the next card, so every card is a fair bet and the round is worth{' '}
-              {(RTP * 100).toFixed(0)}% of your stake however and whenever you cash out. The largest prize on offer is {fmtMult(MAX_MULTIPLIER)} (12
-              cards, at most 2 piles).
+              {(RTP * 100).toFixed(0)}% of your stake however and whenever you cash out. The largest prize on offer is {fmtMult(MAX_MULTIPLIER)} (at
+              most 2 piles).
             </p>
           </InfoSection>
         </InfoModal>
