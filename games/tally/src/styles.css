@@ -1,0 +1,258 @@
+/* Tally board. Layout, panel and readouts come from the kit. */
+
+.og-board.tally-board > svg {
+  max-height: 60vh;
+}
+
+/* Bin colours: muted, distinct hues (no red or green, which mean risk and safe). Yours is gold. */
+.tally-game {
+  --b0: color-mix(in srgb, #5b7cc4 70%, var(--bg));
+  --b1: color-mix(in srgb, #8a6cc9 70%, var(--bg));
+  --b2: color-mix(in srgb, #4f9fc9 70%, var(--bg));
+  --b3: color-mix(in srgb, #b5715a 70%, var(--bg));
+  --b4: color-mix(in srgb, #a8679a 70%, var(--bg));
+}
+.tally .b0 { --c: var(--b0); }
+.tally .b1 { --c: var(--b1); }
+.tally .b2 { --c: var(--b2); }
+.tally .b3 { --c: var(--b3); }
+.tally .b4 { --c: var(--b4); }
+
+.tally text {
+  font-family: inherit;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+/* ---------- Title bar ---------- */
+.tally .bar-head {
+  text-anchor: start;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  fill: var(--muted);
+}
+.tally .bar-mine {
+  text-anchor: end;
+  font-size: 12.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--gold);
+}
+.tally .bar-bg {
+  fill: var(--bg);
+}
+.tally .piece {
+  fill: var(--c);
+  stroke: var(--bg);
+  stroke-width: 1.5;
+  transition: x 0.35s ease, width 0.35s ease;
+}
+.tally .piece.mine {
+  fill: var(--gold);
+}
+.tally .bar-frame {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-width: 1.5;
+}
+.tally .piece-pct {
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: rgba(255, 255, 255, 0.92);
+}
+.tally .piece-pct.mine {
+  fill: #1a1405;
+}
+
+/* ---------- Bins ---------- */
+.tally .bin {
+  fill: color-mix(in srgb, var(--c) 22%, transparent);
+  transition: fill 0.25s ease;
+}
+.tally .bin:hover {
+  fill: color-mix(in srgb, var(--c) 34%, transparent);
+}
+.tally .bin.landed {
+  fill: color-mix(in srgb, var(--c) 40%, transparent);
+}
+.tally .wall {
+  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke-width: 1.5;
+}
+.tally .floor {
+  stroke: color-mix(in srgb, var(--text) 55%, transparent);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.tally .finish {
+  stroke: color-mix(in srgb, var(--text) 60%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 6 5;
+}
+.tally .finish-label {
+  text-anchor: start;
+  font-size: 11px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.tally .mine-outline {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 2.5;
+  pointer-events: none;
+}
+.tally .width {
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+}
+.tally .width.mine {
+  fill: var(--gold);
+}
+
+/* ---------- Stacks ---------- */
+.tally .block {
+  fill: var(--c);
+  stroke: color-mix(in srgb, #fff 18%, transparent);
+  stroke-width: 1;
+  pointer-events: none;
+}
+.tally .block.mine {
+  fill: var(--gold);
+}
+.tally .block.fresh {
+  animation: tally-pop 0.35s ease;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+.tally .block.champ {
+  filter: drop-shadow(0 0 10px var(--green));
+  stroke: var(--green);
+  stroke-width: 2.5;
+}
+.tally .block.beat {
+  filter: drop-shadow(0 0 10px var(--og-red-glow, rgba(233, 17, 60, 0.6)));
+  stroke: var(--red);
+  stroke-width: 2.5;
+}
+@keyframes tally-pop {
+  0% {
+    transform: scaleY(0.4);
+  }
+  60% {
+    transform: scaleY(1.08);
+  }
+}
+
+/* ---------- Ball ---------- */
+.tally .rail {
+  stroke: color-mix(in srgb, var(--text) 18%, transparent);
+  stroke-width: 1.5;
+  stroke-dasharray: 2 5;
+}
+.tally .ball {
+  fill: #fff;
+  filter: drop-shadow(0 0 7px var(--accent));
+}
+
+/* ---------- Ghost cards ---------- */
+.tally .leader {
+  stroke: color-mix(in srgb, var(--text) 22%, transparent);
+  stroke-width: 1;
+}
+.tally .card {
+  fill: var(--bg);
+  stroke: var(--c);
+  stroke-width: 1.5;
+}
+.tally .ghost.mine .card {
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+.tally .ghost.landed .card {
+  fill: color-mix(in srgb, var(--c) 22%, var(--bg));
+}
+.tally .ghost-val {
+  font-size: 13.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  fill: var(--text);
+}
+.tally .ghost.up .ghost-val,
+.tally .ghost.win .ghost-val {
+  fill: var(--green);
+}
+.tally .ghost.down .ghost-val,
+.tally .ghost.out .ghost-val {
+  fill: var(--red);
+}
+.tally .ghost-track {
+  fill: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.tally .ghost-fill {
+  fill: color-mix(in srgb, var(--gold) 70%, transparent);
+  transition: width 0.3s ease;
+}
+.tally .ghost-now {
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+.tally .foot {
+  font-size: 10.5px;
+  fill: var(--muted);
+}
+
+/* ---------- Panel ---------- */
+.tally-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+.tally-chip small {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.7;
+}
+.tally-hint {
+  margin: -2px 0 0;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.tally-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--gold);
+}
+.tally-rule {
+  color: var(--text);
+  font-size: 14px;
+}
+
+@container (max-width: 760px) {
+  .og-board.tally-board > svg {
+    max-height: none;
+  }
+  .tally-board .og-instant {
+    left: 6px;
+    top: 6px;
+    transform: none;
+    padding: 6px 12px;
+    animation-name: tally-instant-in;
+  }
+  .tally-board .og-instant b {
+    font-size: 18px;
+  }
+}
+
+@keyframes tally-instant-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.92);
+  }
+}
