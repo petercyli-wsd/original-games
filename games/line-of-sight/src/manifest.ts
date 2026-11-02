@@ -6,7 +6,7 @@ export default defineManifest({
   name: 'Line of Sight',
   tagline: 'Stand at the corner of a lattice orchard. A tree is in sight only if no nearer tree blocks the line: 6/π² of them are.',
   mechanic: 'number-theory',
-  status: 'prototype',
+  status: 'retired',
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
