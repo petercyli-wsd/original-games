@@ -31,6 +31,7 @@ import {
   HOMES,
   HOME_LABEL,
   RTP,
+  START,
   STEPS,
   dist,
   homeChance,
@@ -41,8 +42,8 @@ import {
   volatilityOf,
   winChance,
   type Home,
-  type Pt,
   type Steps,
+  type Verdict,
 } from './math';
 
 type Phase = 'idle' | 'stepping' | 'checkpoint' | 'over';
@@ -52,9 +53,19 @@ interface Round {
   home: Home;
   stake: number;
   prize: number;
-  path: Pt[];
+  /** The walker's distance from the centre after each step; dists[0] is the start. */
+  dists: number[];
   cash: number;
   outcome: BoardOutcome | null;
+}
+
+/** One drawn step: where it lands and what the round is worth afterwards. */
+interface Drawn {
+  angle: number;
+  to: { x: number; y: number };
+  d: number;
+  end: Verdict | null;
+  cash: number;
 }
 
 const OUTCOME_TITLE: Record<BoardOutcome, string> = {
@@ -67,10 +78,11 @@ const OUTCOME_TITLE: Record<BoardOutcome, string> = {
 
 const ACCENT = '#ff70a6';
 const KMAX = Math.max(...STEPS);
-const ORIGIN: Pt = { x: 0, y: 0 };
 
-/** Smallest view (in step lengths): home plus the first step circle, with room to spare. */
-const viewMin = (home: Home) => Math.max(2.4, home + 1.4);
+/** Smallest view (in step lengths): home and the start's step circle, with room to spare. */
+const viewMin = (home: Home) => Math.max(2.6, home + 1.4);
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -82,6 +94,7 @@ export default function Game() {
   const [steps, setSteps] = useState<Steps>(6);
   const [home, setHome] = useState<Home>(1);
   const [phase, setPhase] = useState<Phase>('idle');
+  const [running, setRunning] = useState(false);
   const [round, setRound] = useState<Round | null>(null);
   const [move, setMove] = useState<Move | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -106,12 +119,13 @@ export default function Game() {
     // Only on mount: the order just picks a head start.
   }, []);
 
-  // The step in flight is decided when it starts, so leaving mid-step settles
-  // at its real result, never at the pre-step value.
+  // The steps in flight are all decided when the button is pressed, so leaving
+  // mid-step (or mid-run) settles at their real result, never at the pre-step value.
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : round?.cash ?? 0));
 
-  const moveMs = turbo.turbo ? 260 : 950;
+  const moveMs = turbo.turbo ? 300 : 1150;
+  const gapMs = turbo.turbo ? 60 : 200;
   const zoomMs = turbo.turbo ? 160 : 520;
   const live = phase === 'stepping' || phase === 'checkpoint';
 
@@ -120,28 +134,57 @@ export default function Game() {
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
     setMove(null);
+    setRunning(false);
     setPhase('over');
   }
 
-  function step(r: Round) {
-    const from = r.path[r.path.length - 1];
+  /** Draws one step from distance r with `left` steps to go (the walker sits on the board's ray). */
+  function draw(r: Round, from: number, left: number): Drawn {
     const angle = rng.next() * 2 * Math.PI;
-    const to = stepFrom(from, angle);
-    const left = r.steps - r.path.length; // steps left after this one
+    const to = stepFrom({ x: 0, y: -from }, angle);
     const d = dist(to);
-    const end = verdict(left, d, r.home);
-    const cash = end === 'home' ? r.prize : end === 'lost' ? 0 : r.prize * homeChance(left, d, r.home);
-    resolved.current = cash;
+    const end = verdict(left - 1, d, r.home);
+    const cash = end === 'home' ? r.prize : end === 'lost' ? 0 : r.prize * homeChance(left - 1, d, r.home);
+    return { angle, to, d, end, cash };
+  }
+
+  /** One step, or (all = true) every step until the round is decided. */
+  function walk(r: Round, all: boolean) {
+    const drawn: Drawn[] = [];
+    let from = r.dists[r.dists.length - 1];
+    let left = r.steps - (r.dists.length - 1);
+    do {
+      const s = draw(r, from, left);
+      drawn.push(s);
+      from = s.d;
+      left--;
+      if (s.end) break;
+    } while (all);
+    const last = drawn[drawn.length - 1];
+    resolved.current = last.cash;
+    setRunning(all);
     setPhase('stepping');
-    setMove({ id: ++moveSeq.current, to, angle });
+    animate(r, drawn, 0);
+  }
+
+  function animate(r: Round, drawn: Drawn[], i: number) {
+    const s = drawn[i];
+    const from = r.dists[r.dists.length - 1];
+    setMove({ id: ++moveSeq.current, from, angle: s.angle, to: s.to });
     timers.after(moveMs, () => {
-      const next = { ...r, path: [...r.path, to], cash };
-      if (end === 'home') return finish(next, left === 0 ? 'home' : 'sure', cash);
-      if (end === 'lost') return finish(next, left === 0 ? 'missed' : 'reach', 0);
+      const next = { ...r, dists: [...r.dists, s.d], cash: s.cash };
+      const left = r.steps - (next.dists.length - 1);
+      if (s.end === 'home') return finish(next, left === 0 ? 'home' : 'sure', s.cash);
+      if (s.end === 'lost') return finish(next, left === 0 ? 'missed' : 'reach', 0);
       setRound(next);
       setMove(null);
+      if (i + 1 < drawn.length) {
+        timers.after(gapMs, () => animate(next, drawn, i + 1));
+        return;
+      }
+      setRunning(false);
       setPhase('checkpoint');
-      track({ type: 'checkpoint', multiplier: cash, winChance: homeChance(left, d, r.home) });
+      track({ type: 'checkpoint', multiplier: s.cash, winChance: homeChance(left, s.d, r.home) });
     });
   }
 
@@ -149,9 +192,9 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const r: Round = { steps, home, stake: bet.value, prize: prizeFor(steps, home), path: [ORIGIN], cash: RTP, outcome: null };
+    const r: Round = { steps, home, stake: bet.value, prize: prizeFor(steps, home), dists: [START], cash: RTP, outcome: null };
     setRound(r);
-    step(r);
+    walk(r, false);
   }
 
   function cashOut() {
@@ -175,7 +218,7 @@ export default function Game() {
 
   useHotkeys(
     {
-      space: () => (phase === 'checkpoint' && round ? step(round) : !live ? void start() : undefined),
+      space: () => (phase === 'checkpoint' && round ? walk(round, false) : !live ? void start() : undefined),
       cashOut,
     },
     !infoOpen,
@@ -184,30 +227,34 @@ export default function Game() {
   // What the board shows: the live or finished round, else a preview of the settings.
   const n = round?.steps ?? steps;
   const h = round?.home ?? home;
-  const path = round?.path ?? [ORIGIN];
-  const taken = path.length - 1;
+  const dists = round?.dists ?? [START];
+  const taken = dists.length - 1;
   const left = n - taken;
-  const pos = path[path.length - 1];
+  const r = dists[dists.length - 1];
   const p0 = winChance(n, h);
   const prize = round?.prize ?? prizeFor(n, h);
-  const chance = phase === 'over' ? (round?.cash ?? 0) / prize : homeChance(left, dist(pos), h);
+  const chance = phase === 'over' ? (round?.cash ?? 0) / prize : homeChance(left, r, h);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const far = Math.max(0, ...path.map(dist), move ? dist(move.to) : 0);
+  const far = Math.max(0, ...dists, move ? dist(move.to) : 0);
   const view = Math.max(viewMin(h), far + 1.3);
   const vol = volatilityOf(steps, home);
   const pSel = winChance(steps, home);
 
-  let status = `Ready · ${n} steps · home ${HOME_LABEL[h]}`;
-  if (phase === 'stepping') status = `Step ${taken + 1} of ${n}`;
-  if (phase === 'checkpoint') status = `Checkpoint · ${left} step${left === 1 ? '' : 's'} left`;
+  const rule = `The walker takes ${plural(n, 'random step')}; win if it ends inside the green home.`;
+
+  let status = `${plural(n, 'random step')} · end in the green home`;
+  if (phase === 'stepping') status = `${running ? 'Running · ' : ''}Step ${taken + 1} of ${n}`;
+  if (phase === 'checkpoint') status = `Cash out or step on · ${left} left`;
   if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${n} steps`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   const note =
     left === 1
-      ? 'Last step. The green arc is every direction that lands home: its share of the circle is your chance.'
-      : 'Rings join points with equal odds. On the step circle, green directions raise your odds and red ones lower them.';
+      ? 'Last step: the green arc is every direction that lands home, so its share of the circle is your chance.'
+      : 'Green directions on the dashed circle bring the walker closer (better odds); red ones take it away.';
+
+  const exact = h === 1 ? ` Home one step wide: exactly 1 in ${n + 2}.` : '';
 
   return (
     <GameLayout
@@ -229,30 +276,35 @@ export default function Game() {
           <Label hint="in step lengths">Home radius</Label>
           <Chips
             label="Home radius"
-            options={HOMES.map((v) => ({ value: v, label: HOME_LABEL[v], title: v === 1 ? 'One step: chance exactly 1/(n+1)' : undefined }))}
+            options={HOMES.map((v) => ({ value: v, label: HOME_LABEL[v], title: v === 1 ? 'One step: chance exactly 1/(steps + 2)' : undefined }))}
             value={home}
             disabled={live}
             onChange={(v) => change(() => setHome(v))}
           />
           <dl className="og-stats">
             <dt>Chance to end home</dt>
-            <dd>{home === 1 ? `1/${steps + 1} · ${fmtChance(pSel)}` : fmtChance(pSel)}</dd>
+            <dd>{home === 1 ? `1/${steps + 2} · ${fmtChance(pSel)}` : fmtChance(pSel)}</dd>
             <dt>Prize</dt>
             <dd>{fmtMult(RTP / pSel)}</dd>
           </dl>
 
-          {phase === 'checkpoint' ? (
+          {live ? (
             <>
-              <ActionButton kind="cash" onClick={cashOut}>
+              <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" onClick={() => round && step(round)}>
-                {left === 1 ? 'Last step' : `Step ${taken + 1} of ${n}`} · {fmtChance(chance)} to win
+              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => round && walk(round, false)}>
+                {phase === 'stepping' ? (running ? 'Running…' : 'Stepping…') : left === 1 ? 'Last step' : `Next step (${taken + 1} of ${n})`}
               </ActionButton>
+              {(left > 1 || running) && (
+                <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => round && walk(round, true)}>
+                  Run to the end
+                </ActionButton>
+              )}
             </>
           ) : (
-            <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>
-              {phase === 'stepping' ? 'Walking…' : phase === 'over' ? 'Bet again' : 'Bet'}
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              {phase === 'over' ? 'Bet again' : 'Bet'}
             </ActionButton>
           )}
 
@@ -267,13 +319,13 @@ export default function Game() {
           {
             label: 'Chance to end home',
             value: phase === 'over' ? (round?.outcome === 'cashed' ? '—' : chance >= 1 ? '100%' : '0%') : fmtChance(live ? chance : p0),
-            sub: live ? `${left} step${left === 1 ? '' : 's'} left` : `${n} steps · home ${HOME_LABEL[h]}`,
+            sub: live ? `${plural(left, 'step')} left` : phase === 'over' ? `after ${taken} of ${n} steps` : `${plural(n, 'step')} · home ${HOME_LABEL[h]}`,
             tone: 'chance',
           },
           {
             label: 'Cash out now',
             value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : `${fmtMult(RTP)} after the free first step`,
+            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after every step',
             tone: 'cash',
           },
           { label: 'Prize', value: fmtMult(prize), sub: 'if the walk ends home', tone: 'prize' },
@@ -285,7 +337,7 @@ export default function Game() {
           home={h}
           steps={n}
           left={left}
-          path={path}
+          r={r}
           move={move}
           moveMs={moveMs}
           zoomMs={zoomMs}
@@ -303,19 +355,16 @@ export default function Game() {
             blocked={bet.blocked}
             onBetAgain={() => void start()}
             onClear={clear}
-            placement={pos.y / view > 0.15 ? 'top' : 'bottom'}
+            placement="bottom"
           />
         )}
       </Board>
 
       {live ? (
-        <ChanceBar p={chance} label="Chance to end home" note={note} />
+        <ChanceBar p={chance} label="Chance to end home" note={`${rule} ${note}`} />
       ) : (
         <Caption>
-          {h === 1
-            ? `Kluyver: ${n} random unit steps end within one step of the start exactly 1 time in ${n + 1}.`
-            : `${n} random unit steps end within ${HOME_LABEL[h]} step of the start ${fmtChance(p0)} of the time (Kluyver's Bessel integral).`}{' '}
-          The first step is free. RTP {(RTP * 100).toFixed(0)}%.
+          {rule} It starts one step from the centre.{exact} RTP {(RTP * 100).toFixed(0)}%.
         </Caption>
       )}
 
@@ -323,14 +372,17 @@ export default function Game() {
         <InfoModal title="Pearson Walk" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A walker starts at the centre of the green home disc and takes a fixed number of unit steps, each in a completely random direction. If it
-              finishes inside home, you win the prize.
+              A walker starts one step from the centre of the green home disc and takes a fixed number of unit steps, each in a completely random direction.
+              If it finishes inside home, you win the prize.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick the number of steps and the size of home (its radius, measured in step lengths), then bet.</li>
-              <li>The first step is taken for you. After every step you can cash out, or take the next step (Space).</li>
+              <li>Pick the number of steps and the size of home (its radius, measured in step lengths), then bet. The bet takes the first step.</li>
+              <li>
+                After every step the walk waits for you: <b>Cash out</b> (C), <b>Next step</b> (Space), or <b>Run to the end</b> to take the rest without
+                stopping.
+              </li>
               <li>
                 If home can no longer be reached (the red zone), the round is lost at once. If every remaining step must land home, it pays at once. Otherwise
                 the last step decides.
@@ -339,8 +391,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The walk has no preferred direction, so your chance depends only on how far you are from the centre and how many steps are left. The shaded
-              field is brighter where the odds are better, and the labelled rings join points with equal odds; your own ring passes through the walker.
+              The walk has no preferred direction, so your chance depends only on how far the walker is from the centre and how many steps are left. That is
+              why the board turns after every step to put the walker back on the same line up from the centre: only its distance in or out matters.
             </p>
             <p>
               The dashed circle around the walker is where the next step can land. <b style={{ color: 'var(--green)' }}>Green</b> directions raise your odds,{' '}
@@ -353,23 +405,20 @@ export default function Game() {
             <p>
               Pearson's random walk (1905). Kluyver (1906) showed that n unit steps in random directions end within distance ρ of the start with probability
               ρ∫₀<sup>∞</sup>J₁(ρt)J₀(t)<sup>n</sup>dt. When home is one step wide (ρ = 1) the integrand is a perfect derivative and the answer is exactly{' '}
-              <b>1/(n+1)</b>: 1/3 for two steps, 1/10 for nine.
+              <b>1/(n+1)</b>. A walk's first step from the centre always lands one step out, so N steps from one step out are an (N+1)-step walk: the chance
+              is exactly <b>1/(N+2)</b>, 1/4 for two steps and 1/14 for twelve.
             </p>
             <p>
               With k steps left at distance r, the chance P<sub>k</sub>(r) is the average of P<sub>k−1</sub> over the circle the next step lands on. For the last
               step it is arccos((r² + 1 − ρ²)/2r)/π, the green arc. The game tabulates P<sub>k</sub> by exact quadrature, checked against Kluyver's 1/(k+1) to
               1e-9.
             </p>
-            <p>
-              A bonus identity: with home one step wide, (k+1)·P<sub>k</sub>(r) is exactly the chance that a fresh (k+1)-step walk ends farther than r from
-              its start.
-            </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
               The prize is {(RTP * 100).toFixed(0)}% ÷ (chance at the start), and cashing out pays prize × (chance now). Each step averages your chance over
-              the step circle, so the cash-out is a fair bet at every step (a martingale): any way of deciding when to stop returns exactly{' '}
-              {(RTP * 100).toFixed(0)}% of your stake. The first step always lands on the unit circle, so it never changes the value.
+              the step circle, so the cash-out is a fair bet at every step (a martingale): any way of deciding when to stop, including Run to the end, returns
+              exactly {(RTP * 100).toFixed(0)}% of your stake.
             </p>
           </InfoSection>
         </InfoModal>

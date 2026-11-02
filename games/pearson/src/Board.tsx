@@ -1,28 +1,37 @@
 import { fmtChance } from '@originals/game-sdk/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { HOME_LABEL, contours, dist, homeChance, profile, stepArcs, upShare, type Home, type Pt, type StepArc } from './math';
+import { HOME_LABEL, dist, homeChance, stepArcs, upShare, type Home, type Pt, type StepArc } from './math';
 
 const C = 200;
 /** Arena radius in px. */
 const R = 186;
 const TAU = 2 * Math.PI;
+/**
+ * The walker always rests on this ray from the centre (straight up). The walk
+ * has no preferred direction, so after each step the board turns to put the
+ * walker back on it: only the distance from the centre is ever shown changing.
+ */
+const RAY = -Math.PI / 2;
 
 export type BoardOutcome = 'home' | 'sure' | 'missed' | 'reach' | 'cashed';
 
 export interface Move {
   id: number;
-  to: Pt;
+  /** Distance the step starts from (on the ray). */
+  from: number;
   /** Step direction, radians (0 = right, clockwise on screen). */
   angle: number;
+  /** Landing point, before the board turns. */
+  to: Pt;
 }
 
 export interface BoardProps {
   home: Home;
   steps: number;
-  /** Steps left at the last committed position. */
+  /** Steps left at the committed position. */
   left: number;
-  /** Committed positions; path[0] is the centre. */
-  path: Pt[];
+  /** The walker's committed distance from the centre. */
+  r: number;
   /** The step in flight, if any. */
   move: Move | null;
   moveMs: number;
@@ -35,6 +44,18 @@ export interface BoardProps {
 
 const ease = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2);
 const easeOut = (u: number) => 1 - (1 - u) ** 3;
+const clamp01 = (u: number) => Math.min(1, Math.max(0, u));
+const rot = (p: Pt, a: number): Pt => ({ x: p.x * Math.cos(a) - p.y * Math.sin(a), y: p.x * Math.sin(a) + p.y * Math.cos(a) });
+const onRay = (r: number): Pt => ({ x: r * Math.cos(RAY), y: r * Math.sin(RAY) });
+
+/** The turn that puts p back on the ray, in (−π, π]. */
+function turnFor(p: Pt) {
+  if (dist(p) < 1e-9) return 0;
+  let a = RAY - Math.atan2(p.y, p.x);
+  while (a > Math.PI) a -= TAU;
+  while (a <= -Math.PI) a += TAU;
+  return a;
+}
 
 /** Tweens a number towards its target over ms (requestAnimationFrame). */
 function useTween(target: number, ms: number) {
@@ -87,138 +108,97 @@ function arcD(cx: number, cy: number, r: number, a0: number, a1: number) {
   return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r.toFixed(2)} ${r.toFixed(2)} 0 ${span > Math.PI ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
 }
 
-const pctLabel = (p: number) => (p >= 0.1 ? `${Math.round(p * 100)}%` : p >= 0.01 ? `${+(p * 100).toFixed(1)}%` : `${+(p * 100).toFixed(2)}%`);
-
-export default function Board({ home, steps, left, path, move, moveMs, zoomMs, view, live, outcome }: BoardProps) {
+export default function Board({ home, steps, left, r, move, moveMs, zoomMs, view, live, outcome }: BoardProps) {
   const W = useTween(view, zoomMs);
   const s = R / W;
   const px = (p: Pt) => ({ x: C + p.x * s, y: C + p.y * s });
 
+  // A step plays in three beats: the needle spins to the drawn direction, the
+  // walker glides one step along it, then the board turns the walker back onto the ray.
   const u = useProgress(move?.id ?? null, moveMs);
-  const from = path[path.length - 1];
-  const spinU = move ? Math.min(1, u / 0.5) : 1;
-  const glideU = move ? Math.max(0, (u - 0.5) / 0.5) : 0;
+  const spinU = move ? clamp01(u / 0.4) : 1;
+  const glideU = move ? clamp01((u - 0.4) / 0.32) : 0;
+  const turnU = move ? clamp01((u - 0.72) / 0.28) : 0;
+
+  const start = onRay(move ? move.from : r);
+  const turn = move ? turnFor(move.to) : 0;
+  const turned = turn * ease(turnU);
 
   // The needle rests where it last pointed and spins at least one full turn to the new direction.
-  const rest = useRef(-Math.PI / 2);
+  const rest = useRef(RAY);
   const spinFrom = useRef(rest.current);
   const lastId = useRef<number | null>(null);
   if (move && move.id !== lastId.current) {
     lastId.current = move.id;
     spinFrom.current = rest.current;
-    rest.current = move.angle;
+    rest.current = move.angle + turn;
   }
   let spinTo = move ? move.angle : rest.current;
   if (move) while (spinTo < spinFrom.current + TAU) spinTo += TAU;
   const needle = move ? spinFrom.current + (spinTo - spinFrom.current) * easeOut(spinU) : rest.current;
 
-  const walker: Pt = move ? { x: from.x + (move.to.x - from.x) * ease(glideU), y: from.y + (move.to.y - from.y) * ease(glideU) } : from;
-  const r = dist(from);
+  const glided: Pt = move ? { x: start.x + (move.to.x - start.x) * ease(glideU), y: start.y + (move.to.y - start.y) * ease(glideU) } : start;
+  const walker = rot(glided, turned);
   const over = outcome !== null;
   const idle = !live && !over;
 
-  // The odds field for the committed state (it updates when the step lands).
-  const showField = !over && left > 0;
-  const fieldMax = view + 0.6;
-  const field = useMemo(() => (showField ? profile(left, home, fieldMax, 72) : []), [showField, left, home, fieldMax]);
-  const peak = useMemo(() => Math.max(1e-12, ...field.map((f) => f.p)), [field]);
-  // On the last step the green arc is the exact odds, so the rings step aside.
-  const rings = useMemo(() => (showField && left > 1 ? contours(left, home, fieldMax) : []), [showField, left, home, fieldMax]);
-  const arcs: StepArc[] | null = useMemo(() => (showField ? stepArcs(left, from, home) : null), [showField, left, from, home]);
-  const chanceNow = showField ? homeChance(left, r, home) : 0;
+  // The odds pictures for the committed state (they update when the step lands).
+  const showOdds = !over && left > 0;
+  const arcs: StepArc[] | null = useMemo(() => (showOdds ? stepArcs(left, onRay(r), home) : null), [showOdds, left, r, home]);
+  const chanceNow = showOdds ? homeChance(left, r, home) : 0;
 
   // Where home is out of reach with `left` steps to go (kept after an out-of-reach loss, to show why).
-  const showReach = showField || outcome === 'reach';
+  const showReach = showOdds || outcome === 'reach';
   const reachOuter = left >= 1 ? left + home : null;
   const reachInner = left === 1 && home < 1 ? 1 - home : null;
 
   const w = px(walker);
-  const home0 = px({ x: 0, y: 0 });
   const homeR = home * s;
   const stepR = s;
-  const showStepCircle = (idle || (live && spinU < 1) || (live && !move)) && left > 0 && !over;
-
-  // The odds tag sits on the walker's own ring, on the far side from the walker.
-  const tag = (() => {
-    if (r * s < 60) return { x: w.x, y: w.y + (idle ? 30 : -30) };
-    const a = Math.atan2(from.y, from.x) + Math.PI;
-    return { x: Math.min(362, Math.max(38, C + r * s * Math.cos(a))), y: Math.min(386, Math.max(14, C + r * s * Math.sin(a))) };
-  })();
-
-  const taken = path.length - 1;
+  const resting = !move;
+  const showStepCircle = showOdds && (resting || spinU < 1);
+  const taken = steps - left;
   const walkerTone = outcome === 'home' || outcome === 'sure' ? 'win' : outcome === 'missed' || outcome === 'reach' ? 'lose' : outcome === 'cashed' ? 'cash' : '';
 
-  // Label for the step circle: the literal odds on the last step.
-  const lastStep = left === 1 && arcs !== null && !move;
-  const greenArc = lastStep ? arcs!.find((a) => a.up) : undefined;
+  // Labels: home under the disc, out-of-reach under its ring, the chance tag
+  // beside the walker, and on the last step the green arc's share.
+  const homeLabelY = C + homeR + 15;
+  const reachLabel = showReach && reachOuter !== null && reachOuter * s < R - 8 ? C + reachOuter * s + 12 : null;
+  const tag = { x: w.x + Math.max(stepR, 14) + 44, y: w.y };
+  let arcLabel: { y: number; text: string } | null = null;
+  if (left === 1 && arcs && resting && !over) {
+    let y = w.y + stepR + 17;
+    if (Math.abs(y - homeLabelY) < 15) y = homeLabelY + 16;
+    arcLabel = { y, text: `${fmtChance(upShare(arcs))} of directions land home` };
+  }
 
-  // Greedy label layout: fixed marks first, then each ring label at the first free spot.
-  type Box = { x: number; y: number; hw: number; hh: number };
-  const boxes: Box[] = [{ x: w.x, y: w.y, hw: 12, hh: 12 }, { x: 10 + steps * 6 + 14, y: 14, hw: steps * 6 + 18, hh: 10 }];
-  const isFree = (b: Box) =>
-    b.x - b.hw > 2 && b.x + b.hw < 398 && b.y - b.hh > 2 && b.y + b.hh < 398 && boxes.every((o) => Math.abs(o.x - b.x) > o.hw + b.hw + 3 || Math.abs(o.y - b.y) > o.hh + b.hh + 2);
-  const textBox = (x: number, y: number, chars: number, size = 11.5): Box => ({ x, y, hw: chars * size * 0.33 + 4, hh: size * 0.62 + 2 });
-  const showTag = showField && !move;
-  if (showTag) boxes.push({ x: tag.x, y: tag.y, hw: 38, hh: 13 });
-  let arcLabel: { x: number; y: number; text: string } | null = null;
-  if (greenArc) {
-    const text = `${fmtChance(upShare(arcs!))} of directions`;
-    const mid = (greenArc.from + greenArc.to) / 2;
-    for (const [dr, da] of [[18, 0], [30, 0], [18, 0.5], [18, -0.5], [44, 0], [-16, 0]]) {
-      const x = w.x + (stepR + dr) * Math.cos(mid + da);
-      const y = w.y + (stepR + dr) * Math.sin(mid + da);
-      const b = textBox(x, y, text.length, 12);
-      if (isFree(b) || dr === -16) {
-        boxes.push(b);
-        arcLabel = { x, y, text };
-        break;
-      }
-    }
-  }
-  const reachLabel = showReach && reachOuter !== null && reachOuter * s < R - 6 ? { x: C, y: C + reachOuter * s + 11 } : null;
-  if (reachLabel) boxes.push(textBox(reachLabel.x, reachLabel.y, 12, 11));
-  const idleLabels = idle ? { home: C + Math.max(homeR, stepR) + 12, hint: C - stepR - 13 } : null;
-  if (idleLabels) boxes.push(textBox(C, idleLabels.home, 20, 11), textBox(C, idleLabels.hint, 22, 11));
-  const ringLabels: { x: number; y: number; text: string }[] = [];
-  const ANGLES = [-45, -135, 45, 135, -65, -115, 65, 115, -25, -155, 25, 155].map((d) => (d * Math.PI) / 180);
-  for (const c of rings) {
-    const rr = c.radius * s;
-    if (rr < 22 || rr > R - 8) continue;
-    const text = pctLabel(c.level);
-    for (const a of ANGLES) {
-      const b = textBox(C + rr * Math.cos(a), C + rr * Math.sin(a), text.length);
-      if (isFree(b)) {
-        boxes.push(b);
-        ringLabels.push({ x: b.x, y: b.y, text });
-        break;
-      }
-    }
-  }
+  // Pips for the steps taken, kept clear of the arena's rim.
+  const pipGap = steps > 9 ? 10 : 12;
+
+  const stepLine = move && glideU > 0 ? { a: px(rot(start, turned)), b: w } : null;
+  const needleAt = px(start);
 
   return (
-    <svg viewBox="0 0 400 400" className="pearson" role="img" aria-label={`Walker ${r.toFixed(2)} steps from home, ${left} steps left`}>
+    <svg
+      viewBox="0 0 400 400"
+      className="pearson"
+      role="img"
+      aria-label={`Walker ${r.toFixed(2)} steps from the centre of home, ${left} step${left === 1 ? '' : 's'} left`}
+    >
       <defs>
         <clipPath id="pw-arena">
           <circle cx={C} cy={C} r={R} />
         </clipPath>
-        <radialGradient id="pw-field" gradientUnits="userSpaceOnUse" cx={C} cy={C} r={fieldMax * s}>
-          {field.map((f, i) => (
-            <stop key={i} offset={f.r / fieldMax} stopColor="var(--accent)" stopOpacity={0.03 + 0.55 * Math.pow(f.p / peak, 1.6)} />
-          ))}
-        </radialGradient>
       </defs>
 
       <circle cx={C} cy={C} r={R} className="arena" />
       <g clipPath="url(#pw-arena)">
-        {showField && <circle cx={C} cy={C} r={fieldMax * s} fill="url(#pw-field)" className="field" />}
-
-        {/* Faint polar grid: circles one step apart and 12 spokes. */}
+        {/* Distance scale: circles one step apart. */}
         {Array.from({ length: Math.ceil(W) + 1 }, (_, i) => i + 1).map((i) => (
           <circle key={`g${i}`} cx={C} cy={C} r={i * s} className="grid" />
         ))}
-        {Array.from({ length: 12 }, (_, i) => (
-          <line key={`s${i}`} x1={C} y1={C} x2={C + R * Math.cos((i * TAU) / 12)} y2={C + R * Math.sin((i * TAU) / 12)} className="grid" />
-        ))}
+        {/* The ray the walker lives on. */}
+        <line x1={C} y1={C} x2={C + R * Math.cos(RAY)} y2={C + R * Math.sin(RAY)} className="ray" />
 
         {/* Out of reach: no remaining walk can get home from here. */}
         {showReach && reachOuter !== null && reachOuter * s < R + 40 && (
@@ -231,6 +211,7 @@ export default function Board({ home, steps, left, path, move, moveMs, zoomMs, v
             <circle cx={C} cy={C} r={reachOuter * s} className="reach" />
           </>
         )}
+
         {showReach && reachInner !== null && (
           <>
             <circle cx={C} cy={C} r={reachInner * s} className="dead" />
@@ -238,24 +219,9 @@ export default function Board({ home, steps, left, path, move, moveMs, zoomMs, v
           </>
         )}
 
-        {/* Iso-odds rings for the current number of steps left. */}
-        {rings.map((c, i) => (
-          <circle key={`c${i}`} cx={C} cy={C} r={c.radius * s} className="ring" />
-        ))}
-
         {/* Home. */}
-        <circle cx={home0.x} cy={home0.y} r={homeR} className={'home' + (walkerTone === 'win' ? ' won' : '')} />
-
-        {/* The walker's own ring: every point on it has the walker's odds. */}
-        {showField && r > 0.05 && !move && <circle cx={C} cy={C} r={r * s} className="own-ring" />}
-
-        {/* Trail. */}
-        <polyline points={[...path.map(px), w].map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')} className="trail" />
-        {path.slice(1).map((p, i) => {
-          const q = px(p);
-          return <circle key={`t${i}`} cx={q.x} cy={q.y} r={3} className="trail-dot" />;
-        })}
-        <circle cx={home0.x} cy={home0.y} r={4} className="origin" />
+        <circle cx={C} cy={C} r={homeR} className={'home' + (walkerTone === 'win' ? ' won' : '')} />
+        <circle cx={C} cy={C} r={3.5} className="origin" />
 
         {/* The step circle: where the next step can land. */}
         {showStepCircle && (
@@ -264,62 +230,60 @@ export default function Board({ home, steps, left, path, move, moveMs, zoomMs, v
             {arcs?.map((a, i) => <path key={i} d={arcD(w.x, w.y, stepR, a.from, a.to)} className={a.up ? 'arc-up' : 'arc-down'} />)}
           </g>
         )}
-
         {outcome === 'sure' && <circle cx={w.x} cy={w.y} r={stepR} className="arc-up" />}
 
+        {/* The step being taken: it turns with the board as the walker returns to the ray. */}
+        {stepLine && <line x1={stepLine.a.x} y1={stepLine.a.y} x2={stepLine.b.x} y2={stepLine.b.y} className="step-line" />}
+
         {/* Needle: spins to the drawn direction, then the walker follows it. */}
-        {move && (
-          <g className="needle" style={{ opacity: glideU > 0 ? 0.6 : 1 }}>
-            <line x1={px(from).x} y1={px(from).y} x2={px(from).x + stepR * Math.cos(needle)} y2={px(from).y + stepR * Math.sin(needle)} />
-            {glideU === 0 && <circle cx={px(from).x + stepR * Math.cos(needle)} cy={px(from).y + stepR * Math.sin(needle)} r={6} />}
+        {move && glideU === 0 && (
+          <g className="needle">
+            <line x1={needleAt.x} y1={needleAt.y} x2={needleAt.x + stepR * Math.cos(needle)} y2={needleAt.y + stepR * Math.sin(needle)} />
+            <circle cx={needleAt.x + stepR * Math.cos(needle)} cy={needleAt.y + stepR * Math.sin(needle)} r={6} />
           </g>
         )}
       </g>
 
       {/* Labels sit above the clip so they stay readable. */}
-      {ringLabels.map((l, i) => (
-        <text key={`l${i}`} x={l.x} y={l.y + 4} className="ring-label">
-          {l.text}
-        </text>
-      ))}
-      {reachLabel && (
-        <text x={reachLabel.x} y={reachLabel.y + 4} className="reach-label">
-          out of reach
+      {/* (Hidden once the round is over: the result card sits there.) */}
+      {!over && homeLabelY < 392 && (
+        <text x={C} y={homeLabelY + 4} className="home-label">
+          home · radius {HOME_LABEL[home]}
         </text>
       )}
-      {idleLabels && (
-        <>
-          <text x={C} y={idleLabels.home + 4} className="home-label">
-            home · radius {HOME_LABEL[home]}
-          </text>
-          <text x={C} y={idleLabels.hint + 4} className="hint-label">
-            first step lands here
-          </text>
-        </>
+      {reachLabel !== null && Math.abs(reachLabel - homeLabelY) > 14 && (
+        <text x={C} y={reachLabel + 4} className="reach-label">
+          out of reach
+        </text>
       )}
 
       <circle cx={w.x} cy={w.y} r={8} className={'walker ' + walkerTone} />
 
-      {/* The walker's odds, on its own ring. */}
-      {showTag && (
+      {/* The walker's chance, beside it. */}
+      {showOdds && resting && (
         <g className="tag" transform={`translate(${tag.x.toFixed(1)} ${tag.y.toFixed(1)})`}>
           <rect x={-36} y={-12} width={72} height={23} rx={11.5} />
           <text y={4.5}>{fmtChance(chanceNow)}</text>
         </g>
       )}
+      {idle && (
+        <text x={tag.x} y={tag.y + 27} className="hint-label">
+          start
+        </text>
+      )}
 
       {arcLabel && (
-        <text x={arcLabel.x} y={arcLabel.y + 4} className="arc-label">
+        <text x={C} y={arcLabel.y + 4} className="arc-label">
           {arcLabel.text}
         </text>
       )}
 
       {/* Steps taken, as pips. */}
-      <g className="pips" transform="translate(10 14)">
+      <g className="pips" transform="translate(10 11)">
         {Array.from({ length: steps }, (_, i) => (
-          <circle key={i} cx={i * 12} cy={0} r={4} className={i < taken ? 'done' : i === taken && move ? 'now' : ''} />
+          <circle key={i} cx={i * pipGap} cy={0} r={4} className={i < taken ? 'done' : i === taken && move ? 'now' : ''} />
         ))}
-        <text x={steps * 12 + 2} y={4} className="pip-count">
+        <text x={(steps - 1) * pipGap + 10} y={4} className="pip-count">
           {taken}/{steps}
         </text>
       </g>
