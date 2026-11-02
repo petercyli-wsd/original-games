@@ -4,9 +4,11 @@
 //
 //   todo [--all]                       games needing a review under the active prompt
 //   prepare <id...>                    evidence + rules-card prompt (reuses a cached card)
-//   player-prompt <id...> [--version N] [--pool train]
+//   player-prompt <id...> [--version N] [--pool train] [--players N]
 //                                      the blind player prompt (UI only) for each game, under
-//                                      an alias so the player never learns which game it is
+//                                      an alias so the player never learns which game it is;
+//                                      --players N makes N aliases, one per independent play,
+//                                      merged into one review (medians, majority checks)
 //   play <alias> "<steps>"             the blind player's only tool: plays the UI with prose
 //                                      hidden, saves numbered screenshots to .evaluator/<id>/ui/
 //   judge-prompt <id...> [--version N] [--pool train]
@@ -19,18 +21,23 @@
 //   promote <version>                  make a version active
 //   seed-version ["changelog"]         store the rubric in apps/api/src/evaluator/rubric.ts as a candidate
 //   results [--json]                   every AI-reviewed game ranked by overall, with facet scores
+//   gate <id...> [--all] [--json]      pass/fail each game's latest review against the keep gate
+//                                      (overall >= 3.5, each clarity facet >= 3, no reskin, no dead
+//                                      structure); exits 1 if any game fails
 //
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // Working files live in .evaluator/<id>/ (git-ignored).
 
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { evalTable, measuredChecks, type GameEvidence } from '../apps/api/src/evaluator/evidence';
 import { EXTRACT_SYSTEM, RULES_CARD_SCHEMA, extractUser } from '../apps/api/src/evaluator/prompts';
+import { mergePlayers } from '../apps/api/src/evaluator/panel';
 import { DEFAULT_CRITERIA, DEFAULT_GUIDANCE } from '../apps/api/src/evaluator/rubric';
+import type { PlayerOutput } from '../apps/api/src/evaluator/service';
 import { FACETS, type EvaluationSummary, type MeasuredCheck } from '../apps/api/src/shared';
 import { GAMES_DIR, ROOT, buildGameEvidence, codeHashOf, gameIds, gameplayFiles } from './lib/game-evidence';
 
@@ -42,6 +49,7 @@ const { positionals, values } = parseArgs({
   options: {
     version: { type: 'string' },
     pool: { type: 'string' },
+    players: { type: 'string', default: '1' },
     model: { type: 'string' },
     all: { type: 'boolean' },
     json: { type: 'boolean' },
@@ -162,31 +170,46 @@ const BLIND = join(WORK, '_blind');
 const blindMapFile = join(BLIND, 'map.json');
 const blindMap = (): Record<string, string> => (existsSync(blindMapFile) ? readJson<Record<string, string>>(blindMapFile) : {});
 
-/** Where a game's blind player review is: the alias folder of its latest player prompt. */
-function playerFile(id: string): string {
+/** Where a game's blind player reviews are: the alias folders of its latest player prompt (one per panel member). */
+function playerFiles(id: string): string[] {
   const meta = join(dir(id), 'player.meta.json');
-  const alias = existsSync(meta) ? readJson<{ alias?: string }>(meta).alias : undefined;
-  return alias ? join(BLIND, alias, 'player.json') : join(dir(id), 'player.json');
+  const m = existsSync(meta) ? readJson<{ alias?: string; aliases?: string[] }>(meta) : {};
+  const aliases = m.aliases ?? (m.alias ? [m.alias] : []);
+  return aliases.length ? aliases.map((a) => join(BLIND, a, 'player.json')) : [join(dir(id), 'player.json')];
+}
+
+/** The game's blind player review, merged across the panel; undefined when no play has been written yet. */
+function readPlayer(id: string): unknown {
+  const files = playerFiles(id).filter((f) => existsSync(f));
+  if (!files.length) return undefined;
+  const missing = playerFiles(id).length - files.length;
+  if (missing) console.log(`! ${id}: ${missing} of ${playerFiles(id).length} panel plays missing; merging the ${files.length} written`);
+  return mergePlayers(files.map((f) => readJson<PlayerOutput>(f)));
 }
 
 async function playerPrompt() {
+  const panel = Math.max(1, Number(values.players) || 1);
   for (const id of requireIds()) {
     const d = dir(id);
     const versionId = values.version ? Number(values.version) : undefined;
     const pool = values.pool === 'train' ? 'train' : 'all';
-    const alias = `g-${randomBytes(3).toString('hex')}`;
-    const b = join(BLIND, alias);
-    mkdirSync(b, { recursive: true });
-    write(blindMapFile, { ...blindMap(), [alias]: id });
-    const p = await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', {
-      method: 'POST',
-      body: { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) },
-    });
-    write(join(b, 'player.schema.json'), p.schema);
-    write(join(b, 'player.md'), promptFile(p.system, p.user, rel(join(b, 'player.schema.json'))));
-    write(join(d, 'player.meta.json'), { versionId: p.versionId, pool, alias });
+    const aliases: string[] = [];
+    for (let i = 0; i < panel; i++) {
+      const alias = `g-${randomBytes(3).toString('hex')}`;
+      const b = join(BLIND, alias);
+      mkdirSync(b, { recursive: true });
+      write(blindMapFile, { ...blindMap(), [alias]: id });
+      const p = await api<{ versionId: number; system: string; user: string; schema: unknown }>('/evaluator/player-prompt', {
+        method: 'POST',
+        body: { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) },
+      });
+      write(join(b, 'player.schema.json'), p.schema);
+      write(join(b, 'player.md'), promptFile(p.system, p.user, rel(join(b, 'player.schema.json'))));
+      write(join(d, 'player.meta.json'), { versionId: p.versionId, pool, alias: aliases[0] ?? alias, aliases: [...aliases, alias] });
+      aliases.push(alias);
+      console.log(`✓ ${id}: blind player prompt v${p.versionId} as ${alias} → read ${rel(join(b, 'player.md'))}, write ${rel(join(b, 'player.json'))}`);
+    }
     rmSync(join(d, 'player.json'), { force: true });
-    console.log(`✓ ${id}: blind player prompt v${p.versionId} as ${alias} → read ${rel(join(b, 'player.md'))}, write ${rel(join(b, 'player.json'))}`);
   }
 }
 
@@ -233,9 +256,10 @@ async function judgePrompt() {
         table: evalTable(evidence),
         versionId,
         pool,
-        player: existsSync(playerFile(id)) ? readJson(playerFile(id)) : undefined,
+        player: readPlayer(id),
       };
-      if (existsSync(playerFile(id)) && playerFile(id) !== join(d, 'player.json')) copyFileSync(playerFile(id), join(d, 'player.json'));
+      // The merged panel review, kept beside the designer prompt for reference.
+      if (body.player !== undefined) write(join(d, 'player.json'), body.player);
     }
     const p = await api<{ versionId: number; system: string; user: string; schema: unknown; references: number }>('/evaluator/judge-prompt', { method: 'POST', body });
     write(join(d, 'review.schema.json'), p.schema);
@@ -257,7 +281,7 @@ async function submit() {
     } else {
       const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
       const checks: MeasuredCheck[] = measuredChecks(evidence);
-      const player = existsSync(playerFile(id)) ? readJson(playerFile(id)) : undefined;
+      const player = readPlayer(id);
       body = { gameId: id, versionId: meta.versionId, codeHash: evidence.codeHash, card: readJson(join(d, 'card.json')), review, player, checks, model, collection: evidence.manifest.collection };
     }
     const saved = await api<{ overall: number; recommendation: string; verdict: string }>('/evaluations/import', { method: 'POST', body });
@@ -358,6 +382,33 @@ async function results() {
   console.log(`\n${rows.length} reviewed. Mean overall: classics ${mean(rows.filter((r) => r.classic).map((r) => r.overall))}, prototypes ${mean(rows.filter((r) => !r.classic).map((r) => r.overall))}.`);
 }
 
+/** The keep gate every game must pass, for /iterate-game and /generate-games. */
+const GATE = { overall: 3.5, clarity: 3 } as const;
+
+async function gate() {
+  const summaries = await api<Record<string, EvaluationSummary>>('/evaluations');
+  const targets = values.all ? Object.keys(summaries) : requireIds();
+  const rows = [];
+  for (const id of targets) {
+    const e = await api<{ overall: number; criteria: { key: string; score: number }[]; duplicateOf: string; cons: string[]; versionId: number } | null>(`/evaluations/${id}`);
+    if (!e) {
+      rows.push({ id, pass: false, overall: null, reasons: ['no review'] });
+      continue;
+    }
+    const score = (k: string) => e.criteria.find((c) => c.key === k)?.score ?? 0;
+    const reasons = [
+      ...(e.overall < GATE.overall ? [`overall ${e.overall.toFixed(2)} < ${GATE.overall}`] : []),
+      ...['win_clarity', 'simplicity', 'odds_legibility'].filter((k) => score(k) < GATE.clarity).map((k) => `${k} ${score(k)} < ${GATE.clarity}`),
+      ...(e.duplicateOf ? [`reskin of ${e.duplicateOf}`] : []),
+      ...e.cons.filter((c) => c.startsWith('Dead structure')).map((c) => c.slice(0, c.indexOf(':'))),
+    ];
+    rows.push({ id, pass: reasons.length === 0, overall: e.overall, version: e.versionId, reasons });
+  }
+  if (values.json) console.log(JSON.stringify(rows, null, 2));
+  else for (const r of rows) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id}${r.overall == null ? '' : ` ${r.overall.toFixed(2)}`}${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`);
+  if (rows.some((r) => !r.pass)) process.exitCode = 1;
+}
+
 const commands: Record<string, () => Promise<void>> = {
   todo,
   prepare,
@@ -372,10 +423,12 @@ const commands: Record<string, () => Promise<void>> = {
   promote,
   'seed-version': seedVersion,
   results,
+  gate,
 };
 
 if (!command || !commands[command]) {
-  console.log(readFileSync(new URL(import.meta.url), 'utf8').split('\n').slice(0, 26).join('\n'));
+  const source = readFileSync(new URL(import.meta.url), 'utf8').split('\n');
+  console.log(source.slice(0, source.findIndex((l) => l.startsWith('import'))).join('\n'));
   process.exit(command ? 1 : 0);
 }
 await commands[command]();

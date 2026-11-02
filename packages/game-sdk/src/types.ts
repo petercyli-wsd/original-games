@@ -54,6 +54,18 @@ export interface GameManifest {
   accent: string;
   /** Which lobby collection the game belongs to. Defaults to `originals`. */
   collection?: Collection;
+  /** A recent change worth flagging in the lobby: a new game or an improved one. */
+  revision?: GameRevision;
+  /** For a retired earlier version: the id of the game that replaced it. */
+  supersededBy?: string;
+}
+
+export interface GameRevision {
+  kind: 'new' | 'improved';
+  /** ISO date of the change, e.g. '2026-11-02'. */
+  date: string;
+  /** One line on what changed, shown on the game page. */
+  note: string;
 }
 
 export interface ReadableStore<T> {
