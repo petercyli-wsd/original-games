@@ -34,7 +34,9 @@
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // When the API is unreachable, prepare, player-prompt, judge-prompt, gate, preview
 // and review run on the API's code locally, from the version and team reviews
-// cached in .evaluator/ the last time it answered; submit queues.
+// cached in .evaluator/ the last time it answered; submit queues. An
+// .evaluator/_local file forces the same while the API is up (team reviews
+// still refresh), to roll out a version the API doesn't have yet.
 // Working files live in .evaluator/<id>/ (git-ignored).
 
 import { spawnSync } from 'node:child_process';
@@ -141,25 +143,33 @@ const ACTIVE_CACHE = join(WORK, '_active-version.json');
 const TEAM_CACHE = join(WORK, '_team-reviews.json');
 const PENDING = join(WORK, '_pending.json');
 
+// .evaluator/_local makes the CLI work locally even when the API answers: prompts
+// and scores come from this checkout's code under the cached version, and
+// submissions queue. Use it to roll out a prompt version before the API has it.
+const LOCAL = existsSync(join(WORK, '_local'));
+
 let reachable: Promise<boolean> | undefined;
-const online = () =>
+const reachableApi = () =>
   (reachable ??= fetch(`${apiBase()}/health`, { signal: AbortSignal.timeout(15_000) })
     .then((r) => r.ok)
     .catch(() => false)
     .then((ok) => {
       if (!ok) console.log('! The API is unreachable: working from the cached active version and team reviews in .evaluator/.');
+      else if (LOCAL) console.log(`! Local mode (.evaluator/_local): working from the cached active version; submissions queue.`);
       return ok;
     }));
+/** Whether to use the API for prompts, stored reviews and submissions. */
+const online = async () => (await reachableApi()) && !LOCAL;
 
 type TeamReview = { gameId: string; reviewer?: string; stars: number; comment?: string; facets?: Record<string, number> };
 
 /** The active prompt version and the team's reviews: live (and cached) when the API answers, else the cache. */
 async function shared(): Promise<{ active: PromptVersion; team: TeamReview[] }> {
-  if (await online()) {
-    const { activeVersion } = await api<{ activeVersion: PromptVersion }>('/evaluator');
+  if (await reachableApi()) {
+    // The team's reviews are always refreshed; the version only when not in local mode.
     const team = await api<TeamReview[] | { reviews: TeamReview[] }>('/reviews');
-    write(ACTIVE_CACHE, activeVersion);
     write(TEAM_CACHE, Array.isArray(team) ? team : team.reviews);
+    if (!LOCAL) write(ACTIVE_CACHE, (await api<{ activeVersion: PromptVersion }>('/evaluator')).activeVersion);
   }
   if (!existsSync(ACTIVE_CACHE) || !existsSync(TEAM_CACHE)) fail('The API is unreachable and .evaluator/ has no cached active version or team reviews.');
   return { active: readJson<PromptVersion>(ACTIVE_CACHE), team: readJson<TeamReview[]>(TEAM_CACHE) };
@@ -283,6 +293,10 @@ The command prints the screenshot paths; open them with Read.`;
 const BLIND = join(WORK, '_blind');
 const blindMapFile = join(BLIND, 'map.json');
 const blindMap = (): Record<string, string> => (existsSync(blindMapFile) ? readJson<Record<string, string>>(blindMapFile) : {});
+// One file per alias as well, so parallel player-prompt runs can't lose each other's entries in map.json.
+const aliasFile = (alias: string) => join(BLIND, '_map', alias);
+const gameOfAlias = (alias: string): string | undefined =>
+  existsSync(aliasFile(alias)) ? readFileSync(aliasFile(alias), 'utf8').trim() : blindMap()[alias];
 
 /** Where a game's blind player reviews are: the alias folders of its latest player prompt (one per panel member). */
 function playerFiles(id: string): string[] {
@@ -314,6 +328,8 @@ async function playerPrompt() {
       const alias = `g-${randomBytes(3).toString('hex')}`;
       const b = join(BLIND, alias);
       mkdirSync(b, { recursive: true });
+      mkdirSync(join(BLIND, '_map'), { recursive: true });
+      write(aliasFile(alias), id);
       write(blindMapFile, { ...blindMap(), [alias]: id });
       const body = { gameId: id, versionId, pool, tool: PLAY_TOOL(alias) } as const;
       const p = (await online())
@@ -333,7 +349,7 @@ async function playerPrompt() {
 async function play() {
   const [name, steps] = ids;
   if (!name || !steps) fail('Usage: npm run evaluator -- play <alias> "<steps>"');
-  const id = blindMap()[name] ?? name;
+  const id = gameOfAlias(name) ?? name;
   if (!gameIds().includes(id)) fail(`No game ${name}`);
   const uiDir = join(id === name ? dir(id) : join(BLIND, name), 'ui');
   mkdirSync(uiDir, { recursive: true });
