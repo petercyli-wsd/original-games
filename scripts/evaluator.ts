@@ -24,6 +24,10 @@
 //   gate <id...> [--all] [--json]      pass/fail each game's latest review against the keep gate
 //                                      (overall >= 3.5, each clarity facet >= 3, no reskin, no dead
 //                                      structure); exits 1 if any game fails
+//   preview <id...> [--json]           score the local review.json + player panel with the API's code,
+//                                      store nothing, and check the gate (works with the API down,
+//                                      using the cached active version)
+//   review <id...>                     a game's latest AI review and its team reviews, for iterating
 //
 // Needs ORIGINALS_API_URL and ORIGINALS_ADMIN_KEY (in .env.local at the repo root).
 // Working files live in .evaluator/<id>/ (git-ignored).
@@ -38,7 +42,7 @@ import { EXTRACT_SYSTEM, RULES_CARD_SCHEMA, extractUser } from '../apps/api/src/
 import { mergePlayers } from '../apps/api/src/evaluator/panel';
 import { DEFAULT_CRITERIA, DEFAULT_GUIDANCE } from '../apps/api/src/evaluator/rubric';
 import type { PlayerOutput } from '../apps/api/src/evaluator/service';
-import { FACETS, type EvaluationSummary, type MeasuredCheck } from '../apps/api/src/shared';
+import { FACETS, type EvaluationSummary, type MeasuredCheck, type PromptVersion } from '../apps/api/src/shared';
 import { GAMES_DIR, ROOT, buildGameEvidence, codeHashOf, gameIds, gameplayFiles } from './lib/game-evidence';
 
 const envFile = join(ROOT, '.env.local');
@@ -385,28 +389,97 @@ async function results() {
 /** The keep gate every game must pass, for /iterate-game and /generate-games. */
 const GATE = { overall: 3.5, clarity: 3 } as const;
 
+type Reviewed = { overall: number; criteria: { key: string; score: number; reasoning?: string }[]; duplicateOf: string; cons: string[]; pros?: string[]; verdict?: string; versionId: number };
+
+/** Why a review fails the keep gate; empty when it passes. */
+function gateReasons(e: Reviewed): string[] {
+  const score = (k: string) => e.criteria.find((c) => c.key === k)?.score ?? 0;
+  return [
+    ...(e.overall < GATE.overall ? [`overall ${e.overall.toFixed(2)} < ${GATE.overall}`] : []),
+    ...['win_clarity', 'simplicity', 'odds_legibility'].filter((k) => score(k) < GATE.clarity).map((k) => `${k} ${score(k)} < ${GATE.clarity}`),
+    ...(e.duplicateOf ? [`reskin of ${e.duplicateOf}`] : []),
+    ...e.cons.filter((c) => c.startsWith('Dead structure')).map((c) => c.slice(0, c.indexOf(':'))),
+  ];
+}
+
 async function gate() {
   const summaries = await api<Record<string, EvaluationSummary>>('/evaluations');
   const targets = values.all ? Object.keys(summaries) : requireIds();
   const rows = [];
   for (const id of targets) {
-    const e = await api<{ overall: number; criteria: { key: string; score: number }[]; duplicateOf: string; cons: string[]; versionId: number } | null>(`/evaluations/${id}`);
+    const e = await api<Reviewed | null>(`/evaluations/${id}`);
     if (!e) {
       rows.push({ id, pass: false, overall: null, reasons: ['no review'] });
       continue;
     }
-    const score = (k: string) => e.criteria.find((c) => c.key === k)?.score ?? 0;
-    const reasons = [
-      ...(e.overall < GATE.overall ? [`overall ${e.overall.toFixed(2)} < ${GATE.overall}`] : []),
-      ...['win_clarity', 'simplicity', 'odds_legibility'].filter((k) => score(k) < GATE.clarity).map((k) => `${k} ${score(k)} < ${GATE.clarity}`),
-      ...(e.duplicateOf ? [`reskin of ${e.duplicateOf}`] : []),
-      ...e.cons.filter((c) => c.startsWith('Dead structure')).map((c) => c.slice(0, c.indexOf(':'))),
-    ];
+    const reasons = gateReasons(e);
     rows.push({ id, pass: reasons.length === 0, overall: e.overall, version: e.versionId, reasons });
   }
   if (values.json) console.log(JSON.stringify(rows, null, 2));
   else for (const r of rows) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id}${r.overall == null ? '' : ` ${r.overall.toFixed(2)}`}${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`);
   if (rows.some((r) => !r.pass)) process.exitCode = 1;
+}
+
+/**
+ * Scores a game's local review files (review.json + the merged player panel)
+ * with the same code the API uses, without storing anything, and checks the
+ * gate. /iterate-game uses it to accept or revert a change before submitting.
+ */
+async function preview() {
+  const { createEvaluator } = await import('../apps/api/src/evaluator/service');
+  const { createMemoryEvalStore, createMemoryStore } = await import('../apps/api/src/store');
+  const cache = join(WORK, '_active-version.json');
+  const live = await fetch(`${apiBase()}/evaluator`, { signal: AbortSignal.timeout(20_000) })
+    .then((r) => (r.ok ? (r.json() as Promise<{ activeVersion: PromptVersion }>) : null))
+    .catch(() => null);
+  if (live) write(cache, live.activeVersion);
+  else if (!existsSync(cache)) fail('The API is unreachable and no cached active version exists (.evaluator/_active-version.json).');
+  const active = live?.activeVersion ?? readJson<PromptVersion>(cache);
+  const rows = [];
+  for (const id of requireIds()) {
+    const d = dir(id);
+    const evidence = readJson<GameEvidence>(join(d, 'evidence.json'));
+    const evals = createMemoryEvalStore();
+    const version = await evals.createVersion({ parentId: null, status: 'candidate', criteria: active.criteria, guidance: active.guidance, exemplars: active.exemplars, changelog: '' });
+    await evals.promote(version.id);
+    const evaluator = createEvaluator({ llm: null, evals, ratings: createMemoryStore(), evidence: { get: (g) => (g === id ? evidence : undefined), all: () => [evidence] } });
+    const saved = await evaluator.importEvaluation({
+      gameId: id,
+      versionId: version.id,
+      codeHash: evidence.codeHash,
+      card: readJson(join(d, 'card.json')),
+      review: readJson(join(d, 'review.json')),
+      player: readPlayer(id),
+      checks: measuredChecks(evidence),
+      collection: evidence.manifest.collection,
+    });
+    const reasons = gateReasons(saved);
+    write(join(d, 'preview.json'), { ...saved, gate: { pass: !reasons.length, reasons } });
+    rows.push({ id, overall: saved.overall, pass: !reasons.length, reasons, facets: Object.fromEntries(saved.criteria.map((c) => [c.key, c.score])) });
+  }
+  if (values.json) console.log(JSON.stringify(rows, null, 2));
+  else for (const r of rows) console.log(`${r.pass ? 'PASS' : 'FAIL'} ${r.id} ${r.overall.toFixed(2)} (preview, not stored)${r.reasons.length ? `: ${r.reasons.join('; ')}` : ''}`);
+}
+
+/** A game's latest stored review, plus the team's reviews: what /iterate-game works from. */
+async function review() {
+  for (const id of requireIds()) {
+    const e = await api<Reviewed | null>(`/evaluations/${id}`);
+    const team = await api<{ reviews?: { reviewer?: string; stars: number; comment?: string; facets?: Record<string, number> }[] }>(`/ratings/${id}?voter=evaluator-cli`);
+    console.log(`# ${id}`);
+    if (!e) console.log('No AI review yet.');
+    else {
+      console.log(`Overall ${e.overall.toFixed(2)} under v${e.versionId}. ${e.verdict ?? ''}`);
+      const reasons = gateReasons(e);
+      console.log(`Gate: ${reasons.length ? `FAIL (${reasons.join('; ')})` : 'PASS'}`);
+      for (const c of e.criteria) console.log(`- ${c.key} ${c.score}: ${c.reasoning ?? ''}`);
+      console.log(`Pros:\n${(e.pros ?? []).map((p) => `- ${p}`).join('\n')}`);
+      console.log(`Cons:\n${e.cons.map((c) => `- ${c}`).join('\n')}`);
+    }
+    const reviews = team.reviews ?? [];
+    console.log(reviews.length ? `Team reviews:\n${reviews.map((r) => `- ${r.reviewer || 'anon'} ${r.stars}★ ${JSON.stringify(r.facets ?? {})} ${r.comment ?? ''}`).join('\n')}` : 'No team reviews.');
+    console.log('');
+  }
 }
 
 const commands: Record<string, () => Promise<void>> = {
@@ -424,6 +497,8 @@ const commands: Record<string, () => Promise<void>> = {
   'seed-version': seedVersion,
   results,
   gate,
+  preview,
+  review,
 };
 
 if (!command || !commands[command]) {
