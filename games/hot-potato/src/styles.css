@@ -9,6 +9,9 @@
   fill: none;
   stroke: color-mix(in srgb, var(--text) 7%, transparent);
 }
+.hp-ring .cell.good .cell-bg {
+  stroke: color-mix(in srgb, var(--green) 9%, transparent);
+}
 .hp-ring .cell-heat {
   fill: none;
   transition: opacity 0.35s ease;
@@ -19,18 +22,14 @@
 .hp-ring .cell.bad .cell-heat {
   stroke: color-mix(in srgb, var(--red) 85%, var(--accent));
 }
+.hp-ring .cell-mine {
+  fill: none;
+  stroke: var(--green);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
 .hp-ring .cell.blast .cell-heat {
   filter: drop-shadow(0 0 10px var(--accent));
-}
-.hp-ring .cell-pct {
-  text-anchor: middle;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  fill: color-mix(in srgb, var(--text) 75%, transparent);
-  pointer-events: none;
-}
-.hp-ring .cell-pct.hot {
-  fill: #fff;
 }
 
 /* ---------- Table and seats ---------- */
@@ -48,8 +47,8 @@
 }
 .hp-ring .seat.pick {
   fill: var(--accent);
-  stroke: #fff;
-  stroke-width: 2.5;
+  stroke: var(--green);
+  stroke-width: 3;
 }
 .hp-ring .seat.boom-win {
   fill: var(--green);
@@ -68,73 +67,107 @@
 .hp-ring .seat-n.pick {
   fill: #1a0e08;
 }
-.hp-ring .hit {
-  fill: transparent;
-  cursor: pointer;
-}
-.hp-ring .hit:hover {
-  fill: color-mix(in srgb, var(--accent) 18%, transparent);
-}
 
-/* ---------- Next hop ---------- */
+/* ---------- Where a green spin can send it ---------- */
 .hp-ring .chev {
   fill: none;
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.hp-ring .next .up .chev {
+.hp-ring .chev.up {
   stroke: var(--green);
 }
-.hp-ring .next .down .chev {
+.hp-ring .chev.down {
   stroke: var(--red);
 }
-.hp-ring .next .flat .chev {
+.hp-ring .chev.flat {
   stroke: var(--muted);
 }
-.hp-ring .next-pct {
-  text-anchor: middle;
-  font-size: 11px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.hp-ring .next .up .next-pct {
-  fill: var(--green);
-}
-.hp-ring .next .down .next-pct {
-  fill: var(--red);
-}
-.hp-ring .next .flat .next-pct {
-  fill: var(--muted);
-}
 
-/* ---------- Danger: where the next hop can blow ---------- */
-.hp-ring .zone {
-  fill: none;
-  stroke-width: 3;
-  stroke-dasharray: 4 3;
+/* ---------- Turning parts: the bomb and the dial follow the bomb's seat ---------- */
+.hp-ring .turn,
+.hp-ring .needle {
+  transform-box: view-box;
+  transform-origin: 200px 200px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  pointer-events: none;
+}
+.hp-ring .needle {
+  transition-timing-function: cubic-bezier(0.15, 0.6, 0.2, 1);
+}
+.hp-ring .upright {
   transform-box: fill-box;
   transform-origin: center;
-  animation: hp-danger 0.9s ease-in-out infinite alternate;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
 }
-.hp-ring .zone.good {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 6px var(--green));
+
+/* ---------- The fuse dial ---------- */
+.hp-ring .slice {
+  stroke: var(--bg, #0f0f14);
+  stroke-width: 2;
 }
-.hp-ring .zone.bad {
-  stroke: var(--red);
-  filter: drop-shadow(0 0 6px var(--red));
+.hp-ring .slice.boom {
+  fill: color-mix(in srgb, var(--red) 78%, var(--bg, #0f0f14));
 }
-@keyframes hp-danger {
-  from {
-    opacity: 0.45;
-    transform: scale(0.94);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1.06);
-  }
+.hp-ring .slice.pass {
+  fill: color-mix(in srgb, var(--green) 30%, var(--bg, #0f0f14));
 }
+.hp-ring .slice.pass.alt {
+  fill: color-mix(in srgb, var(--green) 22%, var(--bg, #0f0f14));
+}
+.hp-ring .dl-head,
+.hp-ring .dl-pct,
+.hp-ring .dl-sub {
+  text-anchor: middle;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: rgb(0 0 0 / 0.55);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.hp-ring .dl-head {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  fill: #fff;
+}
+.hp-ring .dl-pct {
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  fill: color-mix(in srgb, #fff 85%, transparent);
+}
+.hp-ring .dl-sub {
+  font-size: 10px;
+  font-weight: 700;
+}
+.hp-ring .dl-sub.win {
+  fill: #b8ffd0;
+}
+.hp-ring .dl-sub.lose {
+  fill: color-mix(in srgb, #fff 80%, transparent);
+}
+.hp-ring .needle line {
+  stroke: #fff;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.hp-ring .needle path {
+  fill: #fff;
+}
+.hp-ring .needle {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+}
+.hp-ring .hub {
+  fill: #fff;
+  stroke: var(--bg, #0f0f14);
+  stroke-width: 2;
+}
+
+/* ---------- The bomb ---------- */
 .hp-ring.lit .spark {
   animation-duration: 0.18s;
 }
@@ -145,14 +178,6 @@
   to {
     stroke-width: 3.5;
   }
-}
-/* ---------- The bomb ---------- */
-.hp-ring .bomb {
-  transform-box: view-box;
-  transform-origin: 200px 200px;
-  transition-property: transform;
-  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
-  pointer-events: none;
 }
 .hp-ring .bomb-body.hop {
   animation: hp-hop var(--hop) ease-out;
@@ -221,54 +246,10 @@
   }
 }
 
-/* ---------- Dial ---------- */
-.hp-ring .donut-bg {
-  fill: none;
-  stroke: color-mix(in srgb, var(--red) 32%, var(--bg));
-}
-.hp-ring .donut-win {
-  fill: none;
-  stroke: var(--green);
-  transition: d 0.3s ease;
-}
+/* ---------- Legend ---------- */
 .hp-ring text {
   font-family: inherit;
 }
-.hp-ring .big,
-.hp-ring .small,
-.hp-ring .tiny,
-.hp-ring .verdict {
-  text-anchor: middle;
-  fill: var(--text);
-}
-.hp-ring .big {
-  font-size: 24px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.hp-ring .small {
-  font-size: 12px;
-  fill: var(--muted);
-}
-.hp-ring .tiny {
-  font-size: 10px;
-  fill: var(--muted);
-}
-.hp-ring .verdict {
-  font-size: 18px;
-  font-weight: 800;
-}
-.hp-ring .verdict.won {
-  fill: var(--green);
-}
-.hp-ring .verdict.lost {
-  fill: var(--red);
-}
-.hp-ring .verdict.cashed {
-  fill: var(--gold);
-}
-
-/* ---------- Legend ---------- */
 .hp-ring .legend text {
   font-size: 11px;
   fill: var(--muted);
@@ -283,53 +264,18 @@
   fill: color-mix(in srgb, var(--red) 85%, var(--accent));
 }
 
-/* ---------- Next hop strip ---------- */
+/* ---------- Next spin, under the bar ---------- */
 .hp-next {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  margin-top: 2px;
-}
-.hp-ev {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  min-width: 0;
+  flex-wrap: wrap;
+  gap: 4px 16px;
 }
-.hp-ev-what {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.hp-ev b {
-  font-size: 15px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+.hp-next b {
   color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
-.hp-ev small {
-  font-size: 11px;
-}
-.hp-ev.up {
-  border-color: color-mix(in srgb, var(--green) 45%, transparent);
-}
-.hp-ev.up b {
-  color: var(--green);
-}
-.hp-ev.down {
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
-}
-.hp-ev.down b {
+.hp-next .boom b {
   color: var(--red);
-}
-.hp-ev.blows {
-  background: color-mix(in srgb, var(--accent) 7%, var(--bg));
 }
 
 .hp-rule {
@@ -347,26 +293,4 @@
   .og-board.hp-board > svg {
     max-height: none;
   }
-  .hp-ev {
-    padding: 5px 6px;
-  }
-  .hp-ev b {
-    font-size: 13px;
-  }
-  .hp-ev-what,
-  .hp-ev small {
-    font-size: 10px;
-  }
-}
-
-.hp-chip2 {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.15;
-}
-.hp-chip2 small {
-  font-size: 10px;
-  font-weight: 600;
-  opacity: 0.65;
 }
