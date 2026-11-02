@@ -579,10 +579,10 @@ Scores below are evaluator v7 overalls (blind player, plus a 3-player panel when
 | id | Name | One-sentence rule | Maths | Closest → difference | v7 | Gate |
 |---|---|---|---|---|---|---|
 | sixes | Sixes | Roll up to three times; sixes stay put, and every die on six wins. | n independent races to six in 3 rolls, (1 − (5/6)^r)^f | Video Poker, Full Set → automatic holds, each die's chance is a bar under it | 3.75 | Pass |
-| tally | Tally | Balls drop onto unequal bins; back the first bin to stack three. | Multinomial race to 3, exact DP over stack heights | Last Slice, Derby → bin width is the chance per ball; a race of stacks | 3.72 | Pass |
-| shut | Shut | Close tiles that add up to each two-dice roll; close every tile to win. | Exact best-play DP over tile subsets; choosing another option relocks at fair value | Landing → a tile choice each roll; the green share of the totals band is the next roll | 3.75 | Pass |
-| cross | Cross | Cards are turned from a 3 × 4 grid; each must miss the last card's colour and shape. | Exact DP over the remaining grid and the last card | HiLo, Mines → the red cross over the grid is the risk of the next card | 3.75 | Pass |
-| showdown | Showdown | You and the house flip from face-down piles (your evens, its odds); the higher card takes the round; take enough of 7. | Exact DP over the two remaining hands and the score | Dragon Tiger, Shootout → cards don't come back, so every win spends a card; the round stops when the bet is decided | 3.75 | Pass |
+| tally | Tally | Balls drop onto unequal bins; back the first bin to stack three. | Poissonized race of Gamma clocks, P(i first) = ∫ fᵢ(t) Πⱼ≠ᵢ P(Poisson(pⱼt) < rⱼ) dt | Last Slice, Derby → bin width is the chance per ball; a race of stacks | 3.72 | Pass |
+| shut | Shut | Close tiles that add up to each two-dice roll; close every tile to win. | Best-play backward induction over open-tile sets, V(S) = Σₜ P(t) · max V(S \ C); choosing another option relocks at fair value | Landing → a tile choice each roll; the green share of the totals band is the next roll | 3.75 | Pass |
+| cross | Cross | Cards are turned from a 3 × 4 grid; each must miss the last card's colour and shape. | Memoised recursion over the turned cards and the last card (≤ 2¹² × 12 states) | HiLo, Mines → the red cross over the grid is the risk of the next card | 3.75 | Pass |
+| showdown | Showdown | You and the house flip from face-down piles (your evens, its odds); the higher card takes the round; take enough of 7. | The flips pair the two hands by a uniform random matching; exact count of matchings with enough wins | Dragon Tiger, Shootout → cards don't come back, so every win spends a card; the round stops when the bet is decided | 3.75 | Pass |
 
 Built and dropped (deleted, not archived):
 
