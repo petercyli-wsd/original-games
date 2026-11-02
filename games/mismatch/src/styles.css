@@ -32,7 +32,7 @@
   text-anchor: middle;
 }
 
-/* The ring and the link left by a token that kills its own slot's chance. */
+/* The ring and the link left by a token that takes away its own slot's match. */
 .mm .track {
   fill: none;
   stroke: var(--hover);
@@ -41,15 +41,20 @@
 .mm .link {
   stroke: color-mix(in srgb, var(--muted) 70%, transparent);
   stroke-width: 2;
-  stroke-dasharray: 4 6;
   animation: mm-fade 1.6s ease forwards;
 }
 
 /* Slots. */
 .mm .slot-no {
-  font-size: 13px;
+  font-size: 18px;
   font-weight: 600;
   fill: var(--muted);
+}
+.mm .slot-no.hit {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  fill: var(--text);
 }
 .mm .well {
   fill: var(--raised);
@@ -57,29 +62,19 @@
   stroke-width: 3;
   transition: fill 0.2s ease;
 }
-.mm .rim {
-  fill: none;
-  stroke: color-mix(in srgb, var(--c) 22%, transparent);
-  stroke-width: 5;
-}
-.mm .chance {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 5;
-  stroke-linecap: round;
-}
 .mm .num {
-  font-size: 19px;
+  font-size: 22px;
   font-weight: 800;
   fill: var(--c);
 }
 .mm .dead .well {
   fill: var(--card);
-  stroke: color-mix(in srgb, var(--c) 45%, transparent);
-  stroke-dasharray: 5 5;
+  stroke: color-mix(in srgb, var(--c) 35%, transparent);
 }
-.mm .dead .num {
-  fill: color-mix(in srgb, var(--c) 45%, transparent);
+.mm .cant text {
+  font-size: 15px;
+  font-weight: 700;
+  fill: var(--muted);
 }
 .mm .full .well {
   fill: var(--hover);
@@ -99,21 +94,20 @@
 .mm .aim {
   fill: none;
   stroke: var(--text);
-  stroke-width: 2;
-  stroke-dasharray: 3 5;
-  opacity: 0.8;
+  stroke-width: 3;
 }
-.mm .pick {
-  cursor: pointer;
-  outline: none;
+.mm .aim.bad {
+  stroke: var(--red);
 }
-.mm .pick:hover .well,
-.mm .pick:focus-visible .well {
-  fill: color-mix(in srgb, var(--c) 18%, var(--raised));
+.mm .aim.good {
+  stroke: var(--green);
+}
+.mm .aim.safe {
+  stroke: var(--muted);
 }
 .mm .token .tnum,
 .mm .fly .tnum {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 800;
   fill: #15151c;
 }
@@ -124,7 +118,7 @@
   animation: mm-fly var(--fly) cubic-bezier(0.35, 0.1, 0.25, 1) both;
 }
 
-/* The bag: one equal sector per token left. */
+/* The bag: one equal slice per token left. */
 .mm .sector {
   fill: var(--c);
   stroke: var(--card);
@@ -135,16 +129,39 @@
   fill: none;
   stroke: var(--c);
 }
-.mm .sector.dud {
-  opacity: 0.25;
+.mm .sector.hot.bad {
+  fill: var(--red);
+}
+.mm .sector.hot.good {
+  fill: var(--green);
+}
+.mm .sector.ring.hot.bad {
+  fill: none;
+  stroke: var(--red);
+}
+.mm .sector.ring.hot.good {
+  fill: none;
+  stroke: var(--green);
 }
 .mm .sector.hot {
   stroke: var(--text);
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 6px var(--c));
 }
+.mm .slice {
+  transition: opacity 0.2s ease;
+}
+.mm .slice.taken,
 .mm .sector.taken {
-  opacity: 0.05;
+  opacity: 0.08;
+}
+.mm .snum {
+  font-size: 17px;
+  font-weight: 800;
+  fill: #15151c;
+  pointer-events: none;
+}
+.mm .hole {
+  fill: var(--card);
 }
 .mm .pointer path {
   fill: var(--text);
@@ -157,129 +174,38 @@
 
 /* Centre readout. */
 .mm .centre .big {
-  font-size: 34px;
+  font-size: 30px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+}
+.mm .centre .big.bad {
+  fill: var(--red);
+}
+.mm .centre .big.good {
+  fill: var(--green);
 }
 .mm .centre .big.none {
   fill: var(--muted);
 }
 .mm .centre .small {
-  font-size: 13px;
+  font-size: 15px;
   fill: var(--muted);
 }
 .mm .centre .cap {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 1.2px;
   fill: var(--muted);
 }
 
-/* Where you finish. */
-.mm .strip .cap {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
-  fill: var(--muted);
-  text-anchor: start;
-}
-.mm .strip .sub {
-  font-size: 13px;
-  fill: var(--muted);
-  text-anchor: start;
-}
-.mm .strip .frame {
-  fill: none;
-  stroke: var(--line);
-}
-.mm .strip .seg {
-  stroke: var(--card);
-  stroke-width: 1.5;
-  transition: all 0.3s ease;
-}
-.mm .strip .seg.win {
-  fill: var(--green);
-}
-.mm .strip .seg.lose {
-  fill: color-mix(in srgb, var(--red) 55%, var(--card));
-}
-.mm .strip .leader {
-  fill: none;
-  stroke: color-mix(in srgb, var(--muted) 55%, transparent);
-  stroke-width: 1.2;
-}
-.mm .strip .count {
-  font-size: 15px;
-  font-weight: 600;
-  text-anchor: start;
+/* The rule under the ring. */
+.mm .rule {
+  font-size: 22px;
   fill: var(--muted);
 }
-.mm .strip .pct {
-  font-size: 15px;
-  font-weight: 700;
-  text-anchor: end;
-  font-variant-numeric: tabular-nums;
-  fill: var(--muted);
-}
-.mm .strip .seg-label.win .count,
-.mm .strip .seg-label.win .pct {
-  fill: var(--green);
-}
-.mm .strip .count.mid,
-.mm .strip .pct.mid {
-  text-anchor: middle;
-}
-.mm .strip.narrow .count {
-  font-size: 18px;
-}
-.mm .strip.narrow .pct {
-  font-size: 17px;
-}
-.mm .strip.narrow .cap,
-.mm .strip.narrow .share {
-  font-size: 16px;
-}
-.mm .strip .share {
-  font-size: 15px;
-  font-weight: 700;
-  text-anchor: start;
-  fill: var(--green);
-}
-.mm .strip .share.end {
-  text-anchor: end;
-}
-.mm .strip .share .win {
-  fill: var(--green);
-}
-.mm .key text {
-  font-size: 13px;
-  fill: var(--muted);
-  text-anchor: start;
-}
-.mm .key .k-rim {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 3;
-}
-.mm .key .k-arc {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 4;
-  stroke-linecap: round;
-}
-.mm .key .k-dead {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 2;
-  stroke-dasharray: 4 4;
-}
-.mm .key .k-halo {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
-  filter: drop-shadow(0 0 5px var(--accent));
-}
-.mm .key .k-tok {
+.mm .rule.win {
+  font-size: 26px;
+  font-weight: 800;
   fill: var(--accent);
 }
 
@@ -309,20 +235,33 @@
   }
 }
 
-/* Narrow frames scale the board down: keep its numbers legible. */
+/* Narrow frames scale the board down: keep its words and numbers legible. */
 .mm.narrow .slot-no {
+  font-size: 21px;
+}
+.mm.narrow .slot-no.hit {
   font-size: 17px;
 }
 .mm.narrow .num {
-  font-size: 23px;
+  font-size: 26px;
+}
+.mm.narrow .cant text {
+  font-size: 17px;
 }
 .mm.narrow .token .tnum,
-.mm.narrow .fly .tnum {
-  font-size: 18px;
+.mm.narrow .fly .tnum,
+.mm.narrow .snum {
+  font-size: 19px;
 }
 .mm.narrow .centre .small {
-  font-size: 15px;
+  font-size: 16px;
 }
 .mm.narrow .centre .cap {
-  font-size: 13px;
+  font-size: 15px;
+}
+.mm.narrow .rule {
+  font-size: 24px;
+}
+.mm.narrow .rule.win {
+  font-size: 28px;
 }

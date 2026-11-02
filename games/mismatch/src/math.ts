@@ -1,7 +1,7 @@
-// Mismatch: n coloured slots sit on a ring and n matching tokens sit in a bag.
-// Tokens are drawn one at a time, uniformly from the bag, into empty slots. A
-// token that lands in its own slot is a *match*. The player bets on the final
-// number of matches (none, exactly one, two or more, …).
+// Mismatch: N = 8 numbered slots sit on a ring and N matching tokens sit in a
+// bag. Tokens are drawn one at a time, uniformly from the bag, into slots
+// 1, 2, …, N in order. A token that lands in its own slot is a *match*. The
+// player bets on the final number of matches (none, at most one, 2+, 3+, 4+).
 //
 // The finished board is a uniformly random permutation and the matches are its
 // fixed points. Derangements: the chance of no match at all is
@@ -13,39 +13,38 @@
 //   r = empty slots = tokens still in the bag,
 //   a = "open" empty slots whose own token is still in the bag,
 //   m = matches so far.
-// An empty slot whose token has already been placed elsewhere can never match.
-// The rest of the deal is a uniform bijection from the r bag tokens to the r
-// empty slots, and only the a open slots can match, so by inclusion–exclusion
-// the number of completions with exactly j more matches is
+// An empty slot whose token has already been placed elsewhere can never match
+// (the board says so in words: "can't match"). The rest of the deal is a
+// uniform bijection from the r bag tokens to the r empty slots, and only the
+// a open slots can match, so by inclusion–exclusion the number of completions
+// with exactly j more matches is
 //   N(r, a, j) = Σ_{s=j..a} (−1)^{s−j} C(s, j) C(a, s) (r−s)!,
 // an exact integer (r ≤ 12, so every term is far below 2^53). The win chance
 // is P(win | r, a, m) = Σ_{j : m+j wins} N(r, a, j) / r!. The round ends the
 // moment that count is 0 or r! (an exact integer test, no float ties).
 //
 // The next draw into an open slot matches with chance 1/r: its own token is
-// one of the r tokens in the bag (drawn as one of r equal sectors of the bag
-// wheel). A slot whose token is gone matches with chance 0.
+// one of the r tokens in the bag, drawn as one of r equal slices of the bag
+// wheel (that slice is highlighted). A slot whose token is gone matches with
+// chance 0.
 //
 // Pricing (fixed prize). prize = RTP / P(win) is locked at the bet and
 // cash-out = prize × P(win | r, a, m). P(win | state) is the conditional
 // probability of one fixed event given everything revealed, and each draw is
-// uniform over the bag whichever empty slot the player fills, so
-// E[P after the draw] = P before for every slot choice (tested exactly via
+// uniform over the bag, so E[P after the draw] = P before (tested exactly via
 // the one-step recursion below). The cash-out is therefore a martingale that
-// starts at RTP: by optional stopping every cash-out rule and every slot
-// order returns exactly RTP. Choosing a slot changes the risk of the next draw,
-// never the value of the round. The cash-out never exceeds the prize, so the
-// largest payout is the largest prize on offer (MAX_MULTIPLIER).
+// starts at RTP: by optional stopping every cash-out rule returns exactly RTP.
+// The cash-out never exceeds the prize, so the largest payout is the largest
+// prize on offer (MAX_MULTIPLIER).
 
 import type { Rng, Volatility } from '@originals/game-sdk';
 
 export const RTP = 0.99;
 
-/** Slots on the ring (and tokens in the bag). */
-export const SIZES = [5, 8, 12] as const;
-export type Size = (typeof SIZES)[number];
+/** Slots on the ring (and tokens in the bag). Fixed: the target is the only knob. */
+export const N = 8;
 
-export type BetId = 'none' | 'one' | 'atMost1' | 'some' | 'two' | 'three' | 'four' | 'five';
+export type BetId = 'none' | 'atMost1' | 'two' | 'three' | 'four';
 
 export interface BetDef {
   id: BetId;
@@ -53,32 +52,25 @@ export interface BetDef {
   chip: string;
   /** Full name, e.g. "No matches". */
   name: string;
-  /** Short phrase for captions: "finish with …". */
-  phrase: string;
   /** Whether a final match count wins. */
   wins(k: number): boolean;
-  /** The finish strip groups counts from here up as "tail+". */
-  tail: number;
 }
 
 export const BETS: readonly BetDef[] = [
-  { id: 'none', chip: '0', name: 'No matches', phrase: 'no matches', wins: (k) => k === 0, tail: 3 },
-  { id: 'one', chip: '1', name: 'Exactly 1 match', phrase: 'exactly 1 match', wins: (k) => k === 1, tail: 3 },
-  { id: 'atMost1', chip: '≤ 1', name: 'At most 1 match', phrase: 'at most 1 match', wins: (k) => k <= 1, tail: 3 },
-  { id: 'some', chip: '1+', name: '1 or more matches', phrase: '1 or more matches', wins: (k) => k >= 1, tail: 3 },
-  { id: 'two', chip: '2+', name: '2 or more matches', phrase: '2 or more matches', wins: (k) => k >= 2, tail: 3 },
-  { id: 'three', chip: '3+', name: '3 or more matches', phrase: '3 or more matches', wins: (k) => k >= 3, tail: 3 },
-  { id: 'four', chip: '4+', name: '4 or more matches', phrase: '4 or more matches', wins: (k) => k >= 4, tail: 4 },
-  { id: 'five', chip: '5+', name: '5 or more matches', phrase: '5 or more matches', wins: (k) => k >= 5, tail: 5 },
+  { id: 'none', chip: '0', name: 'No matches', wins: (k) => k === 0 },
+  { id: 'atMost1', chip: '0–1', name: 'At most 1 match', wins: (k) => k <= 1 },
+  { id: 'two', chip: '2+', name: '2 or more matches', wins: (k) => k >= 2 },
+  { id: 'three', chip: '3+', name: '3 or more matches', wins: (k) => k >= 3 },
+  { id: 'four', chip: '4+', name: '4 or more matches', wins: (k) => k >= 4 },
 ];
 
 export const betDef = (id: BetId) => BETS.find((b) => b.id === id)!;
 
-export const VOLATILITY: Record<Volatility, { n: Size; bet: BetId }> = {
-  low: { n: 8, bet: 'atMost1' },
-  medium: { n: 8, bet: 'none' },
-  high: { n: 12, bet: 'three' },
-  extreme: { n: 12, bet: 'five' },
+export const VOLATILITY: Record<Volatility, BetId> = {
+  low: 'atMost1',
+  medium: 'none',
+  high: 'three',
+  extreme: 'four',
 };
 
 // ---------- Exact counting ----------
@@ -137,7 +129,7 @@ export interface Tally {
   m: number;
 }
 
-export const emptyBoard = (n: number): Placed => Array.from({ length: n }, () => null);
+export const emptyBoard = (n: number = N): Placed => Array.from({ length: n }, () => null);
 
 export function tally(placed: Placed): Tally {
   const used = new Set<number>();
@@ -171,10 +163,10 @@ export function decided(bet: BetDef, t: Tally): 'won' | 'lost' | null {
   return w === 0 ? 'lost' : w === FACT[t.r] ? 'won' : null;
 }
 
-export const headline = (n: number, bet: BetDef) => winChance(bet, { r: n, a: n, m: 0 });
-export const prizeFor = (n: number, bet: BetDef) => RTP / headline(n, bet);
+export const headline = (bet: BetDef, n: number = N) => winChance(bet, { r: n, a: n, m: 0 });
+export const prizeFor = (bet: BetDef, n: number = N) => RTP / headline(bet, n);
 
-/** The tokens still in the bag, in colour-wheel order. */
+/** The tokens still in the bag, in slot order. */
 export function bag(placed: Placed): number[] {
   const used = new Set<number>();
   for (const t of placed) if (t !== null) used.add(t);
@@ -188,6 +180,18 @@ export const isOpen = (placed: Placed, slot: number) => placed[slot] === null &&
 export function matchChance(placed: Placed, slot: number): number {
   if (placed[slot] !== null) return 0;
   return isOpen(placed, slot) ? 1 / tally(placed).r : 0;
+}
+
+/**
+ * Whether a match on the next draw into an open slot would raise ('up') or
+ * lower ('down') the win chance: the match slice is drawn green or red.
+ * Exact: P(after) = W'/(r−1)!, P(now) = W/r!, so compare W'·r with W.
+ */
+export function matchEffect(bet: BetDef, t: Tally): 'up' | 'down' | 'same' {
+  if (t.a === 0) return 'same';
+  const after = winCount(bet, { r: t.r - 1, a: t.a - 1, m: t.m + 1 }) * t.r;
+  const now = winCount(bet, t);
+  return after > now ? 'up' : after < now ? 'down' : 'same';
 }
 
 export interface Step {
@@ -217,23 +221,23 @@ export function steps({ r, a, m }: Tally, open: boolean): Step[] {
   return out;
 }
 
-/** The slot "Draw next" fills: the first empty one clockwise from the top. */
+/** The slot the next draw fills: the lowest-numbered empty one. */
 export const nextSlot = (placed: Placed) => placed.findIndex((t) => t === null);
 
 export interface Draw {
   slot: number;
   token: number;
-  /** The token's sector in the bag wheel (its index among the bag tokens). */
+  /** The token's slice in the bag wheel (its index among the bag tokens). */
   sector: number;
   /** Bag size at the draw. */
   of: number;
 }
 
-/** Draws a uniformly random bag token into `slot`. */
-export function drawInto(placed: Placed, slot: number, rng: Rng): Draw {
+/** Draws a uniformly random bag token into the next slot. */
+export function drawNext(placed: Placed, rng: Rng): Draw {
   const b = bag(placed);
   const sector = rng.int(b.length);
-  return { slot, token: b[sector], sector, of: b.length };
+  return { slot: nextSlot(placed), token: b[sector], sector, of: b.length };
 }
 
 export function place(placed: Placed, slot: number, token: number): Placed {
@@ -242,53 +246,22 @@ export function place(placed: Placed, slot: number, token: number): Placed {
   return next;
 }
 
-/** Plays draws in clockwise order until the outcome is certain ("Draw to the end"). */
+/** Plays draws in order until the outcome is certain ("Draw to the end"). */
 export function drawToEnd(placed: Placed, bet: BetDef, rng: Rng): Draw[] {
   const out: Draw[] = [];
   let p = placed;
   while (!decided(bet, tally(p))) {
-    const d = drawInto(p, nextSlot(p), rng);
+    const d = drawNext(p, rng);
     out.push(d);
     p = place(p, d.slot, d.token);
   }
   return out;
 }
 
-export interface FinishGroup {
-  /** Lowest final count in the group. */
-  from: number;
-  /** "3+" style when it is the open-ended tail. */
-  label: string;
-  tail: boolean;
-  p: number;
-  win: boolean;
-}
-
-/**
- * The "where you finish" strip: the final match count if the board were
- * dealt out from here, grouped with the bet's tail. Impossible counts are
- * left out. The win groups' shares add up to winChance exactly.
- */
-export function finishGroups(bet: BetDef, t: Tally): FinishGroup[] {
-  const c = completions(t.r, t.a);
-  const total = FACT[t.r];
-  const tail = Math.max(bet.tail, t.m);
-  const out: FinishGroup[] = [];
-  for (let k = t.m; k < tail; k++) {
-    const n = c[k - t.m] ?? 0;
-    if (n > 0) out.push({ from: k, label: String(k), tail: false, p: n / total, win: bet.wins(k) });
-  }
-  let rest = 0;
-  for (let j = Math.max(0, tail - t.m); j < c.length; j++) rest += c[j];
-  // The tail is a single group only when every count in it agrees with the bet (true for every bet on offer).
-  if (rest > 0) out.push({ from: tail, label: `${tail}+`, tail: true, p: rest / total, win: bet.wins(tail) });
-  return out;
-}
-
-export function volatilityOf(n: number, bet: BetDef): Volatility {
-  const p = headline(n, bet);
+export function volatilityOf(bet: BetDef): Volatility {
+  const p = headline(bet);
   return p > 0.5 ? 'low' : p > 0.2 ? 'medium' : p > 0.03 ? 'high' : 'extreme';
 }
 
 /** The largest prize on offer: no cash-out can exceed its round's prize. */
-export const MAX_MULTIPLIER = Math.max(...SIZES.flatMap((n) => BETS.map((b) => prizeFor(n, b))));
+export const MAX_MULTIPLIER = Math.max(...BETS.map((b) => prizeFor(b)));
