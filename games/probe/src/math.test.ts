@@ -3,26 +3,33 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  LIMITS,
-  LOADS,
+  BALLS,
   MAX_MULTIPLIER,
+  MAX_SLIDE,
   RTP,
-  SIZES,
-  afterSafeKey,
+  SLOTS,
+  afterSafeBall,
   blockCounts,
   clusters,
+  drop,
   emptyTable,
   fillChance,
-  fillChanceFrom,
   fillCount,
-  insert,
-  keysFor,
   maxMultiplier,
-  probeDistance,
   redCount,
   redSlots,
+  slideDistance,
+  volatilityOf,
+  winChance,
   type Table,
 } from './math';
+
+// The general maths is checked over several ring sizes and max slides; the
+// game itself uses SLOTS and MAX_SLIDE.
+const SIZES = [16, 24, 32];
+const LIMITS = [1, 2, 3, 5];
+const LOADS = [0.5, 0.625, 0.75];
+const keysFor = (m: number, load: number) => Math.round(m * load);
 
 const rng = createRng(seededSource(11));
 
@@ -30,7 +37,7 @@ const rng = createRng(seededSource(11));
 function reachable(m: number, n: number, limit: number, r: Rng): boolean[] {
   let table = emptyTable(m);
   for (let k = 0, tries = 0; k < n && tries < 500; tries++) {
-    const res = insert(table, r.int(m), limit);
+    const res = drop(table, r.int(m), limit);
     if (!res.safe) continue;
     table = res.table;
     k++;
@@ -51,7 +58,7 @@ function bruteCount(m: number, K: number, limit: number): number {
     let table: Table = emptyTable(m);
     let ok = true;
     for (const h of seq) {
-      const res = insert(table, h, limit);
+      const res = drop(table, h, limit);
       if (!res.safe) {
         ok = false;
         break;
@@ -82,27 +89,28 @@ describe('Probe maths', () => {
     }
   });
 
-  it('the closed form matches a direct simulation of linear probing', () => {
-    for (const m of SIZES) {
-      for (const limit of [1, 3]) {
-        const K = keysFor(m, 0.625);
-        const rounds = 20_000;
-        let wins = 0;
-        for (let r = 0; r < rounds; r++) {
-          const table = new Array<boolean>(m).fill(false);
-          let ok = true;
-          for (let k = 0; k < K && ok; k++) {
-            const h = rng.int(m);
-            let d = 0;
-            while (table[(h + d) % m]) d++;
-            if (d > limit) ok = false;
-            else table[(h + d) % m] = true;
-          }
-          if (ok) wins++;
+  it('the closed form matches a direct simulation of the raw sliding process', () => {
+    const cases: [number, number, number][] = [
+      ...SIZES.flatMap((m) => [1, 3].map((limit): [number, number, number] => [m, keysFor(m, 0.625), limit])),
+      ...BALLS.map((K): [number, number, number] => [SLOTS, K, MAX_SLIDE]),
+    ];
+    for (const [m, K, limit] of cases) {
+      const rounds = 20_000;
+      let wins = 0;
+      for (let r = 0; r < rounds; r++) {
+        const table = new Array<boolean>(m).fill(false);
+        let ok = true;
+        for (let k = 0; k < K && ok; k++) {
+          const h = rng.int(m);
+          let d = 0;
+          while (table[(h + d) % m]) d++;
+          if (d > limit) ok = false;
+          else table[(h + d) % m] = true;
         }
-        const p = fillChance(m, K, limit);
-        expect(Math.abs(wins / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds) + 1e-3);
+        if (ok) wins++;
       }
+      const p = fillChance(m, K, limit);
+      expect(Math.abs(wins / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds) + 1e-3);
     }
   });
 
@@ -114,13 +122,13 @@ describe('Probe maths', () => {
           const red = redSlots(table, limit);
           let busting = 0;
           for (let h = 0; h < m; h++) {
-            const res = insert(table, h, limit);
+            const res = drop(table, h, limit);
             expect(res.safe).toBe(!red[h]);
             // A red slot is one where h and the next P slots are all full.
             const allFull = Array.from({ length: limit + 1 }, (_, i) => table[(h + i) % m]).every(Boolean);
             expect(red[h]).toBe(allFull);
             if (!res.safe) busting++;
-            else expect(res.hops).toBe(probeDistance(table, h));
+            else expect(res.hops).toBe(slideDistance(table, h));
           }
           expect(busting).toBe(redCount(table, limit));
           const fromClusters = clusters(table).reduce((s, c) => s + Math.max(0, c.length - limit), 0);
@@ -139,57 +147,11 @@ describe('Probe maths', () => {
           const before = RTP * (1 + rng.next() * 5);
           let expected = 0;
           for (let h = 0; h < m; h++) {
-            if (insert(table, h, limit).safe) expected += afterSafeKey(before, red, m) / m;
+            if (drop(table, h, limit).safe) expected += afterSafeBall(before, red, m) / m;
           }
           expect(expected).toBeCloseTo(before, 10);
         }
       }
-    }
-  });
-
-  it('the live fill chance starts at the headline and is itself a martingale', () => {
-    for (const m of SIZES) {
-      for (const limit of LIMITS) {
-        for (const load of LOADS) {
-          const K = keysFor(m, load);
-          expect(fillChanceFrom(emptyTable(m), K, limit)).toBeCloseTo(fillChance(m, K, limit), 12);
-        }
-        for (let trial = 0; trial < 4; trial++) {
-          const K = keysFor(m, LOADS[rng.int(LOADS.length)]);
-          const table = reachable(m, 1 + rng.int(K - 1), limit, rng);
-          const now = fillChanceFrom(table, K, limit);
-          let next = 0;
-          for (let h = 0; h < m; h++) {
-            const res = insert(table, h, limit);
-            if (res.safe) next += fillChanceFrom(res.table, K, limit) / m;
-          }
-          expect(next).toBeCloseTo(now, 10);
-        }
-      }
-    }
-  });
-
-  it('the live fill chance matches simulation from a mid-round table', () => {
-    for (const [m, limit] of [
-      [24, 2],
-      [32, 1],
-    ] as const) {
-      const K = keysFor(m, 0.75);
-      const table = reachable(m, Math.round(K / 2), limit, rng);
-      const p = fillChanceFrom(table, K, limit);
-      const rounds = 20_000;
-      let wins = 0;
-      for (let r = 0; r < rounds; r++) {
-        let t: Table = table;
-        let ok = true;
-        for (let k = K - t.filter(Boolean).length; k > 0 && ok; k--) {
-          const res = insert(t, rng.int(m), limit);
-          ok = res.safe;
-          t = res.table;
-        }
-        if (ok) wins++;
-      }
-      expect(Math.abs(wins / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds) + 1e-3);
     }
   });
 
@@ -203,17 +165,30 @@ describe('Probe maths', () => {
           for (let k = 0; k < K; k++) {
             const red = redCount(table, limit);
             expect(red).toBeLessThanOrEqual(Math.max(0, k - limit));
-            const res = insert(table, k, limit);
+            const res = drop(table, k, limit);
             expect(res.safe).toBe(true);
-            cash = afterSafeKey(cash, red, m);
+            cash = afterSafeBall(cash, red, m);
             table = res.table;
           }
           expect(cash).toBeCloseTo(maxMultiplier(m, K, limit), 6);
-          expect(cash).toBeLessThanOrEqual(MAX_MULTIPLIER * (1 + 1e-12));
         }
       }
     }
+    for (const K of BALLS) expect(maxMultiplier(SLOTS, K, MAX_SLIDE)).toBeLessThanOrEqual(MAX_MULTIPLIER * (1 + 1e-12));
     expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
+  });
+
+  it('the one knob (balls to place) moves the chance to win over at least 25:1', () => {
+    const p = BALLS.map(winChance);
+    for (let i = 1; i < p.length; i++) expect(p[i]).toBeLessThan(p[i - 1]);
+    expect(p[0] / p[p.length - 1]).toBeGreaterThanOrEqual(25);
+    expect(BALLS.map(volatilityOf)).toEqual(['low', 'medium', 'high', 'extreme']);
+    // With a max slide of 1, a slot is red exactly when it and its clockwise neighbour are full.
+    for (let trial = 0; trial < 50; trial++) {
+      const table = reachable(SLOTS, 1 + rng.int(18), MAX_SLIDE, rng);
+      const red = redSlots(table, MAX_SLIDE);
+      for (let h = 0; h < SLOTS; h++) expect(red[h]).toBe(table[h] && table[(h + 1) % SLOTS]);
+    }
   });
 
   it('simulated RTP matches the manifest under sampled strategies', () => {

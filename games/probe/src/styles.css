@@ -30,7 +30,7 @@
   fill: color-mix(in srgb, var(--bg) 80%, var(--card));
   stroke: var(--line);
 }
-.probe .slot.key {
+.probe .slot.full {
   fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
   stroke: color-mix(in srgb, var(--accent) 75%, transparent);
 }
@@ -60,13 +60,14 @@
   font-family: inherit;
   pointer-events: none;
 }
-.probe .num {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  fill: color-mix(in srgb, var(--text) 82%, var(--accent));
+.probe .ball {
+  fill: var(--accent);
+  stroke: color-mix(in srgb, #fff 55%, var(--accent));
+  stroke-width: 1.2;
 }
-.probe .num.red {
+.probe .ball.red {
   fill: #fff;
+  stroke: var(--red);
 }
 
 .probe .reach {
@@ -110,17 +111,17 @@
 .probe .token.hop {
   transition-timing-function: ease-in-out;
 }
-.probe .key-token {
+.probe .drop-token {
   fill: #fff;
   stroke: var(--accent);
   stroke-width: 3;
   filter: drop-shadow(0 0 7px var(--accent));
 }
-.probe .key-token.placed {
+.probe .drop-token.placed {
   fill: var(--accent);
   stroke: #fff;
 }
-.probe .key-token.bust {
+.probe .drop-token.bust {
   fill: var(--red);
   stroke: #fff;
   filter: drop-shadow(0 0 9px var(--red));
@@ -161,12 +162,32 @@
   fill: var(--green);
 }
 .probe .mini {
+  fill: color-mix(in srgb, var(--bg) 80%, var(--card));
+  stroke: var(--line);
+  stroke-width: 1.4;
+}
+.probe .mini.full {
+  fill: color-mix(in srgb, var(--accent) 30%, var(--bg));
+  stroke: color-mix(in srgb, var(--accent) 75%, transparent);
+}
+.probe .mini-ball {
+  fill: var(--accent);
+}
+.probe .mini-arrow {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 1.6;
 }
-.probe .mini.home {
-  fill: color-mix(in srgb, var(--accent) 45%, transparent);
+.probe .mini-head {
+  fill: var(--text);
+}
+.probe .legend-red {
+  fill: color-mix(in srgb, var(--red) 52%, var(--bg));
+  stroke: var(--red);
+}
+.probe .small.legend {
+  text-anchor: start;
+  font-size: 12px;
 }
 
 @keyframes probe-pop {

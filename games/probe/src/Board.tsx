@@ -1,13 +1,13 @@
-// The hash table as a ring of slots. Each slot is 1/m of the ring, so the
-// red slots (homes whose key would overflow) are literally the bust chance.
+// The ring of slots. Each slot is 1/m of the ring, so the red slots (where a
+// landing ball would bust) are literally the bust chance.
 
 const C = 200;
 /** Inner and outer radius of the slot ring. */
 const R1 = 134;
 const R2 = 172;
-/** The probe track, where the probing key rides. */
+/** The outer track, where the dropping ball rides. */
 const RT = 187;
-/** The inner progress ring (one segment per key to store). */
+/** The inner progress ring (one segment per ball to place). */
 const RP = 116;
 
 const polar = (turn: number, r: number) => {
@@ -35,16 +35,18 @@ function arc(t0: number, t1: number, r: number) {
 }
 
 export interface Flight {
-  /** The slot the key hashed to. */
+  /** The slot the ball landed on. */
   home: number;
-  /** Slots probed past home so far. */
+  /** Slots slid past the landing slot so far. */
   hop: number;
-  /** Whether the key has reached its home (the probe window shows from then). */
+  /** Whether the ball has reached its landing slot (the slide window shows from then). */
   arrived: boolean;
-  /** Whether the key fits (decided when it was hashed). */
+  /** Whether the ball fits (decided when it was dropped). */
   safe: boolean;
   /** Whether the animation has finished. */
   done: boolean;
+  /** How far the nearest empty slot was (for drawing a bust). */
+  need: number;
 }
 
 export interface TokenPos {
@@ -60,8 +62,7 @@ export interface BoardProps {
   target: number;
   table: readonly boolean[];
   red: readonly boolean[];
-  dist: readonly number[];
-  stored: number;
+  placed: number;
   newest: number | null;
   flight: Flight | null;
   token: TokenPos;
@@ -70,7 +71,6 @@ export interface BoardProps {
   /** Whether to show the live risk line (the round is still going). */
   live: boolean;
   redCount: number;
-  fillNow: number;
   /** Lets the game measure the board (narrow boards get the result card inline). */
   svgRef?: (el: SVGSVGElement | null) => void;
 }
@@ -83,50 +83,46 @@ const pct = (p: number) => {
 };
 
 export default function Board(props: BoardProps) {
-  const { m, limit, target, table, red, dist, stored, newest, flight, token, started, live, redCount, fillNow, svgRef } = props;
+  const { m, limit, target, table, red, placed, newest, flight, token, started, live, redCount, svgRef } = props;
   const gap = 0.0026;
-  const numSize = m <= 16 ? 15 : m <= 24 ? 13.5 : 12;
   const busted = !!flight && flight.done && !flight.safe;
+  const ballR = m <= 16 ? 9 : m <= 24 ? 8 : 6.5;
 
-  // Slots the current key has looked at: home .. home + hop.
+  // Slots the current ball has passed over: landing slot .. landing + hop.
   const probed = new Set<number>();
   if (flight?.arrived) for (let i = 0; i <= flight.hop; i++) probed.add((flight.home + i) % m);
 
-  // The probe window (home + limit slots) shows while the key probes, and stays red on an overflow.
+  // The slide window (landing slot + max slide) shows while the ball slides, and stays red on a bust.
   const windowArc = flight?.arrived && (!flight.done || busted) ? arc(flight.home / m + gap, (flight.home + limit + 1) / m - gap, RT) : null;
-  // On an overflow: how far the free slot really was, beyond the window.
-  const need = busted && flight ? dist[flight.home] : 0;
+  // On a bust: how far the empty slot really was, beyond the window.
+  const need = busted && flight ? flight.need : 0;
   const reach = busted && flight ? arc((flight.home + limit + 1) / m + gap, (flight.home + need + 0.5) / m, RT) : null;
   const miss = busted && flight ? polar((flight.home + need + 0.5) / m, RT) : null;
   const showNew = !flight || (flight.done && !busted);
 
   return (
-    <svg ref={svgRef} viewBox="0 0 400 400" className="probe" role="img" aria-label={`${stored} of ${target} keys stored in ${m} slots; ${redCount} red slots`}>
-      {/* Probe track and the current key's probe window (home + limit slots). */}
+    <svg ref={svgRef} viewBox="0 0 400 400" className="probe" role="img" aria-label={`${placed} of ${target} balls placed in ${m} slots; ${redCount} red slots`}>
+      {/* Outer track and the current ball's slide window. */}
       <circle cx={C} cy={C} r={RT} className="track" />
       {windowArc && <path d={windowArc} className={'window' + (busted ? ' bust' : '')} />}
 
-      {/* The slots. */}
+      {/* The slots, each with its ball if full. */}
       {table.map((full, i) => {
         const t0 = i / m + gap;
         const t1 = (i + 1) / m - gap;
-        const cls = ['slot', full ? 'key' : 'empty', red[i] ? 'red' : '', showNew && i === newest ? 'new' : '', probed.has(i) ? (busted ? 'overflow' : 'probed') : '']
+        const cls = ['slot', full ? 'full' : 'empty', red[i] ? 'red' : '', showNew && i === newest ? 'new' : '', probed.has(i) ? (busted ? 'overflow' : 'probed') : '']
           .filter(Boolean)
           .join(' ');
         const mid = polar((i + 0.5) / m, (R1 + R2) / 2);
         return (
           <g key={i}>
             <path d={sector(t0, t1, R1, R2)} className={cls} />
-            {full && (
-              <text x={mid.x} y={mid.y} className={'num' + (red[i] ? ' red' : '')} style={{ fontSize: numSize }}>
-                {dist[i]}
-              </text>
-            )}
+            {full && <circle cx={mid.x} cy={mid.y} r={ballR} className={'ball' + (red[i] ? ' red' : '')} />}
           </g>
         );
       })}
 
-      {/* Overflow: the free slot it needed lay beyond the window. */}
+      {/* Bust: the empty slot it needed lay beyond the window. */}
       {reach && miss && (
         <>
           <path d={reach} className="reach" />
@@ -137,14 +133,14 @@ export default function Board(props: BoardProps) {
         </>
       )}
 
-      {/* Probed slots along the track. */}
+      {/* Slots passed over, along the track. */}
       {flight?.arrived &&
         [...probed].map((s) => {
           const p = polar((s + 0.5) / m, RT);
           return <circle key={`p${s}`} cx={p.x} cy={p.y} r={3.2} className={'probe-dot' + (busted ? ' bust' : '')} />;
         })}
 
-      {/* Where the key hashed to. */}
+      {/* Where the ball landed. */}
       {flight?.arrived && (
         <path
           d={(() => {
@@ -157,61 +153,88 @@ export default function Board(props: BoardProps) {
         />
       )}
 
-      {/* The key being probed rides the track. */}
+      {/* The dropping ball rides the track. */}
       {flight && (
         <g
           className={`token ${token.ease}`}
           style={{ transform: `rotate(${token.turn * 360}deg)`, transitionDuration: `${token.ms}ms` }}
         >
-          <circle cx={C} cy={C - RT} r={busted ? 9 : 7.5} className={'key-token' + (busted ? ' bust' : flight.done ? ' placed' : '')} />
+          <circle cx={C} cy={C - RT} r={busted ? 9 : 7.5} className={'drop-token' + (busted ? ' bust' : flight.done ? ' placed' : '')} />
         </g>
       )}
 
-      {/* Progress: one segment per key to store. */}
+      {/* Progress: one segment per ball to place. */}
       {Array.from({ length: target }, (_, k) => {
         const g = Math.min(0.006, 0.18 / target);
-        return <path key={`k${k}`} d={arc(k / target + g, (k + 1) / target - g, RP)} className={'goal' + (k < stored ? ' on' : '')} />;
+        return <path key={`k${k}`} d={arc(k / target + g, (k + 1) / target - g, RP)} className={'goal' + (k < placed ? ' on' : '')} />;
       })}
 
       {/* Centre readout. */}
       {started ? (
         <>
-          <text x={C} y={C - 14} className="big">
-            {stored}
+          <text x={C} y={C - 22} className="big">
+            {placed}
             <tspan className="of">/{target}</tspan>
           </text>
-          <text x={C} y={C + 10} className="small">
-            keys stored
+          <text x={C} y={C + 2} className="small">
+            balls placed
           </text>
           {live && (
             <>
-              <text x={C} y={C + 40} className={'risk' + (redCount === 0 ? ' free' : '')}>
-                {redCount === 0 ? 'no red slots · free key' : `${redCount} red of ${m} · ${pct(redCount / m)} bust`}
+              <text x={C} y={C + 32} className={'risk' + (redCount === 0 ? ' free' : '')}>
+                {redCount === 0 ? 'No red slots · can’t bust' : `${redCount} red of ${m} · ${pct(redCount / m)} bust`}
               </text>
-              <text x={C} y={C + 62} className="small">
-                fill chance from here {pct(fillNow)}
-              </text>
+              <g transform={`translate(${C} ${C + 58})`}>
+                <rect x={-76} y={-6} width={12} height={12} rx={2} className="legend-red" />
+                <text x={-58} y={0} className="small legend">
+                  red = landing here busts
+                </text>
+              </g>
             </>
           )}
         </>
       ) : (
         <>
-          <text x={C} y={C - 14} className="big">
+          <text x={C} y={C - 30} className="big">
             {target}
-            <tspan className="of"> keys</tspan>
+            <tspan className="of"> balls</tspan>
           </text>
-          <text x={C} y={C + 10} className="small">
+          <text x={C} y={C - 6} className="small">
             into {m} slots
           </text>
-          {/* The probe window in miniature: home plus `limit` more slots. */}
-          {Array.from({ length: limit + 1 }, (_, i) => {
-            const w = 15;
-            const g = 4;
-            const x0 = C - ((limit + 1) * w + limit * g) / 2;
-            return <rect key={`w${i}`} x={x0 + i * (w + g)} y={C + 30} width={w} height={w} rx={3} className={'mini' + (i === 0 ? ' home' : '')} />;
-          })}
+          {/* The rule in miniature: a ball lands on a full slot and slides on to the next. */}
+          {(() => {
+            const w = 22;
+            const g = 6;
+            const n = limit + 1;
+            const x0 = C - (n * w + (n - 1) * g) / 2;
+            const y = C + 22;
+            return (
+              <>
+                {Array.from({ length: n }, (_, i) => (
+                  <rect key={`w${i}`} x={x0 + i * (w + g)} y={y} width={w} height={w} rx={4} className={'mini' + (i < n - 1 ? ' full' : '')} />
+                ))}
+                {Array.from({ length: n - 1 }, (_, i) => (
+                  <circle key={`b${i}`} cx={x0 + i * (w + g) + w / 2} cy={y + w / 2} r={5} className="mini-ball" />
+                ))}
+                <path
+                  d={`M ${x0 + w / 2} ${y - 5} Q ${x0 + (n - 1) * (w + g) / 2 + w / 2} ${y - 18} ${x0 + (n - 1) * (w + g) + w / 2} ${y - 5}`}
+                  className="mini-arrow"
+                  markerEnd="url(#probe-arrow)"
+                />
+                <defs>
+                  <marker id="probe-arrow" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M 0 0 L 8 4 L 0 8 Z" className="mini-head" />
+                  </marker>
+                </defs>
+              </>
+            );
+          })()}
           <text x={C} y={C + 66} className="small">
-            home + {limit} probe{limit === 1 ? '' : 's'} max
+            lands on a full slot? it slides on
+          </text>
+          <text x={C} y={C + 84} className="small">
+            max slide: {limit} slot{limit === 1 ? '' : 's'}
           </text>
         </>
       )}
