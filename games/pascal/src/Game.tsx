@@ -30,19 +30,17 @@ import { useEffect, useRef, useState } from 'react';
 import Field, { type Outcome, type Phase } from './Board';
 import {
   MAX_MULTIPLIER,
+  N,
   RTP,
-  SIZES,
+  ROW_CENTRE,
   START,
   WIDTHS,
-  choose,
-  downRightChance,
+  cardsLeft,
   gateCentre,
-  headlineTally,
-  maxWidth,
+  headline,
   placeGate,
   positions,
   prizeFor,
-  rowCentre,
   rowOf,
   runToGate,
   sealed,
@@ -51,21 +49,19 @@ import {
   volatilityOf,
   type Gate,
   type Pos,
-  type Size,
 } from './math';
 
 const ACCENT = '#b8f2e6';
 
 interface Round {
   id: number;
-  n: Size;
   gate: Gate;
   stake: number;
   /** Locked at the bet: RTP / P(win). */
   prize: number;
-  /** Every tile the path has reached after the start, including a move still animating. */
+  /** Every tile the ball has reached after the start, including a move still animating. */
   path: Pos[];
-  /** The resolved cash-out after the latest move. */
+  /** The resolved cash-out after the latest card. */
   cash: number;
   outcome: Outcome | null;
   running: boolean;
@@ -79,17 +75,25 @@ const TITLE: Record<Outcome, string> = {
   cashed: 'Cashed out',
 };
 
-const fmtCount = (x: number) => x.toLocaleString('en-US');
-const plural = (x: number, w: string) => `${x} ${w}${x === 1 ? '' : 's'}`;
+/** What the line under the bar says once the round is over. */
+const OVER_LINE: Record<Outcome, string> = {
+  through: 'The ball landed in your gate',
+  locked: "The last cards can't miss your gate",
+  missed: 'The ball landed outside your gate',
+  unreachable: "The last cards can't reach your gate",
+  cashed: 'Cashed out',
+};
 
-function offsetText(g: Gate, n: number) {
-  const d = gateCentre(g) - rowCentre(n, g.row);
+const RULE = `Six ↙ cards and six ↘ cards are shuffled. The ball follows the first ${N} dealt; land it in the green gate to win.`;
+
+function offsetText(g: Gate) {
+  const d = gateCentre(g) - ROW_CENTRE;
   if (Math.abs(d) < 1e-9) return 'centre';
   const k = Math.abs(d);
-  return `${k % 1 ? k.toFixed(1) : k} ${d < 0 ? 'left' : 'right'}`;
+  return `${k % 1 ? k.toFixed(1) : k} ${d < 0 ? 'left' : 'right'} of centre`;
 }
 
-/** Narrow boards get the result card inline, below the board, so it never covers the crossing bar. */
+/** Narrow boards get the result card inline, below the board, so it never covers the bar. */
 function useNarrow(threshold: number) {
   const [el, setEl] = useState<SVGSVGElement | null>(null);
   const [narrow, setNarrow] = useState(false);
@@ -110,17 +114,16 @@ export default function Game() {
   const [history, pushHistory] = useHistory();
   const [narrow, svgRef] = useNarrow(470);
 
-  const [size, setSize] = useState<Size>(6);
-  const [gate, setGate] = useState<Gate>(() => placeGate(6, 6, 1, 3));
+  const [gate, setGate] = useState<Gate>(() => placeGate(1, ROW_CENTRE));
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [shown, setShown] = useState(0);
-  const [stepMs, setStepMs] = useState(380);
+  const [stepMs, setStepMs] = useState(420);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
-  // A move is decided the moment it starts, so leaving mid-animation settles
-  // at its real result, never at the pre-move value.
+  // A card is decided the moment it is dealt, so leaving mid-animation settles
+  // at its real result, never at the pre-deal value.
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : round?.cash ?? 0));
 
@@ -135,22 +138,22 @@ export default function Game() {
     setPhase('over');
   }
 
-  /** One step, or run until the round is sealed; then checkpoint or end. */
+  /** Deal one card, or deal until the round is sealed; then pause or end. */
   function move(r: Round, run: boolean) {
     const seen = r.path.length;
     const from = r.path[seen - 1] ?? START;
-    const drawn = run ? runToGate(r.n, from, r.gate, rng) : [step(r.n, from, rng)];
+    const drawn = run ? runToGate(from, r.gate, rng) : [step(from, rng)];
     const path = [...r.path, ...drawn];
     const end = path[path.length - 1];
-    const fate = sealed(r.n, end, r.gate);
-    const t = tally(r.n, end, r.gate);
+    const fate = sealed(end, r.gate);
+    const t = tally(end, r.gate);
     const cash = fate === 'win' ? r.prize : fate === 'lose' ? 0 : (r.prize * t.through) / t.total;
     resolved.current = cash;
     const next: Round = { ...r, path, cash, running: run };
 
-    const per = Math.round((run ? 190 : 380) * speed);
-    const hold = Math.round((run ? 220 : 60) * speed);
-    // A new round snaps the walker back to the top before it moves.
+    const per = Math.round((run ? 300 : 460) * speed);
+    const hold = Math.round((run ? 240 : 80) * speed);
+    // A new round snaps the ball back to the top before it moves.
     const lead = seen === 0 ? 40 : 0;
     setStepMs(seen === 0 ? 0 : per);
     setRound(next);
@@ -165,7 +168,7 @@ export default function Game() {
 
     timers.after(lead + per * drawn.length + hold, () => {
       if (fate) {
-        const onRow = rowOf(end) === r.gate.row;
+        const onRow = rowOf(end) === N;
         return finish(next, fate === 'win' ? (onRow ? 'through' : 'locked') : onRow ? 'missed' : 'unreachable', cash);
       }
       setShown(path.length);
@@ -181,10 +184,9 @@ export default function Game() {
     timers.clearAll();
     const r: Round = {
       id: ++seq.current,
-      n: size,
       gate,
       stake: bet.value,
-      prize: prizeFor(size, gate),
+      prize: prizeFor(gate),
       path: [],
       cash: RTP,
       outcome: null,
@@ -213,18 +215,9 @@ export default function Game() {
     if (phase === 'over') clear();
   };
 
-  const setGateRow = (row: number) =>
-    change(() => setGate((g) => placeGate(size, row, g.width, rowCentre(size, row) + (gateCentre(g) - rowCentre(size, g.row)))));
-  const setGateWidth = (width: number) => change(() => setGate((g) => placeGate(size, g.row, width, gateCentre(g))));
+  const setGateWidth = (width: number) => change(() => setGate((g) => placeGate(width, gateCentre(g))));
   const setGateLo = (lo: number) => change(() => setGate((g) => ({ ...g, lo })));
-  const setGrid = (n: Size) =>
-    change(() => {
-      const k = n / size;
-      const row = Math.min(2 * n - 1, Math.max(1, Math.round(gate.row * k)));
-      setSize(n);
-      setGate(placeGate(n, row, gate.width, rowCentre(n, row) + (gateCentre(gate) - rowCentre(size, gate.row)) * k));
-    });
-  const pickTile = (tile: Pos) => change(() => setGate((g) => placeGate(size, rowOf(tile), g.width, tile.a)));
+  const pickTile = (a: number) => change(() => setGate((g) => placeGate(g.width, a)));
 
   useHotkeys(
     {
@@ -235,26 +228,29 @@ export default function Game() {
   );
 
   // What the board shows: the live or finished round, else a preview of the settings.
-  const n = round?.n ?? size;
   const g = round?.gate ?? gate;
   const trail = round ? round.path.slice(0, phase === 'stepping' ? shown : round.path.length) : [];
   const walker = trail[trail.length - 1] ?? START;
-  const prize = round?.prize ?? prizeFor(size, gate);
+  const prize = round?.prize ?? prizeFor(gate);
   const stake = round?.stake ?? bet.value;
-  const now = tally(n, walker, g);
+  const now = tally(walker, g);
   const pNow = now.through / now.total;
   const cash = phase === 'over' && round ? round.cash : round ? prize * pNow : RTP;
-  const steps = rowOf(walker);
-  const head = headlineTally(size, gate);
-  const p0 = head.through / head.total;
-  const qR = downRightChance(n, walker);
-  const lows = positions(size, gate.row, gate.width);
+  const dealt = rowOf(walker);
+  const p0 = headline(gate);
+  const lows = positions(gate.width);
+  const deck = cardsLeft(walker);
 
-  let status = `Ready · gate on row ${g.row} of ${2 * n}`;
-  if (phase === 'stepping') status = round?.running ? `Running to the gate · step ${steps}` : `Step ${steps} of ${g.row}`;
-  if (phase === 'checkpoint') status = `Checkpoint · step ${steps} of ${g.row}`;
-  if (phase === 'over' && round?.outcome) status = `${TITLE[round.outcome]} · step ${steps}`;
+  let status = `Ready · ${N} cards to the bottom row`;
+  if (phase === 'stepping') status = round?.running ? `Dealing to the gate · card ${dealt}` : `Dealing card ${dealt} of ${N}`;
+  if (phase === 'checkpoint') status = `Your call · ${dealt} of ${N} cards dealt`;
+  if (phase === 'over' && round?.outcome) status = `${TITLE[round.outcome]} · ${dealt} of ${N} cards`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
+
+  let prompt = 'Tap a bottom tile to move the gate';
+  if (phase === 'stepping') prompt = round?.running ? 'Dealing to the gate…' : 'Dealing…';
+  if (phase === 'checkpoint') prompt = 'Deal the next card, or cash out';
+  if (phase === 'over' && round?.outcome) prompt = OVER_LINE[round.outcome];
 
   return (
     <GameLayout
@@ -264,47 +260,23 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint={`${fmtCount(choose(2 * size, size))} equal paths`}>Grid</Label>
-          <Chips label="Grid size" options={SIZES.map((v) => ({ value: v, label: `${v}×${v}` }))} value={size} disabled={live} onChange={setGrid} />
-
-          <Label hint={`${plural(gate.row, 'step')} to decide`}>
-            Gate row: <b style={{ color: 'var(--text)' }}>{gate.row}</b> of {2 * size}
-          </Label>
-          <Slider label="Gate row" min={1} max={2 * size - 1} value={gate.row} disabled={live} onChange={setGateRow} />
-
           <Label hint={<VolBadge level={volatilityOf(p0)} />}>Gate width</Label>
           <Chips
             label="Gate width"
-            options={WIDTHS.map((v) => ({
-              value: v,
-              label: `${v} tile${v > 1 ? 's' : ''}`,
-              disabled: v > maxWidth(size, gate.row),
-              title: v > maxWidth(size, gate.row) ? 'A gate must cover less than half its row' : undefined,
-            }))}
+            options={WIDTHS.map((v) => ({ value: v, label: `${v} tile${v > 1 ? 's' : ''}` }))}
             value={gate.width}
             disabled={live}
             onChange={setGateWidth}
           />
 
-          <Label hint={offsetText(gate, size)}>Gate position</Label>
-          <Slider
-            label="Gate position"
-            min={lows[0]}
-            max={lows[lows.length - 1]}
-            value={gate.lo}
-            disabled={live || lows.length < 2}
-            onChange={setGateLo}
-          />
+          <Label hint={offsetText(gate)}>Gate position</Label>
+          <Slider label="Gate position" min={lows[0]} max={lows[lows.length - 1]} value={gate.lo} disabled={live} onChange={setGateLo} />
 
           <dl className="og-stats">
             <dt>Chance to win</dt>
             <dd>{fmtChance(p0)}</dd>
-            <dt>Paths through gate</dt>
-            <dd>
-              {fmtCount(head.through)} / {fmtCount(head.total)}
-            </dd>
             <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(size, gate))}</dd>
+            <dd>{fmtMult(prizeFor(gate))}</dd>
           </dl>
 
           {live && round ? (
@@ -312,8 +284,11 @@ export default function Game() {
               <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, false)}>
-                Step · ↙ {Math.round((1 - qR) * 100)}% / ↘ {Math.round(qR * 100)}%
+              <ActionButton kind="secondary" className="pas-next" disabled={phase !== 'checkpoint'} onClick={() => move(round, false)}>
+                Deal next card
+                <small>
+                  {deck.left} ↙ · {deck.right} ↘ left
+                </small>
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, true)}>
                 Run to the gate
@@ -333,16 +308,11 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(pNow),
-            sub: `${fmtCount(now.through)} of ${fmtCount(now.total)} paths`,
-            tone: 'chance',
-          },
+          { label: 'Win chance', value: fmtChance(pNow), sub: 'ball lands in the gate', tone: 'chance' },
           {
             label: 'Cash out now',
             value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after every step',
+            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after every card',
             tone: 'cash',
           },
           { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
@@ -350,102 +320,86 @@ export default function Game() {
       />
 
       <Board className="pas-board">
-          <Field
-            svgRef={svgRef}
-            n={n}
-            gate={g}
-            walker={walker}
-            trail={trail}
-            phase={phase}
-            outcome={round?.outcome ?? null}
-            stepMs={phase === 'stepping' ? stepMs : 0}
-            onPick={live ? undefined : pickTile}
-          />
-          {phase === 'over' && round?.outcome && (
-            <RoundOver
-              key={history[0]?.id}
-              title={TITLE[round.outcome]}
-              multiplier={round.cash}
-              stake={round.stake}
-              nextBet={bet.value}
-              blocked={bet.blocked}
-              onBetAgain={() => void start()}
-              onClear={clear}
-              placement={narrow ? 'inline' : g.row > n ? 'top' : 'bottom'}
-            />
-          )}
-        </Board>
-
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label="Chance the path crosses your gate"
-          note="The green share of the crossing bar: paths from the walker through your gate, out of every path from the walker."
+        <Field
+          svgRef={svgRef}
+          gate={g}
+          walker={walker}
+          trail={trail}
+          phase={phase}
+          outcome={round?.outcome ?? null}
+          stepMs={phase === 'stepping' ? stepMs : 0}
+          prompt={prompt}
+          onPick={live ? undefined : pickTile}
         />
-      ) : (
-        <Caption>
-          All {fmtCount(choose(2 * n, n))} paths from top to bottom are equally likely. {fmtCount(headlineTally(n, g).through)} of them cross row {g.row}{' '}
-          through your gate: {fmtChance(headlineTally(n, g).through / headlineTally(n, g).total)}. Click any tile to move the gate. RTP{' '}
-          {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+        {phase === 'over' && round?.outcome && (
+          <RoundOver
+            key={history[0]?.id}
+            title={TITLE[round.outcome]}
+            multiplier={round.cash}
+            stake={round.stake}
+            nextBet={bet.value}
+            blocked={bet.blocked}
+            onBetAgain={() => void start()}
+            onClear={clear}
+            placement={narrow ? 'inline' : dealt >= N / 2 ? 'top' : 'bottom'}
+          />
+        )}
+      </Board>
+
+      {live ? <ChanceBar p={pNow} label="Chance to pass through the gate" note={RULE} /> : <Caption>{RULE} RTP {(RTP * 100).toFixed(0)}%.</Caption>}
 
       {infoOpen && (
         <InfoModal title="Pascal" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A random path runs from the top tile to the bottom tile, one step at a time, down-left (↙) or down-right (↘). Before it starts you place a{' '}
-              <b style={{ color: 'var(--green)' }}>gate</b>: one to four tiles on one row. If the path crosses that row through your gate, you win the prize.
+              A ball starts on the top tile of a triangle and drops one row per card. Land it in your <b style={{ color: 'var(--green)' }}>gate</b>: one
+              to three tiles on the bottom row.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick the grid, the gate's row, its width and its position (or click a tile on the board), then bet. The bet takes the first step.</li>
+              <li>Pick the gate's width, and move it with the slider or by tapping a bottom tile. Then bet. The bet deals the first card.</li>
               <li>
-                After every step you can cash out (C), take one more <b>Step</b> (Space), or <b>Run to the gate</b> and let it play out. Slow or fast, both
-                are worth the same.
+                The deck holds six <b>↙</b> cards and six <b>↘</b> cards, shuffled. Each card dealt moves the ball one tile that way and leaves the pile
+                in the corner. Six cards take the ball to the bottom row.
               </li>
               <li>
-                The round ends the moment it is decided: when every path left passes your gate (you win), when none can (you lose), or when the path reaches
-                the gate row.
+                After every card the round waits for you: <b>Cash out</b> (C), <b>Deal next card</b> (Space), or <b>Run to the gate</b> to deal the rest.
+                It ends early once the result is certain.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              <b>The numbers count paths.</b> Above the gate row each tile shows how many ways the walker can still reach it: Pascal's triangle, grown from
-              the walker, each number the sum of the two above it. Below the gate row each tile shows how many ways lead from it to the bottom: Pascal's
-              triangle grown upwards from the end. On the gate row the two meet, and each tile shows <b>ways in × ways out</b>, the number of whole paths
-              that cross there.
+              <b>The next card</b> is just the piles in the corners. With 3 ↙ cards and 5 ↘ cards left, the next card is ↘ with chance 5 in 8. Once
+              you have seen a lot of ↙ cards, ↘ cards become more likely, which pulls the ball back towards the middle.
             </p>
             <p>
-              <b>The crossing bar</b> under the board splits every path still possible by where it crosses the gate row. The{' '}
-              <b style={{ color: 'var(--green)' }}>green share</b> is exactly your chance to win. The corner meters show the moves left and the chance the
-              next step goes each way; the arrows from the walker are drawn in proportion.
+              <b>The bar</b> under the triangle is the bottom row again, each tile stretched to its chance of being where the ball lands. The{' '}
+              <b style={{ color: 'var(--green)' }}>green share</b> is your gate: your exact chance to win. Tiles the ball can no longer reach are dimmed
+              and drop out of the bar.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              On an n×n grid a path makes n moves each way, so there are C(2n, n) paths: 924 on 6×6, 12,870 on 8×8. Every one is equally likely. A
-              tile i steps ↘ and j steps ↙ from the start is crossed by C(i+j, i) · C(2n−i−j, n−i) of them, so
+              The ball's bottom tile is the number of ↘ cards among the first six dealt from the deck: a hypergeometric draw. With R ↘ and L ↙ cards left
+              and k cards still to deal,
             </p>
             <p style={{ textAlign: 'center' }}>
-              <b>P(through gate) = Σ (ways in × ways out) ÷ C(2n, n)</b>
+              <b>P(j more ↘) = C(R, j) · C(L, k − j) ÷ C(R + L, k)</b>
             </p>
             <p>
-              A uniform path is a shuffled deck of n ↘ cards and n ↙ cards, so the next step is ↘ with chance (↘ left) ÷ (moves left). That is what makes it
-              different from Plinko: Plinko bounces 50/50 forever, while here the deck runs out, which keeps pulling the walker back towards the middle. Every
-              row of the board is crossed exactly once, which is why a gate's tiles simply add up. Row r and row 2n − r have the same odds, so a far gate is
-              just a longer ride.
+              From the start that is C(6, t)² ÷ 924 for bottom tile t: 1, 36, 225, 400, 225, 36 and 1 in 924, the squares of a row of Pascal's triangle
+              (Vandermonde's identity).
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              The prize is locked when you bet at {(RTP * 100).toFixed(0)}% ÷ (your gate's chance). Cashing out pays prize × your chance now, an exact ratio
-              of path counts. By Pascal's rule (each count is the sum of the two below it) your chance after a step averages exactly to your chance before
-              it, so every step is a fair bet and, by optional stopping, the round is worth {(RTP * 100).toFixed(0)}% of your stake whenever you cash out and
-              wherever you put the gate. A gate must cover less than half its row and have at least a 1 in 2,000 chance, so the largest prize is{' '}
-              {fmtMult(MAX_MULTIPLIER)}.
+              The prize is locked when you bet at {(RTP * 100).toFixed(0)}% ÷ (your gate's chance). Cashing out pays prize × your chance now, an exact
+              ratio of whole numbers. Your chance is a conditional probability of one fixed event, so averaged over the next card (weighted by the cards
+              left) it stays exactly the same: every card is a fair bet and, by optional stopping, the round is worth {(RTP * 100).toFixed(0)}% of your
+              stake whenever you cash out and wherever you put the gate. A gate must cover less than half the row and have at least a 1 in 2,000 chance,
+              so the largest prize is {fmtMult(MAX_MULTIPLIER)} (a corner tile).
             </p>
           </InfoSection>
         </InfoModal>

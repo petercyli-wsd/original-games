@@ -4,9 +4,10 @@ import { MAX_MULTIPLIER, RTP } from './math';
 export default defineManifest({
   id: 'pascal',
   name: 'Pascal',
-  tagline: 'A random path runs down Pascal’s triangle, every path equally likely. Pick a gate; the share of paths through it is your chance.',
+  tagline: 'Six ↙ cards and six ↘ cards are shuffled; the ball follows the cards dealt down the triangle. Land it in your gate.',
   mechanic: 'combinatorics',
   status: 'prototype',
+  revision: { kind: 'improved', date: '2026-11-02', note: 'The left/right moves are now a visible deck of cards, the board stops at the gate row, and gate width and position are the only settings.' },
   rtp: RTP,
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
