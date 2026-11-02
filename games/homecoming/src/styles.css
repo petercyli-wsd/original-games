@@ -9,7 +9,7 @@
   fill: var(--text);
 }
 .homecoming .axis {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   font-style: italic;
   fill: var(--muted);
@@ -24,10 +24,15 @@
   stroke-width: 1;
 }
 .homecoming .tick.major {
-  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke: color-mix(in srgb, var(--text) 38%, transparent);
 }
 .homecoming .tick-label {
   font-size: 10px;
+  fill: var(--muted);
+}
+.homecoming .dir-label {
+  font-size: 11px;
+  font-weight: 600;
   fill: var(--muted);
 }
 .homecoming .home-col {
@@ -42,18 +47,15 @@
   fill: color-mix(in srgb, var(--red) 14%, transparent);
   stroke: color-mix(in srgb, var(--red) 65%, transparent);
 }
-.homecoming .home-col.hit {
-  filter: drop-shadow(0 0 10px currentColor);
-}
 .homecoming .home-col.good.hit {
-  fill: color-mix(in srgb, var(--green) 45%, transparent);
+  fill: color-mix(in srgb, var(--green) 50%, transparent);
 }
 .homecoming .home-col.bad.hit {
-  fill: color-mix(in srgb, var(--red) 45%, transparent);
+  fill: color-mix(in srgb, var(--red) 50%, transparent);
 }
 .homecoming .home-label {
-  font-size: 10.5px;
-  font-weight: 700;
+  font-size: 11px;
+  font-weight: 800;
   letter-spacing: 0.6px;
   text-transform: uppercase;
 }
@@ -63,18 +65,54 @@
 .homecoming .bad {
   fill: var(--red);
 }
+.homecoming .out {
+  transition-property: x, width;
+  transition-timing-function: ease-out;
+}
+.homecoming .out.bad {
+  fill: color-mix(in srgb, var(--red) 20%, transparent);
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
+  stroke-dasharray: 4 3;
+}
+.homecoming .out.good {
+  fill: color-mix(in srgb, var(--green) 18%, transparent);
+  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+  stroke-dasharray: 4 3;
+}
+.homecoming .out-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.homecoming .out-label.bad {
+  fill: var(--red);
+}
+.homecoming .out-label.good {
+  fill: var(--green);
+}
 .homecoming .gap {
-  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke: color-mix(in srgb, var(--accent) 50%, transparent);
   stroke-width: 6;
   stroke-linecap: round;
+  transition-property: x2;
+  transition-timing-function: ease-out;
 }
 .homecoming .coord {
+  transition-property: transform;
+  transition-timing-function: ease-out;
+}
+.homecoming .coord circle {
   fill: var(--accent);
   stroke: var(--bg);
   stroke-width: 2.5;
-  transition-property: transform;
-  transition-timing-function: ease-out;
   filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 60%, transparent));
+}
+.homecoming .coord-num {
+  font-size: 11px;
+  font-weight: 800;
+  fill: #1a1024;
+  font-variant-numeric: tabular-nums;
 }
 .homecoming .title {
   font-size: 12px;
@@ -86,99 +124,61 @@
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
-.homecoming .chart-bg {
-  fill: color-mix(in srgb, var(--bg) 60%, transparent);
-  stroke: var(--line);
-  stroke-width: 1;
-}
-.homecoming .wedge.bad {
-  fill: color-mix(in srgb, var(--red) 18%, transparent);
-  stroke: color-mix(in srgb, var(--red) 70%, transparent);
-  stroke-dasharray: 5 4;
-}
-.homecoming .wedge.good {
-  fill: color-mix(in srgb, var(--green) 16%, transparent);
-  stroke: color-mix(in srgb, var(--green) 70%, transparent);
-  stroke-dasharray: 5 4;
-}
-.homecoming .wedge-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-.homecoming .home-line {
-  stroke-width: 3;
-}
-.homecoming .home-line.good {
-  stroke: var(--green);
-}
-.homecoming .home-line.bad {
-  stroke: var(--red);
-}
-.homecoming .side-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  fill: var(--muted);
-}
-.homecoming .side-label.good {
+.homecoming .title .good {
   fill: var(--green);
+  font-weight: 800;
 }
-.homecoming .side-label.bad {
+.homecoming .title .bad {
   fill: var(--red);
+  font-weight: 800;
 }
-.homecoming .trail {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
-  stroke-linejoin: round;
-}
-.homecoming .now-dot {
+.homecoming .pip {
   fill: var(--accent);
-  stroke: var(--bg);
-  stroke-width: 2;
+  transition: fill 0.2s ease;
 }
-.homecoming .bar-bg {
+.homecoming .pip.used {
   fill: var(--hover);
 }
-.homecoming .bar {
+.homecoming .slot rect {
+  stroke-width: 1.5;
   transition:
-    y 0.25s ease,
-    height 0.25s ease;
+    opacity 0.15s ease,
+    stroke-width 0.15s ease;
 }
-.homecoming .bar.up {
-  fill: color-mix(in srgb, var(--green) 75%, transparent);
+.homecoming .slot.good rect {
+  fill: color-mix(in srgb, var(--green) 20%, transparent);
+  stroke: color-mix(in srgb, var(--green) 75%, transparent);
 }
-.homecoming .bar.down {
-  fill: color-mix(in srgb, var(--red) 70%, transparent);
+.homecoming .slot.bad rect {
+  fill: color-mix(in srgb, var(--red) 18%, transparent);
+  stroke: color-mix(in srgb, var(--red) 70%, transparent);
 }
-.homecoming .bar-label {
-  font-size: 11px;
-  font-weight: 700;
-  fill: var(--muted);
-}
-.homecoming .bar-val {
-  font-size: 11px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.homecoming .bar-val.good {
+.homecoming .slot.good text {
   fill: var(--green);
 }
-.homecoming .bar-val.bad {
+.homecoming .slot.bad text {
   fill: var(--red);
 }
-.homecoming .avg {
+.homecoming .slot.dim {
+  opacity: 0.3;
+}
+.homecoming .slot.drawn rect {
   stroke: var(--text);
-  stroke-width: 1.5;
-  stroke-dasharray: 5 4;
+  stroke-width: 3;
 }
-.homecoming .avg-label {
-  font-size: 10px;
-  fill: var(--muted);
+.homecoming .slot.good.drawn rect {
+  fill: color-mix(in srgb, var(--green) 45%, transparent);
 }
-.homecoming .avg-num {
-  font-size: 12px;
+.homecoming .slot.bad.drawn rect {
+  fill: color-mix(in srgb, var(--red) 42%, transparent);
+}
+.homecoming .slot-arrow {
+  font-size: 15px;
   font-weight: 800;
-  font-variant-numeric: tabular-nums;
+}
+.homecoming .slot-word {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
 }
