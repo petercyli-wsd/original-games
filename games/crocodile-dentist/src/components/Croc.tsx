@@ -14,6 +14,10 @@ interface Props {
   danger: number; // 0..1, closes the jaw a little as the odds worsen
   focused: boolean; // House is concentrating
   open: boolean; // a round is in play; the jaw stays shut otherwise
+  // Steady jaw: open at a fixed gape before, during and after a round (so the
+  // teeth never move), shutting only for a bite and then reopening to show
+  // the bad teeth. `open` and `danger` are ignored.
+  steady?: boolean;
 }
 
 // Mouth geometry: teeth sit on the lower half of an ellipse.
@@ -51,13 +55,14 @@ function toothPath(w: number, h: number) {
 // Upper-jaw bottom edge is the quadratic (30,90)-(400,140)-(770,90).
 const upperEdgeY = (t: number) => 90 + 100 * t * (1 - t);
 
-export default function Croc({ N, pressed, revealed, playable, onPress, houseTarget, fx, danger, focused, open }: Props) {
+export default function Croc({ N, pressed, revealed, playable, onPress, houseTarget, fx, danger, focused, open, steady = false }: Props) {
   const teeth = useMemo(() => toothLayout(N), [N]);
   const [hover, setHover] = useState<number | null>(null);
   const [chomp, setChomp] = useState<Presser | null>(null);
-  const [shut, setShut] = useState(!open);
+  const [shut, setShut] = useState(!open && !steady);
 
   useEffect(() => {
+    if (steady) return;
     if (open) {
       setShut(false);
       return;
@@ -65,7 +70,7 @@ export default function Croc({ N, pressed, revealed, playable, onPress, houseTar
     // Let the bad-teeth reveal play before the jaw closes.
     const t = setTimeout(() => setShut(true), 1400);
     return () => clearTimeout(t);
-  }, [open]);
+  }, [open, steady]);
 
   useEffect(() => {
     if (!fx.kind) return;
@@ -73,7 +78,12 @@ export default function Croc({ N, pressed, revealed, playable, onPress, houseTar
     setShut(true);
     setChomp(fx.kind);
     const t = setTimeout(() => setChomp(null), 820);
-    return () => clearTimeout(t);
+    // A steady jaw reopens after the bite to show where the bad teeth were.
+    const t2 = steady ? setTimeout(() => setShut(false), 1300) : undefined;
+    return () => {
+      clearTimeout(t);
+      if (t2) clearTimeout(t2);
+    };
   }, [fx.id, fx.kind]);
 
   const look = houseTarget ?? hover;
@@ -85,7 +95,7 @@ export default function Croc({ N, pressed, revealed, playable, onPress, houseTar
     return { x: (dx / d) * 14, y: (dy / d) * 14 };
   };
 
-  const openY = chomp || shut ? SHUT_Y : -26 + danger * 70;
+  const openY = chomp || shut ? SHUT_Y : -26 + (steady ? 0 : danger * 70);
   const upperTeeth = Array.from({ length: 11 }, (_, i) => 0.07 + (0.86 * i) / 10);
   // Lower teeth that poke up between the upper ones when the jaw is shut.
   const lowerTeeth = Array.from({ length: 8 }, (_, i) => 0.199 + 0.086 * i);

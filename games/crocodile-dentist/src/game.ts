@@ -1,4 +1,4 @@
-import { buildLadder, fmtMult, type Rung } from './math';
+import { BITE, buildLadder, fmtMult, type Rung } from './math';
 
 export type Phase = 'idle' | 'you' | 'house' | 'over';
 export type Presser = 'you' | 'house';
@@ -8,7 +8,6 @@ export interface Round {
   bet: number;
   N: number;
   k: number;
-  J: number;
   traps: number[];
   pressed: (Presser | null)[];
   ladder: Rung[];
@@ -28,7 +27,7 @@ export interface GameState {
 }
 
 export type Action =
-  | { type: 'start'; bet: number; N: number; k: number; J: number; rtp: number; traps: number[] }
+  | { type: 'start'; bet: number; N: number; k: number; rtp: number; traps: number[] }
   | { type: 'pressYou'; i: number }
   | { type: 'houseTarget'; i: number }
   | { type: 'pressHouse'; i: number }
@@ -40,7 +39,7 @@ export function initialState(): GameState {
     phase: 'idle',
     round: null,
     history: [],
-    message: { text: 'Place a bet to open wide.', tone: 'neutral' },
+    message: { text: 'Place a bet, then press a tooth.', tone: 'neutral' },
     fx: { id: 0, kind: null },
     houseTarget: null,
   };
@@ -70,10 +69,9 @@ export function reducer(s: GameState, a: Action): GameState {
           bet: a.bet,
           N: a.N,
           k: a.k,
-          J: a.J,
           traps: a.traps,
           pressed: Array(a.N).fill(null),
-          ladder: buildLadder(a.N, a.k, a.J, a.rtp),
+          ladder: buildLadder(a.N, a.k, BITE, a.rtp),
           r: 0,
           cashMult: 0,
         },
@@ -91,7 +89,7 @@ export function reducer(s: GameState, a: Action): GameState {
       if (rd.traps.includes(a.i)) {
         return finish(s, round, 0, 'CHOMP! You got bitten.', 'lose', 'you');
       }
-      return { ...s, round, phase: 'house', message: { text: "Phew, that one was safe. Now it's the House's turn…", tone: 'neutral' } };
+      return { ...s, round, phase: 'house', message: { text: "Safe! Now it's the House's turn…", tone: 'neutral' } };
     }
 
     case 'houseTarget':
@@ -130,4 +128,20 @@ export function reducer(s: GameState, a: Action): GameState {
       if (s.phase !== 'over') return s;
       return { ...s, phase: 'idle', round: null, message: initialState().message };
   }
+}
+
+/**
+ * What the open bet is worth right now, which is what leaving mid-round
+ * settles at. On your turn it is the current cash-out (RTP before the first
+ * press). On the House's turn the outcome is already fixed by the tooth it
+ * has picked, so it settles at the resolved value.
+ */
+export function fairValue(s: GameState, houseTarget: number | null): number {
+  const rd = s.round;
+  if (!rd || (s.phase !== 'you' && s.phase !== 'house')) return 0;
+  const rung = rd.ladder[rd.r];
+  if (s.phase === 'you') return rung.cash;
+  if (houseTarget !== null) return rd.traps.includes(houseTarget) ? rung.bite : rung.next;
+  const q = rd.k / (rung.n - 1);
+  return q * rung.bite + (1 - q) * rung.next;
 }

@@ -20,15 +20,10 @@ export interface CrocColors {
 
 export interface CrocConfig {
   rtp: number;
-  teethOptions: number[];
-  defaultTeeth: number;
+  // The jaw size is fixed; the number of bad teeth is the one risk knob.
+  teeth: number;
   badTeethOptions: number[];
   defaultBadTeeth: number;
-  // Bite Bonus = what the House getting bitten pays, relative to the next
-  // cash-out rung. 1 = pure ladder, 2 = (with 1 bad tooth) a pure 50/50 duel.
-  biteBonusMin: number;
-  biteBonusMax: number;
-  defaultBiteBonus: number;
   houseDelay: number;
   turboHouseDelay: number;
   colors: CrocColors;
@@ -36,13 +31,9 @@ export interface CrocConfig {
 
 export const DEFAULT_CONFIG: CrocConfig = {
   rtp: 0.99,
-  teethOptions: [8, 10, 12, 16, 20],
-  defaultTeeth: 12,
-  badTeethOptions: [1, 2, 3, 4, 5],
-  defaultBadTeeth: 1,
-  biteBonusMin: 1,
-  biteBonusMax: 2,
-  defaultBiteBonus: 1.5,
+  teeth: 20,
+  badTeethOptions: [1, 2, 4, 7, 12, 19],
+  defaultBadTeeth: 4,
   houseDelay: 900,
   turboHouseDelay: 200,
   colors: {
@@ -62,7 +53,7 @@ export const DEFAULT_CONFIG: CrocConfig = {
   },
 };
 
-const KEY = 'croc.config.v2';
+const KEY = 'croc.config.v3';
 
 export function loadConfig(): CrocConfig {
   try {
