@@ -1,49 +1,53 @@
 // Round state machine. The wallet lives in the host; the reducer only plays the
 // round. A finished round's multiplier is `result.mult`, which the app settles.
-// Randomness is injected through the `pick` action so the reducer stays pure.
+// Randomness is injected through the `draw` action (the ball index is chosen
+// when the draw starts), so the reducer stays pure and a draw's result is fixed
+// before its animation plays.
 
-import { PRESETS, prize, winProbability, type Colour, type PresetId } from './math';
+import { MAJORITY, PRESETS, prize, winChance, type Colour, type PresetId } from './math';
 
-export type Phase = 'idle' | 'drawing' | 'checkpoint' | 'over';
+/** live: waiting for Draw or Cash out. drawing: a ball is out of the urn. */
+export type Phase = 'idle' | 'live' | 'drawing' | 'over';
 
 export type Outcome =
   | 'cashed' // player took M × P_t
-  | 'won' // blue held the majority after the last draw
-  | 'lost'
-  | 'clinched' // blue's majority became certain before the last draw
-  | 'sealed'; // red's majority became certain before the last draw
+  | 'won' // blue reached the majority of draws
+  | 'lost'; // red did
 
 export interface Round {
   preset: PresetId;
-  draws: number;
   bet: number;
   prize: number;
   /** Urn contents in the order they went in; twins are appended. */
   balls: Colour[];
-  blue: number;
-  red: number;
   /** Colour of each draw so far. */
   history: Colour[];
   /** Win chance after t draws; probs[0] is the starting chance. */
   probs: number[];
 }
 
+export interface Drawing {
+  /** Index of the ball taken out of the urn. */
+  index: number;
+  /** True once its twin is shown next to it, just before both go back in. */
+  twin: boolean;
+}
+
 export interface GameState {
   phase: Phase;
   round: Round | null;
-  /** Draws still to make in the current burst, and the burst's size (for pacing). */
-  pending: number;
-  burst: number;
-  /** Index of the ball being drawn, while it is shown lifted out of the urn. */
-  picked: number | null;
+  /** The ball being drawn, while it is out of the urn. */
+  drawing: Drawing | null;
+  /** The last ball drawn (its twin is the last ball in the urn), for highlighting. */
+  lastDrawn: number | null;
   result: { mult: number; outcome: Outcome } | null;
   recent: { id: number; mult: number }[];
 }
 
 export type Action =
-  | { type: 'start'; bet: number; preset: PresetId; draws: number }
-  | { type: 'draw'; count: number }
-  | { type: 'pick'; index: number }
+  | { type: 'start'; bet: number; preset: PresetId }
+  | { type: 'draw'; index: number }
+  | { type: 'twin' }
   | { type: 'apply' }
   | { type: 'cashOut' }
   | { type: 'clear' };
@@ -51,9 +55,8 @@ export type Action =
 export const initialState = (): GameState => ({
   phase: 'idle',
   round: null,
-  pending: 0,
-  burst: 0,
-  picked: null,
+  drawing: null,
+  lastDrawn: null,
   result: null,
   recent: [],
 });
@@ -67,8 +70,21 @@ export function startingBalls(preset: PresetId): Colour[] {
   );
 }
 
-export const currentCash = (r: Round) => r.prize * r.probs[r.probs.length - 1];
-export const drawsLeft = (r: Round) => r.draws - r.history.length;
+export const newRound = (preset: PresetId, bet: number): Round => ({
+  preset,
+  bet,
+  prize: prize(preset),
+  balls: startingBalls(preset),
+  history: [],
+  probs: [winChance(preset, 0, 0)],
+});
+
+export const drawnCounts = (r: Round) => {
+  const blue = r.history.filter((c) => c === 'blue').length;
+  return { blue, red: r.history.length - blue };
+};
+export const currentChance = (r: Round) => r.probs[r.probs.length - 1];
+export const currentCash = (r: Round) => r.prize * currentChance(r);
 
 function finish(state: GameState, round: Round, mult: number, outcome: Outcome): GameState {
   const id = (state.recent[0]?.id ?? 0) + 1;
@@ -76,8 +92,7 @@ function finish(state: GameState, round: Round, mult: number, outcome: Outcome):
     ...state,
     phase: 'over',
     round,
-    pending: 0,
-    picked: null,
+    drawing: null,
     result: { mult, outcome },
     recent: [{ id, mult }, ...state.recent].slice(0, 8),
   };
@@ -85,59 +100,56 @@ function finish(state: GameState, round: Round, mult: number, outcome: Outcome):
 
 export function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
-    case 'start': {
-      const { blue, red } = PRESETS[action.preset];
-      const round: Round = {
-        preset: action.preset,
-        draws: action.draws,
-        bet: action.bet,
-        prize: prize(action.preset, action.draws),
-        balls: startingBalls(action.preset),
-        blue,
-        red,
-        history: [],
-        probs: [winProbability(blue, red, action.draws)],
+    case 'start':
+      // Betting only fills the urn; the first ball comes out on Draw.
+      return {
+        ...state,
+        phase: 'live',
+        round: newRound(action.preset, action.bet),
+        drawing: null,
+        lastDrawn: null,
+        result: null,
       };
-      // The first draw happens straight away; there's nothing to cash before it.
-      return { ...state, phase: 'drawing', round, pending: 1, burst: 1, picked: null, result: null };
-    }
 
-    case 'draw': {
-      if (state.phase !== 'checkpoint' || !state.round) return state;
-      const count = Math.min(action.count, drawsLeft(state.round));
-      return { ...state, phase: 'drawing', pending: count, burst: count };
-    }
+    case 'draw':
+      if (state.phase !== 'live' || !state.round) return state;
+      return { ...state, phase: 'drawing', drawing: { index: action.index, twin: false }, lastDrawn: null };
 
-    case 'pick':
-      return state.phase === 'drawing' ? { ...state, picked: action.index } : state;
+    case 'twin':
+      return state.phase === 'drawing' && state.drawing ? { ...state, drawing: { ...state.drawing, twin: true } } : state;
 
     case 'apply': {
       const r = state.round;
-      if (state.phase !== 'drawing' || !r || state.picked === null) return state;
-      const colour = r.balls[state.picked];
-      const blue = r.blue + (colour === 'blue' ? 1 : 0);
-      const red = r.red + (colour === 'red' ? 1 : 0);
-      const left = r.draws - r.history.length - 1;
-      const p = winProbability(blue, red, left);
-      const round: Round = {
-        ...r,
-        balls: [...r.balls, colour],
-        blue,
-        red,
-        history: [...r.history, colour],
-        probs: [...r.probs, p],
-      };
-      if (p === 1) return finish(state, round, r.prize, left === 0 ? 'won' : 'clinched');
-      if (p === 0) return finish(state, round, 0, left === 0 ? 'lost' : 'sealed');
-      const pending = state.pending - 1;
-      return { ...state, round, picked: null, pending, phase: pending > 0 ? 'drawing' : 'checkpoint' };
+      if (state.phase !== 'drawing' || !r || !state.drawing) return state;
+      const colour = r.balls[state.drawing.index];
+      const history = [...r.history, colour];
+      const blue = history.filter((c) => c === 'blue').length;
+      const red = history.length - blue;
+      const p = winChance(r.preset, blue, red);
+      const round: Round = { ...r, balls: [...r.balls, colour], history, probs: [...r.probs, p] };
+      const next = { ...state, lastDrawn: state.drawing.index };
+      if (blue >= MAJORITY) return finish(next, round, r.prize, 'won');
+      if (red >= MAJORITY) return finish(next, round, 0, 'lost');
+      return { ...next, round, drawing: null, phase: 'live' };
     }
 
     case 'cashOut':
-      if (state.phase !== 'checkpoint' || !state.round) return state;
+      // Nothing to cash before the first draw.
+      if (state.phase !== 'live' || !state.round || state.round.history.length === 0) return state;
       return finish(state, state.round, currentCash(state.round), 'cashed');
 
     case 'clear':
-      return state.phase === 'over' ? { ...state, phase: 'idle', round: null, result: null } : state;
+      return state.phase === 'over' ? { ...state, phase: 'idle', round: null, result: null, lastDrawn: null } : state;
   }
+}
+
+/**
+ * What the round is worth right now, counting a draw already under way as
+ * done: leaving mid-animation settles at the drawn result, not the old value.
+ */
+export function settledValue(state: GameState): number {
+  if (state.phase === 'over' && state.result) return state.result.mult;
+  if (!state.round) return 0;
+  if (state.phase === 'drawing') return settledValue(reducer(state, { type: 'apply' }));
+  return currentCash(state.round);
 }

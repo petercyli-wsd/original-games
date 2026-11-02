@@ -1,25 +1,35 @@
 import { defineEval } from '@originals/game-sdk';
-import { PRESETS, PRESET_IDS, cashMultiplier, drawColour, winProbability, type Pace, type PresetId } from './math';
+import { MAJORITY, PRESETS, PRESET_IDS, cashMultiplier, drawColour, urnAfter, winChance, type PresetId } from './math';
 
-// The simulated player picks a random number of draws to stop after (1..N,
-// where N means "play it out"), so the eval covers every cash-out strategy.
-// Rounds end early, as in the game, once the outcome is decided. One config
-// per preset at the standard pace, plus the setting with the top prize.
-const config = (preset: PresetId, draws: Pace) => ({ label: `${PRESETS[preset].name} · ${draws} draws`, params: { preset, draws } });
+// The simulated player mixes the ways people stop: cash out after a random
+// number of draws, cash out once the win chance crosses a random threshold
+// (either way), or play to the end. Cash-out is offered after every draw from
+// the first; rounds end, as in the game, once one colour reaches the majority.
+type Strategy = 'random-stop' | 'threshold' | 'to-the-end';
+const STRATEGIES: Strategy[] = ['random-stop', 'threshold', 'to-the-end'];
 
-export default defineEval<{ preset: PresetId; draws: Pace }>({
-  configs: [...PRESET_IDS.map((preset) => config(preset, 21)), config('longshot', 11)],
-  playRound({ preset, draws }, rng) {
-    let { blue, red } = PRESETS[preset];
-    const stopAfter = 1 + rng.int(draws);
-    for (let d = 1; d <= draws; d++) {
-      if (drawColour(blue, red, rng.next()) === 'blue') blue++;
-      else red++;
-      const p = winProbability(blue, red, draws - d);
-      if (p === 0 || p === 1 || d === stopAfter) {
-        return { multiplier: cashMultiplier(preset, draws, blue, red, draws - d), steps: d };
-      }
+export default defineEval<{ preset: PresetId }>({
+  configs: PRESET_IDS.map((preset) => ({ label: `${PRESETS[preset].name} ${PRESETS[preset].blue}:${PRESETS[preset].red}`, params: { preset } })),
+  playRound({ preset }, rng) {
+    const strategy = STRATEGIES[rng.int(STRATEGIES.length)];
+    const stopAfter = 1 + rng.int(2 * MAJORITY - 1);
+    const p0 = winChance(preset, 0, 0);
+    // Take profit above p0 × (1 + up), or cut losses below p0 × down.
+    const up = 0.2 + rng.next();
+    const down = rng.next() * 0.8;
+    let b = 0;
+    let r = 0;
+    for (let d = 1; ; d++) {
+      const urn = urnAfter(preset, b, r);
+      if (drawColour(urn.blue, urn.red, rng.next()) === 'blue') b++;
+      else r++;
+      const p = winChance(preset, b, r);
+      const stop =
+        p === 0 ||
+        p === 1 ||
+        (strategy === 'random-stop' && d === stopAfter) ||
+        (strategy === 'threshold' && (p >= Math.min(0.999, p0 * (1 + up)) || p <= p0 * down));
+      if (stop) return { multiplier: cashMultiplier(preset, b, r), steps: d };
     }
-    throw new Error('unreachable: the last draw always decides the round');
   },
 });
