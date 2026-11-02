@@ -3,14 +3,12 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  ARENAS,
   FREE_DROPS,
   MAX_WIN,
   RTP,
   TARGETS,
+  SQUARE,
   afterSafeDrop,
-  arenaArea,
-  arenaPolygon,
   convexChance,
   cross,
   edgesBeyond,
@@ -23,7 +21,6 @@ import {
   newWedge,
   swallowed,
   zones,
-  type Arena,
   type Pt,
 } from './math';
 
@@ -31,11 +28,11 @@ const rng = createRng(seededSource(11));
 const within4SE = (hits: number, n: number, p: number) => Math.abs(hits / n - p) < 4 * Math.sqrt((p * (1 - p)) / n) + 1e-9;
 
 /** A reachable state: k points in convex position, dropped one at a time. */
-function reachable(arena: Arena, k: number): Pt[] {
+function reachable(k: number): Pt[] {
   for (;;) {
     const pts: Pt[] = [];
     while (pts.length < k) {
-      const p = samplePoint(arena, rng.next);
+      const p = samplePoint(rng.next);
       if (!landsSafe(hull(pts), p)) break;
       pts.push(p);
     }
@@ -47,47 +44,48 @@ const inside = (poly: readonly Pt[], p: Pt) => poly.every((a, i) => cross(a, pol
 
 describe('Convex maths', () => {
   it("Valtr's formula: known values (Sylvester's four-point problem)", () => {
-    for (const arena of ARENAS) for (let n = 1; n <= 3; n++) expect(convexChance(n, arena)).toBe(1);
-    expect(convexChance(4, 'square')).toBeCloseTo(25 / 36, 14);
-    expect(convexChance(4, 'triangle')).toBeCloseTo(2 / 3, 14);
-    expect(convexChance(5, 'square')).toBeCloseTo((70 / 120) ** 2, 14);
-    expect(convexChance(8, 'square')).toBeCloseTo((3432 / 40320) ** 2, 14);
-    expect(convexChance(5, 'triangle')).toBeCloseTo((32 * 479001600) / (24 ** 3 * 3628800), 14);
+    for (let n = 1; n <= 3; n++) expect(convexChance(n)).toBe(1);
+    expect(convexChance(4)).toBeCloseTo(25 / 36, 14);
+    expect(convexChance(5)).toBeCloseTo((70 / 120) ** 2, 14);
+    expect(convexChance(6)).toBeCloseTo((252 / 720) ** 2, 14);
+    expect(convexChance(8)).toBeCloseTo((3432 / 40320) ** 2, 14);
+    // The knob moves the chance to place every dot by well over 25:1.
+    expect(convexChance(4) / convexChance(8)).toBeGreaterThan(25);
   });
 
   it('the headline odds match a direct simulation of the raw process', () => {
-    for (const arena of ARENAS) {
+    {
       for (const n of TARGETS) {
-        const rounds = 12_000;
+        const rounds = 20_000;
         let raw = 0;
         let game = 0;
         for (let r = 0; r < rounds; r++) {
           // Raw definition: n uniform points, all corners of their hull.
-          if (inConvexPosition(Array.from({ length: n }, () => samplePoint(arena, rng.next)))) raw++;
+          if (inConvexPosition(Array.from({ length: n }, () => samplePoint(rng.next)))) raw++;
           // The game's rule: drop until the first point that is not safe.
           const pts: Pt[] = [];
           while (pts.length < n) {
-            const p = samplePoint(arena, rng.next);
+            const p = samplePoint(rng.next);
             if (!landsSafe(hull(pts), p)) break;
             pts.push(p);
           }
           if (pts.length === n) game++;
         }
-        const p = convexChance(n, arena);
-        expect(within4SE(raw, rounds, p), `${arena} n=${n} raw ${raw / rounds} vs ${p}`).toBe(true);
-        expect(within4SE(game, rounds, p), `${arena} n=${n} game ${game / rounds} vs ${p}`).toBe(true);
+        const p = convexChance(n);
+        expect(within4SE(raw, rounds, p), `n=${n} raw ${raw / rounds} vs ${p}`).toBe(true);
+        expect(within4SE(game, rounds, p), `n=${n} game ${game / rounds} vs ${p}`).toBe(true);
       }
     }
   });
 
-  it('the samplers are uniform on the arena', () => {
-    for (const arena of ARENAS) {
-      const poly = arenaPolygon(arena);
+  it('the samplers are uniform on the square', () => {
+    {
+      const poly = SQUARE;
       const rounds = 20_000;
       let left = 0;
       let outside = 0;
       for (let r = 0; r < rounds; r++) {
-        const p = samplePoint(arena, rng.next);
+        const p = samplePoint(rng.next);
         if (!inside(poly, p)) outside++;
         if (p.x < 0.5) left++;
       }
@@ -98,15 +96,15 @@ describe('Convex maths', () => {
 
   it('the drawn red area is exactly where the next point busts (grid sweep)', () => {
     const N = 220;
-    for (const arena of ARENAS) {
-      const poly = arenaPolygon(arena);
+    {
+      const poly = SQUARE;
       for (let trial = 0; trial < 6; trial++) {
-        const pts = reachable(arena, FREE_DROPS + (trial % 6));
-        const { hull: h, caps, q } = zones(pts, arena);
+        const pts = reachable(FREE_DROPS + (trial % 6));
+        const { hull: h, caps, q } = zones(pts);
         expect(h.length).toBe(pts.length);
         // Caps lie in the arena and are disjoint, so their areas add up.
         for (const cap of caps) for (const v of cap) expect(inside(poly, v) || poly.some((a, i) => Math.abs(cross(a, poly[(i + 1) % poly.length], v)) < 1e-12)).toBe(true);
-        expect(q).toBeCloseTo(1 - caps.reduce((s, c) => s + polygonArea(c), 0) / arenaArea(arena), 12);
+        expect(q).toBeCloseTo(1 - caps.reduce((s, c) => s + polygonArea(c), 0), 12);
 
         const lines = h.map((a, i) => [a, h[(i + 1) % h.length]] as const);
         let cells = 0;
@@ -135,11 +133,11 @@ describe('Convex maths', () => {
   });
 
   it('swallowed corners are exactly the corners the new point knocks off the hull', () => {
-    for (const arena of ARENAS) {
+    {
       for (let trial = 0; trial < 200; trial++) {
-        const pts = reachable(arena, 3 + (trial % 5));
+        const pts = reachable(3 + (trial % 5));
         const h = hull(pts);
-        const p = samplePoint(arena, rng.next);
+        const p = samplePoint(rng.next);
         const after = hull([...pts, p]);
         const lost = pts.filter((v) => !after.includes(v));
         if (edgesBeyond(h, p) === 0) continue; // inside: p itself is the non-corner
@@ -154,10 +152,10 @@ describe('Convex maths', () => {
   });
 
   it('each drop is a fair bet: E[cash-out after] = cash-out before', () => {
-    for (const arena of ARENAS) {
+    {
       for (let trial = 0; trial < 40; trial++) {
-        const pts = reachable(arena, FREE_DROPS + (trial % 5));
-        const { q } = zones(pts, arena);
+        const pts = reachable(FREE_DROPS + (trial % 5));
+        const { q } = zones(pts);
         const before = RTP * (1 + rng.next() * 20);
         // Exactly: survive with 1 − q and get before / (1 − q), else 0.
         expect((1 - q) * afterSafeDrop(before, q) + q * 0).toBeCloseTo(before, 9);
@@ -165,20 +163,20 @@ describe('Convex maths', () => {
       // And against the raw process at several reachable states: drop a uniform point,
       // pay before/(1 − q) if all points are still corners (raw hull test), else 0.
       for (let trial = 0; trial < 6; trial++) {
-        const pts = reachable(arena, FREE_DROPS + (trial % 4));
-        const { q } = zones(pts, arena);
+        const pts = reachable(FREE_DROPS + (trial % 4));
+        const { q } = zones(pts);
         const before = RTP * (1 + trial);
         const rounds = 12_000;
         let sum = 0;
         let sum2 = 0;
         for (let r = 0; r < rounds; r++) {
-          const after = inConvexPosition([...pts, samplePoint(arena, rng.next)]) ? afterSafeDrop(before, q) : 0;
+          const after = inConvexPosition([...pts, samplePoint(rng.next)]) ? afterSafeDrop(before, q) : 0;
           sum += after;
           sum2 += after * after;
         }
         const mean = sum / rounds;
         const se = Math.sqrt((sum2 / rounds - mean * mean) / rounds);
-        expect(Math.abs(mean - before), `${arena} state ${trial}: ${mean} vs ${before}`).toBeLessThan(4 * se + 1e-9);
+        expect(Math.abs(mean - before), `state ${trial}: ${mean} vs ${before}`).toBeLessThan(4 * se + 1e-9);
       }
     }
   });

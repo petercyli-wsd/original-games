@@ -28,68 +28,61 @@ import { formatAmount, type Volatility } from '@originals/game-sdk';
 import { useMemo, useRef, useState } from 'react';
 import Field, { type BustInfo } from './Board';
 import {
-  ARENAS,
   FREE_DROPS,
   MAX_WIN,
-  POLYGON_NAME,
   RTP,
   TARGETS,
   afterSafeDrop,
-  averageFullPrize,
   convexChance,
   hitsCap,
   landsSafe,
   samplePoint,
   swallowed,
   zones,
-  type Arena,
   type Pt,
   type Target,
 } from './math';
 
 type Phase = 'idle' | 'dropping' | 'checkpoint' | 'over';
-type Outcome = 'inside' | 'swallow' | 'cashed' | 'full' | 'max';
+type Outcome = 'red' | 'cashed' | 'full' | 'max';
 
 /** Auto-drop: keep dropping while the next drop is at least this safe (null = off, 0 = to the end). */
 type Auto = 'off' | '90' | '75' | 'all';
 const AUTO_MIN: Record<Auto, number | null> = { off: null, '90': 0.9, '75': 0.75, all: 0 };
 const AUTO_HINT: Record<Auto, string> = {
-  off: 'you drop each point',
-  '90': 'while ≥ 90% safe',
-  '75': 'while ≥ 75% safe',
+  off: 'you drop each dot',
+  '90': 'while ≥ 90% green',
+  '75': 'while ≥ 75% green',
   all: 'to the end',
 };
 
 interface Round {
-  arena: Arena;
   target: Target;
   stake: number;
   points: Pt[];
   cash: number;
   outcome: Outcome | null;
   bust: BustInfo | null;
+  /** Red share of the square for the round's last drop (the one that lost, or the one that placed the last dot). */
+  lastQ: number;
 }
 
 const ACCENT = '#43aa8b';
+const MAX_TEXT = `${MAX_WIN.toLocaleString('en-US')}×`;
+const RULE = 'Each dot must land in green. Land in red and you lose. Cash out any time.';
 
 const outcomeTitle = (o: Outcome, target: Target) =>
   ({
-    inside: 'Landed inside',
-    swallow: 'Corner swallowed',
+    red: 'Landed in red',
     cashed: 'Cashed out',
-    full: `Convex ${POLYGON_NAME[target]}`,
+    full: `All ${target} dots landed green`,
     max: 'Max win reached',
   })[o];
 
-function volatilityOf(arena: Arena, target: Target): Volatility {
-  const p = convexChance(target, arena);
+function volatilityOf(target: Target): Volatility {
+  const p = convexChance(target);
   return p > 0.25 ? 'low' : p > 0.06 ? 'medium' : p > 0.015 ? 'high' : 'extreme';
 }
-
-const ARENA_ICON: Record<Arena, JSX.Element> = {
-  square: <rect x="1.5" y="1.5" width="11" height="11" rx="1" />,
-  triangle: <polygon points="7,1.5 13,12.5 1,12.5" />,
-};
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -98,7 +91,6 @@ export default function Game() {
   const timers = useTimers();
   const [history, pushHistory] = useHistory();
 
-  const [arena, setArena] = useState<Arena>('square');
   const [target, setTarget] = useState<Target>(6);
   const [auto, setAuto] = useState<Auto>('off');
   const [phase, setPhase] = useState<Phase>('idle');
@@ -125,11 +117,11 @@ export default function Game() {
     return min !== null && 1 - q >= min;
   };
 
-  function finish(r: Round, outcome: Outcome, cash: number, bust: BustInfo | null = null) {
+  function finish(r: Round, outcome: Outcome, cash: number, bust: BustInfo | null = null, lastQ = 0) {
     timers.clearAll();
     ticket.settle(cash);
     pushHistory(cash);
-    setRound({ ...r, outcome, cash, bust });
+    setRound({ ...r, outcome, cash, bust, lastQ });
     setDropping(false);
     setPhase('over');
   }
@@ -145,8 +137,8 @@ export default function Game() {
   function drop(r: Round) {
     timers.clearAll();
     const free = r.points.length < FREE_DROPS;
-    const z = zones(r.points, r.arena);
-    const p = samplePoint(r.arena, rng.next);
+    const z = zones(r.points);
+    const p = samplePoint(rng.next);
     const safe = landsSafe(z.hull, p);
     const cash = safe ? afterSafeDrop(r.cash, z.q) : 0;
     resolved.current = cash;
@@ -155,15 +147,12 @@ export default function Game() {
     setCursor(p);
     timers.after(free ? freeMs : dropMs, () => {
       setDropping(false);
-      if (!safe) {
-        const lost = swallowed(z.hull, p);
-        return finish(r, lost.length ? 'swallow' : 'inside', 0, { point: p, swallowed: lost });
-      }
+      if (!safe) return finish(r, 'red', 0, { point: p, swallowed: swallowed(z.hull, p) }, z.q);
       const next = { ...r, points: [...r.points, p], cash };
-      if (next.points.length >= r.target) return finish(next, 'full', cash);
+      if (next.points.length >= r.target) return finish(next, 'full', cash, null, z.q);
       setRound(next);
       if (next.points.length < FREE_DROPS) return drop(next);
-      const nz = zones(next.points, r.arena);
+      const nz = zones(next.points);
       if (hitsCap(cash, nz.q)) return finish(next, 'max', cash);
       setPhase('checkpoint');
       track({ type: 'checkpoint', multiplier: cash, winChance: 1 - nz.q });
@@ -175,7 +164,7 @@ export default function Game() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
-    const r: Round = { arena, target, stake: bet.value, points: [], cash: RTP, outcome: null, bust: null };
+    const r: Round = { target, stake: bet.value, points: [], cash: RTP, outcome: null, bust: null, lastQ: 0 };
     setRound(r);
     drop(r);
   }
@@ -209,7 +198,7 @@ export default function Game() {
     // At a checkpoint, the new rule applies straight away.
     if (phase === 'checkpoint' && round) {
       timers.clearAll();
-      scheduleAuto(round, zones(round.points, round.arena).q, v);
+      scheduleAuto(round, zones(round.points).q, v);
     }
   }
 
@@ -222,44 +211,51 @@ export default function Game() {
   );
 
   // What the board shows: the live or finished round, else a preview of the settings.
-  const a = round?.arena ?? arena;
   const t = round?.target ?? target;
   const points = useMemo(() => round?.points ?? [], [round?.points]);
-  const z = useMemo(() => zones(points, a), [points, a]);
+  const z = useMemo(() => zones(points), [points]);
   const n = points.length;
   const q = z.q;
   const free = n < FREE_DROPS;
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const chance = convexChance(t, a);
-  const vol = volatilityOf(arena, target);
+  // Exact only before the first drop (Valtr), so it is shown only then: in the idle preview and for the next bet.
+  const chance = convexChance(t);
+  const vol = volatilityOf(target);
   const outcome = round?.outcome ?? null;
   const autoOn = AUTO_MIN[auto] !== null;
   const autoNext = phase === 'checkpoint' && autoGo(q, auto);
 
-  let status = `Ready · ${t} corners in a ${a}`;
-  if (phase === 'dropping') status = free ? `Free drop ${n + 1} of ${FREE_DROPS}` : `Dropping point ${n + 1} of ${t}`;
-  if (phase === 'checkpoint') status = autoNext ? `Auto-drop · point ${n + 1} of ${t}` : `Checkpoint · ${n} of ${t} corners${autoOn ? ' · auto paused' : ''}`;
-  if (phase === 'over' && outcome) status = `${outcomeTitle(outcome, t)} · ${n} corners`;
+  let status = `Ready · place ${t} dots`;
+  if (phase === 'dropping') status = free ? `Free dot ${n + 1} of ${FREE_DROPS}` : `Dropping dot ${n + 1} of ${t}`;
+  if (phase === 'checkpoint') status = autoNext ? `Auto-drop · dot ${n + 1} of ${t}` : `${n} of ${t} dots placed${autoOn ? ' · auto paused' : ''}`;
+  if (phase === 'over' && outcome) status = `${outcomeTitle(outcome, t)} · ${n} of ${t} dots placed`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
+
+  const overThird =
+    outcome === 'red'
+      ? { label: 'Red was', value: fmtChance(round?.lastQ ?? 0), sub: `dot ${n + 1} landed in it`, tone: 'lose' as const }
+      : outcome === 'full'
+        ? { label: 'Last dot had', value: `${fmtChance(1 - (round?.lastQ ?? 0))} green`, sub: 'and landed in it', tone: 'prize' as const }
+        : { label: 'Next dot was', value: `${fmtChance(1 - q)} green`, sub: outcome === 'max' ? `max win ${MAX_TEXT}` : 'you stopped here', tone: 'prize' as const };
 
   const readouts =
     phase === 'idle'
       ? [
-          { label: 'Chance to complete', value: fmtChance(chance), sub: `${t} corners in a ${a}`, tone: 'chance' as const },
-          { label: 'Cash out now', value: '—', sub: 'from corner 3 on', tone: 'cash' as const },
-          { label: 'Avg full prize', value: fmtMult(averageFullPrize(t, a)), sub: `if all ${t} are corners`, tone: 'prize' as const },
+          { label: 'Chance to place all', value: fmtChance(chance), sub: `${t} dots, all in green`, tone: 'chance' as const },
+          { label: 'Cash out now', value: '—', sub: 'from dot 3 on', tone: 'cash' as const },
+          { label: 'Free dots', value: `${FREE_DROPS} of ${t}`, sub: 'always land safe', tone: 'prize' as const },
         ]
       : phase === 'over'
         ? [
-            { label: 'Corners built', value: `${n} / ${t}`, sub: outcome === 'full' ? `convex ${POLYGON_NAME[t]}` : `${fmtChance(chance)} to complete`, tone: 'chance' as const },
+            { label: 'Dots placed', value: `${n} / ${t}`, sub: outcome === 'red' ? `dot ${n + 1} landed in red` : outcome === 'full' ? 'all landed green' : 'cashed out early', tone: 'chance' as const },
             { label: 'Paid', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' as const },
-            { label: 'Avg full prize', value: fmtMult(averageFullPrize(t, a)), sub: `if all ${t} are corners`, tone: 'prize' as const },
+            overThird,
           ]
         : [
-            { label: 'Next drop safe', value: fmtChance(1 - q), sub: free ? 'free drop' : 'the green area', tone: 'chance' as const },
-            { label: 'Cash out now', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' as const },
-            { label: 'If it lands safe', value: fmtMult(afterSafeDrop(cash, q)), sub: `corner ${Math.min(n + 1, t)} of ${t}`, tone: 'prize' as const },
+            { label: 'Next dot green', value: fmtChance(1 - q), sub: free ? 'free dot' : 'the green share', tone: 'chance' as const },
+            { label: 'Cash out now', value: free ? '—' : fmtMult(cash), sub: free ? 'from dot 3 on' : formatAmount(stake * cash, 2), tone: 'cash' as const },
+            { label: 'If it lands green', value: fmtMult(afterSafeDrop(cash, q)), sub: `dot ${Math.min(n + 1, t)} of ${t}`, tone: 'prize' as const },
           ];
 
   return (
@@ -270,29 +266,10 @@ export default function Game() {
         <>
           <BetField bet={bet} disabled={live} />
 
-          <Label hint={<VolBadge level={vol} />}>Arena</Label>
+          <Label hint={<VolBadge level={vol} />}>Dots to place</Label>
           <Chips
-            label="Arena"
-            options={ARENAS.map((v) => ({
-              value: v,
-              label: (
-                <span className="cvx-chip">
-                  <svg viewBox="0 0 14 14" aria-hidden="true">
-                    {ARENA_ICON[v]}
-                  </svg>
-                  {v === 'square' ? 'Square' : 'Triangle'}
-                </span>
-              ),
-            }))}
-            value={arena}
-            disabled={live}
-            onChange={(v) => change(() => setArena(v))}
-          />
-
-          <Label hint="first 3 drops are free">Corners to build</Label>
-          <Chips
-            label="Corners to build"
-            options={TARGETS.map((v) => ({ value: v, label: v, title: `Convex ${POLYGON_NAME[v]}` }))}
+            label="Dots to place"
+            options={TARGETS.map((v) => ({ value: v, label: v, title: `Place ${v} dots, every one in green` }))}
             value={target}
             disabled={live}
             onChange={(v) => change(() => setTarget(v))}
@@ -303,20 +280,29 @@ export default function Game() {
             label="Auto-drop"
             options={[
               { value: 'off' as Auto, label: 'Off' },
-              { value: '90' as Auto, label: '≥90%', title: 'Keep dropping while the next drop is at least 90% safe' },
-              { value: '75' as Auto, label: '≥75%', title: 'Keep dropping while the next drop is at least 75% safe' },
-              { value: 'all' as Auto, label: 'All', title: 'Drop every point to the end' },
+              { value: '90' as Auto, label: '≥90%', title: 'Keep dropping while the next dot is at least 90% likely to land green' },
+              { value: '75' as Auto, label: '≥75%', title: 'Keep dropping while the next dot is at least 75% likely to land green' },
+              { value: 'all' as Auto, label: 'All', title: 'Drop every dot to the end' },
             ]}
             value={auto}
             onChange={changeAuto}
           />
 
-          <dl className="og-stats">
-            <dt>Chance to complete</dt>
-            <dd>{fmtChance(convexChance(target, arena))}</dd>
-            <dt>Avg full prize</dt>
-            <dd>{fmtMult(averageFullPrize(target, arena))}</dd>
-          </dl>
+          {live ? (
+            <dl className="og-stats">
+              <dt>Next dot lands green</dt>
+              <dd>{fmtChance(1 - q)}</dd>
+              <dt>Cash out now</dt>
+              <dd>{free ? '—' : fmtMult(cash)}</dd>
+            </dl>
+          ) : (
+            <dl className="og-stats">
+              <dt>Chance to place all {target}</dt>
+              <dd>{fmtChance(convexChance(target))}</dd>
+              <dt>Max win</dt>
+              <dd>{MAX_TEXT}</dd>
+            </dl>
+          )}
 
           {phase === 'checkpoint' ? (
             <>
@@ -324,7 +310,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={dropNext}>
-                {autoNext ? 'Auto-dropping…' : `Drop next · ${fmtChance(1 - q)} safe`}
+                {autoNext ? 'Auto-dropping…' : `Drop next · ${fmtChance(1 - q)} green`}
               </ActionButton>
             </>
           ) : (
@@ -343,7 +329,6 @@ export default function Game() {
 
       <Board className="cvx-board">
         <Field
-          arena={a}
           target={t}
           points={points}
           zones={z}
@@ -356,7 +341,7 @@ export default function Game() {
           bust={round?.bust ?? null}
           chance={chance}
         />
-        {/* The result card covers only the legend band under the arena (in flow on narrow frames). */}
+        {/* The result card covers only the legend band under the square (in flow on narrow frames). */}
         {phase === 'over' && round?.outcome && (
           <div className="cvx-over">
             <RoundOver
@@ -376,20 +361,9 @@ export default function Game() {
 
       <div className="cvx-foot">
         {live ? (
-          <ChanceBar
-            p={1 - q}
-            label="Next drop lands safe"
-            note={
-              free
-                ? 'The first three drops are free: any three points make a triangle.'
-                : 'Green: it becomes a new corner. Red: it lands inside your shape or swallows a corner.'
-            }
-          />
+          <ChanceBar p={1 - q} label="Next dot lands green" note={free ? `Free dot: the first ${FREE_DROPS} dots always land safe.` : RULE} />
         ) : (
-          <Caption>
-            Every point must stay a corner of the shape. Valtr: {t} random points in a {a} form a convex {POLYGON_NAME[t]} {fmtChance(chance)} of the
-            time. RTP {(RTP * 100).toFixed(0)}%.
-          </Caption>
+          <Caption>{RULE}</Caption>
         )}
       </div>
 
@@ -397,67 +371,72 @@ export default function Game() {
         <InfoModal title="Convex" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              Points drop at random into the arena. Every point must stay a corner of the shape they make (their convex hull). Build a convex polygon with
-              the number of corners you chose and it pays out.
+              Dots drop at random into the square, one at a time. Each dot must land in the <b style={{ color: 'var(--green)' }}>green</b> zone. A dot
+              that lands in <b style={{ color: 'var(--red)' }}>red</b> loses the round. Place every dot you chose and the round pays out; or cash out
+              after any dot.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick an arena and how many corners to build, then bet.</li>
-              <li>The first three points are free: any three points make a triangle.</li>
-              <li>After each safe drop you can cash out (C), or drop the next point (Space).</li>
-              <li>If a point lands inside your shape, or knocks an existing corner inside, the round is lost. Reach the target and it pays out automatically.</li>
+              <li>Pick how many dots to place (4 to 8), then bet. More dots, more risk.</li>
+              <li>The first three dots are free: they always land safe.</li>
+              <li>From then on the square is split into green and red. After each green landing you can cash out (C) or drop the next dot (Space).</li>
+              <li>A dot in red loses. When the last dot lands green, the round pays your cash-out automatically.</li>
               <li>
-                Auto-drop keeps dropping for you while the next drop is at least as safe as you chose (or to the end with <b>All</b>), then waits for you.
-                You can still cash out between drops.
+                Auto-drop keeps dropping for you while the next dot is at least as likely to land green as you chose (or to the end with <b>All</b>),
+                then waits for you. You can still cash out between drops.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Extend every edge of your shape across the arena (the dashed lines). A point beyond <b>exactly one</b> edge slots in as a new corner between
-              that edge's ends: those are the <b style={{ color: 'var(--green)' }}>green caps</b>, labelled with their share of the arena. Everything else is{' '}
-              <b style={{ color: 'var(--red)' }}>red</b>: inside the shape, or in the cone behind a corner (beyond both of its edges), which swallows that
-              corner.
+              The <b style={{ color: 'var(--red)' }}>red</b> share of the square is exactly the chance that the next dot loses, and the green share is
+              the chance it lands safe. Each grid cell is 1% of the square, so you can count it; each green patch is labelled with its share.
             </p>
-            <p>The red share of the arena is exactly the chance of losing the next drop. Each grid cell is 1% of the arena, so you can count it.</p>
+            <p>
+              Why the zones look the way they do: the dots must stay the corners of the shape they make. Red is the inside of the shape, plus the
+              shadow behind each dot (beyond both edges that meet at it). A dot landing in a shadow would pull the dot in front of it inside the shape,
+              so that dot is ringed when it happens. Green is everywhere the new dot just becomes one more corner.
+            </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              Valtr's theorem (1995): n uniform random points in a square are in convex position with probability (C(2n−2, n−1) / n!)². In a triangle it
-              is 2<sup>n</sup>·(3n−3)! / ((n−1)!³·(2n)!). For n = 4 this is Sylvester's four-point problem: 25/36 in a square, 2/3 in a triangle. A subset
-              of points in convex position is itself in convex position, so dropping points one at a time reaches n corners exactly this often.
+              Valtr's theorem (1995): n uniform random points in a square are in convex position (every one a corner of their convex hull) with
+              probability (C(2n−2, n−1) / n!)². For n = 4 this is Sylvester's four-point problem: 25/36. A subset of points in convex position is itself
+              in convex position, so dropping dots until the first red one places all n exactly this often:
             </p>
             <table className="cvx-table">
               <thead>
                 <tr>
-                  <th>Corners</th>
+                  <th>Dots</th>
                   {TARGETS.map((k) => (
                     <th key={k}>{k}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {ARENAS.map((ar) => (
-                  <tr key={ar}>
-                    <td>{ar === 'square' ? 'Square' : 'Triangle'}</td>
-                    {TARGETS.map((k) => (
-                      <td key={k}>{fmtChance(convexChance(k, ar))}</td>
-                    ))}
-                  </tr>
-                ))}
+                <tr>
+                  <td>Chance to place all</td>
+                  {TARGETS.map((k) => (
+                    <td key={k}>{fmtChance(convexChance(k))}</td>
+                  ))}
+                </tr>
               </tbody>
             </table>
+            <p>This chance is exact before the first drop. Once dots are down the game shows the exact chance for the next dot instead.</p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              Surviving a drop whose red area is a share q of the arena multiplies your cash-out by 1/(1−q). Every drop is therefore a fair bet: the
-              cash-out is a martingale, and the round is worth {(RTP * 100).toFixed(0)}% of your stake however and whenever you cash out, with or without
-              auto-drop. The full prize depends on how the shape grew; on average it is {(RTP * 100).toFixed(0)}% ÷ the chance to complete.
+              A dot that lands green when the red share was q multiplies your cash-out by 1/(1−q). Every drop is therefore a fair bet: the cash-out is a
+              martingale, and the round is worth {(RTP * 100).toFixed(0)}% of your stake however and whenever you cash out, with or without auto-drop.
             </p>
             <p>
-              The safe caps can get very thin, so the round cashes out automatically before any drop that could pay more than{' '}
-              {MAX_WIN.toLocaleString('en-US')}×. That is a stopping rule too, so it doesn't change the return.
+              There is no fixed full prize. When the last dot lands, you are paid the cash-out at that moment, which grows by more after riskier drops.
+              The screen always shows what cashing out pays now and what the next green landing would make it.
+            </p>
+            <p>
+              The green patches can get very thin, so the round cashes out automatically before any drop that could pay more than{' '}
+              {MAX_TEXT}. That is a stopping rule too, so it doesn't change the return.
             </p>
           </InfoSection>
         </InfoModal>
