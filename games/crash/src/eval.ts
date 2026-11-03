@@ -1,5 +1,5 @@
 import { defineEval, type Rng } from '@originals/game-sdk';
-import { MIN_TARGET, autoEnd, cashAt, clampTarget, crashCents, timeTo } from './math';
+import { MIN_TARGET, autoEnd, cashAt, clampTarget, crashFromDraw, timeTo } from './math';
 
 // One config per volatility level. Each round samples how the player plays:
 //  - an auto cash-out target spread log-uniformly around the level,
@@ -20,7 +20,7 @@ const logUniform = (rng: Rng, lo: number, hi: number) => Math.exp(Math.log(lo) +
 export default defineEval<{ lo: number; hi: number }>({
   configs: LEVELS.map(({ label, lo, hi }) => ({ label, params: { lo, hi } })),
   playRound({ lo, hi }, rng) {
-    const crash = crashCents(rng.next());
+    const crash = crashFromDraw(rng.next());
     const style = rng.next();
     if (style < 0.55) {
       // Auto cash-out at a target.
