@@ -57,6 +57,7 @@ for (const id of ids) {
       p99: formatMultiplier(r.p99),
       max: formatMultiplier(r.max),
       'avg steps': r.avgSteps.toFixed(1),
+      'p99 steps': r.p99Steps,
       ok: ok ? '✓' : '✗',
     };
   });
