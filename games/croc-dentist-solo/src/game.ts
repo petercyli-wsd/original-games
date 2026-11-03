@@ -12,6 +12,7 @@ export interface Round {
   pressed: (Presser | null)[];
   ladder: Step[];
   safe: number; // safe presses so far
+  rtp: number; // the bet's value before the first press
 }
 
 // Balance lives in the host wallet; the reducer only plays the round. A
@@ -43,6 +44,18 @@ export function initialState(): GameState {
 /** Cash-out multiplier banked so far (0 before the first safe press). */
 export const banked = (rd: Round) => (rd.safe > 0 ? rd.ladder[rd.safe - 1].mult : 0);
 
+/**
+ * What the open bet is worth right now, which is what leaving mid-round
+ * settles at: the banked cash-out, or the RTP before the first press (the
+ * fair value of a fresh bet). Settling a fresh bet at 0 would take the stake
+ * from a player who closes the game before pressing anything.
+ */
+export function fairValue(s: GameState): number {
+  const rd = s.round;
+  if (s.phase !== 'playing' || !rd) return 0;
+  return rd.safe > 0 ? banked(rd) : rd.rtp;
+}
+
 function finish(s: GameState, round: Round, mult: number, text: string, tone: Tone, chomp: boolean): GameState {
   return {
     ...s,
@@ -69,6 +82,7 @@ export function reducer(s: GameState, a: Action): GameState {
           pressed: Array(a.N).fill(null),
           ladder: buildLadder(a.N, a.k, a.rtp),
           safe: 0,
+          rtp: a.rtp,
         },
         message: { text: 'Pick a tooth. Gently…', tone: 'neutral' },
       };
