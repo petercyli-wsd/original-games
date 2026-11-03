@@ -41,7 +41,7 @@ The game also works with no theme: it's a ring of N cells with k hidden mines, a
 
 ## Customising the mock-up
 
-- **⚙ Customise** (bottom of the bet panel) lets you edit the RTP, the jaw size, the bad-teeth options, the House's thinking time and every colour, live. Your settings save to your browser. **Copy config JSON** copies them out, and you can paste the result into `src/config.ts` to make it the default.
+- **⚙ Customise** (bottom of the bet panel) lets you edit the House's thinking time and every colour, live. Your settings save to your browser. **Copy config JSON** copies them out, and you can paste the result into `src/config.ts` to make it the default. The maths (RTP, jaw size, bad-teeth options) is fixed in `src/config.ts` and can't be changed from the drawer: an editable RTP let a player set their own return to 100%.
 - The croc is a single SVG in `src/components/Croc.tsx`.
 - The payout maths is in `src/math.ts`, and the game flow is a reducer in `src/game.ts`.
 

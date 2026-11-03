@@ -23,12 +23,6 @@ const COLOR_LABELS: Record<keyof CrocColors, string> = {
   win: 'Win',
 };
 
-const parseList = (s: string) =>
-  s
-    .split(',')
-    .map((x) => parseInt(x.trim(), 10))
-    .filter((x) => Number.isFinite(x) && x > 0);
-
 function NumberRow({ label, value, step, onChange }: { label: string; value: number; step: number; onChange: (v: number) => void }) {
   return (
     <label className="cfg-row">
@@ -40,25 +34,6 @@ function NumberRow({ label, value, step, onChange }: { label: string; value: num
         onChange={(e) => {
           const v = parseFloat(e.target.value);
           if (Number.isFinite(v)) onChange(v);
-        }}
-      />
-    </label>
-  );
-}
-
-function ListRow({ label, value, onChange }: { label: string; value: number[]; onChange: (v: number[]) => void }) {
-  const [text, setText] = useState(value.join(', '));
-  return (
-    <label className="cfg-row">
-      <span>{label}</span>
-      <input
-        type="text"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => {
-          const list = parseList(text);
-          if (list.length) onChange(list);
-          setText((list.length ? list : value).join(', '));
         }}
       />
     </label>
@@ -81,10 +56,10 @@ export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
       </div>
       <div className="drawer-body" key={version}>
         <h3>Maths</h3>
-        <NumberRow label="RTP (0–1)" step={0.001} value={config.rtp} onChange={(rtp) => set({ rtp: Math.min(1, Math.max(0.5, rtp)) })} />
-        <NumberRow label="Teeth" step={1} value={config.teeth} onChange={(teeth) => set({ teeth: Math.min(24, Math.max(4, Math.round(teeth))) })} />
-        <ListRow label="Bad-teeth options" value={config.badTeethOptions} onChange={(badTeethOptions) => set({ badTeethOptions })} />
-        <p className="cfg-note">Maths changes apply from the next bet.</p>
+        <p className="cfg-note">
+          Fixed: RTP {(config.rtp * 100).toFixed(0)}%, {config.teeth} teeth, bad-teeth options {config.badTeethOptions.join(', ')}. Change them in
+          src/config.ts.
+        </p>
 
         <h3>Pace (ms)</h3>
         <NumberRow label="House thinking time" step={50} value={config.houseDelay} onChange={(houseDelay) => set({ houseDelay: Math.max(0, houseDelay) })} />
