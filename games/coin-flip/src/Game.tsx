@@ -115,8 +115,13 @@ export default function Game() {
 
   // The flip in the air is decided when it starts: leaving mid-animation
   // settles at its real result, never at the pre-flip value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, step drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's cash-out just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'flipping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const flipMs = turbo.turbo ? 260 : 1000;
   const live = phase === 'flipping' || phase === 'live';
@@ -158,6 +163,7 @@ export default function Game() {
   async function start(c: Call = call) {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r = fresh(bet.value);
     setRound(r);
@@ -218,6 +224,7 @@ export default function Game() {
 
   async function playAuto(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     let r = fresh(stake);
     setRound(r);
     const target = Math.min(autoTarget, maxFlips(coins, need));
