@@ -6,8 +6,7 @@
 // is shaded as spent: the bands' remaining chances are what is left above.
 
 import { useEffect, useRef, useState } from 'react';
-import { fmtChance } from '@originals/game-sdk/ui';
-import { CURVE_K, chances, heightAt, type Band, type Lines } from './math';
+import { CURVE_K, heightAt, type Band, type Lines } from './math';
 
 // The viewBox follows the measured width (between 360 and 640 units), so on a
 // phone one unit is about one pixel and the labels stay readable. The header
@@ -15,7 +14,7 @@ import { CURVE_K, chances, heightAt, type Band, type Lines } from './math';
 const geometry = (width: number) => {
   const W = Math.round(Math.min(640, Math.max(360, width)));
   const compact = W < 520;
-  const HEAD = compact ? 46 : 60;
+  const HEAD = compact ? 56 : 60;
   const H = compact ? Math.round(W * 0.7) + HEAD : 400;
   return { W, H, HEAD, compact, X0: 14, X1: W - (compact ? 66 : 80), Y0: HEAD + 10, Y1: H - 12 };
 };
@@ -34,7 +33,7 @@ export function bandAt(m: number, { split, moon }: Lines): Band {
 /** Below this height (px) the Moon band is too thin to hold its label, which moves under its line. */
 const MOON_LABEL_MIN = 18;
 
-export default function Graph({ m, phase, lines }: { m: number; phase: Phase; lines: Lines }) {
+export default function Graph({ m, phase, lines, staked }: { m: number; phase: Phase; lines: Lines; staked: Record<Band, boolean> }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
   useEffect(() => {
@@ -46,7 +45,6 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
   }, []);
   const { W, H, HEAD, compact, X0, X1, Y0, Y1 } = geometry(width);
   const { split, moon } = lines;
-  const p = chances(lines);
   /** Height of multiplier v: P(C < v) of the plot, bottom (1.00×) to top. */
   const y = (v: number) => Y1 - heightAt(v) * (Y1 - Y0);
 
@@ -62,10 +60,8 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
   }
   const [hx, hy] = pts[N];
   const line = pts.map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)},${py.toFixed(1)}`).join(' ');
-  const area = `${line} L${hx.toFixed(1)},${Y1} L${X0},${Y1} Z`;
   const showCurve = phase !== 'idle' && m > 1.0001;
 
-  const band = bandAt(m, lines);
   const ySplit = y(split);
   const yMoon = y(moon);
   const moonInside = yMoon - Y0 >= MOON_LABEL_MIN;
@@ -83,41 +79,31 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
   const started = phase !== 'idle';
   const passedSplit = started && m >= split;
   const passedMoon = started && m >= moon;
-  const crashed = phase === 'over';
-  const tone = phase === 'idle' ? 'idle' : band;
-
-  const sub = (text: string) => (compact ? null : <tspan className="cc-region-sub">{'  ' + text}</tspan>);
+  const tone = phase === 'idle' ? 'idle' : 'on';
 
   return (
     <div className="cc-graph-wrap" ref={wrap}>
       <svg viewBox={`0 0 ${W} ${H}`} className={`cc-graph ${phase}`} role="img" aria-label={`Crash graph at ${m.toFixed(2)}×`}>
         <defs>
-          {(['red', 'green', 'moon'] as const).map((b) => (
-            <linearGradient key={b} id={`cc-fill-${b}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" className={`cc-stop ${b}`} stopOpacity="0.45" />
-              <stop offset="1" className={`cc-stop ${b}`} stopOpacity="0" />
-            </linearGradient>
-          ))}
           <clipPath id="cc-plot">
             <rect x={X0} y={Y0 - 4} width={X1 - X0} height={Y1 - Y0 + 4} />
           </clipPath>
         </defs>
 
-        {/* The live multiplier, above the plot so it never covers the bands. */}
-        <text
-          className={`cc-readout ${tone}` + (crashed ? ' crashed' : '') + (compact ? ' compact' : '')}
-          x={(X0 + X1) / 2}
-          y={HEAD - (compact ? 6 : 8)}
-          key={crashed ? 'c' : 'r'}
-        >
-          {crashed && <tspan className="cc-readout-top">CRASHED AT </tspan>}
-          <tspan className="cc-readout-num">{fmtBig(m)}</tspan>
+        {/* The live multiplier (the crash point once over), above the plot so it never covers the bands. */}
+        <text className={`cc-readout ${tone}`} x={(X0 + X1) / 2} y={HEAD - 8}>
+          {fmtBig(m)}
         </text>
 
         {/* The three bands, each as tall as its chance. Green is everything above its line; Moon is the top slice of it. */}
         <rect className="cc-region red" x={X0} y={ySplit} width={X1 - X0} height={Y1 - ySplit} />
         <rect className="cc-region green" x={X0} y={Y0} width={X1 - X0} height={ySplit - Y0} />
         <rect className="cc-region moon" x={X0} y={Y0} width={X1 - X0} height={Math.max(0, yMoon - Y0)} />
+
+        {/* The player's own bets: an accent bar down the left edge of each backed band (Moon sits inside Green, so it is inset). */}
+        {staked.red && <rect className="cc-mine" x={X0} y={ySplit} width={3} height={Y1 - ySplit} />}
+        {staked.green && <rect className="cc-mine" x={X0} y={Y0} width={3} height={ySplit - Y0} />}
+        {staked.moon && <rect className="cc-mine" x={X0 + 5} y={Y0} width={3} height={Math.max(0, yMoon - Y0)} />}
 
         {/* What the climb has used up: the rounds that would already have crashed. */}
         {started && (
@@ -157,36 +143,27 @@ export default function Graph({ m, phase, lines }: { m: number; phase: Phase; li
 
         {showCurve && (
           <g clipPath="url(#cc-plot)">
-            <path className="cc-area" d={area} fill={`url(#cc-fill-${band})`} />
-            <path className={`cc-curve ${band}`} d={line} />
+            <path className="cc-curve" d={line} />
           </g>
         )}
         {/* Band labels above the curve so it never hides them. */}
-        <text className={'cc-region-label red' + (passedSplit ? ' out' : '')} x={X1 - 10} y={Y1 - 10}>
-          <tspan className="cc-region-name">RED </tspan>
-          <tspan className="cc-region-pct">{fmtChance(p.red)}</tspan>
-          {sub(`under ${fmtLine(split)}`)}
+        <text className="cc-region-label red" x={X1 - 10} y={Y1 - 10}>
+          Red
         </text>
         <text className="cc-region-label green start" x={X0 + 10} y={ySplit - 9}>
-          <tspan className="cc-region-name">▲ GREEN </tspan>
-          <tspan className="cc-region-pct">{fmtChance(p.green)}</tspan>
-          {sub(`${fmtLine(split)} or more`)}
+          Green
         </text>
         <text
           className="cc-region-label moon start"
           x={X0 + 10}
           y={moonInside ? Math.min(Y0 + (yMoon - Y0) / 2 + 5, yMoon - 4) : yMoon + 17}
         >
-          <tspan className="cc-region-name">▲ MOON </tspan>
-          <tspan className="cc-region-pct">{fmtChance(p.moon)}</tspan>
-          {sub(`${fmtLine(moon)} or more`)}
+          Moon
         </text>
 
         {started && (
-          <g className={`cc-head ${band}` + (crashed ? ' crashed' : '')} transform={`translate(${hx.toFixed(1)} ${hy.toFixed(1)})`}>
-            {crashed && <circle className="cc-burst" r={10} />}
-            <circle className="cc-glow" r={14} />
-            <circle className="cc-dot" r={6} />
+          <g className="cc-head" transform={`translate(${hx.toFixed(1)} ${hy.toFixed(1)})`}>
+            <circle className="cc-dot" r={5} />
           </g>
         )}
       </svg>
