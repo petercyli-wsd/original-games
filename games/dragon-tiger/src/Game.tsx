@@ -1,9 +1,11 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   Board,
+  Caption,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -11,8 +13,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -25,7 +29,7 @@ import {
   type BetInput,
 } from '@originals/game-sdk/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Felt, OddsSplit, Road, Table, type DealView, type RoadItem, type Timing } from './Board';
+import { Felt, Table, type DealView, type Timing } from './Board';
 import {
   BETS,
   BET_BY_ID,
@@ -53,7 +57,7 @@ import {
   type Winner,
 } from './math';
 
-const ACCENT = '#f97316';
+const ACCENT = ACCENTS.amber;
 const CHIP_VALUES = [0.1, 1, 5, 25, 100];
 const KEY_OF: Record<string, string> = { d: 'dragon', t: 'tiger', e: 'tie', s: 'suited' };
 
@@ -82,8 +86,10 @@ function typing(e: KeyboardEvent) {
 }
 
 const timingFor = (turbo: boolean): Timing => {
-  const k = turbo ? 0.25 : 1;
-  return { deal: 300 * k, flip: 340 * k, tigerAt: 300 * k, dragonFlipAt: 680 * k, tigerFlipAt: 1060 * k };
+  // Two cards, each dealt then flipped: the whole deal is about one event.
+  const deal = eventMs(turbo, 200);
+  const flip = eventMs(turbo, 200);
+  return { deal, flip, tigerAt: deal, dragonFlipAt: deal * 2, tigerFlipAt: deal * 3 };
 };
 
 const describeDeal = (l: Last) =>
@@ -107,8 +113,6 @@ export default function Game() {
   const [dealing, setDealing] = useState(false);
   const [dealView, setDealView] = useState<DealView | null>(null);
   const [last, setLast] = useState<Last | null>(null);
-  const [road, setRoad] = useState<RoadItem[]>([]);
-  const [hover, setHover] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -204,7 +208,6 @@ export default function Game() {
     const result: Last = { id, dragon, tiger, winner, suited, layout: lay, winners: res.winners, paid: res.paid, multiplier: res.multiplier, stake: t };
     setRebetLayout(lay);
     setLast(result);
-    setRoad((r) => [{ id, winner, suited, label: describeDeal(result) }, ...r].slice(0, 96));
     pushHistory(res.multiplier);
     setDealing(false);
     return res.multiplier;
@@ -275,16 +278,6 @@ export default function Game() {
   const vol = volatilityOf(stats.sd);
   const status = dealing ? 'Dealing…' : last ? describeDeal(last) : total > 0 ? `Total bet ${money(total)} · press Bet` : 'Place chips on Dragon, Tiger or Tie';
 
-  const hb = hover ? BET_BY_ID[hover] : null;
-  const hs = hb ? betStats(hb.id) : null;
-  const hoverNote = (id: string) => {
-    const b = BET_BY_ID[id];
-    if (b.kind === 'main') return ` · a tie (${pct(P_TIE)}) returns half your chip`;
-    if (b.kind === 'tie') return ' · any two cards of equal rank';
-    if (b.kind === 'suited') return ' · same rank and same suit';
-    return ` · ${SIDE_RULE[b.kind as keyof typeof SIDE_RULE]} on the ${b.side === 'dragon' ? 'Dragon' : 'Tiger'} card, a 7 loses`;
-  };
-
   return (
     <GameLayout
       name="Dragon Tiger"
@@ -309,7 +302,7 @@ export default function Game() {
               <button
                 key={v}
                 type="button"
-                className={`dt-denom t${i + 1}` + (Math.abs(chip.value - v) < 1e-9 ? ' on' : '')}
+                className={'dt-denom' + (Math.abs(chip.value - v) < 1e-9 ? ' on' : '')}
                 disabled={busy}
                 onClick={() => chip.setText(money(v))}
                 title={`Chip ${money(v)} (key ${i + 1})`}
@@ -337,17 +330,6 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className="og-stats">
-            <dt>Total bet</dt>
-            <dd>{money(total)}</dd>
-            <dt>Chance to win</dt>
-            <dd>{total > 0 ? fmtChance(stats.pProfit) : '–'}</dd>
-            <dt>Best payout</dt>
-            <dd>{total > 0 ? money(stats.maxMult * total) : '–'}</dd>
-            <dt>Layout RTP</dt>
-            <dd>{total > 0 ? pct(stats.rtp) : '–'}</dd>
-          </dl>
-
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={bet}>
               {dealing ? 'Dealing…' : total > 0 ? `Bet ${money(total)}` : 'Bet'}
@@ -378,44 +360,21 @@ export default function Game() {
     >
       <StageTop status={status} tone={dealing ? 'live' : last ? (last.multiplier > 1 + 1e-9 ? 'won' : last.multiplier < 1 - 1e-9 ? 'lost' : 'idle') : 'idle'} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Win chance', value: total > 0 ? fmtChance(stats.pProfit) : '–', tone: 'chance' },
+          { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–', tone: 'prize' },
+        ]}
+      />
+
       <Board className="dt-board">
         <InstantResult multiplier={revealed ? last!.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <Felt deal={dealView} timing={timing} revealed={revealed} winner={revealed ? last!.winner : null} suited={revealed && !!last?.suited} />
-        <OddsSplit winner={revealed ? last!.winner : null} suited={revealed && !!last?.suited} />
       </Board>
 
-      <Table layout={shown} hits={hits} halves={halves} paid={paidBy} disabled={busy} onAdd={addChip} onRemove={removeChip} onHover={setHover} money={money} />
+      <Table layout={shown} hits={hits} halves={halves} paid={paidBy} disabled={busy} onAdd={addChip} onRemove={removeChip} money={money} />
 
-      <div className="dt-info" aria-live="polite">
-        {hb && hs ? (
-          <>
-            <p>
-              <b>{hb.name}</b> pays {hb.pays}:1{hoverNote(hb.id)} · wins <b>{pct(hs.chance)}</b> · RTP {pct(hs.rtp)}
-            </p>
-            <div className="dt-cover">
-              <i style={{ width: `${hs.chance * 100}%` }} />
-              {hs.partial > 0 && <i className="part" style={{ left: `${hs.chance * 100}%`, width: `${hs.partial * 100}%` }} />}
-            </div>
-          </>
-        ) : total > 0 ? (
-          <>
-            <p>
-              Your chips return something on <b>{pct(stats.pHit)}</b> of deals and profit on <b>{pct(stats.pProfit)}</b> · layout RTP {pct(stats.rtp)}
-            </p>
-            <div className="dt-cover">
-              <i style={{ width: `${stats.pHit * 100}%` }} />
-              <i className="profit" style={{ width: `${stats.pProfit * 100}%` }} />
-            </div>
-          </>
-        ) : (
-          <>
-            <p>Click a spot to place a chip; right-click or Shift-click removes one. The bar along each spot's foot is its exact chance.</p>
-            <div className="dt-cover empty" />
-          </>
-        )}
-      </div>
-
-      <Road items={road} />
+      <Caption>Back the side dealt the higher card; a tie returns half.</Caption>
 
       {infoOpen && (
         <InfoModal title="Dragon Tiger" onClose={() => setInfoOpen(false)}>
@@ -438,9 +397,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The bar under the cards is split at the exact chances of the three endings: Dragon {pct(192 / 415)}, Tie {pct(P_TIE)} (the gold sliver is the suited tie,{' '}
-              {pct(P_SUITED)}), Tiger {pct(192 / 415)}. Every spot on the table carries a thin bar along its foot whose share of the spot's width is its chance; hover a
-              spot to read it out. The bead road keeps the last results, but every deal comes from a fresh shoe, so past results never change the next one.
+              The three endings have exact chances: Dragon {pct(192 / 415)}, Tie {pct(P_TIE)} (of which the suited tie is {pct(P_SUITED)}), Tiger {pct(192 / 415)}. The
+              stage shows your layout's chance of a profit and its best payout. Every deal comes from a fresh shoe, so past results never change the next one.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
