@@ -95,10 +95,15 @@ export default function Game() {
   const seq = useRef(0);
   const busy = useRef(false);
 
-  // A round of calls is decided the moment it starts, so leaving mid-animation
-  // settles at its real result, never at the pre-round value.
+  // The open bet's fair value. A round of calls is decided the moment it
+  // starts, so leaving mid-animation settles at its real result, never at the
+  // pre-round value. The ticket reads only this ref, which is set
+  // synchronously: RTP the moment the bet is accepted, then the post-round
+  // value as each round of calls is drawn. (Reading the rendered phase /
+  // round instead could be one render stale and settle a fresh stake, or a
+  // just-started round, at an old value.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'spreading' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const callMs = turbo.turbo ? 200 : 800;
   const holdMs = turbo.turbo ? 80 : 300;
@@ -106,6 +111,7 @@ export default function Game() {
 
   function finish(r: Round, outcome: Outcome, cash: number) {
     busy.current = false;
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -138,6 +144,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     busy.current = false;
     spread({
