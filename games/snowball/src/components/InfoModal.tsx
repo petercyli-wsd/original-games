@@ -44,7 +44,7 @@ export default function InfoModal({ rtp, onClose }: Props) {
 
         <h3>Reading the odds</h3>
         <p>
-          Blue balls are filled and red balls are outlined. The <b>draw tally</b> is the whole bet: blue fills from the left, red from
+          You back the blue balls; the other side is red. The <b>draw tally</b> is the whole bet: blue fills from the left, red from
           the right, and whoever reaches the centre slot first wins. The gaps to the centre are the draws each side still needs.{' '}
           <b>Blue wins</b> is the exact chance blue gets there first. The next ball is blue with the chance of the share of blue
           balls in the urn. The ringed pair is the ball just drawn and its twin.

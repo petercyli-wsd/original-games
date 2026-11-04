@@ -1,7 +1,8 @@
 /* Lives inside the game's shadow root: use :host, not :root. Colours, type and
    spacing come from the kit's tokenStyles (docs/STYLE.md); this file only lays
    out Snowball's own panel and board. Flat: no gradients, glows or shadows.
-   Blue is the player's side (the accent, filled); red is neutral (an outline). */
+   Blue is the player's side (the accent); red balls are --suit-red because the
+   rules name the colour. Both are flat fills. */
 
 :host {
   display: block;
@@ -28,7 +29,7 @@
   color: var(--accent);
 }
 .t-red {
-  color: var(--muted);
+  color: var(--suit-red);
 }
 .muted {
   color: var(--muted);
@@ -354,8 +355,8 @@ input:focus-visible {
   border-color: var(--accent);
 }
 .tally-slot.red {
-  background: transparent;
-  border: 2px solid var(--muted);
+  background: var(--suit-red);
+  border-color: var(--suit-red);
 }
 .tally-slot.next {
   border-color: var(--faint);
@@ -442,8 +443,7 @@ input:focus-visible {
   background: var(--accent);
 }
 .ball.red {
-  background: transparent;
-  border: 2px solid var(--muted);
+  background: var(--suit-red);
 }
 .slot .ball.gone {
   opacity: 0.4;
