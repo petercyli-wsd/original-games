@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { WEIGHTS, finalLaw, wins, type Bead, type Bet, type Forecast } from './math';
+import { finalLaw, wins, type Bead, type Bet } from './math';
 
 // Geometry (viewBox units).
 const W = 600;
@@ -34,8 +34,6 @@ export interface BoardProps {
   bet: Bet;
   /** The bead in the air (not yet counted in `beads`). */
   falling: Falling | null;
-  /** What each next bead would do to the chance (null hides the forecast). */
-  forecast: Forecast | null;
   chance: number;
   /** Axis half-width of the strip, in weight units. */
   range: number;
@@ -52,15 +50,6 @@ function hookOf(side: 'L' | 'R', deg: number) {
   return { x: CX + sx * HL * Math.cos(a), y: PY - sx * HL * Math.sin(a) };
 }
 
-/** A short label for a chance inside a forecast cell. */
-function cell(p: number): string {
-  if (p >= 1) return 'win';
-  if (p <= 0) return 'lose';
-  if (p >= 0.995) return '>99%';
-  if (p < 0.0005) return '<0.05%';
-  return (p * 100).toFixed(p < 0.01 ? 2 : 1) + '%';
-}
-
 /** Whether the board is rendered narrow (phones), measured from its container. */
 function useCompact() {
   const ref = useRef<SVGSVGElement>(null);
@@ -75,7 +64,7 @@ function useCompact() {
   return [ref, compact] as const;
 }
 
-export default function Field({ n, beads, bet, falling, forecast, chance, range, tiltMs }: BoardProps) {
+export default function Field({ n, beads, bet, falling, chance, range, tiltMs }: BoardProps) {
   const [ref, compact] = useCompact();
   const totL = beads.reduce((t, b) => t + (b.side === 'L' ? b.w : 0), 0);
   const totR = beads.reduce((t, b) => t + (b.side === 'R' ? b.w : 0), 0);
@@ -83,16 +72,16 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
   const left = n - beads.length;
   const deg = tiltOf(D);
   const unit = Math.min(6, TOWER_MAX / Math.max(totL, totR, 1));
+  /** The pan the player backed (accent). Balanced backs neither pan. */
+  const mine: 'L' | 'R' | null = bet.kind === 'L' || bet.kind === 'K' ? 'L' : bet.kind === 'R' ? 'R' : null;
 
   const hooks = { L: hookOf('L', deg), R: hookOf('R', deg) };
   const ease = { transitionDuration: `${tiltMs}ms` };
 
-  // Vertical layout: the compact layout stacks the forecast in two full-width rows.
-  const FC_Y = 262;
-  const oy = compact ? 64 : 0;
-  const BAR_TOP = 350 + oy;
-  const BAR_BASE = 410 + oy;
-  const H = 440 + oy;
+  // Vertical layout.
+  const BAR_TOP = 296;
+  const BAR_BASE = 356;
+  const H = 394;
 
   // ----- the strip: the law of the final difference -----
   const pts = finalLaw(D, left);
@@ -102,12 +91,7 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
   const xOf = (d: number) => CX - d * bw;
   const shown = pts.filter((x) => Math.abs(x.d) <= R);
   const pmax = Math.max(...shown.map((x) => x.p), 1e-12);
-  const tailL = pts.filter((x) => x.d > R).reduce((a, x) => a + x.p, 0);
-  const tailR = pts.filter((x) => x.d < -R).reduce((a, x) => a + x.p, 0);
 
-  // The winning region as an interval [lo, hi] of final differences.
-  const [lo, hi] = bet.kind === 'L' ? [1, R] : bet.kind === 'R' ? [-R, -1] : bet.kind === 'B' ? [-1, 1] : [Math.min(bet.k, R + 1), R];
-  const bandX = xOf(hi) - bw / 2;
   // The margin k, labelled on its line at the top of the strip.
   const kPill =
     bet.kind === 'K' && bet.k <= R
@@ -117,7 +101,6 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
           return { x, w };
         })()
       : null;
-  const bandW = Math.max(0, xOf(lo) + bw / 2 - bandX);
 
   // ----- the bead in flight -----
   let fallStyle: CSSProperties | undefined;
@@ -144,7 +127,7 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
         return (
           <g key={i} className={'bead' + (last ? ' last' : '')}>
             <rect x={-TOWER_W / 2} y={y} width={TOWER_W} height={Math.max(1, h - 1)} rx={2} />
-            {h >= 11 && (
+            {h >= 14 && (
               <text x={0} y={y + h / 2 + 4} className="bead-w">
                 {b.w}
               </text>
@@ -158,7 +141,7 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
     const hook = hooks[side];
     const tot = side === 'L' ? totL : totR;
     return (
-      <g className={`pan ${side.toLowerCase()}`} style={{ transform: `translate(${hook.x}px, ${hook.y}px)`, ...ease }}>
+      <g className={`pan ${side.toLowerCase()}` + (mine === side ? ' mine' : '')} style={{ transform: `translate(${hook.x}px, ${hook.y}px)`, ...ease }}>
         <line x1={0} y1={0} x2={-PAN_W / 2 + 6} y2={SL} className="string" />
         <line x1={0} y1={0} x2={PAN_W / 2 - 6} y2={SL} className="string" />
         {tower(side)}
@@ -166,68 +149,6 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
         <circle cx={0} cy={0} r={4} className="hook" />
         <text x={0} y={SL + 32} className="tot">
           {side === 'L' ? 'L' : 'R'} {tot}
-        </text>
-      </g>
-    );
-  };
-
-  /** One forecast cell: the chance after a bead of weight w lands on `side`. */
-  const fcCell = (side: 'L' | 'R', i: number, v: number, x: number, y: number, cw: number, ch: number, span: number) => {
-    const dlt = v - chance;
-    const tone = Math.abs(dlt) < 1e-9 ? 'flat' : dlt > 0 ? 'up' : 'down';
-    const alpha = 0.12 + 0.5 * Math.min(1, Math.abs(dlt) / span);
-    const isHit = !!falling && falling.bead.side === side && falling.bead.w === WEIGHTS[i];
-    return (
-      <g key={side + i} transform={`translate(${x}, ${y})`} className={falling ? (isHit ? 'hit' : 'miss') : undefined}>
-        <rect width={cw} height={ch} rx={5} className={`fc-cell ${tone}`} style={{ fillOpacity: tone === 'flat' ? 1 : alpha }} />
-        <text x={cw / 2} y={ch * 0.36} className="fc-w">
-          {side === 'L' ? 'L+' : 'R+'}
-          {WEIGHTS[i]}
-        </text>
-        <text x={cw / 2} y={ch * 0.8} className={`fc-p ${tone}`}>
-          {cell(v)}
-        </text>
-      </g>
-    );
-  };
-
-  const forecastView = () => {
-    if (!forecast) return null;
-    const span = Math.max(...[...forecast.L, ...forecast.R].map((v) => Math.abs(v - chance)), 1e-9);
-    if (compact) {
-      const cw = (W - 36 - 5 * 6) / 6;
-      return (
-        <g className="fc">
-          <text x={CX} y={FC_Y + 4} className="fc-head">
-            your chance after the next bead · each 1 in 12
-          </text>
-          {(['L', 'R'] as const).map((side, r) =>
-            (side === 'L' ? forecast.L : forecast.R).map((v, i) => fcCell(side, i, v, 18 + i * (cw + 6), FC_Y + 14 + r * 52, cw, 46, span)),
-          )}
-        </g>
-      );
-    }
-    const cw = 40;
-    const gap = 4;
-    return (
-      <g className="fc">
-        {(['L', 'R'] as const).map((side) => {
-          const cx = side === 'L' ? 145 : 455;
-          const x0 = cx - (6 * cw + 5 * gap) / 2;
-          return (
-            <g key={side}>
-              <text x={cx} y={FC_Y + 8} className="fc-head">
-                next bead {side === 'L' ? 'left' : 'right'} → your chance
-              </text>
-              {(side === 'L' ? forecast.L : forecast.R).map((v, i) => fcCell(side, i, v, x0 + i * (cw + gap), FC_Y + 16, cw, 38, span))}
-            </g>
-          );
-        })}
-        <text x={CX} y={FC_Y + 32} className="fc-mid">
-          each
-        </text>
-        <text x={CX} y={FC_Y + 46} className="fc-mid">
-          1 in 12
         </text>
       </g>
     );
@@ -263,7 +184,7 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
       )}
 
       {/* The lead */}
-      <text x={CX} y={PY + 82} className={'lead ' + (D > 0 ? 'l' : D < 0 ? 'r' : '')}>
+      <text x={CX} y={PY + 82} className="lead">
         {D === 0 ? '0' : `+${Math.abs(D)}`}
       </text>
       <text x={CX} y={PY + 102} className="lead-sub">
@@ -273,39 +194,22 @@ export default function Field({ n, beads, bet, falling, forecast, chance, range,
         {left === 0 ? 'final' : left === n ? `${n} beads to drop` : `${left} to drop`}
       </text>
 
-      {/* What each next bead would do */}
-      {forecastView()}
-
-      {/* The final difference: winning mass shaded */}
+      {/* The final difference: winning bars in green */}
       <text x={STRIP_L} y={BAR_TOP - 12} className="strip-title">
         {left === 0 ? 'Final difference' : 'Where the difference ends'}
       </text>
-      <text x={STRIP_R} y={BAR_TOP - 12} className={'strip-odds' + (chance <= 0 ? ' lost' : '')}>
-        {chance >= 1 ? 'in your region · won' : chance <= 0 ? 'outside your region · lost' : `shaded = your chance ${(chance * 100).toFixed(chance < 0.1 ? 2 : 1)}%`}
-      </text>
       <rect x={STRIP_L} y={BAR_TOP - 4} width={STRIP_R - STRIP_L} height={BAR_BASE - BAR_TOP + 4} rx={4} className="strip-bg" />
-      {bandW > 0 && <rect x={bandX} y={BAR_TOP - 4} width={bandW} height={BAR_BASE - BAR_TOP + 4} className="band" />}
       {shown.map(({ d, p }) => {
         const h = Math.max(1, (p / pmax) * (BAR_BASE - BAR_TOP - 4));
         return <rect key={d} x={xOf(d) - bw * 0.42} y={BAR_BASE - h} width={bw * 0.84} height={h} className={'bar' + (wins(bet, d) ? ' win' : '')} />;
       })}
-      <line x1={xOf(0)} y1={BAR_TOP - 4} x2={xOf(0)} y2={BAR_BASE} className="zero" />
+      <line x1={xOf(0)} y1={BAR_TOP - 4} x2={xOf(0)} y2={BAR_BASE} className={'zero' + (bet.kind === 'B' ? ' mine' : '')} />
       {bet.kind === 'K' && bet.k <= R && <line x1={xOf(bet.k) + bw / 2} y1={BAR_TOP - 4} x2={xOf(bet.k) + bw / 2} y2={BAR_BASE} className="kline" />}
       {kPill && (
         <g className="kpill" transform={`translate(${kPill.x}, ${BAR_TOP + 9})`}>
           <rect x={-kPill.w / 2} y={-9} width={kPill.w} height={18} rx={9} />
           <text x={0} y={4.5}>k = {bet.k}</text>
         </g>
-      )}
-      {tailL > 5e-4 && !(kPill && kPill.x - kPill.w / 2 < STRIP_L + (compact ? 64 : 52)) && (
-        <text x={STRIP_L + 4} y={BAR_TOP + 10} className="tail s">
-          ‹ {(tailL * 100).toFixed(1)}%
-        </text>
-      )}
-      {tailR > 5e-4 && (
-        <text x={STRIP_R - 4} y={BAR_TOP + 10} className="tail e">
-          {(tailR * 100).toFixed(1)}% ›
-        </text>
       )}
       {/* Where it stands now */}
       <g className={'now ' + (wins(bet, D) ? 'in' : 'out')} style={{ transform: `translateX(${xOf(Math.max(-R, Math.min(R, D)))}px)`, ...ease }}>
