@@ -41,7 +41,11 @@ so the cash-out is a martingale starting at RTP = 0.99. Then by optional stoppin
 
 **Exactness.** No Monte Carlo pricing, ever. Numerical integration or tables are allowed only if the test suite checks them against closed forms to about 1e-6. Floating comparisons on boundaries need a stated tie rule.
 
-**RNG.** All randomness comes from `host.rng` (`useHost().rng`); no `Math.random`. The outcome of an animated step is decided when the step starts. `useTicket(fairValue)` must then return the *resolved* value while the animation plays, so leaving mid-animation settles at the true result and the pre-step value can't be dodged.
+**RNG.** All randomness comes from `host.rng` (`useHost().rng`); no `Math.random`. The outcome of an animated step is decided when the step starts, and only after `ticket.place()` has resolved. `useTicket(fairValue)` must then return the *resolved* value while the animation plays, so leaving mid-animation settles at the true result and the pre-step value can't be dodged.
+
+**Settling on leave.** `fairValue` must read a ref (e.g. `resolved.current`) that the same handler sets when the bet is placed (to RTP × the start value) and when each outcome is drawn. Never read rendered state such as `phase` or `round`: it lags one render, so leaving right after a bet or a draw would settle at the previous value. The November 2026 fairness audit found this in about 70 games. Guard every action against a second press in the same tick (a ref flag, not state).
+
+**Customisation.** Settings that change pricing (RTP, paytables, board sizes) come from the game's code only, never from a player-editable drawer or `localStorage`.
 
 **Volatility.** Offer controls that move P(win) over at least 25:1. The eval should have 3–4 configs labelled low / medium / high / extreme. Rubric: std-dev of the highest config ≥ 5× the lowest. Average steps per round should sit roughly between 1 and 15, with a checkpoint reached in at least half the rounds. If a process is long (cover times, many draws), checkpoint at meaningful events or in bursts.
 
@@ -53,6 +57,17 @@ so the cash-out is a martingale starting at RTP = 0.99. Then by optional stoppin
 - The martingale step: at random reachable states, E[cash-out after one step] equals the cash-out now (exactly, or to 1e-9).
 - Whatever is drawn as "the odds" (a red arc, shaded area, lit count) equals the true risk, e.g. by sweeping positions.
 - `runEval(evalSpec, { rounds: 50_000 })` is within 4 SE of the manifest RTP, and its max is ≤ `maxMultiplier`.
+
+**Fairness test** (`fairness.test.ts`, required for every game; any existing game shows the shape). It runs, with the game's real functions:
+
+- the martingale check at 30 or more varied reachable states, for every action the player could take;
+- hostile strategies, each within 4 SE of the target RTP on every eval config:
+  - act only when the next step's survival chance is ≥ 0.8, otherwise cash out;
+  - cash out the moment the value exceeds the stake;
+  - play to the end;
+  - the strongest strategy specific to the game.
+
+Where the next event has finitely many outcomes, prefer exact enumeration over simulation.
 
 ## The UI contract
 
