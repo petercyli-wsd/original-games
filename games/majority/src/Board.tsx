@@ -53,11 +53,8 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
 
   // Your winning totals: Blue ≥ L, or Blue ≤ 100 − L for Red.
   const lineAt = bet.side === 'blue' ? X(bet.line - 0.5) : X(TOTAL - bet.line + 0.5);
-  const zoneX0 = bet.side === 'blue' ? lineAt : X0 - 4;
-  const zoneX1 = bet.side === 'blue' ? X1 + 4 : lineAt;
   const dmax = Math.max(...dist);
   const barW = Math.max(2, K * 0.78);
-  const yourColour = bet.side === 'blue' ? 'blue' : 'red';
   const sideName = bet.side === 'blue' ? 'Blue' : 'Red';
   // Seats your side still needs, against the seats still to call.
   const need = bet.line - (bet.side === 'blue' ? t.blue : t.red);
@@ -83,7 +80,7 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
             'hex' + (c === 'B' ? ' called b' : c === 'R' ? ' called r' : ' open') + (i === next ? ' next' : '') + (i === calling ? ' flip' : '');
           return (
             <g key={r.id} className={cls}>
-              <title>{`Region ${r.id} · ${r.w} seats · ${Math.round(r.p * 100)}% Blue${c ? ` · called ${c === 'B' ? 'Blue' : 'Red'}` : ''}`}</title>
+              <title>{`Region ${r.id} · ${r.w} seats${c ? ` · called ${c === 'B' ? 'Blue' : 'Red'}` : ''}`}</title>
               <g className="hex-body" style={{ transformOrigin: `${f(x)}px ${f(y)}px` }}>
                 {c === null ? (
                   <g clipPath={`url(#mj-clip-${map.key}-${i})`}>
@@ -94,17 +91,12 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
                   <polygon points={hexPoints(x, y, R - 2.5)} className="solid" />
                 )}
                 <polygon points={hexPoints(x, y, R - 2.5)} className="edge" />
-                <text x={f(x)} y={f(y - (c ? 13 : 15))} className="id">
+                <text x={f(x)} y={f(y - 14)} className="id">
                   {r.id}
                 </text>
-                <text x={f(x)} y={f(y + (c ? 10 : 5))} className="w">
+                <text x={f(x)} y={f(y + 8)} className="w">
                   {r.w}
                 </text>
-                {c === null && (
-                  <text x={f(x)} y={f(y + 20)} className="p">
-                    {Math.round(r.p * 100)}% B
-                  </text>
-                )}
               </g>
               {i === next && <polygon points={hexPoints(x, y, R + 1)} className="spot" />}
             </g>
@@ -117,8 +109,8 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
         <rect x={X0} y={BAR_Y} width={X1 - X0} height={BAR_H} rx={4} className="bar-bg" />
         {t.blue > 0 && <rect x={X0} y={BAR_Y} width={f(t.blue * K)} height={BAR_H} rx={4} className="bar-b" />}
         {t.red > 0 && <rect x={f(X1 - t.red * K)} y={BAR_Y} width={f(t.red * K)} height={BAR_H} rx={4} className="bar-r" />}
-        <text x={X0} y={BAR_Y - 7} className="bar-l">
-          <tspan className="k">BLUE</tspan> {t.blue}
+        <text x={X0} y={BAR_Y - 7} className={'bar-l' + (bet.side === 'blue' ? ' mine' : '')}>
+          <tspan className="k">Blue</tspan> {t.blue}
         </text>
         <text x={W / 2} y={BAR_Y - 7} className="bar-m">
           {need <= 0
@@ -127,15 +119,14 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
               ? `${sideName} can't reach ${bet.line}`
               : `${sideName} needs ${need} of ${t.left} left`}
         </text>
-        <text x={X1} y={BAR_Y - 7} className="bar-r-l">
-          {t.red} <tspan className="k">RED</tspan>
+        <text x={X1} y={BAR_Y - 7} className={'bar-r-l' + (bet.side === 'red' ? ' mine' : '')}>
+          {t.red} <tspan className="k">Red</tspan>
         </text>
         <line x1={X(50)} x2={X(50)} y1={BAR_Y - 2} y2={BAR_Y + BAR_H + 2} className="half" />
       </g>
 
       {/* Paths to victory: the exact distribution of Blue's final total. Green bars are your odds. */}
       <g className="strip">
-        <rect x={f(zoneX0)} y={BASE - STRIP_H - 6} width={f(zoneX1 - zoneX0)} height={STRIP_H + 6} className={'zone ' + yourColour} />
         {Array.from(dist, (d, i) => {
           if (!(d > 0)) return null;
           const hgt = Math.max(1.5, (d / dmax) * STRIP_H);
@@ -152,7 +143,7 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
           );
         })}
         <line x1={X0 - 4} x2={X1 + 4} y1={BASE} y2={BASE} className="axis" />
-        <line x1={f(lineAt)} x2={f(lineAt)} y1={BAR_Y - 2} y2={BASE + 4} className={'yourline ' + yourColour} />
+        <line x1={f(lineAt)} x2={f(lineAt)} y1={BAR_Y - 2} y2={BASE + 4} className="yourline" />
         <text x={f(lineAt + (bet.side === 'blue' ? 5 : -5))} y={BASE - STRIP_H - 10} className={'yourline-l ' + (bet.side === 'blue' ? 'start' : 'end')}>
           {bet.side === 'blue' ? `Blue ${bet.line}+ →` : `← Red ${bet.line}+`}
         </text>
@@ -163,12 +154,12 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
         ))}
         <text x={W / 2} y={BASE + 40} className="legend">
           {outcome === 'cashed'
-            ? `Cashed out at ${pct(win)}: the green share of the paths when you left`
+            ? 'Cashed out before the race was called'
             : outcome && t.left > 0
               ? `Race called: Blue ends on ${t.blue}–${t.blue + t.left} seats, ${outcome === 'won' ? 'inside' : 'outside'} your zone`
               : outcome
                 ? `Blue finished on ${t.blue} seats, Red on ${t.red}`
-                : `Paths to victory: Blue's final total · green bars = your odds, ${pct(win)}`}
+                : "Blue's final total: green bars win for you"}
         </text>
       </g>
     </svg>

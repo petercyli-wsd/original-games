@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -46,7 +47,6 @@ import {
   decided,
   emptyCalls,
   finalDist,
-  nextOdds,
   relock,
   startChance,
   tally,
@@ -56,7 +56,6 @@ import {
   type Call,
   type Line,
   type MapKey,
-  type NextOdds,
   type Side,
 } from './math';
 
@@ -83,38 +82,10 @@ interface Last {
   stake: number;
 }
 
-const RULE = 'Regions flip Blue or Red one at a time; you win if your colour reaches its seat line (51, or 65 for a landslide).';
+const RULE = 'Win if your side finishes with at least its line of seats.';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const betWord = (b: Bet) => `${SIDE_LABEL[b.side]} ${b.line}+`;
 const betLong = (b: Bet) => `${SIDE_LABEL[b.side]} ${b.line === 51 ? 'majority (51+ seats)' : 'landslide (65+ seats)'}`;
-
-/** The next call's two outcomes, each with its chance and the odds it would leave you. */
-function NextCall({ odds, id, w, now }: { odds: NextOdds; id: string; w: number; now: number }) {
-  const card = (blue: boolean) => {
-    const v = blue ? odds.ifBlue : odds.ifRed;
-    const tone = v > now + 1e-12 ? 'up' : v < now - 1e-12 ? 'down' : 'flat';
-    return (
-      <div className={`mj-ev ${tone} ${blue ? 'b' : 'r'}`}>
-        <span className="mj-ev-what">
-          <i />
-          {id} goes {blue ? 'Blue' : 'Red'} · {fmtChance(blue ? odds.pBlue : 1 - odds.pBlue)}
-        </span>
-        <b>{v >= 1 ? 'you win' : v <= 0 ? 'you lose' : fmtChance(v)}</b>
-      </div>
-    );
-  };
-  return (
-    <div className="mj-next" aria-label="Next call outcomes">
-      <div className="mj-next-head">
-        Next up: region <b>{id}</b> · {w} seats
-      </div>
-      <div className="mj-next-row">
-        {card(true)}
-        {card(false)}
-      </div>
-    </div>
-  );
-}
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -144,7 +115,7 @@ export default function Game() {
     phase === 'calling' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0,
   );
 
-  const callMs = turbo.turbo ? 160 : 620;
+  const callMs = eventMs(turbo.turbo);
   const autoCallMs = turbo.turbo ? 45 : 150;
   const live = phase === 'calling' || phase === 'checkpoint';
 
@@ -369,7 +340,6 @@ export default function Game() {
   const cash = prize * winNow;
   const stake = round?.stake ?? bet.value;
   const nextIdx = phase === 'checkpoint' && round && round.k < round.order.length ? round.order[round.k] : null;
-  const odds = nextIdx !== null && !isAuto ? nextOdds(viewMap, calls, nextIdx, viewBet) : null;
   const t = tally(viewMap, calls);
 
   const p0 = startChance(mapKey, { side, line });
@@ -398,16 +368,10 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
+  // One chance and one prize (docs/STYLE.md §6); the cash-out lives on its button.
   const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(round ? winNow : p0), sub: betLong(viewBet), tone: 'chance' },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' && round ? fmtMult(round.paid) : showCash ? fmtMult(cash) : isAuto && !round ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' && round ? formatAmount(stake * round.paid, 2) : showCash ? formatAmount(stake * cash, 2) : 'after the first call',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
   ];
 
   const overTitle =
@@ -425,7 +389,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Majority"
-      accent="#3a86ff"
+      accent={ACCENTS.blue}
       className="mj-game"
       panel={
         <>
@@ -451,21 +415,13 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={() => call(round)}>
-                    Call region {nextIdx !== null ? viewMap.regions[nextIdx].id : ''} · {nextIdx !== null ? Math.round(viewMap.regions[nextIdx].p * 100) : 0}% Blue
+                    Call region {nextIdx !== null ? viewMap.regions[nextIdx].id : ''}
                   </ActionButton>
                 </>
               ) : (
@@ -487,12 +443,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Full prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="mj-note">{bet.blocked}</p>}
@@ -519,7 +469,7 @@ export default function Game() {
         />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={overTitle}
@@ -531,23 +481,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && phase === 'checkpoint' && odds && nextIdx !== null ? (
-        <ChanceBar
-          p={winNow}
-          label="Win chance: the green share of the paths to victory"
-          note={<NextCall odds={odds} id={viewMap.regions[nextIdx].id} w={viewMap.regions[nextIdx].w} now={winNow} />}
-        />
-      ) : !isAuto && phase === 'calling' ? (
-        <ChanceBar p={winNow} label="Win chance: the green share of the paths to victory" note={hold !== null ? `Region ${viewMap.regions[hold].id}: Blue or Red?` : 'Called.'} />
-      ) : (
-        <Caption>
-          <b className="mj-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' until the race is called'}. Backing ${betLong({ side, line })}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `Each hex shows its seats and its chance to go Blue. You back ${betLong({ side, line })}: the green bars below are every way that happens. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Majority" onClose={() => setInfoOpen(false)}>
@@ -560,7 +495,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Pick a map, a side and a line, then Bet. The first region is called straight away.</li>
-              <li>Regions are called in a random order. Each one goes Blue with the chance printed on it, independently of the others.</li>
+              <li>Regions are called in a random order. Each one goes Blue with the chance its hex shows (the lighter share of the hex), independently of the others.</li>
               <li>After each call the next region is lit up. Cash out (C) or call it (Space).</li>
               <li>At a checkpoint you may switch side or line. Your cash-out stays the same and the prize is relocked to match.</li>
               <li>The race is called as soon as no remaining region can change your result, so rounds often end early.</li>
@@ -569,13 +504,12 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each uncalled hex is split blue and red in proportion to its chance; the big number is its seats. The bar below the map fills with Blue's seats from
+              Each uncalled hex is split light (Blue) and dark (Red) in proportion to its chance; the big number is its seats. The bar below the map fills with Blue's seats from
               the left and Red's from the right; the marker is your line.
             </p>
             <p>
               The strip at the bottom shows every possible final Blue total and its exact chance. Green bars are the totals where you win, so their combined height
-              share is your odds. As regions are called the strip narrows and slides. Under the board, the two outcomes of the next call are shown with the odds
-              each would leave you; weighted by their chances they average back to your odds now.
+              share is your odds. As regions are called the strip narrows and slides.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
