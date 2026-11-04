@@ -130,8 +130,13 @@ export default function Game() {
 
   // The next decay is decided the moment the clock starts, so leaving
   // mid-animation settles at its real result, never at the pre-decay value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, decay drawn; a switch keeps it). The ticket reads
+  // only this ref: a value derived from rendered state can be one render
+  // stale, e.g. the last round's payout just after Bet again, or the pre-decay
+  // cash-out just after Next decay, if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'running' ? resolved.current : (round?.cash ?? 0)));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const burstMs = Math.round(560 * speed);
@@ -184,6 +189,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || busy.current) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       k,
