@@ -62,9 +62,11 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
 
   // A bar is decided the moment it starts growing, so leaving mid-animation
-  // settles at its real result, never at the pre-bar value.
+  // settles at its real result, never at the pre-bar value. The ticket reads
+  // only this ref (never render state, which lags a render behind): RTP right
+  // after the bet, then the post-result value of each bar.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const growMs = turbo.turbo ? 180 : 700;
   const live = phase === 'dropping' || phase === 'checkpoint';
@@ -101,6 +103,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { settings: chosen, stake: bet.value, prize: prizeFor(chosen), bars: [], cash: RTP, outcome: null, bustBar: null };
     setRound(r);
