@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -27,7 +28,7 @@ import {
 import { formatAmount } from '@originals/game-sdk';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Field, { Glyph } from './Board';
-import { RTP, SHAPES, SHAPE_IDS, aimedCutChance, cutChance, direction, lineHits, offset, prizeFor, shadowRange, volatilityOf, winChance, type ShapeId } from './math';
+import { RTP, SHAPES, SHAPE_IDS, aimedCutChance, cutChance, direction, lineHits, offset, prizeFor, volatilityOf, winChance, type ShapeId } from './math';
 
 type Phase = 'idle' | 'aiming' | 'checkpoint' | 'cutting' | 'over';
 type Outcome = 'cut' | 'missed' | 'cashed';
@@ -107,8 +108,8 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'aiming' || phase === 'cutting' ? resolved.current : round?.cash ?? 0));
 
-  const spinMs = turbo.turbo ? 220 : 900;
-  const cutMs = turbo.turbo ? 260 : 1000;
+  const spinMs = eventMs(turbo.turbo);
+  const cutMs = eventMs(turbo.turbo);
   const live = phase === 'aiming' || phase === 'checkpoint' || phase === 'cutting';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -217,13 +218,11 @@ export default function Game() {
   const cash = round?.cash ?? RTP;
   const pNow = round ? cash / prize : avg;
   const stake = round?.stake ?? bet.value;
-  const aimedShare = round?.phi != null ? aimedCutChance(sh, round.phi) : null;
   const name = sh.name.toLowerCase();
-  const range = shadowRange(sh);
 
   let status = `Ready · one line must cut the ${name}`;
   if (phase === 'aiming') status = 'Turning the ruler';
-  if (phase === 'checkpoint') status = `Aimed · shadow ${fmtChance(aimedShare ?? 0)} of the ruler`;
+  if (phase === 'checkpoint') status = 'Aimed · drop the line or cash out';
   if (phase === 'cutting') status = 'Dropping the line';
   if (phase === 'over' && round?.outcome) status = OUTCOME_TITLE[round.outcome];
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
@@ -231,17 +230,11 @@ export default function Game() {
     phase === 'over' && round?.outcome && round.outcome !== 'cashed' ? (round.cash > 0 ? 'win' : 'lose') : null;
 
   const vol = volatilityOf(winChance(shape));
-  const compare =
-    aimedShare === null
-      ? ''
-      : Math.abs(aimedShare - avg) < 0.005
-        ? `about its ${fmtChance(avg)} average`
-        : `${aimedShare > avg ? 'wider' : 'narrower'} than its ${fmtChance(avg)} average`;
 
   return (
     <GameLayout
       name="Line Cut"
-      accent="#80ed99"
+      accent={ACCENTS.sky}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -251,11 +244,11 @@ export default function Game() {
             label="Shape"
             options={SHAPE_IDS.map((id) => ({
               value: id,
-              title: `${SHAPES[id].name}: the line cuts it ${fmtChance(winChance(id))} of the time`,
+              title: `${SHAPES[id].name}: pays ${fmtMult(prizeFor(id))}`,
               label: (
                 <span className="lc-chip">
                   <Glyph id={id} />
-                  <small>{Math.round(winChance(id) * 100)}%</small>
+                  <small>{fmtMult(prizeFor(id))}</small>
                 </span>
               ),
             }))}
@@ -264,20 +257,13 @@ export default function Game() {
             onChange={pick}
           />
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(winChance(shape))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(shape))}</dd>
-          </dl>
-
           {phase === 'checkpoint' && round ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => cut(round)}>
-                Drop the line · {fmtChance(aimedShare ?? 0)} to cut
+                Drop the line
               </ActionButton>
             </>
           ) : (
@@ -294,19 +280,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(pNow),
-            sub: round?.outcome ? (round.outcome === 'cashed' ? 'cashed out' : round.outcome === 'cut' ? `the line cut the ${name}` : 'the line missed') : aimedShare === null ? 'average shadow' : 'shadow on the ruler',
-            tone: 'chance',
-          },
-          {
-            label: 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'once the ruler stops',
-            tone: 'cash',
-          },
-          { label: 'Prize', value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -334,22 +309,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label="Win chance"
-          note={
-            phase === 'aiming'
-              ? `The ruler turns to a random direction. The ${name}'s shadow on it is your chance: ${fmtChance(range.lo)} to ${fmtChance(range.hi)}, ${fmtChance(avg)} on average.`
-              : `Turned this way the ${name} is ${compare}. The line lands at a random spot on the ruler, square to it: inside the green shadow it cuts the ${name}.`
-          }
-        />
-      ) : (
-        <Caption>
-          A random line crosses the arena; win if it cuts your shape. Your chance is the shape's shadow: its green share of the ruler. RTP{' '}
-          {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Win if the line lands in your shape's green shadow on the ruler.</Caption>
 
       {infoOpen && (
         <InfoModal title="Line Cut" onClose={() => setInfoOpen(false)}>
@@ -370,7 +330,7 @@ export default function Game() {
             </p>
             <p>
               A shape looks wider from some sides than others. The rod seen side-on casts a long shadow (up to 47% of the ruler); seen end-on it casts almost none.
-              Before the ruler turns, the chance is the shape's average shadow over all directions, shown in the panel and dashed on the bar once the ruler stops.
+              Before the ruler turns, the chance shown is the shape's average shadow over all directions.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
