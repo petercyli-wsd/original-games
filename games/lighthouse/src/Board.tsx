@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
 import { fmtChance } from '@originals/game-sdk/ui';
-import { FAN, H_MAX, H_MIN, chanceAt, dialArcs, shoreX, snapDist, widening, windowAngles, type Win } from './math';
+import { FAN, H_MAX, H_MIN, chanceAt, dialArcs, shoreX, snapDist, windowAngles, type Win } from './math';
 
 // Scene coordinates. One shore unit is K px; the tower stands at shore x = 0.
 const VW = 640;
@@ -48,12 +48,6 @@ function slicePath(cx: number, cy: number, r: number, t0: number, t1: number) {
   return arc ? `M ${f(cx)} ${f(cy)} L ${arc.slice(2)} Z` : '';
 }
 
-const STARS = Array.from({ length: 26 }, (_, i) => {
-  const u = Math.sin(i * 12.9898 + 1) * 43758.5453;
-  const v = Math.sin(i * 78.233 + 2) * 12345.6789;
-  return { x: 12 + (u - Math.floor(u)) * 616, y: 6 + (v - Math.floor(v)) * 120, r: i % 5 === 0 ? 1.6 : 1 };
-});
-
 const fmtShore = (x: number) => (Math.abs(x) >= 100 ? x.toFixed(0) : x.toFixed(2));
 
 /** Tracks whether the board's frame is narrow. */
@@ -75,17 +69,15 @@ interface DialProps {
   r: number;
   arcs: ReturnType<typeof dialArcs>;
   beam: number | null;
-  /** The big readout and its tone. */
+  /** The round's result, shown in the middle once it is over. */
   big: string;
   tone: '' | 'zero' | 'one';
-  caption: string;
 }
 
 /** The lamp's 180° of directions as a protractor: the green share is the chance. Ticks every 10%. */
-function Dial({ x, y, r, arcs, beam, big, tone, caption }: DialProps) {
+function Dial({ x, y, r, arcs, beam, big, tone }: DialProps) {
   return (
     <g className="dial">
-      <path d={slicePath(x, y, r + 14, FAN[0], FAN[1])} className="dial-bg" />
       {arcs.red.map((w, i) => (
         <path key={`r${i}`} d={arcPath(x, y, r, w[0], w[1])} className="dial-arc red" />
       ))}
@@ -108,15 +100,11 @@ function Dial({ x, y, r, arcs, beam, big, tone, caption }: DialProps) {
           <circle cx={f(at(x, y, beam, r).x)} cy={f(at(x, y, beam, r).y)} r={5.5} className="needle-tip" />
         </>
       )}
-      <text x={x} y={y - 10} className="dial-title">
-        YOUR SHARE OF THE FAN
-      </text>
-      <text x={x} y={y + r * 0.37} className={'dial-big' + (tone ? ` ${tone}` : '')}>
-        {big}
-      </text>
-      <text x={x} y={y + r * 0.58} className="dial-small">
-        {caption}
-      </text>
+      {big && (
+        <text x={x} y={y + r * 0.37} className={'dial-big' + (tone ? ` ${tone}` : '')}>
+          {big}
+        </text>
+      )}
     </g>
   );
 }
@@ -135,14 +123,12 @@ export interface BoardProps {
   editable: boolean;
   /** The tower is rising. */
   rising: boolean;
-  /** What a taller tower does to this window's slice, in plain words. */
-  effect: string;
   onDist(d: number): void;
   /** Tells the game when the board switches between the wide and compact layouts. */
   onCompact?(compact: boolean): void;
 }
 
-export default function Board({ win, h, typicalH, headline, beam, result, editable, rising, effect, onDist, onCompact }: BoardProps) {
+export default function Board({ win, h, typicalH, headline, beam, result, editable, rising, onDist, onCompact }: BoardProps) {
   const svg = useRef<SVGSVGElement>(null);
   const drag = useRef<{ offset: number } | null>(null);
   const winRef = useRef(win);
@@ -208,14 +194,9 @@ export default function Board({ win, h, typicalH, headline, beam, result, editab
   for (let x = Math.ceil(VIEW_MIN); x <= Math.floor(VIEW_MAX); x++) ticks.push(x);
   const winMid = (sx(win.a) + sx(win.b)) / 2;
   const far = at(TX, LY, beam ?? 0, 1600);
-  const dialText: Pick<DialProps, 'big' | 'tone' | 'caption'> = result
-    ? { big: result === 'lit' ? 'HIT' : 'MISS', tone: result === 'lit' ? 'one' : 'zero', caption: `chance was ${fmtChance(p)}` }
-    : {
-        big: fmtChance(p),
-        tone: '',
-        caption: idle ? 'before tower stops' : rising ? (widening(win, lh) ? 'widening…' : 'narrowing…') : 'green share',
-      };
-  const titleX = TX + 18;
+  const dialText: Pick<DialProps, 'big' | 'tone'> = result
+    ? { big: result === 'lit' ? 'Hit' : 'Miss', tone: result === 'lit' ? 'one' : 'zero' }
+    : { big: '', tone: '' };
 
   return (
     <svg
@@ -232,34 +213,22 @@ export default function Board({ win, h, typicalH, headline, beam, result, editab
         <clipPath id="lh-sky">
           <rect x={0} y={-L.top} width={VW} height={GY + L.top} />
         </clipPath>
-        <radialGradient id="lh-glow" gradientUnits="userSpaceOnUse" cx={TX} cy={LY} r={430}>
-          <stop offset="0" stopColor="var(--accent)" stopOpacity="0.36" />
-          <stop offset="0.35" stopColor="var(--accent)" stopOpacity="0.12" />
-          <stop offset="1" stopColor="var(--accent)" stopOpacity="0" />
-        </radialGradient>
       </defs>
-
-      {STARS.map((s, i) => (
-        <circle key={i} cx={s.x} cy={s.y} r={s.r} className="star" />
-      ))}
 
       <g transform={`translate(0 ${L.top})`}>
         <rect x={0} y={GY} width={VW} height={SCENE_H - GY} className="land" />
         {editable && <rect x={0} y={GY - 16} width={VW} height={SCENE_H - GY + 16} className="hit" onPointerDown={begin('ground')} />}
 
         <g clipPath="url(#lh-sky)">
-          {/* The fan: every direction the beam can take. */}
-          {!idle && <path d={slicePath(TX, LY, 1600, FAN[0], FAN[1])} className="glow" />}
+          {/* The fan: every direction the beam can take; the part outside the cone loses. */}
+          {!idle && <path d={slicePath(TX, LY, 1600, FAN[0], FAN[1])} className="fan" />}
           {/* The window's cone: the beams that light it. */}
           <path
             d={`M ${f(TX)} ${f(LY)} L ${f(sx(shoreX(lh, al)))} ${GY} L ${f(sx(shoreX(lh, be)))} ${GY} Z`}
             className={'sector' + (idle ? ' idle' : '')}
           />
           {beam !== null && (
-            <>
-              <line x1={TX} y1={f(LY)} x2={f(far.x)} y2={f(far.y)} className="beam-halo" />
-              <line x1={TX} y1={f(LY)} x2={f(far.x)} y2={f(far.y)} className="beam" />
-            </>
+            <line x1={TX} y1={f(LY)} x2={f(far.x)} y2={f(far.y)} className="beam" />
           )}
         </g>
         <line x1={0} y1={GY} x2={VW} y2={GY} className="shoreline" />
@@ -291,16 +260,6 @@ export default function Board({ win, h, typicalH, headline, beam, result, editab
         {/* The tower: solid up to the lamp; in the preview, dashed over the range it can rise to. */}
         {(idle || rising) && (
           <>
-            <text x={titleX} y={lampY(H_MAX) - (compact ? 44 : 36)} className="range-title">
-              the lamp stops at a random height
-            </text>
-            <text x={titleX} y={lampY(H_MAX) - (compact ? 18 : 16)} className="effect-label">
-              {effect}
-            </text>
-          </>
-        )}
-        {(idle || rising) && (
-          <>
             <line x1={TX} y1={lampY(H_MIN)} x2={TX} y2={lampY(H_MAX)} className="range" />
             <line x1={TX - 9} y1={lampY(H_MAX)} x2={TX + 9} y2={lampY(H_MAX)} className="range-cap" />
             <line x1={TX - 9} y1={lampY(H_MIN)} x2={TX + 9} y2={lampY(H_MIN)} className="range-cap" />
@@ -320,11 +279,6 @@ export default function Board({ win, h, typicalH, headline, beam, result, editab
         ) : (
           <>
             <path d={`M ${TX - 11} ${GY} L ${TX - 7} ${f(LY + 8)} L ${TX + 7} ${f(LY + 8)} L ${TX + 11} ${GY} Z`} className="tower" />
-            {/* The lamp's own small fan: a copy of the dial. */}
-            {arcs.red.map((w, i) => (
-              <path key={`r${i}`} d={arcPath(TX, LY, 15, w[0], w[1])} className="mini red" />
-            ))}
-            <path d={arcPath(TX, LY, 15, arcs.green[0], arcs.green[1])} className="mini green" />
             <circle cx={TX} cy={f(LY)} r={7} className="lamp" />
             {!rising && (
               <text x={TX + 14} y={f(LY - 16)} className="h-label">

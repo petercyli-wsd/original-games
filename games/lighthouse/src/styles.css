@@ -9,26 +9,10 @@
   text-anchor: middle;
   fill: var(--text);
 }
-/* A dark halo keeps scene labels readable where they cross rays and glow. */
-.lh .land-label,
-.lh .h-label,
-.lh .range-title,
-.lh .effect-label,
-.lh .range-label,
-.lh .win-label {
-  paint-order: stroke;
-  stroke: var(--card);
-  stroke-width: 5px;
-  stroke-linejoin: round;
-}
 
-/* Sky and shore */
-.lh .star {
-  fill: var(--text);
-  opacity: 0.22;
-}
+/* Shore */
 .lh .land {
-  fill: color-mix(in srgb, var(--bg) 80%, transparent);
+  fill: var(--bg);
 }
 .lh .hit {
   fill: transparent;
@@ -55,45 +39,36 @@
 }
 .lh .ruler {
   font-size: 14px;
+  font-weight: 500;
   fill: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .lh .ruler.zero {
   fill: var(--text);
-  font-weight: 700;
+  font-weight: 600;
 }
 
-/* Light */
-.lh .glow {
-  fill: url(#lh-glow);
+/* Light: the fan is every direction, the cone is the part that wins. */
+.lh .fan {
+  fill: var(--lose);
+  opacity: 0.12;
 }
 .lh .sector {
-  fill: color-mix(in srgb, var(--green) 24%, transparent);
-  stroke: var(--green);
-  stroke-width: 1.5;
-  stroke-linejoin: round;
+  fill: var(--win);
+  fill-opacity: 0.28;
 }
 .lh .sector.idle {
-  fill: color-mix(in srgb, var(--green) 14%, transparent);
-  stroke-dasharray: 4 4;
-}
-.lh .beam-halo {
-  stroke: var(--accent);
-  stroke-width: 9;
-  stroke-linecap: round;
-  opacity: 0.25;
+  fill-opacity: 0.18;
 }
 .lh .beam {
-  stroke: #fffbe6;
-  stroke-width: 2.5;
+  stroke: var(--text);
+  stroke-width: 2;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 6px var(--accent));
 }
 
-/* The window */
+/* The window: the player's own piece */
 .lh .window {
-  fill: var(--green);
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--green) 55%, transparent));
+  fill: var(--accent);
 }
 .lh.editable .window {
   cursor: grab;
@@ -101,124 +76,90 @@
 }
 .lh .win-label {
   font-size: 14px;
-  font-weight: 700;
-  fill: var(--green);
+  font-weight: 600;
+  fill: var(--accent);
 }
 
 /* The tower */
 .lh .tower {
-  fill: #2c2e3d;
-  stroke: #5a5e78;
-  stroke-width: 1.5;
+  fill: var(--hover);
+  stroke: var(--line-strong);
+  stroke-width: 1;
   stroke-linejoin: round;
 }
 .lh .range {
-  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke: var(--faint);
   stroke-width: 2;
   stroke-dasharray: 3 5;
 }
 .lh .range-cap {
-  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke: var(--faint);
   stroke-width: 2;
 }
 .lh .range-label {
   font-size: 13px;
+  font-weight: 500;
   text-anchor: end;
   fill: var(--muted);
 }
-.lh .range-title {
-  font-size: 13px;
-  text-anchor: start;
-  fill: var(--muted);
-}
-.lh .effect-label {
-  font-size: 14px;
-  font-weight: 700;
-  text-anchor: start;
-  fill: var(--accent);
-}
 .lh .h-label {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   text-anchor: start;
-  fill: var(--accent);
+  fill: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .lh .lamp {
-  fill: var(--accent);
-  stroke: #fffbe6;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 10px var(--accent));
+  fill: var(--text);
 }
 .lh .lamp.ghost {
   fill: var(--bg);
-  stroke: var(--accent);
-  stroke-dasharray: 3 3;
-  filter: none;
-}
-.lh .mini {
-  fill: none;
-  stroke-width: 4;
-}
-.lh .mini.red {
-  stroke: var(--red);
-}
-.lh .mini.green {
-  stroke: var(--green);
+  stroke: var(--faint);
+  stroke-width: 2;
 }
 
-/* Landing */
+/* Landing: stays marked until the next bet */
 .lh .landing .dot {
-  fill: #fffbe6;
-  filter: drop-shadow(0 0 6px var(--accent));
+  fill: var(--text);
 }
 .lh .landing.hit .dot {
-  fill: var(--green);
+  fill: var(--win);
 }
 .lh .landing.miss .dot {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .lh .landing .ring {
   fill: none;
-  stroke-width: 3;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: lh-ring 0.9s ease-out 2;
+  stroke-width: 2;
 }
 .lh .landing.hit .ring {
-  stroke: var(--green);
+  stroke: var(--win);
 }
 .lh .landing.miss .ring {
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .lh .land-label {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .lh .landing.hit .land-label {
-  fill: var(--green);
+  fill: var(--win);
 }
 .lh .landing.miss .land-label {
-  fill: var(--red);
+  fill: var(--lose);
 }
 
-/* The fan dial */
-.lh .dial-bg {
-  fill: color-mix(in srgb, var(--bg) 82%, transparent);
-  stroke: var(--line);
-  stroke-width: 1;
-}
+/* The fan dial: the green share of the half circle is the chance. */
 .lh .dial-arc {
   fill: none;
   stroke-width: 15;
 }
 .lh .dial-arc.red {
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .lh .dial-arc.green {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 60%, transparent));
+  stroke: var(--win);
 }
 .lh .dial-tick {
   stroke: var(--text);
@@ -226,37 +167,23 @@
   opacity: 0.45;
 }
 .lh .needle {
-  stroke: #fffbe6;
-  stroke-width: 2.5;
+  stroke: var(--text);
+  stroke-width: 2;
   stroke-linecap: round;
 }
 .lh .needle-tip {
-  fill: var(--accent);
-  stroke: #fffbe6;
-  stroke-width: 1.5;
-}
-.lh .dial-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  fill: var(--muted);
+  fill: var(--text);
 }
 .lh .dial-big {
   font-size: 24px;
-  font-weight: 800;
-  fill: var(--accent);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 .lh .dial-big.zero {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .lh .dial-big.one {
-  fill: var(--green);
-}
-.lh .dial-small {
-  font-size: 12px;
-  fill: var(--muted);
-  font-variant-numeric: tabular-nums;
+  fill: var(--win);
 }
 
 /* Narrow frames: the picture is scaled down, so the type is scaled up. */
@@ -266,30 +193,9 @@
   font-size: 20px;
 }
 .lh.compact .range-label,
-.lh.compact .range-title,
 .lh.compact .h-label {
   font-size: 18px;
 }
-.lh.compact .effect-label {
-  font-size: 20px;
-}
-.lh.compact .dial-title {
-  font-size: 15px;
-}
 .lh.compact .dial-big {
   font-size: 34px;
-}
-.lh.compact .dial-small {
-  font-size: 16px;
-}
-
-@keyframes lh-ring {
-  from {
-    transform: scale(0.5);
-    opacity: 1;
-  }
-  to {
-    transform: scale(2.2);
-    opacity: 0;
-  }
 }
