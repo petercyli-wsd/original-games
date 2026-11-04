@@ -13,15 +13,15 @@ const TOP = 8;
 const Y0 = TOP + H;
 /** The bottom row's lower tips. */
 const FLOOR = Y0 + N * S + H;
-const BAR_Y = FLOOR + 30;
-export const VIEW_H = BAR_Y + 44;
+const BAR_Y = FLOOR + 22;
+export const VIEW_H = BAR_Y + 14 + 6;
 
 /** The card piles in the top corners: 3 × 2 cards each. */
 const CW = 19;
 const CH = 26;
 const CG = 4;
 const PILE_X = 12;
-const PILE_Y = 64;
+const PILE_Y = 46;
 
 export interface BoardProps {
   svgRef?: (el: SVGSVGElement | null) => void;
@@ -33,8 +33,6 @@ export interface BoardProps {
   phase: Phase;
   outcome: Outcome | null;
   stepMs: number;
-  /** One short line under the bar: what to do now. */
-  prompt: string;
   /** Bottom tiles can be clicked to move the gate (idle or over). */
   onPick?: (a: number) => void;
 }
@@ -64,7 +62,7 @@ function Card({ x, y, glyph, empty }: { x: number; y: number; glyph: string; emp
   );
 }
 
-export default function Board({ svgRef, gate, walker, trail, phase, outcome, stepMs, prompt, onPick }: BoardProps) {
+export default function Board({ svgRef, gate, walker, trail, phase, outcome, stepMs, onPick }: BoardProps) {
   const wRow = rowOf(walker);
   const ended = phase === 'over';
   const visited = new Set(trail.map((p) => `${p.a},${p.b}`));
@@ -137,13 +135,12 @@ export default function Board({ svgRef, gate, walker, trail, phase, outcome, ste
     const count = isL ? left : right;
     const glyph = isL ? '↙' : '↘';
     const x0 = isL ? PILE_X : W - PILE_X;
-    const chance = down === 0 ? null : count / down;
     return (
       <g className={'pile' + (isL ? '' : ' right')}>
-        <text x={x0} y={16} className="cap">
-          {isL ? '↙ CARDS LEFT' : 'CARDS LEFT ↘'}
+        <text x={x0} y={14} className="cap">
+          {isL ? '↙ cards left' : 'cards left ↘'}
         </text>
-        <text x={x0} y={38} className="count">
+        <text x={x0} y={34} className="count">
           {count}
           <tspan className="of"> of {down}</tspan>
         </text>
@@ -151,11 +148,6 @@ export default function Board({ svgRef, gate, walker, trail, phase, outcome, ste
           const c = slot(side, i);
           return <Card key={i} x={c.x} y={c.y} glyph={glyph} empty={i >= count} />;
         })}
-        {chance !== null && (
-          <text x={x0} y={54} className="next">
-            {Math.round(chance * 1000) / 10}% next
-          </text>
-        )}
       </g>
     );
   };
@@ -186,21 +178,14 @@ export default function Board({ svgRef, gate, walker, trail, phase, outcome, ste
         />
       )}
 
+      {flying}
+
       <g className={'walker' + (ended ? ` ${outcome}` : '')} style={{ transform: `translate(${wp.x}px, ${wp.y}px)`, transitionDuration: `${stepMs}ms` }}>
-        {phase === 'checkpoint' && <circle className="wait" r={S * 0.42} />}
         <circle r={S * 0.42} />
       </g>
 
-      {flying}
-
       {/* The bar: the bottom tiles, each sized by its chance; the green share is the chance to win. */}
       <g className="bar">
-        <text x={24} y={BAR_Y - 8} className="cap">
-          CHANCE TO PASS THROUGH THE GATE
-        </text>
-        <text x={W - 24} y={BAR_Y - 8} className={'pct end' + (p === 0 ? ' zero' : '')}>
-          {(p * 100).toFixed(p > 0 && p < 0.01 ? 2 : 1)}%
-        </text>
         {(() => {
           let cursor = 24;
           const BW = W - 48;
@@ -211,9 +196,6 @@ export default function Board({ svgRef, gate, walker, trail, phase, outcome, ste
             return <rect key={l.a} className={'seg' + (inGate(gate, l.a) ? ' g' : '')} x={x + 0.5} y={BAR_Y} width={Math.max(0.6, w - 1)} height={14} rx={2.5} />;
           });
         })()}
-        <text x={CX} y={BAR_Y + 34} className="prompt">
-          {prompt}
-        </text>
       </g>
     </svg>
   );
