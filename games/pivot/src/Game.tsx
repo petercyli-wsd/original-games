@@ -1,5 +1,6 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
@@ -14,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -34,7 +36,6 @@ import {
   cashValue,
   columns,
   newRound,
-  nextLoss,
   plan,
   prizeFor,
   startChance,
@@ -47,7 +48,7 @@ import {
 
 type Phase = 'idle' | 'joining' | 'checkpoint' | 'over';
 
-const ACCENT = '#ffb703';
+const ACCENT = ACCENTS.amber;
 
 function title(r: Round, ending: Ending): string {
   const you = blockName(r.backed);
@@ -85,7 +86,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'joining' ? resolved.current : round && round.status === 'live' ? cashValue(round) : 0));
 
-  const joinMs = turbo.turbo ? 160 : 650;
+  const joinMs = eventMs(turbo.turbo);
   const live = phase === 'joining' || phase === 'checkpoint';
 
   function finish(r: Round, ending: Ending, mult: number) {
@@ -168,7 +169,6 @@ export default function Game() {
   const p = round && round.status === 'live' ? winChance(round) : startChance(shown.backed);
   const cash = round ? (phase === 'over' ? paid : cashValue(round)) : RTP;
   const s = totalOf(shown.order);
-  const loss = phase === 'checkpoint' && round ? nextLoss(columns(round)) : 0;
   const ending = phase === 'over' ? shown.ending : null;
 
   let status = 'Ready · pick a block';
@@ -189,17 +189,11 @@ export default function Game() {
           <Chips
             label="Your block"
             wrap
-            options={SIZES.map((w, i) => ({ value: i, label: `${blockName(i)} +${w}`, title: `${fmtChance(startChance(i))} to win, pays ${fmtMult(prizeFor(i))}` }))}
+            options={SIZES.map((w, i) => ({ value: i, label: `${blockName(i)} +${w}`, title: `Pays ${fmtMult(prizeFor(i))}` }))}
             value={backed}
             disabled={live}
             onChange={pickBlock}
           />
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(startChance(backed))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(backed))}</dd>
-          </dl>
 
           {phase === 'checkpoint' ? (
             <>
@@ -207,7 +201,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && void advance(round)}>
-                Next block · {fmtChance(1 - loss)} safe
+                Next block
               </ActionButton>
             </>
           ) : (
@@ -227,15 +221,9 @@ export default function Game() {
           {
             label: `Chance ${you} wins`,
             value: phase === 'over' ? (shown.ending === 'won' ? '100%' : shown.ending === 'cashed' ? '—' : '0%') : fmtChance(p),
-            sub: shown.ending === 'cashed' ? 'round over' : (
-              <span className="pv-meter" title="The green length is the chance">
-                <i style={{ width: `${(phase === 'over' ? (shown.ending === 'won' ? 1 : 0) : p) * 100}%` }} />
-              </span>
-            ),
             tone: 'chance',
           },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: formatAmount((round ? stake : bet.value) * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: `if ${you} crosses the line`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -264,10 +252,7 @@ export default function Game() {
         )}
       </Board>
 
-      <Caption>
-        Blocks stack up in a random order. You win if {you} is the block that takes the stack over the line at {LINE}. If {you} lands with the stack
-        still short of the line, or another block crosses first, you lose.
-      </Caption>
+      <Caption>Win if {you} is the block that takes the stack over the line at {LINE}.</Caption>
 
       {infoOpen && (
         <InfoModal title="Pivot" onClose={() => setInfoOpen(false)}>
@@ -279,23 +264,21 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick your block (on the chips or by clicking it on the board). Under each block is its chance to win and what it pays. Then bet.</li>
+              <li>Pick your block (on the chips or by clicking it on the board). Under each block is what it pays. Then bet.</li>
               <li>Blocks join the stack one at a time. After each join you can cash out, or let the next block join (Space).</li>
               <li>
-                You lose if your block joins <b style={{ color: 'var(--red)' }}>too early</b> (its top lands short of the line), or if another block{' '}
-                <b style={{ color: 'var(--red)' }}>crosses the line first</b>. Once the result is no longer in doubt, the remaining blocks join by themselves.
+                You lose if your block joins <b>too early</b> (its top lands short of the line), or if another block <b>crosses the line first</b>. Once the result is no longer in doubt, the remaining blocks join by themselves.
               </li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
               The blocks still waiting stand on top of the stack at full size, so you can see where each would reach if it joined next. All are equally
-              likely to be next. Yours is <b style={{ color: 'var(--green)' }}>green</b> when it would cross the line and{' '}
-              <b style={{ color: 'var(--red)' }}>red</b> when it would land short. Another block is <b style={{ color: 'var(--red)' }}>red ✕</b> when its
-              joining next would leave you no way to win: it crosses the line first, or (a dead end) no order of the rest lets yours cross. The count of
-              safe blocks is the button's "safe" share.
+              likely to be next. Yours has an outline in <b>green</b> when it would cross the line and <b>red</b> when it would land short. Another block has a{' '}
+              <b>red</b> outline and a × when its joining next would leave you no way to win: it crosses the line first, or (a dead end) no order of the
+              rest lets yours cross.
             </p>
-            <p>The headline shows your chance to win from here, with a bar whose green length is that chance.</p>
+            <p>The headline shows your chance to win from here.</p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
