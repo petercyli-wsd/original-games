@@ -91,10 +91,13 @@ export default function Game() {
   const [token, setToken] = useState<TokenPos>({ turn: 0, ms: 0, ease: 'spin' });
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // The ball in flight is decided the moment it drops, so leaving mid-slide
-  // settles at its real result, never at the safer pre-drop value.
+  // The open ticket's value: RTP from the bet, then each ball's result the
+  // moment it drops (before it slides), so leaving mid-slide settles at its
+  // real result, never at the safer pre-drop value. The ticket reads only this
+  // ref: the rendered phase and round can be one render stale (leaving right
+  // after Bet used to settle the new stake at the previous round's payout).
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'probing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   // Risky balls get a full spin and a visible pause on their slide window;
   // balls that can't bust (nothing red) go in quickly.
@@ -157,6 +160,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       target: balls,
