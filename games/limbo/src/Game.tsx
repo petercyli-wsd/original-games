@@ -15,10 +15,8 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
-  Readouts,
   VolBadge,
   eventMs,
-  fmtChance,
   useAutoBet,
   useBetInput,
   useHotkeys,
@@ -278,8 +276,6 @@ export default function Game() {
           ))}
         </div>
       </div>
-
-      <Readouts items={[{ label: 'Win chance', value: fmtChance(winChance(last && !rolling ? last.target : target)), tone: 'chance' }]} />
 
       <Board className="limbo-board">
         <InstantResult multiplier={last && !rolling ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
