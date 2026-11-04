@@ -30,11 +30,9 @@ export interface BoardProps {
   spinMs: number;
   /** The point that broke the window, if the round busted. */
   bustPoint: number | null;
-  q: number;
-  live: boolean;
 }
 
-export default function Board({ window, points, spanArc, bustArc, dropping, spin, spinMs, bustPoint, q, live }: BoardProps) {
+export default function Board({ window, points, spanArc, bustArc, dropping, spin, spinMs, bustPoint }: BoardProps) {
   const spanDeg = spanArc ? Math.round(spanArc.length * 360) : 0;
   const preview: Arc = { start: -window / 720, length: window / 360 };
 
@@ -44,12 +42,7 @@ export default function Board({ window, points, spanArc, bustArc, dropping, spin
       {/* Before the first drop: show the window itself. */}
       {points.length === 0 && <path d={arcPath(preview)} className="window-preview" />}
       {spanArc && spanArc.length > 0 && <path d={arcPath(spanArc)} className="span" />}
-      {bustArc && live && (
-        <>
-          <path d={arcPath(bustArc)} className="bust-zone" />
-          <path d={arcPath(bustArc, R - 26)} className="bust-guide" />
-        </>
-      )}
+      {bustArc && <path d={arcPath(bustArc)} className="bust-zone" />}
 
       {points.map((p, i) => {
         const { x, y } = polar(p);
@@ -62,10 +55,9 @@ export default function Board({ window, points, spanArc, bustArc, dropping, spin
 
       {/* The spinner sweeps round to where the next point lands. */}
       <g className="spinner" style={{ transform: `rotate(${spin * 360}deg)`, transitionDuration: `${spinMs}ms` }}>
-        <line x1={C} y1={C} x2={C} y2={C - R + 16} />
+        <line x1={C} y1={C - R + 44} x2={C} y2={C - R + 18} />
         <circle cx={C} cy={C - R} r={dropping !== null ? 8 : 0} className="comet" />
       </g>
-      <circle cx={C} cy={C} r={7} className="hub" />
 
       <text x={C} y={C - 26} className="big">
         {points.length === 0 ? `${window}°` : `${spanDeg}°`}
@@ -73,11 +65,6 @@ export default function Board({ window, points, spanArc, bustArc, dropping, spin
       <text x={C} y={C + 2} className="small">
         {points.length === 0 ? 'window' : `of ${window}° used`}
       </text>
-      {live && points.length > 0 && (
-        <text x={C} y={C + 44} className={'risk' + (q === 0 ? ' free' : '')}>
-          {q === 0 ? 'free drop' : `${(q * 100).toFixed(1)}% bust zone`}
-        </text>
-      )}
     </svg>
   );
 }
