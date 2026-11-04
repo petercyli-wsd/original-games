@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -21,6 +21,7 @@ import {
   StageTop,
   VolBadge,
   fmtChance,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -33,7 +34,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import Duel, { HandIcon } from './Board';
 import {
-  HAND_KEYS,
   HAND_NAMES,
   MAX_MULTIPLIER,
   RISKS,
@@ -91,7 +91,6 @@ export default function Game() {
   const [round, setRound] = useState<Round | null>(null);
   const [pending, setPending] = useState<Throw | null>(null);
   const [face, setFace] = useState<Hand>(0);
-  const [seq, setSeq] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
   // The throw in flight is decided when it starts: leaving mid-animation
@@ -101,8 +100,8 @@ export default function Game() {
   const autoModeRef = useRef<'manual' | 'auto'>('manual');
   const ticket = useTicket(() => (phase === 'throwing' ? resolved.current : round?.cash ?? 0));
 
-  // Snappy by default, quicker still in Auto, near-instant with Turbo.
-  const throwMs = turbo.turbo ? 220 : autoModeRef.current === 'auto' ? 480 : 640;
+  // One readable event in Manual, a quarter of that in Auto or with Turbo.
+  const throwMs = eventMs(turbo.turbo || autoModeRef.current === 'auto');
   const live = phase === 'throwing' || phase === 'live';
 
   function finish(r: Round, end: End, cash: number) {
@@ -124,14 +123,12 @@ export default function Game() {
     const cash = th.effect === 'bust' ? 0 : cashAfter(r.risk, k);
     resolved.current = cash;
     setPending(th);
-    setSeq((s) => s + 1);
     setPhase('throwing');
     const landed = await timers.wait(throwMs);
     inFlight.current = false;
     if (!landed) return null;
     const next: Round = { ...r, k, cash, throws: [...r.throws, th] };
     setPending(null);
-    setSeq((s) => s + 1);
     if (th.effect === 'bust') return finish(next, 'bust', 0);
     if (k >= RISKS[r.risk].maxSteps) return finish(next, 'max', cash);
     setRound(next);
@@ -278,7 +275,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Rock Paper Scissors"
-      accent="#e879f9"
+      accent={ACCENTS.pink}
       className="rps"
       panel={
         <>
@@ -298,10 +295,6 @@ export default function Game() {
           {manual ? (
             <>
               <dl className="og-stats">
-                <dt>Win before a loss</dt>
-                <dd>{fmtChance(RISKS[risk].p)}</dd>
-                <dt>First win pays</dt>
-                <dd>{fmtMult(cashAfter(risk, 1))}</dd>
                 <dt>Max streak</dt>
                 <dd>
                   {RISKS[risk].maxSteps} · {fmtMult(cashAfter(risk, RISKS[risk].maxSteps))}
@@ -321,7 +314,6 @@ export default function Game() {
                     >
                       <HandIcon hand={h} />
                       <span>{HAND_NAMES[h]}</span>
-                      <kbd>{HAND_KEYS[h]}</kbd>
                     </button>
                   ))}
                 </div>
@@ -383,12 +375,10 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Win before a loss', value: fmtChance(spec.p), sub: spec.draw === 'replay' ? 'draws replay' : spec.draw === 'advance' ? 'draws win too' : 'draws bust', tone: 'chance' },
-          { label: 'Cash out now', value: k > 0 || (phase === 'over' && round) ? fmtMult(cash) : '—', sub: formatAmount(stake * (k > 0 || phase === 'over' ? cash : 0), 2), tone: 'cash' },
+          { label: 'Win before a loss', value: fmtChance(spec.p), tone: 'chance' },
           {
             label: phase === 'over' ? 'Streak reached' : 'Next win',
             value: phase === 'over' ? (k > 0 ? fmtMult(cashAfter(rk, k)) : '—') : fmtMult(cashAfter(rk, nextStep)),
-            sub: phase === 'over' ? `${k} of ${spec.maxSteps}` : `win ${nextStep} of ${spec.maxSteps}`,
             tone: 'prize',
           },
         ]}
@@ -396,21 +386,22 @@ export default function Game() {
 
       <Board className={'rps-board' + (showRoundOver ? ' over' : '') + (!manual ? ' auto' : '')}>
         {!manual && phase === 'over' && round && <InstantResult multiplier={round.cash} stake={round.stake} id={history[0]?.id ?? 0} />}
-        <Duel player={shownPlayer} house={shownHouse} throwing={!!pending} last={pending ? null : phase === 'idle' ? null : last} centre={centre} seq={seq} shakeMs={throwMs} away={!!showRoundOver} />
-        {showRoundOver && round?.end && (
-          <RoundOver
-            key={history[0]?.id}
-            title={END_TITLE[round.end]}
-            multiplier={round.cash}
-            stake={round.stake}
-            nextBet={bet.value}
-            blocked={bet.blocked}
-            onBetAgain={() => void start()}
-            onClear={clear}
-            placement="center"
-          />
-        )}
+        <Duel player={shownPlayer} house={shownHouse} throwing={!!pending} last={pending ? null : phase === 'idle' ? null : last} centre={centre} />
       </Board>
+
+      {showRoundOver && round?.end && (
+        <RoundOver
+          key={history[0]?.id}
+          title={END_TITLE[round.end]}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
+      )}
 
       <div className="rps-streak" aria-label="Streak ladder">
         <div className="rps-strip" title="The three equally likely house hands">
@@ -433,17 +424,7 @@ export default function Game() {
         </div>
       </div>
 
-      {phase === 'live' || phase === 'throwing' ? (
-        <ChanceBar
-          p={spec.p}
-          label="Next win before a loss"
-          note={`Of the 3 equally likely house hands, ${strip.advance} ${strip.advance === 1 ? 'advances' : 'advance'} you${strip.replay ? ', 1 replays' : ''} and ${strip.bust} ${strip.bust === 1 ? 'busts' : 'bust'}.`}
-        />
-      ) : (
-        <Caption>
-          The house picks rock, paper or scissors at random, so each throw wins, draws or loses one time in three. {spec.blurb}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Beat the house hand to extend your streak, then cash out before a loss.</Caption>
 
       {infoOpen && (
         <InfoModal title="Rock Paper Scissors" onClose={() => setInfoOpen(false)}>
@@ -463,8 +444,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The coloured strip by the ladder is the three house hands for any hand you pick: <b style={{ color: 'var(--green)' }}>green</b> advances your
-              streak, <b style={{ color: 'var(--gold)' }}>gold</b> replays the throw and <b style={{ color: 'var(--red)' }}>red</b> busts. Each is exactly one
+              The coloured strip by the ladder is the three house hands for any hand you pick: <b style={{ color: 'var(--win)' }}>green</b> advances your
+              streak, <b>grey</b> replays the throw and <b style={{ color: 'var(--lose)' }}>red</b> busts. Each is exactly one
               chance in three, whatever you throw.
             </p>
             <ul>
