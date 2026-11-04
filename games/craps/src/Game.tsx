@@ -4,8 +4,8 @@ import {
   ActionButton,
   AutoBetControls,
   Board,
+  ACCENTS,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -18,6 +18,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -29,7 +30,7 @@ import {
   type BetInput,
 } from '@originals/game-sdk/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DiceTray, FACE_ROT, PointTrack, Table, type Rot, type TrayTone } from './Board';
+import { DiceTray, PointTrack, Table, type TrayTone } from './Board';
 import {
   autoBeforeRoll,
   chargesOf,
@@ -44,7 +45,6 @@ import {
   withOdds,
   isLine,
   type AutoOdds,
-  type RollTag,
   type RoundState,
 } from './engine';
 import {
@@ -58,7 +58,6 @@ import {
   ODDS_LIMITS,
   PASS_RTP,
   POINTS,
-  WAYS,
   betChance,
   betRtp,
   cents,
@@ -80,7 +79,7 @@ import {
   type Point,
 } from './math';
 
-const ACCENT = '#22d3ee';
+const ACCENT = ACCENTS.sky;
 const CHIP_VALUES = [0.1, 1, 5, 25, 100];
 const KEY_OF: Record<string, BetId> = { p: 'pass', n: 'dontPass', o: 'passOdds', l: 'layOdds', f: 'field', '7': 'any7', a: 'anyCraps', y: 'yo' };
 
@@ -96,12 +95,6 @@ interface Entry {
   value: number | null;
   /** Whether the dice for this ticket's first roll have been drawn. */
   drawn: boolean;
-}
-
-interface RecentRoll {
-  id: number;
-  d: [number, number];
-  tag: RollTag;
 }
 
 function typing(e: KeyboardEvent) {
@@ -129,7 +122,6 @@ function titleOf(st: St): string {
   }
 }
 
-const restRot = (d: [number, number]): Rot[] => d.map((n, i) => ({ ...FACE_ROT[n], z: [-10, 8][i] }));
 const INITIAL: [number, number] = [5, 2];
 
 export default function Game() {
@@ -154,15 +146,10 @@ export default function Game() {
   const [undoStack, setUndoStack] = useState<Layout[]>([]);
   const [lastBase, setLastBase] = useState<Layout | null>(null);
   const [dice, setDice] = useState<[number, number]>(INITIAL);
-  const [rots, setRots] = useState<Rot[]>(() => restRot(INITIAL));
   const [throwKey, setThrowKey] = useState(0);
-  const [recent, setRecent] = useState<RecentRoll[]>([]);
-  const [hover, setHover] = useState<BetId | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [autoLast, setAutoLast] = useState<{ id: number; mult: number; stake: number } | null>(null);
   const seq = useRef(0);
-  const rotsRef = useRef(rots);
-  rotsRef.current = rots;
   const settingsRef = useRef({ limit, field, propsStay, autoOdds });
   settingsRef.current = { limit, field, propsStay, autoOdds };
 
@@ -229,7 +216,7 @@ export default function Game() {
   const phase = st.phase;
   const rolling = phase === 'rolling';
   const live = phase === 'rolling' || phase === 'point';
-  const rollMs = turbo.turbo ? 360 : 950;
+  const rollMs = eventMs(turbo.turbo);
 
   const charges = chargesOf(st);
   const tableTotal = totalOf(st.table);
@@ -372,24 +359,14 @@ export default function Game() {
     if (propsEntry) propsEntry.value = ticketValue(propsEntry.parts, r.returnOf);
     if (r.decided) for (const e of book.current) if (e !== propsEntry) e.value = ticketValue(e.parts, r.returnOf);
 
-    // Tumble: a couple of turns on each axis, landing on the drawn faces.
-    const next = rotsRef.current.map((rot, i) => {
-      const f = FACE_ROT[d[i]];
-      return {
-        x: Math.ceil(rot.x / 360) * 360 + 360 * (2 + rng.int(2)) + f.x,
-        y: Math.ceil(rot.y / 360) * 360 + 360 * (1 + rng.int(2)) + f.y,
-        z: Math.ceil(rot.z / 360) * 360 + 360 + Math.round(-16 + 32 * rng.next()),
-      };
-    });
+    // The dice slide in showing the drawn faces; the verdict waits for them to land.
     const comeOut = s0.phase !== 'point';
     commit({ ...s0, phase: 'rolling', base: r.next.base, marks: null, wagered: r.next.wagered, returned: comeOut ? 0 : s0.returned, rolls: comeOut ? 0 : s0.rolls, outcome: null });
     setThrowKey((k) => k + 1);
-    setRots(next);
-    if (!(await timers.wait(rollMs + 120))) return false;
-
     setDice(d);
+    if (!(await timers.wait(rollMs))) return false;
+
     if (propsEntry) settleEntry(propsEntry);
-    setRecent((rs) => [{ id: ++seq.current, d, tag: r.tag }, ...rs].slice(0, 40));
     commit(r.next);
     setUndoStack([]);
     if (r.decided) {
@@ -526,7 +503,7 @@ export default function Game() {
   })();
 
   const verdict = (() => {
-    if (st.lastSum === null) return <span className="cr-hint">Two dice · 36 equally likely rolls</span>;
+    if (st.lastSum === null) return <span className="cr-hint">–</span>;
     const s = st.lastSum;
     let label = '';
     let cls = '';
@@ -591,22 +568,6 @@ export default function Game() {
   if (phase === 'point') for (const id of ODDS_IDS) if (st.working[LINE_OF[id]]) oddsMax[id] = capOf(st, id);
   const canTakeOdds = phase === 'point' && ODDS_IDS.some((id) => st.working[LINE_OF[id]] && (st.table[id] ?? 0) < capOf(st, id) - 1e-9);
 
-  const hb = hover;
-  const hoverInfo = hb
-    ? (() => {
-        const ch = isOdds(hb) && st.point === null ? null : betChance(hb, phase === 'point' ? st.point : null);
-        const rtp = betRtp(hb, field);
-        return { ch, rtp };
-      })()
-    : null;
-
-  const counts = { seven: 0, craps: 0 };
-  for (const r of recent) {
-    const s = r.d[0] + r.d[1];
-    if (s === 7) counts.seven++;
-    if (s === 2 || s === 3 || s === 12) counts.craps++;
-  }
-
   const actionLabel =
     phase === 'rolling'
       ? 'Rolling…'
@@ -644,7 +605,7 @@ export default function Game() {
               <button
                 key={v}
                 type="button"
-                className={`cr-denom t${i + 1}` + (Math.abs(chip.value - v) < 1e-9 ? ' on' : '')}
+                className={'cr-denom' + (Math.abs(chip.value - v) < 1e-9 ? ' on' : '')}
                 disabled={busy}
                 onClick={() => chip.setText(money(v))}
                 title={`Chip ${money(v)} (key ${i + 1})`}
@@ -709,12 +670,8 @@ export default function Game() {
           </div>
 
           <dl className="og-stats">
-            <dt>{lineSide === 'pass' ? 'Pass wins' : 'Don’t Pass wins'}</dt>
-            <dd>{fmtChance(lineChance)}</dd>
             <dt>Layout RTP</dt>
             <dd>{stratStats ? pct(stratStats.rtp) : '–'}</dd>
-            <dt>{phase === 'point' ? 'In play this round' : 'Total bet'}</dt>
-            <dd>{money(phase === 'point' || phase === 'over' ? st.wagered + (phase === 'point' ? charges.total : 0) : tableTotal)}</dd>
           </dl>
 
           {!autoMode ? (
@@ -768,28 +725,16 @@ export default function Game() {
           {
             label: lineSide === 'pass' ? 'Pass wins' : 'Don’t Pass wins',
             value: fmtChance(lineChance),
-            sub: phase === 'point' && st.point !== null ? `${lineSide === 'pass' ? WAYS[st.point] : 6} ways vs ${lineSide === 'pass' ? 6 : WAYS[st.point]}` : lineSide === 'pass' ? 'from the come-out' : 'plus 1/36 push on 12',
             tone: 'chance',
           },
-          {
-            label: phase === 'point' ? 'In play' : phase === 'over' ? 'Wagered' : 'On the table',
-            value: money(phase === 'point' ? st.wagered + charges.total : phase === 'over' ? st.wagered : tableTotal),
-            sub: phase === 'point' ? `${st.rolls} roll${st.rolls === 1 ? '' : 's'} so far` : phase === 'over' ? `${st.rolls} roll${st.rolls === 1 ? '' : 's'} this round` : 'come-out bets',
-            tone: 'cash',
-          },
           phase === 'over'
-            ? { label: 'Returned', value: money(st.returned), sub: `${fmtMult(st.wagered > 0 ? st.returned / st.wagered : 0)} of the stake`, tone: 'prize' }
-            : {
-                label: 'Line pays',
-                value: linePays > 0 ? money(linePays) : '—',
-                sub: phase === 'point' ? `if the ${lineSide === 'pass' ? st.point : '7'} rolls first` : 'stake back included',
-                tone: 'prize',
-              },
+            ? { label: 'Returned', value: money(st.returned), tone: 'prize' }
+            : { label: 'Line pays', value: linePays > 0 ? money(linePays) : '—', tone: 'prize' },
         ]}
       />
 
       <Board className="cr-board">
-        <DiceTray rots={rots} ms={rollMs} throwKey={throwKey} rolling={rolling} dice={dice} verdict={verdict} tone={trayTone} />
+        <DiceTray ms={rollMs} throwKey={throwKey} rolling={rolling} dice={dice} verdict={verdict} tone={trayTone} />
         <PointTrack
           point={phase === 'over' || phase === 'idle' ? null : st.point}
           resolved={phase === 'over' && st.endPoint !== null ? { p: st.endPoint, made: st.outcome === 'pointMade' } : null}
@@ -811,27 +756,8 @@ export default function Game() {
             onClear={clearBoard}
             placement="inline"
           />
-        ) : phase === 'point' && st.point !== null ? (
-          <ChanceBar
-            p={pointChance(st.point)}
-            label={`Point ${st.point} before a 7`}
-            note={`${WAYS[st.point]} of the 36 rolls make the point, 6 seven out; the other ${36 - WAYS[st.point] - 6} roll again.`}
-          />
-        ) : (
-          <Caption>
-            {hb && hoverInfo ? (
-              <>
-                <b>{BET_NAME[hb]}</b>
-                {hoverInfo.ch === null ? ' works once a point is set' : ` wins ${fmtChance(hoverInfo.ch)} of the time`} · RTP {pct(hoverInfo.rtp)}
-              </>
-            ) : (
-              <>
-                Come-out: 7 or 11 wins the Pass line, 2, 3 or 12 loses. Anything else is the point. Pass {pct(PASS_RTP)} · Don&rsquo;t Pass {pct(DONT_RTP)} · odds
-                100%.
-              </>
-            )}
-          </Caption>
-        )}
+        ) : null}
+        <Caption>Win the Pass line on a 7 or 11, or by rolling the point again before a 7.</Caption>
       </div>
 
       <Table
@@ -846,25 +772,8 @@ export default function Game() {
         disabled={busy}
         onAdd={addChip}
         onRemove={removeChip}
-        onHover={setHover}
         money={money}
       />
-
-      <div className="cr-recent">
-        <span className="cr-recent-label">Rolls</span>
-        <div className="cr-rolls" aria-label="Recent rolls">
-          {recent.length === 0 && <span className="cr-none">No rolls yet</span>}
-          {recent.slice(0, 18).map((r) => (
-            <span key={r.id} className={`cr-roll ${r.tag}`} title={`${r.d[0]} + ${r.d[1]} = ${r.d[0] + r.d[1]}`}>
-              <b>{r.d[0] + r.d[1]}</b>
-            </span>
-          ))}
-        </div>
-        <div className="cr-counts" title={`Last ${recent.length} rolls`}>
-          <span className="seven">7s {counts.seven}</span>
-          <span className="craps">Craps {counts.craps}</span>
-        </div>
-      </div>
 
       {infoOpen && (
         <InfoModal title="Craps" onClose={() => setInfoOpen(false)}>
@@ -892,8 +801,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The dice are fair, so all 36 rolls are equally likely: a total t comes up in {`{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1}`} of them for t = 2…12. The thin bar along the foot
-              of each table cell is that bet&rsquo;s chance to win. On the point track, each box&rsquo;s bar is the chance that point is made before a 7.
+              The dice are fair, so all 36 rolls are equally likely: a total t comes up in {`{1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1}`} of them for t = 2…12. The payouts table
+              below lists each bet&rsquo;s chance to win.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
