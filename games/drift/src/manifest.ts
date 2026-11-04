@@ -11,5 +11,5 @@ export default defineManifest({
   maxMultiplier,
   volatility: VOLATILITY_NAMES,
   checkpoints: true,
-  accent: '#1ec8ff',
+  accent: '#5ec4e6', // ACCENTS.sky (docs/STYLE.md)
 });
