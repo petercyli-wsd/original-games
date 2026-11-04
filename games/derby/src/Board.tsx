@@ -43,7 +43,7 @@ const LANES_Y = 66;
 const RUNOUT = 4;
 
 export default function Board(props: BoardProps) {
-  const { L, pos, chances, prev, me, outcomes, winners, crossed, moveMs, narrow, phase, pickable, onPick, note, running, legNow, photo } = props;
+  const { L, pos, chances, me, outcomes, winners, crossed, moveMs, narrow, phase, pickable, onPick, note, running, legNow, photo } = props;
   const W = narrow ? 420 : 640;
   const labelW = narrow ? 44 : 168;
   const rightW = narrow ? 58 : 82;
@@ -137,18 +137,18 @@ export default function Board(props: BoardProps) {
                   style={{ opacity: 0.4 + 0.6 * Math.min(1, o.prob * 2.5) }}
                 />
               ))}
-            {/* Live chance, as a number and a bar. */}
-            <text x={W - 14} y={cy + (narrow ? 2 : 0)} className={'pct' + (mine ? ' mine' : '') + moved(chances[i], prev?.[i])}>
-              {phase === 'over' && winners ? (won ? (winners.length > 1 ? `÷${winners.length}` : 'WIN') : '—') : fmtChance(chances[i])}
-            </text>
-            <rect x={W - rightW + 2} y={cy + 8} width={rightW - 16} height={5} rx={2.5} className="pbar-bg" />
-            <rect x={W - rightW + 2} y={cy + 8} width={Math.max(0, (rightW - 16) * chances[i])} height={5} rx={2.5} className={'pbar' + (mine ? ' mine' : '')} />
+            {/* The tote above is the only picture of the odds; lanes only mark the result. */}
+            {phase === 'over' && winners && (
+              <text x={W - 14} y={cy + 5} className={'pct' + (won ? ' win' : '')}>
+                {won ? (winners.length > 1 ? `÷${winners.length}` : 'WIN') : ''}
+              </text>
+            )}
           </g>
         );
       })}
 
       {/* Finish line and distance marks */}
-      <rect x={finishX - 1.5} y={LANES_Y} width={3} height={lanesH} className="chk" />
+      <rect x={finishX - 1} y={LANES_Y} width={2} height={lanesH} className="chk" />
       {/* Runners sit above the distance marks. */}
       {FIELD.map((_, i) => {
         const cy = LANES_Y + i * LANE + LANE / 2;
@@ -186,14 +186,14 @@ export default function Board(props: BoardProps) {
             {note}
           </text>
         ) : outcomes ? (
-          <NextLeg W={W} H={stripH} outcomes={outcomes} now={legNow} me={me} narrow={narrow} dim={running} />
+          <NextLeg W={W} H={stripH} outcomes={outcomes} now={legNow} dim={running} />
         ) : null}
       </g>
     </svg>
   );
 }
 
-function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: number; outcomes: LegOutcome[]; now: number; me: number; narrow: boolean; dim: boolean }) {
+function NextLeg({ W, H, outcomes, now, dim }: { W: number; H: number; outcomes: LegOutcome[]; now: number; dim: boolean }) {
   const left = 16;
   const width = W - 32;
   const top = 38;
@@ -202,17 +202,10 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
   const scale = Math.min(1, niceCeil(Math.max(now * 1.25, ...outcomes.map((o) => o.chance * 1.12), 1e-6)));
   const yOf = (c: number) => top + h * (1 - c / scale);
   let acc = left;
-  const r = FIELD[me];
   return (
     <g className={'next-leg' + (dim ? ' dim' : '')}>
-      <text x={left} y={12} className="cap">
-        {dim ? 'THIS LEG' : 'NEXT LEG'} · {narrow ? `#${me + 1}'s distance → chance after` : `how far #${me + 1} ${GAITS[r.gait].name} runs → its chance after`}
-      </text>
-      <text x={left} y={27} className="cap sub">
-        {narrow ? `width = how likely · top = ${fmtChance(scale)}` : `bar width = how likely · height = chance after (top = ${fmtChance(scale)})`}
-      </text>
-      <text x={W - 16} y={27} className="now-txt">
-        - - now {fmtChance(now)} = {narrow ? 'average' : 'their average'}
+      <text x={left} y={27} className="cap">
+        {dim ? 'This leg' : 'Next leg'}
       </text>
       <rect x={left} y={top} width={width} height={h} rx={6} className="leg-bg" />
       {outcomes.map((o) => {
@@ -225,14 +218,9 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
           <g key={o.advance}>
             <rect x={x + 1} y={yOf(o.chance)} width={Math.max(1, w - 2)} height={top + h - yOf(o.chance)} className={'leg-bar ' + cls} />
             {showText && (
-              <>
-                <text x={x + w / 2} y={Math.max(top + 12, yOf(o.chance) - 4)} className={'leg-pct ' + cls}>
-                  {fmtChance(o.chance)}
-                </text>
-                <text x={x + w / 2} y={top + h + 13} className="leg-adv">
-                  {o.crosses ? `+${o.advance} finish` : `+${o.advance}`}
-                </text>
-              </>
+              <text x={x + w / 2} y={top + h + 13} className="leg-adv">
+                {o.crosses ? `+${o.advance} finish` : `+${o.advance}`}
+              </text>
             )}
           </g>
         );
@@ -240,13 +228,6 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
       <line x1={left} x2={left + width} y1={yOf(now)} y2={yOf(now)} className="now-line" />
     </g>
   );
-}
-
-/** ' up' / ' down' when a chance moved noticeably in the last tick. */
-function moved(now: number, before: number | undefined): string {
-  if (before === undefined) return '';
-  const d = now - before;
-  return Math.abs(d) < 0.002 ? '' : d > 0 ? ' up' : ' down';
 }
 
 /** Rounds a scale up to 1, 2 or 5 × a power of ten. */

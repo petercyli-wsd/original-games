@@ -221,23 +221,8 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.derby .pct.mine {
-  fill: var(--accent);
-}
-.derby .pct.up {
+.derby .pct.win {
   fill: var(--win);
-}
-.derby .pct.down {
-  fill: var(--lose);
-}
-.derby .pbar-bg {
-  fill: var(--bg);
-}
-.derby .pbar {
-  fill: var(--muted);
-}
-.derby .pbar.mine {
-  fill: var(--accent);
 }
 
 /* Next leg strip */
@@ -253,12 +238,6 @@
 .derby .leg-bar.flat {
   fill: var(--muted);
 }
-.derby .leg-pct {
-  text-anchor: middle;
-  font-size: 12px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
 .derby .leg-adv {
   text-anchor: middle;
   font-size: 11px;
@@ -270,17 +249,8 @@
   stroke-width: 1.5;
   stroke-dasharray: 6 4;
 }
-.derby .cap.sub {
-  font-weight: 500;
-}
 .derby .next-leg.dim {
   opacity: 0.4;
-}
-.derby .now-txt {
-  text-anchor: end;
-  font-size: 11px;
-  font-weight: 600;
-  fill: var(--text);
 }
 .derby .note {
   text-anchor: middle;

@@ -446,7 +446,7 @@ export default function Game() {
   const pickerChances = phase === 'checkpoint' || phase === 'running' ? P : startChances(L);
   const picker = (
     <>
-      <Label hint={phase === 'checkpoint' ? 'chance → new prize' : <VolBadge level={vol} />}>{phase === 'checkpoint' ? 'Switch runner' : 'Back a runner'}</Label>
+      <Label hint={phase === 'checkpoint' ? 'new prize' : <VolBadge level={vol} />}>{phase === 'checkpoint' ? 'Switch runner' : 'Back a runner'}</Label>
       <div className="dby-pick" role="radiogroup" aria-label="Runner">
         {FIELD.map((r, i) => {
           const on = i === (phase === 'checkpoint' || phase === 'running' ? round?.me ?? pick : pick);
@@ -465,7 +465,7 @@ export default function Game() {
             >
 <i>{i + 1}</i>
               <span>{GAITS[r.gait].name}</span>
-              <b>{np !== null ? `${fmtChance(pickerChances[i])} → ${fmtMult(np)}` : fmtChance(pickerChances[i])}</b>
+              <b>{phase === 'checkpoint' ? (np !== null ? fmtMult(np) : on ? 'backed' : '') : phase === 'running' ? '' : fmtChance(pickerChances[i])}</b>
             </button>
           );
         })}
@@ -595,8 +595,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b>tote</b> bar above the lanes is split into every runner's exact chance to win; the shares always add up to 100%. The lane bars on the right show
-              the same numbers. Under the track, <b>Next leg</b> splits the coming leg by how far your runner goes: each bar's width is how likely that distance is,
+              The <b>tote</b> bar above the lanes is split into every runner's exact chance to win; the shares always add up to 100%. The number in each
+              segment is that runner's lane. Under the track, <b>Next leg</b> splits the coming leg by how far your runner goes: each bar's width is how likely that distance is,
               its height the chance you would have afterwards. The bars average exactly to your chance now (the dashed line). Ticks on your lane mark where those
               distances would land you.
             </p>
