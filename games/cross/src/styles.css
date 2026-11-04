@@ -8,144 +8,85 @@
 .cross .start {
   text-anchor: start;
 }
-.cross .end {
-  text-anchor: end;
-}
 .cross .lbl {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   fill: var(--muted);
 }
 .cross .pip {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 .cross .pip.on {
-  fill: var(--accent);
-  stroke: var(--accent);
-}
-.cross .head {
-  font-size: 18px;
-  font-weight: 800;
-}
-.cross .head.won {
-  fill: var(--green);
-}
-.cross .head.lost {
-  fill: var(--red);
-}
-
-/* The red cross */
-.cross .cross-band rect {
-  fill: color-mix(in srgb, var(--red) 16%, transparent);
-  stroke: color-mix(in srgb, var(--red) 55%, transparent);
-  stroke-width: 1.5;
+  fill: var(--text);
+  stroke: var(--text);
 }
 
 /* Cards */
 .cross .slot {
   fill: none;
   stroke: var(--line);
-  stroke-width: 1.5;
-  stroke-dasharray: 6 6;
+  stroke-width: 1;
 }
 .cross .card .face {
   fill: var(--raised);
   stroke: var(--line-strong);
   stroke-width: 1.5;
-  transition: fill-opacity 0.25s ease;
 }
 .cross .card.safe .face {
-  fill: var(--green);
-  stroke: color-mix(in srgb, var(--green) 70%, transparent);
+  stroke: var(--win);
 }
 .cross .card.killer .face {
-  fill: color-mix(in srgb, var(--red) 34%, var(--bg));
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .cross .card.hit .face {
-  fill: color-mix(in srgb, var(--red) 70%, var(--bg));
-  stroke: var(--red);
+  fill: var(--bg);
+  stroke: var(--lose);
   stroke-width: 3;
 }
 .cross .card.current .face {
   fill: var(--bg);
   stroke: var(--accent);
-  stroke-width: 3.5;
+  stroke-width: 3;
 }
-.cross .shape {
-  stroke: var(--bg);
-  stroke-width: 2;
-}
-.cross .card.killer .shape {
-  opacity: 0.8;
-}
-.cross .tag {
-  font-size: 20px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  paint-order: stroke;
-  stroke: var(--bg);
-  stroke-width: 4px;
-}
-.cross .tag.up {
+
+/* Shapes: row 0 light, row 1 grey, row 2 outline */
+.cross .shape.row0 {
   fill: var(--text);
 }
-.cross .tag.down {
-  fill: color-mix(in srgb, var(--text) 70%, var(--bg));
+.cross .shape.row1 {
+  fill: var(--muted);
+}
+.cross .shape.row2 {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.cross .card.killer .shape {
+  opacity: 0.4;
+}
+
+.cross .tag {
+  font-size: 16px;
+  font-weight: 600;
 }
 .cross .tag.bad {
-  fill: var(--red);
-}
-.cross .card.current .tag {
-  fill: var(--accent);
-  font-size: 16px;
+  fill: var(--lose);
 }
 .cross .card.current .tag.won {
-  fill: var(--green);
+  fill: var(--win);
 }
 
 /* The draw */
 .cross .hop {
   fill: none;
   stroke: var(--text);
-  stroke-width: 4;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--text) 55%, transparent));
+  stroke-width: 3;
 }
 
-/* Win chance bar */
-.cross .pct {
-  font-size: 20px;
-  font-weight: 800;
-  fill: var(--green);
-  font-variant-numeric: tabular-nums;
-}
-.cross .pct.lost {
-  fill: var(--red);
-}
-.cross .track {
-  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
-}
-.cross .fill {
-  fill: var(--green);
-  transition: width 0.3s ease;
-}
-
-.cross-rule {
-  color: var(--text);
-}
 .cross-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   color: var(--muted);
-}
-
-/* Auto's result pill sits under the board, clear of the grid, its heading and the bar. */
-.cross-board.auto {
-  padding-bottom: 50px;
-}
-.cross-board.auto .og-instant {
-  top: auto;
-  bottom: 0;
 }

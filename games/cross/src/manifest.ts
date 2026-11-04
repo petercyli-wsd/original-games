@@ -11,6 +11,6 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#f0abfc',
+  accent: '#e879b9', // ACCENTS.pink (docs/STYLE.md)
   revision: { kind: 'new', date: '2026-11-02', note: 'Cards are turned at random from the 12-card grid; each must differ in both colour and shape from the card before it, and you win if you survive every turn.' },
 });
