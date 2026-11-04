@@ -81,15 +81,23 @@ export default function Game() {
   const [round, setRound] = useState<Round | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A burst is decided the moment it starts, so leaving mid-animation settles
-  // at its real result, never at the pre-burst value.
+  // The value of the live ticket, kept in a ref and updated synchronously:
+  // RTP once the bet is placed, then each burst's result the moment it is
+  // drawn (before it animates). Leaving settles at this, never at render
+  // state, which lags a render behind (right after Bet it still holds the
+  // last round's payout; right after a drop, the pre-burst cash-out).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' ? resolved.current : round?.cash ?? 0));
+  // Set synchronously while a burst resolves, so a second press (or a cash
+  // out) in the same tick can't act on the stale checkpoint.
+  const busy = useRef(false);
+  const ticket = useTicket(() => resolved.current);
 
   const dropMs = turbo.turbo ? 90 : 340;
   const live = phase === 'dropping' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    busy.current = false;
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash, shown: r.points.length });
@@ -97,6 +105,8 @@ export default function Game() {
   }
 
   function drop(r: Round) {
+    if (busy.current) return;
+    busy.current = true;
     const { a, b } = windowOf(r.s);
     const points = r.points.slice();
     for (let i = 0; i < burstSize(r.s.n) && !decided(r.s.n, tally(points, a, b)); i++) points.push(rng.next());
@@ -112,6 +122,7 @@ export default function Game() {
     for (let i = 1; i <= k; i++) timers.after(i * dropMs, () => setRound((cur) => (cur ? { ...cur, shown: r.points.length + i } : cur)));
     timers.after(k * dropMs + Math.round(dropMs * 0.6), () => {
       if (d) return finish(next, d, cash);
+      busy.current = false;
       setRound({ ...next, shown: points.length });
       setPhase('checkpoint');
       track({ type: 'checkpoint', multiplier: cash, winChance: cash / r.prize });
@@ -119,8 +130,9 @@ export default function Game() {
   }
 
   async function start() {
-    if (live || bet.blocked) return;
+    if (live || bet.blocked || busy.current) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const s: Settings = { n, width, lo };
     const r: Round = { s, stake: bet.value, prize: prizeFor(s), points: [], shown: 0, cash: RTP, outcome: null };
@@ -129,7 +141,7 @@ export default function Game() {
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'checkpoint' || !round || busy.current) return;
     finish(round, 'cashed', round.cash);
   }
 
