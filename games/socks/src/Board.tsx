@@ -21,9 +21,7 @@ const H = 340;
 
 const SCALE = { table: 1, hand: 1.2, pile: 0.65, matched: 0.5 };
 
-/** Twelve hues spread round the wheel, ordered so neighbouring pairs contrast. */
-const HUES = [345, 45, 195, 105, 255, 15, 165, 285, 75, 225, 135, 315];
-export const pairColour = (pair: number) => `hsl(${HUES[pair % HUES.length]} 85% 70%)`;
+/** Pairs are told apart by their letter, not by colour. */
 export const pairLetter = (pair: number) => String.fromCharCode(65 + pair);
 
 export interface Hand {
@@ -106,7 +104,7 @@ export default function Board({ deal, hand, live, checkpoint, message, moveMs }:
     <svg viewBox={`0 0 ${W} ${H}`} className="socks" role="img" aria-label={`${t} of ${k} table slots used, ${left} tokens in the pile`}>
       {/* Table */}
       <text x={24} y={20} className="zone">
-        TABLE
+        Table
       </text>
       <text x={W - 24} y={20} className={'zone-r' + (showRisk ? ' risk' : '')}>
         {t} of {k} slots{full && live ? ' · full' : ''}
@@ -118,8 +116,8 @@ export default function Board({ deal, hand, live, checkpoint, message, moveMs }:
           y={SLOT_Y}
           width={SLOT}
           height={SLOT}
-          rx={14}
-          className={'slot' + (showRisk ? ' full' : '') + (deal.table[i] === null ? ' empty' : '')}
+          rx={8}
+          className={'slot' + (showRisk ? ' full' : '')}
         />
       ))}
 
@@ -137,7 +135,7 @@ export default function Board({ deal, hand, live, checkpoint, message, moveMs }:
 
       {/* Pile */}
       <text x={24} y={PILE_LABEL_Y} className="zone">
-        PILE · {left} left
+        Pile · {left} left
       </text>
       {showRisk ? (
         <text x={W - 24} y={PILE_LABEL_Y} className="zone-r">
@@ -159,7 +157,7 @@ export default function Board({ deal, hand, live, checkpoint, message, moveMs }:
 
       {/* Matched */}
       <text x={24} y={MATCH_LABEL_Y} className="zone">
-        MATCHED
+        Matched
       </text>
       <text x={W - 24} y={MATCH_LABEL_Y} className="zone-r">
         {deal.matched.length} of {n} pairs
@@ -177,7 +175,7 @@ export default function Board({ deal, hand, live, checkpoint, message, moveMs }:
             className={'tok ' + p.cls}
             style={{ transform: `translate(${p.x}px, ${p.y}px) scale(${p.s})`, transitionDuration: `${moveMs}ms` }}
           >
-            <circle r={R} style={{ fill: pairColour(pair) }} />
+            <circle r={R} />
             <text y={7}>{pairLetter(pair)}</text>
           </g>
         );
