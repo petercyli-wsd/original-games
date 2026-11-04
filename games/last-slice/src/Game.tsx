@@ -6,7 +6,7 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
+  ACCENTS,
   Chips,
   GameLayout,
   InfoModal,
@@ -21,6 +21,7 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
+  eventMs,
   useAutoBet,
   useBetInput,
   useHistory,
@@ -46,14 +47,12 @@ import {
   has,
   landing,
   lastChances,
-  nextEvents,
   relock,
   startPrize,
   totalWeight,
   volatilityOf,
   wheel,
   winChance,
-  type NextEvent,
   type Shape,
   type SliceCount,
 } from './math';
@@ -94,26 +93,6 @@ const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-/** The next spin's landings: each slice's chance to be hit and the odds it would leave you. */
-function NextSpin({ events, now, mine }: { events: readonly NextEvent[]; now: number; mine: number }) {
-  return (
-    <div className="ls-next" aria-label="Next spin outcomes">
-      {events.map((e) => {
-        const isMine = e.slice === mine;
-        return (
-          <div key={e.slice} className={'ls-ev' + (isMine ? ' mine' : e.win > now + 1e-12 ? ' up' : '')}>
-            <span className="ls-ev-what">
-              <i className={`sw c${e.slice}` + (isMine ? ' mine' : '')} />
-              {LETTERS[e.slice]} · hit {fmtChance(e.prob)}
-            </span>
-            <b>{isMine ? 'you lose' : `→ ${fmtChance(e.win)}`}</b>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function Game() {
   const { rng, track } = useHost();
   const bet = useBetInput();
@@ -143,8 +122,8 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
-  const spinMs = () => (isAutoRef.current ? (fast ? 240 : 640) : fast ? 380 : 1250);
-  const shrinkMs = () => (isAutoRef.current ? (fast ? 80 : 200) : fast ? 120 : 380);
+  const spinMs = () => (isAutoRef.current ? (fast ? 240 : 640) : eventMs(fast));
+  const shrinkMs = () => (isAutoRef.current ? (fast ? 80 : 200) : eventMs(fast, 380));
   const live = phase === 'spinning' || phase === 'checkpoint';
 
   function cashOf(r: Round) {
@@ -392,7 +371,6 @@ export default function Game() {
   const outcome = phase === 'over' ? r.outcome : null;
   const winNow = outcome === 'won' ? 1 : outcome === 'lost' ? 0 : lastP[r.mine];
   const cash = r.prize * winNow;
-  const events = phase === 'checkpoint' && !isAuto ? nextEvents(w, r.mask, r.mine) : null;
   const left = countAlive(r.mask);
   const stake = r.stake;
 
@@ -400,7 +378,6 @@ export default function Game() {
   const p0 = winChance(w0, fullMask(k), mine);
   const prize0 = RTP / p0;
   const vol = volatilityOf(p0);
-  const hitShare = w[r.mine] / totalWeight(w, r.mask);
 
   let status = `Ready · back slice ${LETTERS[mine]} to be last`;
   let tone: StatusTone = 'idle';
@@ -423,30 +400,22 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
   const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(round ? winNow : p0), sub: `${LETTERS[r.mine]} is the last slice`, tone: 'chance' },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(r.paid) : showCash ? fmtMult(cash) : isAuto ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' ? formatAmount(stake * r.paid, 2) : showCash ? formatAmount(stake * cash, 2) : 'after the first spin',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(r.prize), sub: `pays ${formatAmount(stake * r.prize, 2)}`, tone: 'prize' },
+    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(r.prize), tone: 'prize' },
   ];
 
   const editable = (!isAuto && phase === 'checkpoint') || !busy;
   const sliceChips = Array.from({ length: k }, (_, i) => ({
     value: i,
     label: LETTERS[i],
-    title: `${fmtChance(lastChances(w0, fullMask(k))[i])} to be last`,
     disabled: phase === 'checkpoint' && round ? !has(round.mask, i) : false,
   }));
 
   return (
     <GameLayout
       name="Last Slice"
-      accent="#ff006e"
+      accent={ACCENTS.pink}
       className="ls-game"
       panel={
         <>
@@ -501,21 +470,13 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={() => void spin(round)}>
-                    Spin · {fmtChance(hitShare)} it hits {LETTERS[round.mine]}
+                    Spin again
                   </ActionButton>
                 </>
               ) : (
@@ -537,12 +498,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Full prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="ls-note">{bet.blocked}</p>}
@@ -560,15 +515,9 @@ export default function Game() {
           sizes={v.sizes}
           rot={v.rot}
           mine={r.mine}
-          last={lastP}
-          events={events}
           win={winNow}
           hit={v.hit}
           outcome={outcome}
-          out={r.out}
-          spins={r.spins}
-          live={live}
-          spinning={!!v.turning && (phase === 'spinning' || autoBusy)}
           editable={editable}
           onSlice={onSlice}
         />
@@ -586,29 +535,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && phase === 'checkpoint' && events ? (
-        <ChanceBar p={winNow} label={`Win chance: ${LETTERS[r.mine]} is the last slice`} note={<NextSpin events={events} now={winNow} mine={r.mine} />} />
-      ) : !isAuto && phase === 'spinning' ? (
-        <ChanceBar p={winNow} label={`Win chance: ${LETTERS[r.mine]} is the last slice`} note="Spinning…" />
-      ) : isAuto && round && (autoBusy || auto.running) ? (
-        <ChanceBar
-          p={winNow}
-          label={`Win chance: ${LETTERS[r.mine]} is the last slice`}
-          note={
-            target > 0 && target < r.prize
-              ? `Worth ${fmtMult(cash)} now · Auto cashes at ${fmtMult(target)} (once the chance reaches ${fmtChance(target / r.prize)}), or wins ${fmtMult(r.prize)} if ${LETTERS[r.mine]} is last`
-              : `Worth ${fmtMult(cash)} now · Auto plays to the last slice for ${fmtMult(r.prize)}`
-          }
-        />
-      ) : (
-        <Caption>
-          <b className="ls-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' to the last slice'}. Big slices get hit first, so small ones tend to survive. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `A slice's size is its chance to be hit by each spin, so big slices go early and small ones tend to survive. Tap a slice to back it. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
-      )}
+      ) : null}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Last Slice" onClose={() => setInfoOpen(false)}>
@@ -626,12 +554,9 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each slice's angle is its exact chance to be hit by the next spin; the percentage inside it says so. The <b style={{ color: 'var(--red)' }}>red rim</b>{' '}
-              marks your slice: that is your chance to be knocked out this spin. The green arc in the hub is your chance to be the last slice.
-            </p>
-            <p>
-              Before you bet, the number outside each slice is its chance to be last. During a round it shows your odds if that slice is hit next. Losing a rival
-              always helps you, most of all when a small slice goes. Weighted by the slice angles, these odds average back to your odds now.
+              Each slice's angle is its exact chance to be hit by the next spin, so big slices go first and small ones tend to survive. Your slice is the highlighted
+              one. The arc in the hub is your chance to be the last slice: the green part wins, the red part loses. Losing a rival always helps you, most of all when
+              a small slice goes.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
