@@ -1,10 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,7 +17,7 @@ import {
   PanelFoot,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -127,7 +129,8 @@ export default function Game() {
   const chance = chanceOf(range);
   const multiplier = multiplierOf(range);
   const level = volatilityOf(chance);
-  const animMs = turbo.turbo ? 140 : 560;
+  // Manual rolls sweep for a readable 600 ms; Turbo and Auto take about a quarter of that (set below, once auto is known).
+  const animRef = useRef(eventMs(turbo.turbo));
 
   /** Sweeps the marker to the drawn number, counting up on the way. */
   function sweep(to: number, ms: number) {
@@ -152,8 +155,8 @@ export default function Game() {
     const id = ++seq.current;
     setRolling(true);
     setLast(null);
-    sweep(result, animMs);
-    await timers.wait(animMs + 20);
+    sweep(result, animRef.current);
+    await timers.wait(animRef.current + 20);
     cancelAnimationFrame(frame.current);
     markerPos.current = result + 0.5;
     setMarker({ pos: result + 0.5, value: result, tone: win ? 'win' : 'lose', id });
@@ -166,6 +169,7 @@ export default function Game() {
   }
 
   const auto = useAutoBet({ bet, play: playOnce, turbo: turbo.turbo });
+  animRef.current = eventMs(turbo.turbo || auto.running);
   const busy = rolling || auto.running;
 
   /** Any settings change clears the last result off the board. */
@@ -207,7 +211,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Range Dice"
-      accent="#06b6d4"
+      accent={ACCENTS.sky}
       panel={
         <>
           <ModeTabs auto={auto} disabled={rolling} />
@@ -257,12 +261,6 @@ export default function Game() {
               options={PRESETS.map((m) => ({ value: m, label: `${m}×` }))}
             />
           </div>
-          <dl className="og-stats">
-            <dt>Winning numbers</dt>
-            <dd>
-              {wins.toLocaleString('en-US')} / {SIZE.toLocaleString('en-US')}
-            </dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={busy || !!bet.blocked} onClick={() => void playOnce(bet.value)}>
@@ -297,17 +295,7 @@ export default function Game() {
         <InstantResult multiplier={last && !rolling ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <div className="rd-wrap">
           <RangeTrack range={range} onChange={update} disabled={busy} marker={marker} ghosts={ghosts} />
-          <div className="rd-legend" aria-hidden="true">
-            <span className="w">Win {fmtChance(chance)}</span>
-            <span className="rng">
-              {range.dir === 'in' ? 'Inside' : 'Outside'} {rangeText}
-            </span>
-            <span className="l">Lose {fmtChance(1 - chance)}</span>
-          </div>
-          <p className="rd-caption">
-            Green covers {wins.toLocaleString('en-US')} of the 10,000 numbers: your exact chance. Payout {fmtMult(multiplier)} ={' '}
-            {(RTP * 100).toFixed(0)} ÷ {(chance * 100).toFixed(2)}.
-          </p>
+          <Caption>Win if the roll lands on the green part of the track.</Caption>
         </div>
       </Board>
 
