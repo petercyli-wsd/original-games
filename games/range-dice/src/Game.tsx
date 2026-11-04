@@ -120,8 +120,12 @@ export default function Game() {
   const frame = useRef(0);
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
+  // The open ticket's value, set synchronously the moment the roll is drawn
+  // (right after the bet is accepted). The ticket reads only this ref: the
+  // rendered `rolling` flag can be one render stale, which settled a winning
+  // roll at 0 if the game unmounted before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (rolling ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const wins = winCount(range);
   const chance = chanceOf(range);
@@ -146,6 +150,7 @@ export default function Game() {
 
   async function playOnce(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     const r = range;
     const { result, win, multiplier: mult } = playBet(r, rng.next());
     resolved.current = mult;
