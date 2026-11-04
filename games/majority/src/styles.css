@@ -1,6 +1,6 @@
 /* Majority board. Layout, panel and readouts come from the kit (docs/STYLE.md).
-   Blue is the lighter grey, Red the darker one; the labels say which is which.
-   The accent marks the side you back. */
+   The sides are content colours named by the rules: Blue is the game's accent
+   hex (var(--accent)), Red is --suit-red. Your side is marked in --text. */
 
 .og-board.mj-board > svg {
   max-height: 60vh;
@@ -12,10 +12,10 @@
 
 /* ---------- Hexes ---------- */
 .mj-svg .fill-b {
-  fill: var(--line-strong);
+  fill: var(--accent);
 }
 .mj-svg .fill-r {
-  fill: var(--bg);
+  fill: var(--suit-red);
 }
 .mj-svg .edge {
   fill: none;
@@ -26,34 +26,35 @@
   stroke: var(--faint);
 }
 .mj-svg .hex.b .solid {
-  fill: var(--muted);
+  fill: var(--accent);
 }
 .mj-svg .hex.r .solid {
-  fill: var(--hover);
+  fill: var(--suit-red);
 }
+/* Labels sit on both colours: a --bg outline keeps them legible. */
 .mj-svg .hex .w {
   text-anchor: middle;
   font-size: 17px;
   font-weight: 600;
   fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 3px;
+  paint-order: stroke;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
 .mj-svg .hex.called .w {
   font-size: 19px;
 }
-.mj-svg .hex.b .w {
-  fill: var(--bg);
-}
 .mj-svg .hex .id {
   text-anchor: middle;
   font-size: 10px;
   font-weight: 600;
-  fill: var(--muted);
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2.5px;
+  paint-order: stroke;
   pointer-events: none;
-}
-.mj-svg .hex.b .id {
-  fill: var(--bg);
 }
 .mj-svg .hex-body {
   transform-box: view-box;
@@ -85,24 +86,30 @@
   fill: var(--bg);
 }
 .mj-svg .bar-b {
-  fill: var(--muted);
+  fill: var(--accent);
 }
 .mj-svg .bar-r {
-  fill: var(--line-strong);
+  fill: var(--suit-red);
 }
 .mj-svg .bar-l,
 .mj-svg .bar-r-l {
   font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  fill: var(--muted);
+}
+.mj-svg .bar-l {
+  fill: var(--accent);
+}
+.mj-svg .bar-r-l {
+  fill: var(--suit-red);
 }
 .mj-svg .bar-l .k,
 .mj-svg .bar-r-l .k {
   font-size: 12px;
 }
-.mj-svg .mine {
-  fill: var(--accent);
+.mj-svg .mine-ul {
+  stroke: var(--text);
+  stroke-width: 2;
 }
 .mj-svg .bar-r-l {
   text-anchor: end;
@@ -133,13 +140,13 @@
   stroke-width: 1;
 }
 .mj-svg .yourline {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 2;
 }
 .mj-svg .yourline-l {
   font-size: 12px;
   font-weight: 600;
-  fill: var(--accent);
+  fill: var(--text);
 }
 .mj-svg .yourline-l.end {
   text-anchor: end;
@@ -167,12 +174,10 @@
   border-radius: 2px;
 }
 .mj-side.blue i {
-  background: var(--muted);
+  background: var(--accent);
 }
 .mj-side.red i {
-  background: var(--hover);
-  box-sizing: border-box;
-  border: 1px solid var(--faint);
+  background: var(--suit-red);
 }
 .mj-chip2 {
   display: flex;

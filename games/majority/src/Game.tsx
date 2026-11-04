@@ -495,7 +495,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Pick a map, a side and a line, then Bet. The first region is called straight away.</li>
-              <li>Regions are called in a random order. Each one goes Blue with the chance its hex shows (the lighter share of the hex), independently of the others.</li>
+              <li>Regions are called in a random order. Each one goes Blue with the chance its hex shows (the blue share of the hex), independently of the others.</li>
               <li>After each call the next region is lit up. Cash out (C) or call it (Space).</li>
               <li>At a checkpoint you may switch side or line. Your cash-out stays the same and the prize is relocked to match.</li>
               <li>The race is called as soon as no remaining region can change your result, so rounds often end early.</li>
@@ -504,8 +504,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each uncalled hex is split light (Blue) and dark (Red) in proportion to its chance; the big number is its seats. The bar below the map fills with Blue's seats from
-              the left and Red's from the right; the marker is your line.
+              Each uncalled hex is split blue and red in proportion to its chance; the big number is its seats. The bar below the map fills with Blue's seats from
+              the left and Red's from the right; the white marker is your line, and the side you back is underlined.
             </p>
             <p>
               The strip at the bottom shows every possible final Blue total and its exact chance. Green bars are the totals where you win, so their combined height

@@ -109,7 +109,10 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
         <rect x={X0} y={BAR_Y} width={X1 - X0} height={BAR_H} rx={4} className="bar-bg" />
         {t.blue > 0 && <rect x={X0} y={BAR_Y} width={f(t.blue * K)} height={BAR_H} rx={4} className="bar-b" />}
         {t.red > 0 && <rect x={f(X1 - t.red * K)} y={BAR_Y} width={f(t.red * K)} height={BAR_H} rx={4} className="bar-r" />}
-        <text x={X0} y={BAR_Y - 7} className={'bar-l' + (bet.side === 'blue' ? ' mine' : '')}>
+        {/* Your side's label is underlined in --text. */}
+        {bet.side === 'blue' && <line x1={X0} x2={X0 + 58} y1={BAR_Y - 3} y2={BAR_Y - 3} className="mine-ul" />}
+        {bet.side === 'red' && <line x1={X1 - 58} x2={X1} y1={BAR_Y - 3} y2={BAR_Y - 3} className="mine-ul" />}
+        <text x={X0} y={BAR_Y - 8} className="bar-l">
           <tspan className="k">Blue</tspan> {t.blue}
         </text>
         <text x={W / 2} y={BAR_Y - 7} className="bar-m">
@@ -119,7 +122,7 @@ export default function Board({ map, calls, bet, dist, win, next, calling, callM
               ? `${sideName} can't reach ${bet.line}`
               : `${sideName} needs ${need} of ${t.left} left`}
         </text>
-        <text x={X1} y={BAR_Y - 7} className={'bar-r-l' + (bet.side === 'red' ? ' mine' : '')}>
+        <text x={X1} y={BAR_Y - 8} className="bar-r-l">
           {t.red} <tspan className="k">Red</tspan>
         </text>
         <line x1={X(50)} x2={X(50)} y1={BAR_Y - 2} y2={BAR_Y + BAR_H + 2} className="half" />
