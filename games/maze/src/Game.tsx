@@ -105,10 +105,13 @@ export default function Game() {
 
   // A roll is decided the moment it starts, so leaving mid-roll settles at
   // its real result, never at the pre-roll value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, roll drawn, Auto move drawn). The ticket reads
+  // only this ref: a value derived from rendered state can be one render stale
+  // (e.g. the last round's state just after Bet again) if the game unmounts
+  // before the next render.
   const resolved = useRef(0);
-  /** True while a decided roll or Auto round is in flight: the ticket settles at `resolved`. */
-  const pinned = useRef(false);
-  const ticket = useTicket(() => (phase === 'moving' || pinned.current ? resolved.current : phase === 'live' && round ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const settings: Settings = { maze: mazeId, start };
   const moveMs = turbo.turbo ? 70 : 200;
@@ -132,7 +135,6 @@ export default function Game() {
     const end = endOf(m, endCell);
     const cash = end === 'exit' ? r.prize : end === 'trap' ? 0 : r.prize * m.odds[endCell];
     resolved.current = cash;
-    pinned.current = true;
     setPhase('moving');
     let cur = r;
     path.forEach((cell, k) => {
@@ -145,7 +147,6 @@ export default function Game() {
       });
     });
     timers.after(path.length * moveMs, () => {
-      pinned.current = false;
       if (end) return finish(cur, end, cash);
       const after = { ...cur, cash };
       setRound(after);
@@ -157,6 +158,7 @@ export default function Game() {
   async function startRound() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     const r = newRound(settings, bet.value);
@@ -182,13 +184,9 @@ export default function Game() {
   async function playAuto(stake: number): Promise<number | null> {
     const s = { ...settings };
     const tgt = target !== null && target < prizeFor(s) ? target : null;
+    if (!(await ticket.place(stake))) return null;
     // Fair value before the first move is RTP; never the previous round's result.
     resolved.current = RTP;
-    pinned.current = true;
-    if (!(await ticket.place(stake))) {
-      pinned.current = false;
-      return null;
-    }
     setAutoBusy(true);
     setLast(null);
     setPhase('idle');
@@ -215,7 +213,6 @@ export default function Game() {
       }
     }
     ticket.settle(mult);
-    pinned.current = false;
     pushHistory(mult);
     setRound({ ...r, outcome, cash: mult });
     setLast({ id: ++seq.current, multiplier: mult, stake });
