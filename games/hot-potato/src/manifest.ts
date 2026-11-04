@@ -12,5 +12,5 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#ff6b35',
+  accent: '#5ec4e6', // ACCENTS.sky (docs/STYLE.md)
 });

@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -33,7 +34,7 @@ import {
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
 import Ring, { type Outcome } from './Board';
-import { H, MAX_MULTIPLIER, N, RTP, SEAT_OPTIONS, backedSeats, heat, mod, needleAngle, spin, startPrize, volatilityOf, winChance, winsAt, type SeatsBacked } from './math';
+import { H, MAX_MULTIPLIER, N, RTP, SEAT_OPTIONS, backedSeats, mod, needleAngle, spin, startPrize, volatilityOf, winChance, winsAt, type SeatsBacked } from './math';
 
 type Phase = 'idle' | 'spinning' | 'checkpoint' | 'over';
 
@@ -61,7 +62,7 @@ interface Last {
 
 const FUSE_PCT = Math.round(H * 100);
 const PASS_PCT = Math.round(((1 - H) / 2) * 100);
-const RULE = 'Each spin, the bomb blows where it sits (red) or hops to a neighbour (green). Win if it blows on one of your seats. Cash out any time.';
+const RULE = 'Win if the dot blows on one of your seats.';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const seatsWord = (p: readonly number[]) => (p.length === 1 ? `seat ${p[0]}` : `seats ${p[0]}–${p[p.length - 1]}`);
 
@@ -97,9 +98,9 @@ export default function Game() {
     phase === 'spinning' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0,
   );
 
-  const spinMs = turbo.turbo ? 230 : 950;
-  const hopMs = turbo.turbo ? 110 : 380;
-  const blastMs = turbo.turbo ? 220 : 700;
+  const spinMs = eventMs(turbo.turbo);
+  const hopMs = eventMs(turbo.turbo);
+  const blastMs = eventMs(turbo.turbo, 300);
   const autoSpinMs = turbo.turbo ? 80 : 320;
   const autoHopMs = turbo.turbo ? 50 : 170;
   const live = phase === 'spinning' || phase === 'checkpoint';
@@ -257,12 +258,9 @@ export default function Game() {
   const view: Round = round ?? fresh(bet.value);
   const seat = mod(view.x, N);
   const blown = view.blewAt !== null;
-  const ringHeat = blown ? Array.from({ length: N }, (_, s) => (s === view.blewAt ? 1 : 0)) : heat(seat);
   const winNow = blown ? (winsAt(view.blewAt!, view.picks) ? 1 : 0) : winChance(seat, view.picks);
   const cash = view.prize * winNow;
   const stake = view.stake;
-  const atCheckpoint = phase === 'checkpoint' && !isAuto;
-  const passOdds = atCheckpoint ? { cw: winChance(mod(seat + 1, N), view.picks), ccw: winChance(mod(seat - 1, N), view.picks), now: winNow } : null;
 
   const p0 = winChance(0, picks);
   const prize0 = RTP / p0;
@@ -287,46 +285,16 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
-  // Settled as soon as it blows (the blast beat), not only once the round is over.
-  const settled = phase === 'over' || blown;
-  const paidNow = phase === 'over' ? view.paid : winNow ? view.prize : 0;
+  // One chance and one prize (docs/STYLE.md §6); the cash-out value lives on its button.
   const readouts: ReadoutItem[] = [
-    {
-      label: 'Win chance',
-      value: fmtChance(round ? winNow : p0),
-      sub: `blows on ${seatsWord(view.picks)}`,
-      tone: 'chance',
-    },
-    {
-      label: settled ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: settled ? fmtMult(paidNow) : showCash ? fmtMult(cash) : isAuto && !round ? (target > 0 && target < prize0 ? fmtMult(target) : 'the end') : fmtMult(RTP),
-      sub: settled ? formatAmount(stake * paidNow, 2) : showCash ? formatAmount(stake * cash, 2) : isAuto ? (target > 0 && target < prize0 ? 'unless it blows first' : 'plays to the blast') : 'before the first spin',
-      tone: 'cash',
-    },
-    {
-      label: 'Prize',
-      value: fmtMult(view.prize),
-      sub: `pays ${formatAmount(stake * view.prize, 2)}`,
-      tone: 'prize',
-    },
+    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(view.prize), tone: 'prize' },
   ];
-
-  const nextNote = (
-    <span className="hp-next">
-      <span className="boom">
-        Blows on seat {seat} now: <b>{FUSE_PCT}%</b>
-      </span>
-      <span>
-        Hops to {mod(seat - 1, N)} or {mod(seat + 1, N)}: <b>{PASS_PCT}% each</b>
-      </span>
-    </span>
-  );
 
   return (
     <GameLayout
       name="Hot Potato"
-      accent="#ff6b35"
+      accent={ACCENTS.sky}
       className="hp-game"
       panel={
         <>
@@ -338,21 +306,13 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={() => spinOnce(round)}>
-                    Spin the fuse · {FUSE_PCT}% boom
+                    Spin the fuse
                   </ActionButton>
                 </>
               ) : (
@@ -374,12 +334,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Full prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="hp-note">{bet.blocked}</p>}
@@ -397,19 +351,14 @@ export default function Game() {
           n={N}
           picks={view.picks}
           bombX={view.x}
-          hops={view.hops}
-          spins={view.spins}
-          heat={ringHeat}
           needle={view.needle}
-          passOdds={passOdds}
           blewAt={view.blewAt}
           spinMs={isAuto ? autoSpinMs : spinMs}
           hopMs={isAuto ? autoHopMs : hopMs}
-          live={live}
         />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={round.outcome === 'cashed' ? 'Cashed out' : round.outcome === 'won' ? `Boom on seat ${round.blewAt}: yours` : `Boom on seat ${round.blewAt}`}
@@ -421,17 +370,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar p={winNow} label="Win chance: your seats' share of the heat" note={phase === 'checkpoint' ? nextNote : blown ? `Boom on seat ${view.blewAt}` : 'The needle is spinning…'} />
-      ) : (
-        <Caption>
-          <b className="hp-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' to the blast'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `More seats: a likelier win and a smaller prize. The ring shades each seat by its chance to be where it blows. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Hot Potato" onClose={() => setInfoOpen(false)}>
@@ -444,8 +384,8 @@ export default function Game() {
             <ol>
               <li>Pick how many seats you back, then Bet. The bomb starts on seat 0 and nothing has happened yet: you can spin or cash out.</li>
               <li>
-                Spin the fuse (Space). The needle lands on the dial in the middle. Red ({FUSE_PCT}%): the bomb blows on the seat it sits on. Green ({PASS_PCT}% each
-                side): it hops to that neighbour and doesn't blow.
+                Spin the fuse (Space). The needle lands on the dial in the middle. The wide slice marked blows ({FUSE_PCT}%): the dot blows on the seat it sits on.
+                The grey slices ({PASS_PCT}% each side): it hops to that neighbour and doesn't blow.
               </li>
               <li>Landing on your seat is not a win by itself: the bomb has to blow there. Sitting on your seat, the next spin has a {FUSE_PCT}% chance to win.</li>
               <li>After every hop, cash out (C) for prize × your chance now, or spin again.</li>
@@ -454,12 +394,12 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The dial is the draw: each slice is as wide as its chance, the red slice always faces the bomb and the green slices face the seats it can hop to.
+              The dial is the draw: each slice is as wide as its chance, the blows slice always faces the dot (green if that seat is yours, red if not) and the
+              grey slices face the seats it can hop to.
             </p>
             <p>
-              The outer ring is the heat: each seat is shaded by its exact chance to be where the bomb finally blows. It is brightest under the bomb and halves
-              with each seat further away, so the pattern travels with the bomb. Green cells are your seats; your win chance is their share, shown as the bar under
-              the board.
+              Your seats are the coloured ones on the ring. Your win chance is the chance the dot finally blows on one of them, shown above the board. The seat where it
+              blows turns green or red and stays that way until the next round.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
