@@ -5,8 +5,8 @@ import {
   AutoBetControls,
   BetField,
   Board,
+  ACCENTS,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -43,7 +44,6 @@ import {
   buildRoad,
   cross,
   finish as finishPrize,
-  hitChance,
   laneSafe,
   multiplier,
   reachChance,
@@ -121,8 +121,9 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'crossing' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
 
-  const hopMs = turbo.turbo ? 110 : 380;
-  const slamMs = turbo.turbo ? 160 : 460;
+  // Manual: the token slides into the lane over a readable 600 ms; traffic then drops in over 450 ms (docs/STYLE.md).
+  const hopMs = eventMs(turbo.turbo);
+  const slamMs = eventMs(turbo.turbo, 450);
   const autoHopMs = turbo.turbo ? 40 : 120;
   const live = phase === 'live' || phase === 'crossing';
   const spec = DIFFICULTY[difficulty];
@@ -344,31 +345,15 @@ export default function Game() {
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
+  // One chance and one payout (docs/STYLE.md §6); the cash-out lives on its button.
   const readouts: ReadoutItem[] = isAuto
     ? [
-        { label: 'Win chance', value: fmtChance(reachChance(difficulty, target)), sub: `cross ${lanesWord(target)}`, tone: 'chance' },
-        { label: 'Payout', value: fmtMult(multiplier(difficulty, target)), sub: `pays ${formatAmount(bet.value * multiplier(difficulty, target), 2)}`, tone: 'cash' },
-        { label: 'Finish', value: fmtMult(finishPrize(difficulty)), sub: `${spec.label} · lane ${LANES}`, tone: 'prize' },
+        { label: 'Win chance', value: fmtChance(reachChance(difficulty, target)), tone: 'chance' },
+        { label: `Lane ${target} pays`, value: fmtMult(multiplier(difficulty, target)), tone: 'prize' },
       ]
     : [
-        {
-          label: 'Next lane clear',
-          value: phase === 'over' ? '—' : fmtChance(laneSafe(d)),
-          sub: phase === 'over' ? `${DIFFICULTY[d].hits} in ${OUT_OF} hit` : `lane ${nextLane} · ${DIFFICULTY[d].hits} in ${OUT_OF} hit`,
-          tone: 'chance',
-        },
-        {
-          label: 'Cash out now',
-          value: (live && pos > 0) || phase === 'over' ? fmtMult(cash) : '—',
-          sub: (live && pos > 0) || phase === 'over' ? formatAmount(stake * cash, 2) : 'after lane 1',
-          tone: 'cash',
-        },
-        {
-          label: 'Next lane pays',
-          value: phase === 'over' ? '—' : fmtMult(multiplier(d, nextLane)),
-          sub: phase === 'over' ? 'round over' : `pays ${formatAmount(stake * multiplier(d, nextLane), 2)}`,
-          tone: 'prize',
-        },
+        { label: 'Next lane clear', value: phase === 'over' ? '—' : fmtChance(laneSafe(d)), tone: 'chance' },
+        { label: 'Next lane pays', value: phase === 'over' ? '—' : fmtMult(multiplier(d, nextLane)), tone: 'prize' },
       ];
 
   const difficultyPicker = (
@@ -393,7 +378,7 @@ export default function Game() {
           </button>
         ))}
       </div>
-      <Label hint={`${fmtChance(hitChance(difficulty))} per lane`}>Traffic</Label>
+      <Label hint={`${DIFFICULTY[difficulty].hits} in ${OUT_OF} lanes`}>Traffic</Label>
       <OddsStrip d={difficulty} />
     </>
   );
@@ -401,7 +386,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Chicken"
-      accent="#facc15"
+      accent={ACCENTS.amber}
       className="ck-game"
       panel={
         <>
@@ -411,27 +396,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {live ? (
-                <>
-                  <Label hint={fmtMult(pos > 0 ? cash : 0)}>Total profit</Label>
-                  <div className={'ck-profit' + (pos > 0 ? ' up' : '')}>
-                    {pos > 0 ? '+' : ''}
-                    {formatAmount(pos > 0 ? stake * cash - stake : 0, 2)}
-                  </div>
-                </>
-              ) : (
-                <dl className="og-stats">
-                  <dt>Each lane clear</dt>
-                  <dd>{fmtChance(laneSafe(difficulty))}</dd>
-                  <dt>Lane 1 pays</dt>
-                  <dd>{fmtMult(multiplier(difficulty, 1))}</dd>
-                  <dt>Finish pays</dt>
-                  <dd>{fmtMult(finishPrize(difficulty))}</dd>
-                  <dt>Reach the finish</dt>
-                  <dd>{fmtChance(reachChance(difficulty, LANES))}</dd>
-                </dl>
-              )}
-
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live' || pos === 0} onClick={cashOut}>
@@ -476,12 +440,6 @@ export default function Game() {
                   onChange={changeTarget}
                 />
               </div>
-              <dl className="og-stats">
-                <dt>Win chance</dt>
-                <dd>{fmtChance(reachChance(difficulty, target))}</dd>
-                <dt>Profit per win</dt>
-                <dd>{formatAmount(bet.value * (multiplier(difficulty, target) - 1), 2)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="ck-blocked">{bet.blocked}</p>}
@@ -506,7 +464,7 @@ export default function Game() {
         <Progress pos={view.pos} hit={view.hit} target={isAuto ? autoView?.target ?? target : null} road={view.road} showAll={view.showAll} />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -518,19 +476,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={laneSafe(d)}
-          label={`Lane ${nextLane} is clear`}
-          note={`${OUT_OF - DIFFICULTY[d].hits} of every ${OUT_OF} lanes are clear, whichever lane you are on. Space or → crosses, C cashes out.`}
-        />
-      ) : (
-        <Caption>
-          {isAuto
-            ? `Each bet crosses to lane ${target} in one go. Making it pays ${fmtMult(multiplier(difficulty, target))}; traffic on the way loses. Click a lane to set the target.`
-            : `Twenty lanes; each one is hit by traffic ${spec.hits} time${spec.hits === 1 ? '' : 's'} in ${OUT_OF}. Press Bet, then cross lane by lane and cash out whenever you like. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Each lane you cross raises the payout; traffic in a lane ends the round.</Caption>
 
       {infoOpen && (
         <InfoModal title="Chicken" onClose={() => setInfoOpen(false)}>
@@ -543,7 +490,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Choose a difficulty and your bet, then press Bet.</li>
-              <li>Cross the next lane with Space, →, the Cross button, or by clicking the glowing pad.</li>
+              <li>Cross the next lane with Space, →, the Cross button, or by clicking the outlined pad.</li>
               <li>After each safe lane, cash out (C) or keep going. Crossing lane {LANES} pays the finish prize automatically.</li>
               <li>When the round ends, the traffic in the lanes you didn't reach is shown, so you can see what was waiting.</li>
               <li>Auto: set a target lane (stepper, presets, or click a lane on the road), then Start autobet. Each bet crosses to the target and pays its multiplier if every lane on the way is clear.</li>
@@ -553,8 +500,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Each lane is hit with the same chance, {DIFFICULTY[d].hits} in {OUT_OF} on {DIFFICULTY[d].label}: the red cells of the Traffic strip. Lanes are drawn
-              independently when you bet, so no lane, streak or position is luckier than another. The bar under the road is the chance the next lane is clear,
-              and every pad shows what you can cash out once you stand on it.
+              independently when you bet, so no lane, streak or position is luckier than another. "Next lane clear" above the road is that chance, and every
+              pad shows what you can cash out once you stand on it. The strip under the road shows all {LANES} lanes at once.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
