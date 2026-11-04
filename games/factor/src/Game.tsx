@@ -99,16 +99,22 @@ export default function Game() {
   const [stepKey, setStepKey] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // The division in flight is decided the moment it starts, so leaving
-  // mid-animation settles at its real result, never at the pre-step value.
+  // The open bet's fair value. The division in flight is decided the moment
+  // it starts, so leaving mid-animation settles at its real result, never at
+  // the pre-step value. The ticket reads only this ref, which is set
+  // synchronously: RTP the moment the bet is accepted, then the post-test
+  // value as each division is made. (Reading the rendered phase / round
+  // instead could be one render stale and settle a fresh stake, or a
+  // just-started division, at an old value.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dividing' ? resolved.current : (round?.cash ?? 0)));
+  const ticket = useTicket(() => resolved.current);
 
   const tryMs = turbo.turbo ? 110 : 420;
   const showMs = turbo.turbo ? 90 : 330;
   const live = phase === 'dividing' || phase === 'checkpoint';
 
   function settle(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -150,6 +156,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const n = MIN_N + rng.int(RANGE);
     const r: Round = { bet: backing, pause, stake: bet.value, n, trial: startTrial(), prev: null, cash: RTP, outcome: null };
