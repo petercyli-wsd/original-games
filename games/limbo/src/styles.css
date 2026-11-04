@@ -1,45 +1,16 @@
 /* Limbo: the odds dial, the climbing counter and the linked target / chance inputs (in the panel). */
 
-.limbo-profit {
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--green);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 .limbo-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--red);
-}
-.limbo-auto-note {
-  margin: 0 0 2px;
-  padding: 6px 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
-  font-size: 12px;
-  line-height: 1.45;
-  color: var(--muted);
-}
-.limbo-auto-note b {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
+  color: var(--lose);
 }
 
 /* The dial has the whole stage now that the inputs live in the panel. */
 .limbo-board {
   min-height: 300px;
-  padding-top: 40px;
+  padding-top: var(--sp-6);
 }
 .limbo-board > svg.limbo-dial {
   width: min(100%, 620px);
@@ -47,150 +18,75 @@
 }
 
 /* ---------- Dial ---------- */
-.limbo-core {
-  fill: url(#limbo-core);
-}
 .limbo-ring-in {
   fill: none;
   stroke: var(--line);
   stroke-width: 1.5;
 }
-.limbo-ring-in.faint {
-  stroke-dasharray: 2 6;
-  opacity: 0.7;
-}
+/* odds arcs: red below the target, green (= win chance) above */
 .limbo-zone {
   fill: none;
   stroke-width: 14;
   stroke-linecap: butt;
 }
 .limbo-zone.lose {
-  stroke: color-mix(in srgb, var(--red) 45%, var(--bg));
+  stroke: var(--lose);
 }
 .limbo-zone.win {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--green) 55%, transparent));
+  stroke: var(--win);
 }
 .limbo-sweep {
   fill: none;
-  stroke: var(--accent);
-  stroke-width: 6;
+  stroke: var(--text);
+  stroke-width: 4;
   stroke-linecap: round;
-  transform: translateZ(0);
 }
-.limbo-dial.passing .limbo-sweep,
 .limbo-dial.won .limbo-sweep {
-  stroke: #fff;
+  stroke: var(--win);
 }
 .limbo-dial.lost .limbo-sweep {
-  stroke: color-mix(in srgb, #fff 70%, var(--red));
+  stroke: var(--lose);
 }
 .limbo-needle {
-  fill: #fff;
-  stroke: var(--accent);
+  fill: var(--text);
+  stroke: var(--bg);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px var(--accent));
 }
 .limbo-dial.won .limbo-needle {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 10px var(--green));
+  fill: var(--win);
 }
 .limbo-dial.lost .limbo-needle {
-  stroke: var(--red);
-  filter: drop-shadow(0 0 8px var(--red));
+  fill: var(--lose);
 }
 .limbo-tick line {
   stroke: var(--muted);
   stroke-width: 1.5;
-  opacity: 0.7;
 }
 .limbo-tick text {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
+/* the player's target */
 .limbo-target {
-  stroke: #fff;
+  stroke: var(--accent);
   stroke-width: 4;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 4px #000);
 }
 
 .limbo-value {
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.5px;
   fill: var(--text);
-  transition: fill 0.15s ease;
 }
 .limbo-dial.idle .limbo-value {
-  fill: color-mix(in srgb, var(--text) 55%, transparent);
-}
-.limbo-dial.passing .limbo-value,
-.limbo-dial.won .limbo-value {
-  fill: var(--green);
-}
-.limbo-dial.won .limbo-value {
-  animation: limbo-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4);
-  transform-box: fill-box;
-  transform-origin: center;
-  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--green) 60%, transparent));
-}
-.limbo-dial.lost .limbo-value {
-  fill: var(--red);
-  animation: limbo-shake 0.32s ease;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-.limbo-sub {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1.4px;
   fill: var(--muted);
 }
-.limbo-sub.chance {
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  font-weight: 600;
-  fill: color-mix(in srgb, var(--green) 75%, var(--muted));
+.limbo-dial.won .limbo-value {
+  fill: var(--win);
 }
-
-.limbo-burst line {
-  stroke: var(--green);
-  stroke-width: 3;
-  stroke-linecap: round;
-  transform-box: view-box;
-  transform-origin: 200px 172px;
-  animation: limbo-burst 0.6s ease-out both;
-}
-@keyframes limbo-burst {
-  from {
-    opacity: 1;
-    transform: scale(0.6);
-  }
-  to {
-    opacity: 0;
-    transform: scale(1.15);
-  }
-}
-@keyframes limbo-pop {
-  from {
-    transform: scale(0.8);
-  }
-  60% {
-    transform: scale(1.08);
-  }
-}
-@keyframes limbo-shake {
-  20% {
-    transform: translateX(-6px);
-  }
-  45% {
-    transform: translateX(5px);
-  }
-  70% {
-    transform: translateX(-3px);
-  }
+.limbo-dial.lost .limbo-value {
+  fill: var(--lose);
 }
 
 /* A long auto panel scrolls instead of squashing the bet field. */
@@ -207,16 +103,16 @@
 .limbo-target-row .og-num-suffix {
   display: flex;
   align-items: center;
-  padding: 0 10px 0 4px;
+  padding: 0 var(--sp-3) 0 var(--sp-1);
 }
 .limbo-chance input {
-  padding: 11px 12px;
-  font-size: 15px;
+  padding: var(--sp-3);
+  font-size: var(--fs-3);
 }
 @container (max-width: 760px) {
   .limbo-board {
     min-height: 250px;
-    padding-top: 66px;
+    padding-top: var(--sp-6);
   }
 }
 
@@ -225,13 +121,4 @@
 .limbo-history {
   justify-content: flex-start;
   margin-left: auto;
-}
-.limbo-history .og-hist:first-child {
-  animation: limbo-hist-in 0.22s ease-out;
-}
-@keyframes limbo-hist-in {
-  from {
-    opacity: 0;
-    transform: translateX(-8px);
-  }
 }
