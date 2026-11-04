@@ -11,5 +11,5 @@ export default defineManifest({
   maxMultiplier: Math.max(...MODE_NAMES.map(maxMultiplier)),
   volatility: MODE_NAMES,
   checkpoints: true,
-  accent: '#f59e0b',
+  accent: '#e6b450', // ACCENTS.amber (docs/STYLE.md)
 });
