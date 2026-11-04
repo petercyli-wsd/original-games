@@ -66,8 +66,13 @@ export default function Game() {
 
   // The drop in flight is decided the moment it starts, so leaving mid-spin
   // settles at its real result, never at the safer pre-drop value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, drop drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's cash-out just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'dropping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const spinMs = turbo.turbo ? 220 : 850;
   const live = phase === 'dropping' || phase === 'checkpoint';
@@ -105,6 +110,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { window: win, target, stake: bet.value, points: [], cash: RTP, outcome: null, bustPoint: null };
     setRound(r);
