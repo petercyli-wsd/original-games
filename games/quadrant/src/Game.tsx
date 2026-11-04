@@ -162,11 +162,14 @@ export default function Game() {
 
   async function start() {
     if (live || bet.blocked) return;
-    // The first x is drawn first; the bet then opens already worth its post-reveal value.
+    if (!(await ticket.place(bet.value))) return;
+    // The first x is drawn only once the bet is accepted, and the ticket jumps
+    // to its post-reveal value at once. (Drawing it before place() let a second
+    // Bet press, one that place() then refused, overwrite `fair` with a value
+    // for an x the round never used; leaving at the next checkpoint settled at it.)
     const x = drawX(rng);
     const cash = cashOut(settings, { landed: 0, x });
     fair.current = cash;
-    if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
     revealX({ s: settings, stake: bet.value, landed: [], cur: { x, y: null }, cash, outcome: null, early: false });
   }
