@@ -1,6 +1,6 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
@@ -14,8 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   fmtOneIn,
@@ -28,12 +30,13 @@ import {
 } from '@originals/game-sdk/ui';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import WheelBoard, { type WheelRefs } from './Board';
-import { MAX_MULTIPLIER, RISKS, RTP, SEGMENTS, colourFor, labelColourFor, segmentFor, spin, tableFor, volatilityOf, type Risk, type Segments } from './math';
+import { MAX_MULTIPLIER, RISKS, RTP, SEGMENTS, segmentFor, spin, tableFor, volatilityOf, type Risk, type Segments } from './math';
 
 const RISK_LABEL: Record<Risk, string> = { low: 'Low', medium: 'Medium', high: 'High' };
-const SPIN_MS = 3000;
-const SPIN_TURBO_MS = 750;
-const TURNS = 5;
+const ACCENT = ACCENTS.amber;
+// The spin is one event: ~1.2 s in Manual, a quarter of that with Turbo.
+const SPIN_MS = 1200;
+const TURNS = 3;
 const TURNS_TURBO = 2;
 
 interface Last {
@@ -42,8 +45,6 @@ interface Last {
   multiplier: number;
   stake: number;
 }
-
-const TICK: Keyframe[] = [{ transform: 'rotate(0deg)' }, { transform: 'rotate(-18deg)', offset: 0.3 }, { transform: 'rotate(0deg)' }];
 
 /** The wheel angle (degrees, clockwise) that puts the middle of segment 0 under the pointer. */
 const idleAngle = (n: number) => -180 / n;
@@ -58,7 +59,6 @@ export default function Game() {
   const [segments, setSegments] = useState<Segments>(30);
   const [spinning, setSpinning] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
-  const [focus, setFocus] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -71,9 +71,8 @@ export default function Game() {
 
   // ---- Wheel animation: one rAF loop turns the wheel to the drawn segment. ----
   const wheelEl = useRef<SVGGElement>(null);
-  const pointerEl = useRef<SVGGElement>(null);
   const liveEl = useRef<SVGTextElement>(null);
-  const refs = useMemo<WheelRefs>(() => ({ wheel: wheelEl, pointer: pointerEl, live: liveEl }), []);
+  const refs = useMemo<WheelRefs>(() => ({ wheel: wheelEl, live: liveEl }), []);
   const angle = useRef(idleAngle(segments));
   const alive = useRef(true);
   const raf = useRef(0);
@@ -97,7 +96,6 @@ export default function Game() {
       const from = angle.current;
       const t0 = performance.now();
       let idx = -1;
-      let lastTick = 0;
       const frame = (now: number) => {
         if (!alive.current) return resolve(false);
         const x = Math.min(1, (now - t0) / ms);
@@ -109,15 +107,7 @@ export default function Game() {
         const k = underPointer(deg, t.segments);
         if (k !== idx) {
           idx = k;
-          if (now - lastTick > 55) {
-            lastTick = now;
-            pointerEl.current?.animate(TICK, { duration: 140, easing: 'ease-out' });
-          }
-          const m = t.layout[k];
-          if (liveEl.current) {
-            liveEl.current.textContent = fmtMult(m);
-            liveEl.current.style.fill = labelColourFor(m, t.risk);
-          }
+          if (liveEl.current) liveEl.current.textContent = fmtMult(t.layout[k]);
         }
         if (x < 1) raf.current = requestAnimationFrame(frame);
         else resolve(true);
@@ -135,14 +125,13 @@ export default function Game() {
     resolved.current = r.multiplier;
     spinningRef.current = true;
     setSpinning(true);
-    setFocus(null);
 
     const s = 360 / t.segments;
     const landAt = (r.index + r.offset) * s; // wheel-frame angle that must end under the pointer
     const from = angle.current;
     const base = (((-landAt - from) % 360) + 360) % 360;
     const target = from + base + 360 * (turbo.turbo ? TURNS_TURBO : TURNS);
-    await turnTo(target, turbo.turbo ? SPIN_TURBO_MS : SPIN_MS, t);
+    await turnTo(target, eventMs(turbo.turbo, SPIN_MS), t);
     angle.current = ((target % 360) + 360) % 360;
     apply(angle.current);
 
@@ -169,7 +158,6 @@ export default function Game() {
     setRisk(r);
     setSegments(n);
     setLast(null);
-    setFocus(null);
     angle.current = idleAngle(n);
     apply(angle.current);
   };
@@ -204,7 +192,6 @@ export default function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, [infoOpen]);
 
-  const shownEntry = focus ?? (last ? table.layoutEntry[last.index] : null);
   const status = spinning ? 'Spinning…' : last ? `Landed ${fmtMult(last.multiplier)}` : `${RISK_LABEL[risk]} risk · ${segments} segments`;
   const tone = spinning ? 'live' : last ? (last.multiplier > 0 ? 'won' : 'lost') : 'idle';
   const top = table.entries[table.entries.length - 1];
@@ -212,7 +199,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Wheel"
-      accent="#f59e0b"
+      accent={ACCENT}
       className="wheel"
       panel={
         <>
@@ -237,21 +224,6 @@ export default function Game() {
             options={SEGMENTS.map((n) => ({ value: n, label: n, title: `${n} segments · top ${fmtMult(tableFor(risk, n).max)}` }))}
           />
 
-          {auto.mode === 'manual' && (
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(table.chanceHit)}</dd>
-            <dt>Top prize</dt>
-            <dd>
-              {fmtMult(top.mult)} <small className="wh-dim">({fmtOneIn(top.prob)})</small>
-            </dd>
-            <dt>Profit at top</dt>
-            <dd className="wh-up">+{formatAmount(Math.max(0, bet.value * top.mult - bet.value), 2)}</dd>
-            <dt>RTP</dt>
-            <dd>{(RTP * 100).toFixed(2)}%</dd>
-          </dl>
-          )}
-
           {auto.mode === 'manual' ? (
             <ActionButton disabled={locked || !!bet.blocked} onClick={manualSpin}>
               {spinning ? 'Spinning…' : 'Bet'}
@@ -259,7 +231,7 @@ export default function Game() {
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || spinning} />
           )}
-          {bet.blocked ? <p className="wh-blocked">{bet.blocked}</p> : auto.mode === 'manual' ? <p className="wh-note center">Space spins · L / M / H risk · 1–5 segments</p> : null}
+          {bet.blocked ? <p className="wh-blocked">{bet.blocked}</p> : null}
 
           <PanelFoot turbo={turbo} onInfo={() => setInfoOpen(true)} />
         </>
@@ -267,52 +239,21 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Win chance', value: fmtChance(table.chanceHit), tone: 'chance' },
+          { label: 'Top prize', value: fmtMult(top.mult), tone: 'prize' },
+        ]}
+      />
+
       <Board className="wh-board">
         <div className="wh-wrap">
-          <WheelBoard table={table} landed={last && !spinning ? last.index : null} focus={focus} spinning={spinning} refs={refs} />
+          <WheelBoard table={table} landed={last && !spinning ? last.index : null} spinning={spinning} refs={refs} />
           <InstantResult multiplier={last && !spinning ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         </div>
       </Board>
 
-      <div className="wh-legend" aria-label="Payouts">
-        <div className="wh-share" aria-hidden="true">
-          {table.entries.map((e, i) => (
-            <i key={i} style={{ flexGrow: e.count, background: colourFor(e.mult, risk) }} className={shownEntry === i ? 'on' : ''} />
-          ))}
-        </div>
-        <div className="wh-chips" style={{ ['--n' as string]: table.entries.length }}>
-          {table.entries.map((e, i) => (
-            <button
-              key={i}
-              type="button"
-              className={'wh-chip' + (shownEntry === i ? ' on' : '')}
-              style={{ ['--c' as string]: colourFor(e.mult, risk), ['--t' as string]: labelColourFor(e.mult, risk) }}
-              onMouseEnter={() => !spinning && setFocus(i)}
-              onMouseLeave={() => setFocus(null)}
-              onFocus={() => !spinning && setFocus(i)}
-              onBlur={() => setFocus(null)}
-              title={`${fmtMult(e.mult)} on ${e.count} of ${segments} segments · profit ${e.mult > 0 ? '+' : '−'}${formatAmount(Math.abs(bet.value * e.mult - bet.value), 2)}`}
-            >
-              <b>{fmtMult(e.mult)}</b>
-              <span>{fmtChance(e.prob)}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <Caption>
-        {shownEntry !== null ? (
-          <>
-            <b className="wh-cap-m" style={{ color: labelColourFor(table.entries[shownEntry].mult, risk) }}>
-              {fmtMult(table.entries[shownEntry].mult)}
-            </b>{' '}
-            is on {table.entries[shownEntry].count} of {segments} segments: a {fmtChance(table.entries[shownEntry].prob)} chance, profit{' '}
-            {table.entries[shownEntry].mult > 0 ? '+' : '−'}
-            {formatAmount(Math.abs(bet.value * table.entries[shownEntry].mult - bet.value), 2)}.
-          </>
-        ) : (
-          <>Every segment is equally likely, so each colour’s share of the rim (and of the bar above) is its exact chance. Hover a payout for details.</>
-        )}
-      </Caption>
+      <Caption>The segment under the pointer when the wheel stops pays its multiplier.</Caption>
 
       {infoOpen && (
         <InfoModal title="Wheel" onClose={() => setInfoOpen(false)}>
@@ -322,7 +263,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Set your bet, a risk level (Low, Medium or High) and the number of segments (10 to 50).</li>
-              <li>Press Bet or Space to spin. The result shows in the centre and in the history row; press Bet again whenever you like.</li>
+              <li>Press Bet or Space to spin. The landed segment stays outlined, green if you profit and red if you lose, and the result shows in the history row; press Bet again whenever you like.</li>
               <li>Use Auto for a series of spins with stop-on-profit, stop-on-loss and on-win / on-loss stake changes. Space starts and stops it.</li>
               <li>Shortcuts: L, M and H set the risk; 1 to 5 set 10 to 50 segments. Turbo shortens the spin. Settings lock while the wheel turns.</li>
             </ol>
@@ -330,7 +271,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               All segments are the same size and equally likely, so a multiplier printed on c of the N segments wins with chance c ÷ N: exactly its share
-              of the rim. The bar under the wheel shows the same shares side by side, and hovering a payout lights its segments.
+              of the rim. Each segment is labelled with its multiplier, and segments that pay 0× are the darker ones.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -358,7 +299,7 @@ export default function Game() {
               <tbody>
                 {table.entries.map((e) => (
                   <tr key={e.hundredths}>
-                    <td style={{ color: labelColourFor(e.mult, risk) }}>{fmtMult(e.mult)}</td>
+                    <td>{fmtMult(e.mult)}</td>
                     <td>
                       {e.count} of {segments}
                     </td>
