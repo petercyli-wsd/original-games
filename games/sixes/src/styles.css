@@ -8,35 +8,22 @@
 .sixes .start {
   text-anchor: start;
 }
-.sixes .end {
-  text-anchor: end;
-}
 .sixes .lbl {
-  font-size: 17px;
+  font-size: var(--fs-3);
   font-weight: 600;
   fill: var(--muted);
 }
 .sixes .token {
   fill: none;
   stroke: var(--line-strong);
-  stroke-width: 2.5;
+  stroke-width: 2;
 }
 .sixes .token.on {
-  fill: var(--accent);
-  stroke: var(--accent);
-}
-.sixes .need {
-  font-size: 19px;
-  font-weight: 800;
-}
-.sixes .need.won {
-  fill: var(--green);
-}
-.sixes .need.lost {
-  fill: var(--red);
+  fill: var(--text);
+  stroke: var(--text);
 }
 
-/* Dice */
+/* Dice: flat light squares, dark pips */
 .sixes .die .face {
   fill: var(--text);
   stroke: transparent;
@@ -46,131 +33,48 @@
   fill: var(--bg);
 }
 .sixes .die.six .face {
-  fill: var(--gold);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gold) 45%, transparent));
+  stroke: var(--win);
 }
 .sixes .die.blank .face {
   fill: var(--raised);
   stroke: var(--line-strong);
-  stroke-dasharray: 7 6;
 }
 .sixes .die .q {
-  font-size: 34px;
-  font-weight: 800;
+  font-size: var(--fs-5);
+  font-weight: 600;
   fill: var(--muted);
 }
 .sixes .die.dead .face {
-  fill: color-mix(in srgb, var(--text) 55%, var(--bg));
-  stroke: var(--red);
+  fill: var(--hover);
+  stroke: var(--lose);
 }
-.sixes .die.tumble .die-body {
-  animation: sixes-tumble 0.22s ease-in-out infinite alternate;
+.sixes .die.dead .pip {
+  fill: var(--faint);
 }
 
 /* Bars: one per die, its chance to show a six in the rolls left */
 .sixes .bar .track {
-  fill: color-mix(in srgb, var(--red) 22%, var(--bg));
+  fill: var(--hover);
   stroke: var(--line);
 }
 .sixes .bar .track.full {
-  fill: var(--gold);
-  stroke: var(--gold);
+  fill: var(--win);
+  stroke: var(--win);
+}
+.sixes .bar .track.dead {
+  fill: var(--bg);
+  stroke: var(--lose);
 }
 .sixes .bar .piece.next {
-  fill: var(--green);
+  fill: var(--win);
 }
 .sixes .bar .piece.later {
-  fill: color-mix(in srgb, var(--green) 45%, var(--bg));
-}
-.sixes .bar .next-edge {
-  stroke: var(--bg);
-  stroke-width: 2;
-}
-.sixes .pct {
-  font-size: 18px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.sixes .pct.six {
-  fill: var(--gold);
-}
-.sixes .pct.dead {
-  fill: var(--red);
-}
-.sixes .op {
-  font-size: 20px;
-  fill: var(--muted);
-}
-.sixes .total {
-  font-size: 24px;
-  font-weight: 800;
-  fill: var(--green);
-  font-variant-numeric: tabular-nums;
-}
-.sixes .total.lost {
-  fill: var(--red);
-}
-.sixes .legend {
-  font-size: 17px;
-  fill: var(--muted);
+  fill: var(--win);
+  opacity: 0.5;
 }
 
-@keyframes sixes-tumble {
-  from {
-    transform: rotate(-9deg) translateY(-3px);
-  }
-  to {
-    transform: rotate(9deg) translateY(3px);
-  }
-}
-
-/* Next-roll outcomes, under the win-chance bar */
-.sixes-next {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
-  gap: 6px;
-  margin-top: 2px;
-}
-.sixes-ev {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: 5px 8px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  min-width: 0;
-}
-.sixes-ev span {
-  font-size: 11px;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sixes-ev b {
-  font-size: 14px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.sixes-ev.up b {
-  color: var(--green);
-}
-.sixes-ev.down b {
-  color: var(--red);
-}
-.sixes-rule {
-  color: var(--text);
-}
 .sixes-note {
   margin: 0;
-  font-size: 12px;
-  color: var(--muted);
-}
-.sixes-next-head {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   color: var(--muted);
 }
