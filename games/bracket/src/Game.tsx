@@ -43,6 +43,7 @@ import {
   ROUND_NAMES,
   RTP,
   emptyResults,
+  beats,
   makeBracket,
   nextMatch,
   playMatch,
@@ -86,6 +87,17 @@ interface Play {
   skip: boolean;
 }
 
+/** The match on the duel bar: its seeds, x's win chance and where the draw landed. */
+interface Shown {
+  x: number;
+  y: number;
+  px: number;
+  u: number;
+  k: number;
+  seq: number;
+  ms: number;
+}
+
 interface AutoView {
   n: Field;
   preset: Preset;
@@ -119,6 +131,7 @@ export default function Game() {
   const [round, setRound] = useState<Round | null>(null);
   const [play, setPlay] = useState<Play | null>(null);
   const [autoView, setAutoView] = useState<AutoView | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
   const [autoBusy, setAutoBusy] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -158,6 +171,8 @@ export default function Game() {
     resolved.current = cash;
     const mine = players(b, r.res, ref.k, ref.m).includes(r.held);
     setPlay({ ref, u, seq: ++seq.current, mine, skip: toMine });
+    const [px0, py0] = players(b, r.res, ref.k, ref.m);
+    setShown({ x: px0, y: py0, px: beats(b, px0, py0), u, k: ref.k, seq: seq.current, ms: mine ? mineMs : toMine ? skipMs : playMs });
     setPhase('playing');
     timers.after(mine ? mineMs : toMine ? skipMs : playMs, () => {
       const next: Round = { ...r, res, cash };
@@ -193,6 +208,7 @@ export default function Game() {
   function clear() {
     if (live || autoBusy) return;
     timers.clearAll();
+    setShown(null);
     setRound(null);
     setPlay(null);
     setAutoView(null);
@@ -318,11 +334,23 @@ export default function Game() {
   const nextRef = !isAuto && live ? (play?.ref ?? nextMatch(b, view.res, held)) : null;
   const roundName = (k: number) => ROUND_NAMES[b.rounds][k];
 
+  // The last match played stays on its bar (marker landed) until the next one starts; at a checkpoint the next seeds are named below it.
   let duel = null;
-  if (nextRef) {
-    const [x, y] = players(b, view.res, nextRef.k, nextRef.m);
-    // play.u (the match's draw) is still taken from rng in step(); it is no longer drawn on screen.
-    duel = <Duel x={x} y={y} held={held} title={`${phase === 'playing' ? 'Playing' : 'Next'} · ${roundName(nextRef.k)}`} />;
+  if (shown && !isAuto && (live || phase === 'over')) {
+    const upNext = phase === 'checkpoint' && nextRef ? players(b, view.res, nextRef.k, nextRef.m) : null;
+    duel = (
+      <Duel
+        x={shown.x}
+        y={shown.y}
+        px={shown.px}
+        held={held}
+        title={`${phase === 'playing' ? 'Playing' : 'Played'} · ${roundName(shown.k)}`}
+        u={shown.u}
+        ms={shown.ms}
+        seq={shown.seq}
+        upNext={upNext}
+      />
+    );
   }
 
   function canPick(s: number) {

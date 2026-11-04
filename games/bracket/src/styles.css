@@ -52,8 +52,25 @@
 .bk-svg .leaf.mine.champ .tok { stroke: var(--accent); }
 
 /* The next match: the two seeds */
-.bk-duel { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); font-size: var(--fs-2); font-weight: 500; font-variant-numeric: tabular-nums; }
-.bk-duel-head { font-size: var(--fs-1); color: var(--muted); }
-.bk-duel-names { display: flex; gap: var(--sp-2); font-weight: 600; color: var(--text); }
-.bk-duel-names .mine { color: var(--accent); }
-.bk-duel-vs { color: var(--faint); font-weight: 500; }
+.bk-duel { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-1); width: min(520px, 100%); margin: 0 auto; font-size: var(--fs-2); font-weight: 500; font-variant-numeric: tabular-nums; }
+.bk-duel-head, .bk-duel-next { font-size: var(--fs-1); color: var(--muted); text-align: center; }
+.bk-duel-row { display: flex; align-items: center; gap: var(--sp-3); }
+.bk-duel-name { flex: none; width: 5.5em; font-weight: 600; color: var(--text); }
+.bk-duel-name:last-child { text-align: right; }
+.bk-duel-name.mine { color: var(--accent); }
+.bk-duel-bar { position: relative; display: flex; flex: 1; height: 20px; border-radius: var(--radius); overflow: hidden; background: var(--bg); }
+.bk-duel-bar i { display: block; height: 100%; box-sizing: border-box; }
+.bk-duel-bar i.a { background: var(--hover); border-right: 1px solid var(--line-strong); }
+.bk-duel-bar i.c { background: var(--raised); }
+.bk-duel-bar i.mine { outline: 1px solid var(--accent); outline-offset: -1px; }
+.bk-duel-bar .needle {
+  position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--text);
+  left: calc(var(--u) * 100%);
+  animation-name: bk-sweep; animation-timing-function: ease-in-out; animation-fill-mode: both;
+}
+@keyframes bk-sweep {
+  0% { left: 0%; }
+  30% { left: 100%; }
+  60% { left: 0%; }
+  100% { left: calc(var(--u) * 100%); }
+}

@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { fmtChance } from '@originals/game-sdk/ui';
 import { players, type Bracket, type MatchRef, type Results } from './math';
 
@@ -175,21 +176,39 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
 export interface DuelProps {
   x: number;
   y: number;
+  /** x's chance to win this match: the bar's split. */
+  px: number;
   held: number;
   title: string;
+  /** Where the draw landed (0..1): the marker sweeps there. Left of the split is x, right is y. */
+  u: number;
+  ms: number;
+  /** Bumped per match so the sweep restarts. */
+  seq: number;
+  /** The next match's seeds, shown once this one has landed. */
+  upNext?: [number, number] | null;
 }
 
-/** The next match: just the two seeds. */
-export function Duel({ x, y, held, title }: DuelProps) {
+/** A match as a flat bar split by its odds; a marker sweeps to the draw and stays there. */
+export function Duel({ x, y, px, held, title, u, ms, seq, upNext }: DuelProps) {
   const tag = (s: number) => (s === held ? 'mine' : '');
   return (
     <div className="bk-duel" aria-live="polite">
       <span className="bk-duel-head">{title}</span>
-      <span className="bk-duel-names">
-        <span className={tag(x)}>Seed {x + 1}</span>
-        <span className="bk-duel-vs">vs</span>
-        <span className={tag(y)}>Seed {y + 1}</span>
-      </span>
+      <div className="bk-duel-row">
+        <span className={'bk-duel-name ' + tag(x)}>Seed {x + 1}</span>
+        <div className="bk-duel-bar">
+          <i className={'a ' + tag(x)} style={{ width: `${px * 100}%` }} />
+          <i className={'c ' + tag(y)} style={{ width: `${(1 - px) * 100}%` }} />
+          <em key={seq} className="needle" style={{ '--u': u, animationDuration: `${ms}ms` } as CSSProperties} />
+        </div>
+        <span className={'bk-duel-name ' + tag(y)}>Seed {y + 1}</span>
+      </div>
+      {upNext && (
+        <span className="bk-duel-next">
+          Next · Seed {upNext[0] + 1} vs Seed {upNext[1] + 1}
+        </span>
+      )}
     </div>
   );
 }
