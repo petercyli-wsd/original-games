@@ -67,8 +67,13 @@ export default function Game() {
 
   // A flip is decided the moment it starts, so leaving mid-animation settles
   // at its real result, never at the pre-flip value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, flip drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's cash-out just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : (round?.cash ?? 0)));
+  const ticket = useTicket(() => resolved.current);
 
   const stepMs = turbo.turbo ? 140 : 560;
   const live = phase === 'stepping' || phase === 'checkpoint';
@@ -105,6 +110,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || lit0 === 0) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       win,
