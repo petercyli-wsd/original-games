@@ -31,6 +31,18 @@ Every surface, line and piece of text comes from these tokens. They are defined 
 
 They mean the same thing in every game and are used for nothing else: not for buttons, decoration or a third category. A result that returns part of the stake is neutral (`--text`). The legacy names `--green`, `--red` and `--gold` still resolve (to `--win`, `--lose` and `--text`) so old CSS doesn't break, but new code uses `--win` and `--lose`. There is no gold: cash is not a colour.
 
+### Content colours (only when the rules name a colour)
+
+Some games are *about* a colour: card suits, roulette's red, black and zero pockets, a bet called "Red" or "Green". There, and only there, use:
+
+| Token | Value | Use |
+|---|---|---|
+| `--suit-red` | `#b8434a` | Hearts and diamonds, red pockets, a bet named Red |
+| `--suit-green` | `#3d8f66` | The roulette zero, a bet named Green |
+| `--bg` / `--hover` | | Black pockets, black suits on a dark ground |
+
+Card faces are flat light rectangles (`--text`) with `--bg` ink for clubs and spades and `--suit-red` for hearts and diamonds: rank and suit as text, no pips art or card backs with sheen. These colours never mark a result; the result still uses `--win` / `--lose`.
+
 ### One accent per game
 
 Each game picks exactly one accent from this list (also exported as `ACCENTS` from `@originals/game-sdk/ui`) and uses the same value in `GameLayout accent=…` and `manifest.accent`:
@@ -44,7 +56,7 @@ Each game picks exactly one accent from this list (also exported as `ACCENTS` fr
 | pink | `#e879b9` |
 | sand | `#c9b28f` |
 
-The accent marks **the player's own thing**: their piece, pick, target or bet on the board. It also colours focus rings (the kit does that). It is not used for buttons, readouts, headings, borders or backgrounds. If a board needs to tell several things apart (players, bands, suits), use the accent for the player's one and neutrals (`--text`, `--muted`, `--faint`, `--hover`) for the rest, with shape, fill vs outline, or a label doing the distinguishing. Never more than three hues on screen: neutrals, the accent, win/lose.
+The accent marks **the player's own thing**: their piece, pick, target or bet on the board. It also colours focus rings (the kit does that). It is not used for buttons, readouts, headings, borders or backgrounds. If a board needs to tell several things apart (players, bands, suits), use the accent for the player's one and neutrals (`--text`, `--muted`, `--faint`, `--hover`) for the rest, with shape, fill vs outline, or a label doing the distinguishing. Never more than three hues on screen: neutrals, the accent, win/lose (plus the content colours above, in the games whose rules name them).
 
 ## 2. Surfaces: flat
 

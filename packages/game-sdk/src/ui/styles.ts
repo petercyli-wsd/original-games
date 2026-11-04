@@ -25,6 +25,10 @@ export const tokenStyles = /* css */ `
   --win: #3ecf74;
   --lose: #ef5b5b;
 
+  /* Content colours: only where a colour is part of the rules (card suits, roulette pockets, a bet named after a colour). Muted so they never read as win / lose. */
+  --suit-red: #b8434a;
+  --suit-green: #3d8f66;
+
   /* One accent per game, set by GameLayout (or the game's root): the player's piece or choice on the board, focus rings. */
   --accent: #7b93ff;
 
