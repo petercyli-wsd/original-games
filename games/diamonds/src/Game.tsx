@@ -193,7 +193,7 @@ export default function Game() {
             const x = slotX(i);
             return (
               <g key={i} transform={`translate(${x},0)`}>
-                <rect className={'dm-slot' + (matched ? ' lit' : '')} x={0} y={0} width={SLOT_W} height={VIEW_H} rx={8} />
+                <rect className={'dm-slot' + (matched ? (shown!.multiplier >= 1 ? ' lit' : ' part') : '')} x={0} y={0} width={SLOT_W} height={VIEW_H} rx={8} />
                 {gem === null ? (
                   <circle className="dm-socket" cx={SLOT_W / 2} cy={GEM_Y} r={4} />
                 ) : (
