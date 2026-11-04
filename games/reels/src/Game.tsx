@@ -102,7 +102,8 @@ const fmtExact = (x: number) => {
   const t = x.toFixed(8).replace(/0+$/, '');
   return (t.split('.')[1] ?? '').length > 2 ? t : x.toFixed(2);
 };
-const buyCostOf = (stake: number, price: number) => Math.round(stake * price * 1e8) / 1e8;
+// Rounded up to the wallet's 8 decimals (never down, which would sell the feature below its price).
+const buyCostOf = (stake: number, price: number) => Math.ceil(stake * price * 1e8 - 1e-6) / 1e8;
 
 /** How a round's result reads: a win only when it returns more than was paid. */
 function resultWords(won: number, paid: number): { text: string; tone: 'won' | 'part' | 'lost' } {
