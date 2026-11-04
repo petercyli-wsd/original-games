@@ -74,7 +74,11 @@ export function Reel({
             phase === 'preview' && i === WIN_SLOT ? (
               <MysteryCard key={i} />
             ) : (
-              <ItemCard key={i} mult={mults[idx]} className={i === WIN_SLOT ? (phase === 'done' ? 'hit' : '') : phase === 'done' ? 'dim' : ''} />
+              <ItemCard
+                key={i}
+                mult={mults[idx]}
+                className={i === WIN_SLOT ? (phase === 'done' ? `hit ${mults[idx] >= 1 ? 'win' : 'lose'}` : '') : phase === 'done' ? 'dim' : ''}
+              />
             ),
           )}
         </div>
