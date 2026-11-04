@@ -19,8 +19,8 @@ export default function InfoModal({ rtp, onClose }: Props) {
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="sb-info-title" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <h2 id="sb-info-title">How Snowball works</h2>
-          <button className="ghost icon" onClick={onClose} aria-label="Close">
-            ✕
+          <button className="ghost icon" onClick={onClose}>
+            Close
           </button>
         </div>
 
@@ -32,30 +32,22 @@ export default function InfoModal({ rtp, onClose }: Props) {
 
         <h3>How to play</h3>
         <ol className="rules">
+          <li>Pick a starting urn and press Bet. Nothing is drawn yet.</li>
           <li>
-            <i className="ball blue" />
-            <span>Pick a starting urn and press Bet. Nothing is drawn yet.</span>
+            Press <b>Draw ball</b>. A ball comes out at random, then goes back in <b>with a twin of the same colour</b>. The urn grows by
+            one ball per draw, so whichever colour is drawn more gets likelier still: it snowballs.
           </li>
           <li>
-            <i className="ball red" />
-            <span>
-              Press <b>Draw ball</b>. A ball comes out at random, then goes back in <b>with a twin of the same colour</b>. The urn grows
-              by one ball per draw, so whichever colour is drawn more gets likelier still: it snowballs.
-            </span>
-          </li>
-          <li>
-            <i className="ball win" />
-            <span>
-              After any draw you can <b>cash out</b>, or keep drawing. The round ends as soon as one colour has {MAJORITY} draws.
-            </span>
+            After any draw you can <b>cash out</b>, or keep drawing. The round ends as soon as one colour has {MAJORITY} draws.
           </li>
         </ol>
 
         <h3>Reading the odds</h3>
         <p>
-          The <b>draw tally</b> is the whole bet: blue fills from the left, red from the right, and whoever reaches the centre slot first
-          wins. The gaps to the centre are the draws each side still needs. <b>Blue wins</b> at the top is the exact chance blue gets
-          there first. The <b>next ball</b> bar is only the chance of the very next draw: the share of blue balls in the urn.
+          Blue balls are filled and red balls are outlined. The <b>draw tally</b> is the whole bet: blue fills from the left, red from
+          the right, and whoever reaches the centre slot first wins. The gaps to the centre are the draws each side still needs.{' '}
+          <b>Blue wins</b> is the exact chance blue gets there first. The next ball is blue with the chance of the share of blue
+          balls in the urn. The ringed pair is the ball just drawn and its twin.
         </p>
 
         <h3>The maths</h3>

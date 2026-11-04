@@ -1,5 +1,6 @@
 import { formatAmount, formatMultiplier, type BetTicket } from '@originals/game-sdk';
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { eventMs } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
 import Tally from './components/Tally';
@@ -65,7 +66,7 @@ export default function App() {
   // then both go into the urn. The ball was chosen when Draw was pressed.
   useEffect(() => {
     if (phase !== 'drawing' || !drawing) return;
-    const t = setTimeout(() => dispatch({ type: drawing.twin ? 'apply' : 'twin' }), turbo ? 150 : drawing.twin ? 650 : 550);
+    const t = setTimeout(() => dispatch({ type: drawing.twin ? 'apply' : 'twin' }), eventMs(turbo));
     return () => clearTimeout(t);
   }, [phase, drawing?.twin, turbo]);
 
@@ -142,10 +143,6 @@ export default function App() {
   const stake = round?.bet ?? bet;
   const drawn = drawnCounts(view);
   const canCash = phase === 'live' && view.history.length > 0;
-  const urnBlue = view.balls.filter((c) => c === 'blue').length;
-  const share = urnBlue / view.balls.length;
-  // Rounded so the two sides always add up to 100.
-  const bluePct = Math.round(share * 100);
   const initial = view.balls.length - view.history.length;
 
   let message: { text: string; tone: 'neutral' | 'win' | 'lose' } = { text: 'You are blue. Pick an urn, then Bet.', tone: 'neutral' };
@@ -217,10 +214,7 @@ export default function App() {
             </button>
             <button key="cash" className="primary cash" disabled={!canCash} onClick={() => dispatch({ type: 'cashOut' })}>
               {canCash ? (
-                <>
-                  Cash out {formatAmount(stake * cash, 2)}
-                  <small>{formatMultiplier(cash)}</small>
-                </>
+                <>Cash out {formatAmount(stake * cash, 2)}</>
               ) : (
                 'Cash out after a draw'
               )}
@@ -232,52 +226,41 @@ export default function App() {
           </button>
         )}
 
-        <dl className="stats">
-          <div>
-            <dt>Prize if blue wins</dt>
-            <dd>{formatMultiplier(view.prize)}</dd>
-          </div>
-          <div>
-            <dt>Chance to win at the start</dt>
-            <dd>{chance(view.probs[0])}</dd>
-          </div>
-          <div>
-            <dt>Balance</dt>
-            <dd>{formatAmount(balance, 2)}</dd>
-          </div>
-        </dl>
-
         <div className="panel-foot">
           <label className="toggle">
             <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
             Turbo
           </label>
           <button className="ghost" onClick={() => setInfoOpen(true)}>
-            <span className="i">i</span> How to play
+            How to play
           </button>
         </div>
       </aside>
 
       <section className="stage">
+        <div className="stage-top">
+          <p className={'message ' + message.tone} aria-live="polite">
+            {message.text}
+          </p>
+          <div className="recent" aria-label="Recent results">
+            {state.recent.map((r) => (
+              <span key={r.id} className={r.mult >= 1 ? 'w' : r.mult > 0 ? 'p' : 'l'}>
+                {formatMultiplier(r.mult)}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <div className="readout">
-          <div className="tile win-tile">
+          <div>
             <span className="tile-label">Blue wins</span>
-            <b className="big" aria-live="polite">
+            <b className="mid" aria-live="polite">
               {chance(p)}
             </b>
-            <span className="meter" role="img" aria-label={`Blue wins ${chance(p)}`}>
-              <i style={{ width: `${p * 100}%` }} />
-            </span>
           </div>
-          <div className="tile">
-            <span className="tile-label">Cash out now</span>
-            <b className="mid">{canCash ? formatMultiplier(cash) : '–'}</b>
-            <span className="sub">{canCash ? formatAmount(stake * cash, 2) : 'after each draw'}</span>
-          </div>
-          <div className="tile">
+          <div>
             <span className="tile-label">Prize</span>
             <b className="mid">{formatMultiplier(view.prize)}</b>
-            <span className="sub">{formatAmount(stake * view.prize, 2)}</span>
           </div>
         </div>
 
@@ -307,54 +290,9 @@ export default function App() {
             )}
           </div>
 
-          <div className="side">
-            <div className="card">
-              <div className="card-head">
-                <span>Next ball</span>
-                <span className="muted">share of the urn</span>
-              </div>
-              <div className="share-head">
-                <span className="t-blue">
-                  <b>{bluePct}%</b> blue
-                </span>
-                <span className="t-red">
-                  red <b>{100 - bluePct}%</b>
-                </span>
-              </div>
-              <div className="share-bar" role="img" aria-label={`Next ball: ${bluePct}% blue`}>
-                <i className="share-blue" style={{ width: `${share * 100}%` }} />
-              </div>
-              <div className="share-count muted">
-                {urnBlue} blue · {view.balls.length - urnBlue} red in the urn
-              </div>
-            </div>
-            <div className="card twin-rule">
-              <span className="rule-pic" aria-hidden="true">
-                <i className="ball blue" />
-                <span className="arrow">→</span>
-                <i className="ball blue" />
-                <i className="ball blue" />
-              </span>
-              <span>
-                <b>Each drawn ball goes back with a twin.</b>
-                <span className="muted rule-sub">The urn grows by one per draw.</span>
-              </span>
-            </div>
-          </div>
         </div>
 
-        <div className="foot">
-          <p className={'message ' + message.tone} aria-live="polite">
-            {message.text}
-          </p>
-          <div className="recent" aria-label="Recent results">
-            {state.recent.map((r) => (
-              <span key={r.id} className={r.mult >= 1 ? 'w' : r.mult > 0 ? 'p' : 'l'}>
-                {formatMultiplier(r.mult)}
-              </span>
-            ))}
-          </div>
-        </div>
+        <p className="og-caption">Blue wins by drawing {MAJORITY} blue balls before red draws {MAJORITY}.</p>
       </section>
 
       {infoOpen && <InfoModal rtp={RTP} onClose={() => setInfoOpen(false)} />}
