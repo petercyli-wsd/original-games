@@ -40,7 +40,6 @@ import {
   clampBudget,
   darkCount,
   headline,
-  huntChance,
   litOf,
   prizeFor,
   volatilityOf,
@@ -223,7 +222,6 @@ export default function Game() {
   const stake = round?.stake ?? bet.value;
   const pNow = round?.outcome === 'full' ? 1 : round?.outcome === 'short' ? 0 : winChance(k, m, d);
   const cash = phase === 'over' && round ? round.cash : round ? prize * pNow : RTP;
-  const hunt = huntChance(k, m, d);
   const spares = d - m;
   const range = BUDGETS[segments];
 
@@ -289,10 +287,10 @@ export default function Game() {
                 title={`Draws until a new segment lights: ${spares + 1} tries at ${m}/${k} each`}
                 onClick={() => move(round, 'hunt')}
               >
-                {m === 1 ? 'Hunt the last one' : 'Hunt next segment'} · {fmtChance(hunt)}
+                {m === 1 ? 'Hunt the last one' : 'Hunt next segment'}
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, 'draw')}>
-                Draw once · {fmtChance(m / k)} new
+                Draw once
               </ActionButton>
             </>
           ) : (
