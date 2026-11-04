@@ -103,9 +103,13 @@ export default function Game() {
   const stepping = useRef(false);
 
   // Each reveal is decided the moment it starts, so leaving mid-animation
-  // settles at its real result, never at the pre-reveal value.
+  // settles at its real result, never at the pre-reveal value. The ticket reads
+  // only this ref, which aim() sets synchronously after the stake is accepted
+  // (to the checkpoint's cash-out) and cut() sets to the line's result. Reading
+  // render state instead would, in the gap between place() and the next
+  // render, settle a new stake at the previous round's value (e.g. its prize).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'aiming' || phase === 'cutting' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const spinMs = turbo.turbo ? 220 : 900;
   const cutMs = turbo.turbo ? 260 : 1000;
