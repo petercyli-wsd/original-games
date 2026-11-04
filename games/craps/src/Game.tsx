@@ -359,6 +359,12 @@ export default function Game() {
     if (propsEntry) propsEntry.value = ticketValue(propsEntry.parts, r.returnOf);
     if (r.decided) for (const e of book.current) if (e !== propsEntry) e.value = ticketValue(e.parts, r.returnOf);
 
+    // Kept so the RNG stream matches the previous (tumbling-cube) version: per die, x turns, y turns, z jitter.
+    for (let i = 0; i < 2; i++) {
+      rng.int(2);
+      rng.int(2);
+      rng.next();
+    }
     // The dice slide in showing the drawn faces; the verdict waits for them to land.
     const comeOut = s0.phase !== 'point';
     commit({ ...s0, phase: 'rolling', base: r.next.base, marks: null, wagered: r.next.wagered, returned: comeOut ? 0 : s0.returned, rolls: comeOut ? 0 : s0.rolls, outcome: null });
