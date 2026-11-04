@@ -97,9 +97,16 @@ export default function Game() {
   const seq = useRef(0);
 
   // A roll is decided the moment it starts, so leaving mid-roll settles at its
-  // real result, never at the pre-roll value.
+  // real result, never at the pre-roll value. `resolved` is the open ticket's
+  // value right now, set synchronously at every transition: RTP when the
+  // stake is placed, and the post-roll value (prize, 0 or prize · P) the
+  // moment a roll is drawn. The ticket reads only this ref: a value derived
+  // from rendered state can be one render stale (the pre-roll cash-out just
+  // after Roll, or 0 just after Bet) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'rolling' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0));
+  const ticket = useTicket(() => resolved.current);
+  /** The round waiting at a checkpoint: the only one that can be rolled on or cashed (null while rolling or over). */
+  const waiting = useRef<Round | null>(null);
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
@@ -135,19 +142,24 @@ export default function Game() {
   // ---------- Manual round ----------
 
   function finish(r: Round, outcome: Outcome, paid: number) {
+    waiting.current = null;
     ticket.settle(paid);
     pushHistory(paid);
     setRound({ ...r, outcome, paid });
     setPhase('over');
   }
 
-  async function roll(r: Round) {
+  /** Rolls the round on show: the first roll right after Bet, or a further roll from its checkpoint (once). */
+  async function roll(r: Round, first = false) {
+    if (!first && waiting.current !== r) return;
+    waiting.current = null;
     setPhase('rolling');
     const next = await rollOnce(r);
     if (!next) return;
     const free = freeOf(next.faces);
     if (free === 0) return finish(next, 'won', prizeFor(next.n));
     if (next.rolls >= ROLLS) return finish(next, 'lost', 0);
+    waiting.current = next;
     setPhase('checkpoint');
     track({ type: 'checkpoint', multiplier: cashOf(next), winChance: winChance(free, ROLLS - next.rolls) });
   }
@@ -155,16 +167,18 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     const r: Round = { n, stake: bet.value, faces: Array(n).fill(null), rolls: 0, outcome: null, paid: 0 };
     setRound(r);
-    void roll(r);
+    void roll(r, true);
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
-    finish(round, 'cashed', cashOf(round));
+    const r = waiting.current;
+    if (!r) return;
+    finish(r, 'cashed', cashOf(r));
   }
 
   function clear() {
@@ -181,6 +195,8 @@ export default function Game() {
     const nn = n;
     const tgt = target;
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
+    waiting.current = null;
     setAutoBusy(true);
     setLast(null);
     let r: Round = { n: nn, stake, faces: Array(nn).fill(null), rolls: 0, outcome: null, paid: 0 };
