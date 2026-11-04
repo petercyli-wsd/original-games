@@ -70,7 +70,7 @@ export default function Board({ dim, side, pos, left, slotsFrom, drawn, stepMs, 
     <svg viewBox={`0 0 ${W} ${H}`} className="homecoming" textAnchor="middle" role="img" aria-label={`The walk is ${dist} steps from home with ${left} steps left`}>
       {/* 1. Tracks */}
       <text x={X0 - 12} y={24} className={`home-label ${homeCls}`} textAnchor="start">
-        home · {homeGood ? 'win' : 'lose'} if it returns
+        Home · {homeGood ? 'win' : 'lose'} if it returns
       </text>
       <text x={X1} y={24} className="dir-label" textAnchor="end">
         distance from home →
