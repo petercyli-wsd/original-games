@@ -29,15 +29,6 @@ const trackPoints = (a: number, b: number) =>
     .map(({ x, y }) => `${x},${y}`)
     .join(' ');
 
-/** Compact percentage for the small gate labels. */
-function pct(p: number) {
-  const v = p * 100;
-  if (v >= 9.95) return `${Math.round(v)}%`;
-  if (v >= 0.995) return `${v.toFixed(1)}%`;
-  if (v >= 0.0995) return `${v.toFixed(2)}%`;
-  return `${v.toPrecision(1)}%`;
-}
-
 export interface BoardProps {
   die: Die;
   gates: readonly number[];
@@ -60,7 +51,7 @@ export interface BoardProps {
   missed: number | null;
   /** Highlight the squares the next roll can reach. */
   showReach: boolean;
-  /** Whether a round is in play (the next gate pulses). */
+  /** Whether a round is in play. */
   live: boolean;
   /** Hide the die strip (the round-over card sits there). */
   hideDie: boolean;
@@ -73,12 +64,10 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
   const touched = new Set(landed);
   const tok = centre(tokenAt);
   const offTrack = tokenAt > LAST_SQUARE;
-  const over = faces.filter((k) => k === 'over').length;
-  const hasGate = faces.includes('gate');
 
-  // Faces sit between the die's name (left) and the summary (right).
-  const pitch = die === 10 ? 36 : 44;
-  const fx0 = 40 + (W - 120 - die * pitch) / 2;
+  // Faces sit to the right of the die's name.
+  const pitch = die === 10 ? 40 : 52;
+  const fx0 = 40 + (W - 40 - die * pitch) / 2;
 
   return (
     <svg
@@ -97,7 +86,6 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
         const p = profile && n > pos ? profile[n] : 0;
         const reachIdx = showReach ? n - pos - 1 : -1;
         const reach: FaceKind | null = reachIdx >= 0 && reachIdx < faces.length ? faces[reachIdx] : null;
-        const label = !isGate ? '' : gi === missed ? '✕' : gi < next ? '✓' : profile ? pct(profile[n]) : '';
         const gateState = !isGate ? '' : gi === missed ? ' missed' : gi < next ? ' cleared' : gi === next && live ? ' next' : ' ahead';
         const cls =
           'sq' +
@@ -117,8 +105,8 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
               <>
                 <rect x={x - 1} y={y - 1} width={S + 2} height={S + 2} rx={7} className="gate-ring" />
                 <path d={`M ${x + S - 13} ${y - 1} H ${x + S + 1} V ${y + 13} Z`} className="gate-flag" />
-                <text x={x + S / 2} y={y + S / 2 + 6} className={'gate-label' + (label.length > 5 ? ' long' : '')}>
-                  {label}
+                <text x={x + S / 2} y={y + S / 2 + 6} className="gate-label">
+                  {gi + 1}
                 </text>
               </>
             )}
@@ -128,7 +116,7 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
       })}
 
       <g className={'token' + (missed !== null && !rolling ? ' bust' : '') + (offTrack ? ' off' : '')} style={{ transform: `translate(${tok.x}px, ${tok.y}px)`, transitionDuration: `${hopMs}ms` }}>
-        <circle key={tokenAt} r={11} className="hop" style={{ animationDuration: `${hopMs}ms` }} />
+        <circle r={11} className="hop" />
       </g>
 
       {/* The die: one cell per face, each worth 1/d. Red faces jump the gate, green lands on it. */}
@@ -144,16 +132,6 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
             </text>
           </g>
         ))}
-        {faces.length > 0 && (
-          <>
-            <text x={W} y={STRIP_Y + FACE_H / 2 - 2} className={'die-sum' + (over ? ' risk' : ' safe')}>
-              {over ? `${over}/${die} over` : 'all safe'}
-            </text>
-            <text x={W} y={STRIP_Y + FACE_H / 2 + 12} className={'die-sub' + (hasGate ? ' hit' : '')}>
-              {hasGate ? `1/${die} lands` : `gate ${gates[next] - pos} away`}
-            </text>
-          </>
-        )}
       </g>
     </svg>
   );

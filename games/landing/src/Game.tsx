@@ -2,9 +2,9 @@ import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
   BetField,
+  ACCENTS,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -34,7 +35,6 @@ import {
   RTP,
   applyRoll,
   faceKinds,
-  hitChance,
   landingProfile,
   moveGate,
   prizeFor,
@@ -68,7 +68,7 @@ interface Shown {
   face: number | null;
 }
 
-const ACCENT = '#ffadad';
+const ACCENT = ACCENTS.pink;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -92,8 +92,8 @@ export default function Game() {
   const inFlight = useRef(false);
   const ticket = useTicket(() => (phase === 'rolling' ? resolved.current : round?.cash ?? 0));
 
-  const k = turbo.turbo ? 0.25 : 1;
-  const flickMs = Math.round(70 * k);
+  const flickMs = eventMs(turbo.turbo, 70);
+  const hopFor = (face: number) => eventMs(turbo.turbo, Math.min(120, Math.max(55, 560 / face)));
   const live = phase === 'rolling' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -116,10 +116,10 @@ export default function Game() {
     // The die flickers onto its face, then the token hops square by square.
     const flicks = 4;
     for (let i = 0; i < flicks; i++) timers.after(i * flickMs, () => setRoll({ faces, face: ((face - 1 + flicks - 1 - i) % r.die) + 1 }));
-    const hopMs = Math.round(Math.min(120, Math.max(55, 560 / face)) * k);
+    const hopMs = hopFor(face);
     const t0 = flicks * flickMs;
     for (let h = 1; h <= face; h++) timers.after(t0 + (h - 1) * hopMs, () => setTokenAt(r.pos + h));
-    timers.after(t0 + face * hopMs + Math.round(140 * k), () => {
+    timers.after(t0 + face * hopMs + eventMs(turbo.turbo, 140), () => {
       inFlight.current = false;
       const moved: Round = { ...r, pos: res.to, next: res.next, cash, landed: [...r.landed, res.to] };
       if (res.outcome === 'bust') return finish({ ...moved, pos: r.pos, next: r.next, missed: r.next }, 'bust', 0);
@@ -193,7 +193,6 @@ export default function Game() {
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
   const nextFaces = next < g.length ? faceKinds(g, d, pos, next) : [];
-  const overFaces = nextFaces.filter((f) => f === 'over').length;
   // Bars stay up after a cash-out (the odds you walked away from); a bust or a win has none left.
   const showBars = !over || round?.outcome === 'cashed';
   const profile = useMemo(() => (showBars ? landingProfile(g, d, pos, next) : null), [showBars, g, d, pos, next]);
@@ -242,12 +241,6 @@ export default function Game() {
             disabled={live}
             onChange={(v) => change(() => setGates(PRESETS[v]))}
           />
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(gates, die))}</dd>
-          </dl>
 
           {phase === 'checkpoint' ? (
             <>
@@ -255,7 +248,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && doRoll(round)}>
-                Roll · {d - overFaces}/{d} safe
+                Roll again
               </ActionButton>
             </>
           ) : (
@@ -272,14 +265,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(pNow),
-            sub: live && next < k1 ? `gate ${next + 1}: ${fmtChance(hitChance(gateGap, d))}` : `land on ${allGates}`,
-            tone: 'chance',
-          },
-          { label: 'Cash out now', value: live || over ? fmtMult(cash) : '—', sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: 'land on every gate', tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -290,7 +277,7 @@ export default function Game() {
           next={next}
           pos={pos}
           tokenAt={tokenAt}
-          hopMs={Math.round(Math.min(120, Math.max(55, 560 / Math.max(1, roll?.face ?? 1))) * k)}
+          hopMs={hopFor(Math.max(1, roll?.face ?? 1))}
           profile={profile}
           faces={shown.faces}
           face={shown.face}
@@ -317,22 +304,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label="Chance to land on every gate"
-          note={
-            overFaces
-              ? `Bars = chance the token lands on each square. This roll: ${overFaces} of ${d} faces jump gate ${next + 1} (red).`
-              : `Bars = chance the token lands on each square. No face can jump gate ${next + 1} on this roll.`
-          }
-        />
-      ) : (
-        <Caption>
-          Land exactly on every gate; jump one and the round is lost. Bars show each square's landing chance. Far from a gate a d{d} lands on it{' '}
-          {fmtChance(renewalLimit(d))} of the time (2/(d+1), the renewal theorem). Tap a square to move the nearest gate. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Land exactly on every gate; jumping over one loses the round.</Caption>
 
       {infoOpen && (
         <InfoModal title="Landing" onClose={() => setInfoOpen(false)}>
@@ -351,10 +323,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b>bar</b> in each square is the chance the token ever lands there in a live round. A gate's bar (and its percentage) is the chance of
+              The <b>bar</b> in each square is the chance the token ever lands there in a live round. A gate's bar is the chance of
               getting that far; the last gate's bar is your win chance. The squares outlined ahead are the {d} places the next roll can land, each 1 in {d}.
-              The die below the track shows the same faces: <b style={{ color: 'var(--red)' }}>red</b> faces jump the next gate,{' '}
-              <b style={{ color: 'var(--green)' }}>green</b> lands on it.
+              The die below the track shows the same faces: <b style={{ color: 'var(--lose)' }}>red</b> faces jump the next gate,{' '}
+              <b style={{ color: 'var(--win)' }}>green</b> lands on it.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
