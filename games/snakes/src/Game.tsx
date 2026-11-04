@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,6 +20,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -43,10 +44,8 @@ import {
   drawDice,
   maxFactor,
   resolveRoll,
-  safeFactors,
   snakeChance,
   snakeCount,
-  survival,
   type Difficulty,
   type Roll,
 } from './math';
@@ -110,9 +109,9 @@ export default function Game() {
   const fair = useRef(0);
   const ticket = useTicket(() => fair.current);
 
-  const tumbleMs = turbo.turbo ? 120 : 480;
-  const hopMs = turbo.turbo ? 32 : 105;
-  const landMs = turbo.turbo ? 90 : 340;
+  const tumbleMs = eventMs(turbo.turbo, 300);
+  const hopMs = eventMs(turbo.turbo, 120);
+  const landMs = eventMs(turbo.turbo, 300);
 
   function finish(r: Round, outcome: Outcome, cash: number) {
     ticket.settle(cash);
@@ -257,12 +256,11 @@ export default function Game() {
   // A snake shows the moment the token lands on it, not only once the round settles.
   const bitten = outcome === 'bitten' || (phase === 'rolling' && !!landed && !!lastRoll?.snake);
   const top = maxFactor(d);
-  const safe = safeFactors(difficulty);
   const n = snakeCount(d);
 
-  const mode: BoardMode = bitten ? 'bitten' : outcome ? 'cashed' : live ? 'live' : 'idle';
+  const mode: BoardMode = bitten ? 'bitten' : outcome ? (cash > 1 ? 'cashed' : 'returned') : live ? 'live' : 'idle';
   const valueLabel =
-    bitten ? 'BITTEN' : outcome ? 'CASHED OUT' : phase === 'checkpoint' ? 'CASH OUT NOW' : phase === 'rolling' ? 'ROLLING' : 'STARTS AT';
+    bitten ? 'Bitten' : outcome ? 'Cashed out' : phase === 'checkpoint' ? 'Value' : phase === 'rolling' ? 'Rolling' : 'Starts at';
   let footer = 'Each opposite pair: 1 in 6';
   if (rolls.length > 0) footer = `Roll ${rolls.length} · rolled ${lastRoll.sum}`;
   if (phase === 'rolling' && !landed) footer = tumble.on ? 'Rolling…' : `Moving ${dice[0] + dice[1]} squares`;
@@ -276,12 +274,11 @@ export default function Game() {
   const tone = phase === 'over' || bitten ? (cash > 0 && !bitten ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto && auto.mode === 'manual';
-  const autoChance = survival(difficulty, autoRolls);
 
   return (
     <GameLayout
       name="Snakes"
-      accent="#4ade80"
+      accent={ACCENTS.sky}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live} />
@@ -295,28 +292,12 @@ export default function Game() {
             disabled={locked}
             onChange={(v) => change(() => setDifficulty(v))}
           />
-          <dl className="og-stats">
-            {auto.mode === 'manual' && (
-              <>
-            <dt>Snakes</dt>
-            <dd>{snakeCount(difficulty)} of 12</dd>
-            <dt>Each roll safe</dt>
-            <dd>{fmtChance(1 - snakeChance(difficulty))}</dd>
-            <dt>Safe squares</dt>
-            <dd>
-              {safe[0].toFixed(2)}–{safe[safe.length - 1].toFixed(2)}×
-            </dd>
-            <dt>Max win</dt>
-            <dd>{fmtMult(MAX_WIN)}</dd>
-              </>
-            )}
-            {auto.mode === 'auto' && (
-              <>
-                <dt>Each roll safe</dt>
-                <dd>{fmtChance(1 - snakeChance(difficulty))}</dd>
-              </>
-            )}
-          </dl>
+          {auto.mode === 'manual' && (
+            <dl className="og-stats">
+              <dt>Max win</dt>
+              <dd>{fmtMult(MAX_WIN)}</dd>
+            </dl>
+          )}
 
           {auto.mode === 'manual' ? (
             phase === 'checkpoint' || (phase === 'rolling' && rolls.length > 0) ? (
@@ -328,9 +309,7 @@ export default function Game() {
                   {phase === 'rolling' ? (
                     'Rolling…'
                   ) : (
-                    <>
-                      Roll dice <small>{fmtChance(1 - q)} safe · up to {fmtMult(cash * top)}</small>
-                    </>
+                    'Roll dice'
                   )}
                 </ActionButton>
               </>
@@ -341,7 +320,7 @@ export default function Game() {
             )
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
-              <Label hint={<span className="snk-auto-hint">all safe: {fmtChance(autoChance)}</span>}>Rolls per bet</Label>
+              <Label>Rolls per bet</Label>
               <div className="snk-stepper">
                 <button type="button" aria-label="One roll fewer" disabled={auto.running || autoRolls <= 1} onClick={() => change(() => setAutoRolls(autoRolls - 1))}>
                   −
@@ -387,19 +366,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Next roll safe', value: phase === 'over' || bitten ? '—' : fmtChance(1 - q), sub: `${n} snakes of 12`, tone: 'chance' },
-          {
-            label: 'Cash out now',
-            value: bitten ? fmtMult(0) : rolls.length > 0 ? fmtMult(cash) : '—',
-            sub: rolls.length > 0 ? formatAmount(stake * (bitten ? 0 : cash), 2) : 'after the first roll',
-            tone: 'cash',
-          },
-          {
-            label: 'Best next square',
-            value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top),
-            sub: phase === 'over' ? 'top square' : `${top.toFixed(2)}× · 1 in 6`,
-            tone: 'prize',
-          },
+          { label: 'Next roll safe', value: phase === 'over' || bitten ? '—' : fmtChance(1 - q), tone: 'chance' },
+          { label: 'Best next square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' },
         ]}
       />
 
@@ -414,25 +382,11 @@ export default function Game() {
             mode={mode}
             hopMs={hopMs}
             dice={dice}
-            tumbling={tumble.on}
-            frame={tumble.frame}
             landed={landed}
             value={bitten ? 0 : cash}
             valueLabel={valueLabel}
             footer={footer}
           />
-          <div className="snk-log" aria-label="Rolls this round">
-            {rolls.length === 0 ? (
-              <span className="snk-log-empty">{round ? 'First roll…' : 'Your rolls this round appear here'}</span>
-            ) : (
-              rolls.map((r, i) => (
-                <span key={i} className={'snk-chip ' + (r.snake ? 'bad' : r.factor >= 1 ? 'up' : 'down')}>
-                  <i>{r.sum}</i>
-                  {r.snake ? 'snake' : `${r.factor.toFixed(2)}×`}
-                </span>
-              ))
-            )}
-          </div>
         </div>
         {showRoundOver && (
           <RoundOver
@@ -449,18 +403,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={1 - q}
-          label="Next roll misses every snake"
-          note={`Two dice land on each pair of opposite squares exactly 1 time in 6, from any square. ${n / 2} of the 6 pairs hold snakes.`}
-        />
-      ) : (
-        <Caption>
-          Opposite squares always match, and two dice land on each opposite pair exactly 1 time in 6, so every roll multiplies your value by 1 on average.
-          The dots on a square count its 36ths. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Each safe square multiplies your value; land on a snake and lose it.</Caption>
 
       {infoOpen && (
         <InfoModal title="Snakes" onClose={() => setInfoOpen(false)}>
@@ -481,7 +424,7 @@ export default function Game() {
             <p>
               The six dots on each square count how many of the 36 dice combinations land there from where the token stands; the square right after the
               token can never be hit. Opposite squares always hold the same thing and their dots always add up to 6, so each pair is hit exactly 1 time in 6.
-              The chance of a <b style={{ color: 'var(--red)' }}>snake</b> on the next roll is the number of snake pairs ÷ 6, wherever you are.
+              The chance of a snake on the next roll is the number of snake pairs ÷ 6, wherever you are.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
