@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -31,7 +32,7 @@ import {
   type ReadoutItem,
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
-import { Gem, Grid, Ladder, type GridView } from './Board';
+import { Grid, type GridView } from './Board';
 import {
   MAX_MINES,
   MAX_MULTIPLIER,
@@ -93,7 +94,6 @@ export default function Game() {
   const [autoView, setAutoView] = useState<AutoView | null>(null);
   const [autoBusy, setAutoBusy] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
-  const [shake, setShake] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -102,7 +102,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'revealing' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
 
-  const flipMs = turbo.turbo ? 70 : 260;
+  const flipMs = eventMs(turbo.turbo);
   const autoStepMs = turbo.turbo ? 30 : 95;
   const live = phase === 'live' || phase === 'revealing';
   const gems = gemsFor(mines);
@@ -115,7 +115,6 @@ export default function Game() {
     setRound({ ...r, outcome, cash, hit });
     setPending(null);
     setPhase('over');
-    if (hit !== null) setShake((s) => s + 1);
   }
 
   async function start() {
@@ -196,7 +195,6 @@ export default function Game() {
     view.hit = res.hit;
     view.showAll = true;
     setAutoView({ ...view });
-    if (res.hit !== null) setShake((s) => s + 1);
     ticket.settle(res.multiplier);
     pushHistory(res.multiplier);
     setLast({ id: ++seq.current, multiplier: res.multiplier, stake });
@@ -310,26 +308,13 @@ export default function Game() {
   const pSafe = nextSafe(m, found);
   const readouts: ReadoutItem[] = isAuto
     ? [
-        { label: 'Win chance', value: n ? fmtChance(surviveChance(mines, n)) : '—', sub: n ? (n === 1 ? 'the tile is safe' : `all ${n} tiles safe`) : 'select tiles', tone: 'chance' },
-        { label: 'Payout', value: n ? fmtMult(multiplier(mines, n)) : '—', sub: n ? formatAmount(bet.value * multiplier(mines, n), 2) : minesWord(mines), tone: 'cash' },
-        { label: 'Board', value: `${mines} / ${gems}`, sub: 'mines / gems', tone: 'prize' },
+        { label: 'Win chance', value: n ? fmtChance(surviveChance(mines, n)) : '—', tone: 'chance' },
+        { label: 'Payout', value: n ? fmtMult(multiplier(mines, n)) : '—', tone: 'prize' },
       ]
-    : phase === 'over' && round?.outcome
-      ? [
-          { label: 'Gems found', value: `${found} / ${g}`, sub: minesWord(m), tone: 'neutral' },
-          { label: 'Result', value: fmtMult(cash), sub: round.outcome === 'bust' ? 'mine hit' : OUTCOME_TITLE[round.outcome].toLowerCase(), tone: cash > 0 ? 'cash' : 'neutral' },
-          {
-            label: 'Profit',
-            value: `${cash >= 1 ? '+' : '−'}${formatAmount(Math.abs(stake * cash - stake), 2)}`,
-            sub: `bet ${formatAmount(stake, 2)}`,
-            tone: cash >= 1 ? 'prize' : 'neutral',
-          },
-        ]
-      : [
-          { label: 'Next tile safe', value: fmtChance(pSafe), sub: `${gemsWord(g - found)} in ${TILES - found} tiles`, tone: 'chance' },
-          { label: 'Cash out now', value: found > 0 ? fmtMult(cash) : '—', sub: found > 0 ? formatAmount(stake * cash, 2) : 'after the first gem', tone: 'cash' },
-          { label: 'Next gem', value: fmtMult(multiplier(m, found + 1)), sub: `pays ${formatAmount(stake * multiplier(m, found + 1), 2)}`, tone: 'prize' },
-        ];
+    : [
+        { label: 'Next tile safe', value: phase === 'over' ? '—' : fmtChance(pSafe), tone: 'chance' },
+        { label: 'Next gem pays', value: phase === 'over' ? '—' : fmtMult(multiplier(m, found + 1)), tone: 'prize' },
+      ];
 
   const minesPicker = (
     <>
@@ -354,12 +339,7 @@ export default function Game() {
         </div>
         <div>
           <Label>Gems</Label>
-          <div className="mines-gems-box">
-            <span className="mines-ico">
-              <Gem />
-            </span>
-            {gems}
-          </div>
+          <div className="mines-gems-box">{gems}</div>
         </div>
       </div>
       {!isAuto && (
@@ -377,7 +357,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Mines"
-      accent="#22c55e"
+      accent={ACCENTS.sky}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live || autoBusy} />
@@ -386,20 +366,8 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {live ? (
-                <>
-                  <Label hint={fmtMult(found > 0 ? cash : 0)}>Total profit</Label>
-                  <div className={'mines-profit' + (found > 0 ? ' up' : '')}>
-                    {found > 0 ? '+' : ''}
-                    {formatAmount(found > 0 ? stake * cash - stake : 0, 2)}
-                  </div>
-                </>
-              ) : (
+              {!live && (
                 <dl className="og-stats">
-                  <dt>First tile safe</dt>
-                  <dd>{fmtChance(nextSafe(mines, 0))}</dd>
-                  <dt>First gem pays</dt>
-                  <dd>{fmtMult(multiplier(mines, 1))}</dd>
                   <dt>Clear the board</dt>
                   <dd>{fmtMult(fullClear(mines))}</dd>
                 </dl>
@@ -459,13 +427,10 @@ export default function Game() {
           showSelection={isAuto}
           clickable={isAuto ? !autoLocked : phase === 'live'}
           onTile={onTile}
-          shakeKey={shake}
         />
       </Board>
 
-      <Ladder mines={isAuto ? mines : m} found={isAuto ? 0 : found} target={isAuto ? n || null : null} showNext={isAuto || phase !== 'over'} />
-
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -477,17 +442,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar p={pSafe} label="Next tile is a gem" note={`${g - found} of the ${TILES - found} hidden tiles ${g - found === 1 ? 'is a gem' : 'are gems'}, wherever you click.`} />
-      ) : (
-        <Caption>
-          {isAuto
-            ? n
-              ? `Each bet reveals your ${n} marked ${n === 1 ? 'tile' : 'tiles'} in order. All safe pays ${fmtMult(multiplier(mines, n))}.`
-              : 'Click tiles to mark them. Each auto bet reveals the marked set.'
-            : `${minesWord(m)} hidden among ${TILES} tiles. Press Bet, then pick tiles. Cash out after any gem. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Each gem you find raises the payout; uncovering a mine ends the round.</Caption>
 
       {infoOpen && (
         <InfoModal title="Mines" onClose={() => setInfoOpen(false)}>
@@ -508,7 +464,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               "Next tile safe" is gems left ÷ hidden tiles. It is the same for every hidden tile: the mines are placed at random when you bet, so no tile, corner
-              or pattern is luckier than another. The bar under the board is that chance.
+              or pattern is luckier than another. It is the chance shown above the board.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
