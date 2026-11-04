@@ -4,7 +4,7 @@ import { MAX_MULTIPLIER, RTP } from './math';
 export default defineManifest({
   id: 'cross',
   name: 'Cross',
-  tagline: 'Cards are turned from a 3 × 4 grid. Each must miss the last card’s row and shape. The cards outlined in red are your risk.',
+  tagline: 'Cards are turned from a 3 × 4 grid. Each must miss the last card’s colour and shape. The cards outlined in red are your risk.',
   mechanic: 'combinatorics',
   status: 'prototype',
   rtp: RTP,
