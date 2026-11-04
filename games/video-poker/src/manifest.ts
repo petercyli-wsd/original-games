@@ -1,7 +1,7 @@
 import { defineManifest } from '@originals/game-sdk';
 import { MAX_MULTIPLIER, RTP } from './math';
 
-export const ACCENT = '#6366f1';
+export const ACCENT = '#7b93ff'; // ACCENTS.blue (docs/STYLE.md)
 
 export default defineManifest({
   id: 'video-poker',

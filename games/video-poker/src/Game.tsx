@@ -1,4 +1,3 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
@@ -17,6 +16,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -27,11 +27,10 @@ import {
   useTimers,
   useTurbo,
 } from '@originals/game-sdk/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { PlayingCard, Paytable, fmtOdds, type Slot } from './Cards';
+import { useEffect, useRef, useState } from 'react';
+import { PlayingCard, Paytable, type Slot } from './Cards';
 import { ACCENT } from './manifest';
 import {
-  DRAWS,
   FULL_HOUSE,
   MAX_MULTIPLIER,
   NOTHING,
@@ -44,7 +43,6 @@ import {
   deal,
   draw,
   handName,
-  holdDist,
   holdValue,
   payingChance,
   popcount5,
@@ -118,7 +116,6 @@ export default function Game() {
   }, []);
 
   const t = turbo.turbo;
-  const flipMs = t ? 110 : 300;
   const stagger = t ? 25 : 70;
   const tuckMs = t ? 40 : 120;
   const autoHoldMs = t ? 100 : 280;
@@ -219,6 +216,8 @@ export default function Game() {
 
   const auto = useAutoBet({ bet, play: playAuto, turbo: t });
   autoRef.current = auto;
+  // A manual flip takes a full event; Auto keeps its quicker pace. (Read when a round runs, after this line.)
+  const flipMs = auto.mode === 'manual' ? eventMs(t) : t ? eventMs(true) : 300;
   const busy = live || auto.running;
 
   // Changing a setting after a round clears the finished board.
@@ -265,14 +264,13 @@ export default function Game() {
   const best = round?.solution ?? null;
   const onBest = !!best && best.ties.includes(shownHold);
   const pay = a && inHand ? payingChance(a, shownHold, pt.pays) : 0;
-  const oddsDist = useMemo(() => (a && inHand ? holdDist(a, shownHold) : pt.dist), [a, inHand, shownHold, pt]);
   const idlePaying = pt.dist.reduce((s, p, c) => s + (pt.pays[c] > 0 ? p : 0), 0);
   const madeCat = round && inHand && phase !== 'over' ? categoryOf(round.dealt) : null;
   const madeName = madeCat !== null ? handName(pt, madeCat) : null;
   const scoring = phase === 'over' && round?.final && round.cat !== null ? scoringMask(round.final, round.cat) : 0;
   const showBest = hint && best && (phase === 'holding' || phase === 'dealing') && manual;
 
-  let status = `Ready · ${pt.name} ${pt.schedule.split(' ')[0]} · ${(pt.rtp * 100).toFixed(2)}% RTP`;
+  let status = `Ready · ${pt.name} ${pt.schedule.split(' ')[0]}`;
   if (phase === 'dealing') status = 'Dealing…';
   if (phase === 'holding')
     status = !manual
@@ -284,30 +282,18 @@ export default function Game() {
   if (phase === 'over' && round) status = round.cat ? `${handName(pt, round.cat)} · ${fmtMult(round.multiplier)}` : 'No win';
   const tone = phase === 'over' ? (round && round.multiplier >= 1 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const stake = round?.stake ?? bet.value;
+  // One chance and one payout.
   const readouts =
     inHand && round
       ? [
-          { label: 'Paying hand', value: fmtChance(pay), sub: phase === 'over' ? 'chance you had' : 'chance after the draw', tone: 'chance' as const },
-          {
-            label: 'Hold value',
-            value: fmtMult(holdVal),
-            sub: `${formatAmount(stake * holdVal, 2)} expected`,
-            tone: 'cash' as const,
-          },
+          { label: 'Paying hand', value: fmtChance(pay), tone: 'chance' as const },
           phase === 'over'
-            ? { label: 'Paid', value: fmtMult(round.multiplier), sub: formatAmount(stake * round.multiplier, 2), tone: round.multiplier > 0 ? ('prize' as const) : ('neutral' as const) }
-            : {
-                label: 'Best hold',
-                value: fmtMult(best!.bestValue),
-                sub: onBest ? 'you are holding it' : hint ? `+${(best!.bestValue - holdVal).toFixed(3)}× · marked` : `+${(best!.bestValue - holdVal).toFixed(3)}× available`,
-                tone: 'prize' as const,
-              },
+            ? { label: 'Paid', value: fmtMult(round.multiplier), tone: round.multiplier > 0 ? ('prize' as const) : ('neutral' as const) }
+            : { label: 'Hold value', value: fmtMult(holdVal), tone: 'prize' as const },
         ]
       : [
-          { label: 'Paying hand', value: fmtChance(idlePaying), sub: 'per hand, best play', tone: 'chance' as const },
-          { label: 'Return', value: `${(pt.rtp * 100).toFixed(2)}%`, sub: 'with best holds', tone: 'cash' as const },
-          { label: 'Royal flush', value: fmtMult(MAX_MULTIPLIER), sub: fmtOdds(pt.dist[ROYAL]), tone: 'prize' as const },
+          { label: 'Paying hand', value: fmtChance(idlePaying), tone: 'chance' as const },
+          { label: 'Royal flush', value: fmtMult(MAX_MULTIPLIER), tone: 'prize' as const },
         ];
 
   return (
@@ -331,16 +317,6 @@ export default function Game() {
             onChange={(v) => change(() => setTable(v))}
           />
           </div>
-          {manual && (
-          <dl className="og-stats">
-            <dt>Return (best play)</dt>
-            <dd>{(PAYTABLES[table].rtp * 100).toFixed(2)}%</dd>
-            <dt>Paying hands</dt>
-            <dd>{fmtChance(PAYTABLES[table].dist.reduce((s, p, c) => s + (PAYTABLES[table].pays[c] > 0 ? p : 0), 0))}</dd>
-            <dt>Top prize</dt>
-            <dd>{fmtMult(MAX_MULTIPLIER)}</dd>
-          </dl>
-          )}
 
           {manual ? (
             <>
@@ -354,7 +330,7 @@ export default function Game() {
                     {popcount5(hold) === 5 ? 'Stand pat' : `Draw ${5 - popcount5(hold)} card${5 - popcount5(hold) > 1 ? 's' : ''}`}
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={holdBest} disabled={onBest}>
-                    {onBest ? 'Holding the best cards' : 'Hold best'} <kbd className="vp-kbd">H</kbd>
+                    {onBest ? 'Holding the best cards' : 'Hold best'}
                   </ActionButton>
                 </>
               ) : (
@@ -390,8 +366,6 @@ export default function Game() {
         <div className="vp-table">
           <Paytable
             table={pt}
-            dist={oddsDist}
-            oddsLabel={inHand ? (phase === 'over' ? 'You had' : 'Your hold') : 'Best play'}
             made={madeCat && madeCat !== NOTHING ? madeCat : null}
             hit={phase === 'over' && round?.cat ? round.cat : null}
           />
@@ -418,7 +392,6 @@ export default function Game() {
                   >
                     {isBest && <span className="vp-best-tag">best</span>}
                     <PlayingCard slot={s} ms={flipMs} />
-                    {held && <span className="vp-held-tag">Held</span>}
                   </button>
                 </div>
               );
@@ -452,7 +425,6 @@ export default function Game() {
                       aria-pressed={held}
                     >
                       {held ? 'Held' : 'Hold'}
-                      <kbd>{i + 1}</kbd>
                     </button>
                   );
                 })}
@@ -462,17 +434,7 @@ export default function Game() {
         </div>
       </Board>
 
-      <Caption>
-        {phase === 'holding' && !manual
-          ? `Auto holds the solver's best cards every hand, the strategy behind the ${(pt.rtp * 100).toFixed(2)}% return.`
-          : phase === 'holding'
-          ? `Odds column: exact counts over all ${DRAWS[popcount5(hold)].toLocaleString('en-US')} possible draws for the cards you hold. 1–5 hold · H best hold · Space draws.`
-          : phase === 'over' && round
-            ? onBest
-              ? 'You held the best cards for this deal.'
-              : `Best hold was worth ${fmtMult(round.solution.bestValue)}; yours ${fmtMult(holdVal)}. Turn on “Show best hold” to see it marked.`
-            : `Five cards, one draw. With best holds this table returns ${(pt.rtp * 100).toFixed(2)}%, computed exactly over all 2,598,960 deals.`}
-      </Caption>
+      <Caption>Hold the cards you want, draw once, and the final hand is paid by the paytable.</Caption>
 
       {infoOpen && (
         <InfoModal title="Video Poker" onClose={() => setInfoOpen(false)}>
@@ -489,9 +451,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Before you bet, the odds column shows how often each hand finishes under best play. Once dealt, it switches to <b>your hold</b>: the exact chance
-              of each final hand for the cards you are holding, counted over every possible draw. The readouts give your hold's expected return and the best
-              hold's, so you can always see what a choice costs. “Show best hold” marks the best cards on the deal.
+              Before you bet, “Paying hand” is how often a hand finishes paying under best play. Once dealt, it is the exact chance that the cards you are
+              holding finish as a paying hand, counted over every possible draw, and “Hold value” is that hold's expected return. The hand you were dealt is
+              highlighted in the paytable, and the final paying hand is marked green. “Show best hold” outlines the best cards on the deal. Keys: 1–5 hold a
+              card, H holds the best cards, Space deals and draws.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
