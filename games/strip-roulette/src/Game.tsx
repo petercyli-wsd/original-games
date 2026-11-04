@@ -175,7 +175,9 @@ export default function Game() {
     }
     const t = cents(totalOf(lay));
     if (!(t > 0)) return null;
-    resolved.current = 0;
+    // Until the spin is drawn (the same tick the ticket is accepted) the bet is
+    // worth exactly RTP; then it is worth the drawn result.
+    resolved.current = RTP;
     if (!(await ticket.place(t))) return null;
 
     const res = spin(lay, n, rng.next());
