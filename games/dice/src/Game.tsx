@@ -13,6 +13,9 @@ import {
   ModeTabs,
   PanelFoot,
   StageTop,
+  ACCENTS,
+  Caption,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -52,7 +55,8 @@ export default function Game() {
 
   const target = targetFor(chance, dir);
   const multiplier = multiplierFor(chance);
-  const animMs = turbo.turbo ? 90 : 420;
+  // Manual rolls slide for a readable 600 ms; Turbo and Auto take about a quarter of that (set below, once auto is known).
+  const animRef = useRef(eventMs(turbo.turbo));
 
   async function playOnce(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
@@ -61,7 +65,7 @@ export default function Game() {
     resolved.current = mult;
     setRolling(true);
     setLast({ id: ++seq.current, result, win, multiplier: mult, stake });
-    await timers.wait(animMs);
+    await timers.wait(animRef.current);
     ticket.settle(mult);
     pushHistory(mult);
     setRolling(false);
@@ -69,6 +73,8 @@ export default function Game() {
   }
 
   const auto = useAutoBet({ bet, play: playOnce, turbo: turbo.turbo });
+  const animMs = eventMs(turbo.turbo || auto.running);
+  animRef.current = animMs;
   const busy = rolling || auto.running;
 
   useHotkeys({ space: () => (auto.mode === 'manual' && !busy && !bet.blocked ? void playOnce(bet.value) : undefined) }, !infoOpen);
@@ -91,7 +97,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Dice"
-      accent="#3b82f6"
+      accent={ACCENTS.blue}
       panel={
         <>
           <ModeTabs auto={auto} disabled={rolling} />
@@ -205,10 +211,7 @@ export default function Game() {
               </div>
             )}
           </div>
-          <p className="dice-caption">
-            Green is {chance.toFixed(2)}% of the track: that is your exact chance. Payout {fmtMult(multiplier)} = {(RTP * 100).toFixed(0)} ÷{' '}
-            {chance.toFixed(2)}.
-          </p>
+          <Caption>Win if the roll lands on the green part of the track.</Caption>
         </div>
       </Board>
 
