@@ -1,24 +1,24 @@
-/* Plinko board. Layout, panel and readouts come from the kit. */
+/* Plinko board. Layout, panel and readouts come from the kit. Flat, per docs/STYLE.md. */
 
 .pk-ticks {
   display: flex;
   justify-content: space-between;
-  margin: -4px 2px 0;
-  font-size: 11px;
+  margin: calc(-1 * var(--sp-1)) 2px 0;
+  font-size: var(--fs-1);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  color: var(--faint);
 }
 .pk-ticks span {
   width: 14px;
   text-align: center;
 }
 .pk-ticks span.on {
-  color: var(--accent);
+  color: var(--text);
 }
 .pk-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   line-height: 1.4;
   color: var(--muted);
 }
@@ -27,20 +27,18 @@
 }
 .pk-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--red);
+  color: var(--muted);
 }
 
 /* A long Auto panel scrolls; its fields must never be squashed. */
 .plinko .og-panel > * {
   flex-shrink: 0;
 }
-/* Newest result first, fading out on the right instead of clipping the newest. */
+/* Newest result first. */
 .plinko .og-history {
   justify-content: flex-start;
-  -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent);
-  mask-image: linear-gradient(90deg, #000 85%, transparent);
 }
 
 /* ---------- Board ---------- */
@@ -60,57 +58,61 @@
 
 /* The result pill sits in the empty top-left corner, clear of the drop point. */
 .pk-board .og-instant {
-  left: 4px;
-  top: 4px;
+  left: var(--sp-1);
+  top: var(--sp-1);
   transform: none;
-  animation-name: pk-pill-in;
-}
-@keyframes pk-pill-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px) scale(0.92);
-  }
 }
 
+/* Pegs are small spent-looking dots; the ball is the accent. */
 .pk-peg {
-  fill: #b9b8c8;
-  opacity: 0.85;
-  transform-box: fill-box;
-  transform-origin: center;
+  fill: var(--faint);
+}
+.pk-ball-dot {
+  fill: var(--accent);
 }
 
+/* Buckets are flat cells: below 1x a well, 1x and up a raised cell. The landed one stays outlined in the outcome colour. */
 .pk-bucket {
   cursor: pointer;
 }
-.pk-bucket-body {
-  transform-box: fill-box;
-  transform-origin: center;
-}
 .pk-bucket-body rect {
-  fill: var(--b);
-  stroke: transparent;
-  stroke-width: 2.5;
-  transition: stroke 0.15s ease;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.pk-bucket.short .pk-bucket-body rect {
+  fill: var(--bg);
+}
+.pk-bucket.pays .pk-bucket-body rect {
+  fill: var(--hover);
 }
 .pk-bucket-body text {
-  fill: #12091a;
-  font-weight: 800;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
-.pk-bucket.landed .pk-bucket-body rect {
-  stroke: #fff;
+.pk-bucket.short .pk-bucket-body text {
+  fill: var(--faint);
+}
+.pk-bucket.pays .pk-bucket-body text {
+  fill: var(--text);
 }
 .pk-bucket.focus .pk-bucket-body rect {
-  stroke: color-mix(in srgb, #fff 70%, var(--b));
+  stroke: var(--line-strong);
+}
+.pk-bucket.landed.pays .pk-bucket-body rect {
+  stroke: var(--win);
+  stroke-width: 2.5;
+}
+.pk-bucket.landed.short .pk-bucket-body rect {
+  stroke: var(--lose);
+  stroke-width: 2.5;
 }
 .pk-bar {
-  fill: color-mix(in srgb, var(--b) 45%, transparent);
-  transition: fill 0.15s ease;
+  fill: var(--faint);
 }
 .pk-bucket.focus .pk-bar,
 .pk-bucket.landed .pk-bar {
-  fill: var(--b);
+  fill: var(--muted);
 }
 .pk-hit {
   fill: transparent;
@@ -120,69 +122,25 @@
   pointer-events: none;
 }
 
-/* ---------- Bucket detail strip ---------- */
-.pk-detail {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.pk-detail > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 9px 14px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
-}
-.pk-detail span {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.pk-detail b {
-  font-size: 19px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.pk-detail b.up {
-  color: var(--green);
-}
-.pk-detail b.down {
-  color: var(--red);
-}
-.pk-detail small {
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.pk-swatch {
-  color: var(--b);
-}
-
 /* ---------- Info modal paytable ---------- */
 .pk-paytable {
   width: 100%;
-  margin: 4px 0 10px;
+  margin: var(--sp-1) 0 10px;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
 }
 .pk-paytable th {
-  padding: 4px 6px;
-  font-size: 12px;
+  padding: var(--sp-1) 6px;
+  font-size: var(--fs-1);
   font-weight: 600;
   text-align: left;
   color: var(--muted);
   border-bottom: 1px solid var(--line);
 }
 .pk-paytable td {
-  padding: 4px 6px;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 50%, transparent);
+  padding: var(--sp-1) 6px;
+  border-bottom: 1px solid var(--line);
 }
 .pk-paytable small {
   color: var(--muted);
@@ -196,16 +154,7 @@
     position: static;
     height: auto;
   }
-  .pk-detail > div {
-    padding: 7px 10px;
-  }
-  .pk-detail b {
-    font-size: 16px;
-  }
   .pk-board .og-instant {
     padding: 5px 11px;
-  }
-  .pk-board .og-instant b {
-    font-size: 17px;
   }
 }

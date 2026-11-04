@@ -9,18 +9,9 @@ import { VIEW_W, bucketX, layoutFor, pegs, spawnY } from './geometry';
 import { bucketLabel, type Table } from './math';
 
 export interface BoardRefs {
-  peg(row: number, j: number, el: SVGCircleElement | null): void;
-  bucket(k: number, el: SVGGElement | null): void;
   ball(id: number, el: SVGGElement | null): void;
 }
 
-/** Edge buckets glow in the accent pink, the centre cools to violet. */
-export function bucketColour(k: number, rows: number): string {
-  const t = Math.abs(k - rows / 2) / (rows / 2);
-  const hue = 262 + (332 - 262) * t;
-  const light = 58 + 4 * t;
-  return `hsl(${hue.toFixed(1)} 82% ${light.toFixed(1)}%)`;
-}
 
 interface Props {
   table: Table;
@@ -49,24 +40,9 @@ function BoardImpl({ table, balls, landed, focus, onFocus, refs }: Props) {
       aria-label={`Plinko board, ${n} rows, ${table.risk} risk`}
       onPointerLeave={() => onFocus(null)}
     >
-      <defs>
-        <radialGradient id="pk-ball" cx="38%" cy="32%" r="70%">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="45%" stopColor="#ffd3ea" />
-          <stop offset="100%" stopColor="#ec4899" />
-        </radialGradient>
-        <filter id="pk-glow" x="-80%" y="-80%" width="260%" height="260%">
-          <feGaussianBlur stdDeviation="4" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-
       <g className="pk-pegs">
         {pegs(l).map((p) => (
-          <circle key={`${p.row}:${p.j}`} ref={(el) => refs.peg(p.row, p.j, el)} className="pk-peg" cx={p.x} cy={p.y} r={l.pegR} />
+          <circle key={`${p.row}:${p.j}`} className="pk-peg" cx={p.x} cy={p.y} r={l.pegR} />
         ))}
       </g>
 
@@ -77,12 +53,11 @@ function BoardImpl({ table, balls, landed, focus, onFocus, refs }: Props) {
           return (
             <g
               key={k}
-              className={'pk-bucket' + (landed === k ? ' landed' : '') + (on ? ' focus' : '')}
-              style={{ ['--b' as string]: bucketColour(k, n) }}
+              className={'pk-bucket' + (m >= 1 ? ' pays' : ' short') + (landed === k ? ' landed' : '') + (on ? ' focus' : '')}
               onPointerEnter={() => onFocus(k)}
               onClick={() => onFocus(k)}
             >
-              <g ref={(el) => refs.bucket(k, el)} className="pk-bucket-body">
+              <g className="pk-bucket-body">
                 <rect x={x - bw / 2} y={l.bucketY} width={bw} height={l.bucketH} rx={Math.min(8, bw * 0.18)} />
                 <text x={x} y={l.bucketY + l.bucketH / 2} fontSize={font} dominantBaseline="central" textAnchor="middle">
                   {bucketLabel(m)}
@@ -107,7 +82,7 @@ function BoardImpl({ table, balls, landed, focus, onFocus, refs }: Props) {
       <g className="pk-balls">
         {balls.map((id) => (
           <g key={id} ref={(el) => refs.ball(id, el)} className="pk-ball" transform={`translate(${l.cx} ${spawnY(l).toFixed(1)})`}>
-            <circle r={l.ballR} fill="url(#pk-ball)" filter="url(#pk-glow)" />
+            <circle className="pk-ball-dot" r={l.ballR} />
           </g>
         ))}
       </g>

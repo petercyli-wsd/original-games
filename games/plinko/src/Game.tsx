@@ -1,6 +1,6 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
@@ -14,6 +14,7 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   Slider,
   StageTop,
   VolBadge,
@@ -27,7 +28,7 @@ import {
   useTurbo,
 } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import PlinkoBoard, { bucketColour, type BoardRefs } from './Board';
+import PlinkoBoard, { type BoardRefs } from './Board';
 import { along, layoutFor, waypoints, type Waypoint } from './geometry';
 import { MAX_ROWS, MIN_ROWS, RTP, exactLabel, resolveDrop, tableFor, volatilityOf, type Risk } from './math';
 import { useTickets } from './tickets';
@@ -49,7 +50,6 @@ interface Flight {
   pts: Waypoint[];
   start: number;
   seg: number;
-  lastSeg: number;
   bucket: number;
   multiplier: number;
   stake: number;
@@ -62,16 +62,6 @@ interface Landed {
   multiplier: number;
   stake: number;
 }
-
-const PEG_FLASH: Keyframe[] = [
-  { transform: 'scale(1.9)', fill: '#ffffff', opacity: 1 },
-  { transform: 'scale(1)', fill: '#b9b8c8', opacity: 0.85 },
-];
-const BUCKET_HIT: Keyframe[] = [
-  { transform: 'translateY(0)', filter: 'brightness(1)' },
-  { transform: 'translateY(7px)', filter: 'brightness(1.7)', offset: 0.25 },
-  { transform: 'translateY(0)', filter: 'brightness(1)' },
-];
 
 export default function Game() {
   const { rng } = useHost();
@@ -93,8 +83,6 @@ export default function Game() {
 
   // ---- Animation: one rAF loop moves every ball along its pre-drawn path. ----
   const flights = useRef(new Map<number, Flight>());
-  const pegEls = useRef(new Map<string, SVGCircleElement>());
-  const bucketEls = useRef(new Map<number, SVGGElement>());
   const ballEls = useRef(new Map<number, SVGGElement>());
   const raf = useRef(0);
   const seq = useRef(0);
@@ -102,15 +90,6 @@ export default function Game() {
 
   const refs = useMemo<BoardRefs>(
     () => ({
-      peg: (row, j, el) => {
-        const key = `${row}:${j}`;
-        if (el) pegEls.current.set(key, el);
-        else pegEls.current.delete(key);
-      },
-      bucket: (k, el) => {
-        if (el) bucketEls.current.set(k, el);
-        else bucketEls.current.delete(k);
-      },
       ball: (id, el) => {
         if (el) ballEls.current.set(id, el);
         else ballEls.current.delete(id);
@@ -131,7 +110,6 @@ export default function Game() {
       stake: f.stake,
     });
     setBalls((ids) => ids.filter((x) => x !== f.id));
-    bucketEls.current.get(f.bucket)?.animate(BUCKET_HIT, { duration: 360, easing: 'ease-out' });
     f.done(f.multiplier);
   };
 
@@ -144,11 +122,6 @@ export default function Game() {
         continue;
       }
       if (i < 0) continue;
-      while (f.lastSeg < i) {
-        f.lastSeg++;
-        const p = f.pts[f.lastSeg].peg;
-        if (p) pegEls.current.get(`${p.row}:${p.j}`)?.animate(PEG_FLASH, { duration: 300, easing: 'ease-out' });
-      }
       const at = along(f.pts[i], f.pts[i + 1], pos - i, i === 0);
       ballEls.current.get(f.id)?.setAttribute('transform', `translate(${at.x.toFixed(2)} ${at.y.toFixed(2)})`);
     }
@@ -178,7 +151,6 @@ export default function Game() {
         pts: waypoints(layoutFor(rows), r.path),
         start: performance.now(),
         seg: turbo.turbo ? SEG_TURBO_MS : SEG_MS,
-        lastSeg: 0,
         bucket: r.bucket,
         multiplier: r.multiplier,
         stake,
@@ -223,8 +195,7 @@ export default function Game() {
 
   const shown = focus ?? last?.bucket ?? 0;
   const shownMult = table.mults[shown];
-  const profit = bet.value * shownMult - bet.value;
-  const topChance = table.probs[0] * 2;
+  const bucketWord = focus !== null ? 'Bucket' : last ? 'Last bucket' : 'Edge bucket';
 
   const status =
     inFlight > 0
@@ -237,7 +208,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Plinko"
-      accent="#ec4899"
+      accent={ACCENTS.pink}
       className="plinko"
       panel={
         <>
@@ -275,18 +246,11 @@ export default function Game() {
             ))}
           </div>
 
-          {/* Like Stake, the Auto panel carries only the auto settings, so Start, the
-              session profit and Turbo all fit at 1280×800. */}
+          {/* The Auto panel carries only the auto settings, so Start, the session profit and Turbo all fit at 1280×800. */}
           {auto.mode === 'manual' && (
             <dl className="og-stats">
               <dt>Top prize</dt>
               <dd>{fmtMult(table.max)}</dd>
-              <dt>Top prize chance</dt>
-              <dd>{fmtOneIn(topChance)}</dd>
-              <dt>Chance of profit</dt>
-              <dd>{fmtChance(table.chanceProfit)}</dd>
-              <dt>RTP</dt>
-              <dd>{(RTP * 100).toFixed(2)}%</dd>
             </dl>
           )}
 
@@ -299,8 +263,8 @@ export default function Game() {
           )}
           {bet.blocked ? (
             <p className="pk-blocked">{bet.blocked}</p>
-          ) : auto.mode === 'manual' ? (
-            <p className="pk-note center">{full ? `Up to ${MAX_IN_FLIGHT} balls at once` : 'Space drops a ball. Drop as many as you like.'}</p>
+          ) : auto.mode === 'manual' && full ? (
+            <p className="pk-note center">Up to {MAX_IN_FLIGHT} balls at once</p>
           ) : null}
 
           <PanelFoot turbo={turbo} onInfo={() => setInfoOpen(true)} />
@@ -309,30 +273,17 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <Readouts
+        items={[
+          { label: `${bucketWord} chance`, value: fmtChance(table.probs[shown]), tone: 'chance' },
+          { label: `${bucketWord} pays`, value: `${exactLabel(shownMult)}×`, tone: 'prize' },
+        ]}
+      />
       <Board className="pk-board">
         <InstantResult multiplier={last ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <PlinkoBoard table={table} balls={balls} landed={last?.bucket ?? null} focus={focus} onFocus={setFocus} refs={refs} />
       </Board>
-
-      <div className="pk-detail" style={{ ['--b' as string]: bucketColour(shown, rows) }} aria-live="polite">
-        <div>
-          <span>{focus !== null ? 'Bucket' : last ? 'Last bucket' : 'Edge bucket'}</span>
-          <b className="pk-swatch">{exactLabel(shownMult)}×</b>
-        </div>
-        <div>
-          <span>Profit on hit</span>
-          <b className={profit > 0 ? 'up' : profit < 0 ? 'down' : ''}>
-            {profit >= 0 ? '+' : '−'}
-            {formatAmount(Math.abs(profit), 2)}
-          </b>
-        </div>
-        <div>
-          <span>Chance</span>
-          <b>{fmtChance(table.probs[shown])}</b>
-          <small>{fmtOneIn(table.probs[shown])}</small>
-        </div>
-      </div>
-      <Caption>Each peg is a fair 50/50 bounce. The bar under each bucket is its exact chance; hover or tap a bucket for details.</Caption>
+      <Caption>The ball pays the multiplier of the bucket it lands in.</Caption>
 
       {infoOpen && (
         <InfoModal title="Plinko" onClose={() => setInfoOpen(false)}>
