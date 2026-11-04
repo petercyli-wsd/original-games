@@ -115,14 +115,26 @@ export default function App() {
     timer.current = setTimeout(fn, ms);
   };
 
-  // Leaving mid-round cashes out at the current value, M × P (fair at any point).
-  useEffect(
-    () => () => {
+  // Leaving mid-round settles the open ticket at `resolved`: the value right
+  // now, set synchronously at every transition (RTP when the stake is placed,
+  // the post-cut value M × P' the moment a cut is drawn, since the dot is
+  // already fixed). So leaving while the blade animates settles at the cut's
+  // real result, never at the pre-cut value. A bet still being placed when
+  // the game unmounts is refunded (no round was started for it).
+  const resolved = useRef(0);
+  const mounted = useRef(true);
+  /** The round waiting at a checkpoint: the only one that can be cut again or cashed (null while cutting or over). */
+  const waiting = useRef<Round | null>(null);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       clearTimeout(timer.current);
-      if (ticket.current && roundRef.current) void ticket.current.settle(cashMultiplier(roundRef.current));
-    },
-    [],
-  );
+      const t = ticket.current;
+      ticket.current = null;
+      if (t) void t.settle(resolved.current);
+    };
+  }, []);
 
   const show = (r: Round | null) => {
     roundRef.current = r;
@@ -130,6 +142,7 @@ export default function App() {
   };
 
   function finish(r: Round, end: Omit<Ending, 'stake'>) {
+    waiting.current = null;
     const t = ticket.current;
     ticket.current = null;
     setPhase('over');
@@ -148,12 +161,15 @@ export default function App() {
   }
 
   function cut(r: Round) {
+    waiting.current = null;
     const c = sampleCut(r.region, rng);
+    // The dot is already fixed, so the cut's result is known now.
+    const next = cutRound(r, c);
+    resolved.current = cashMultiplier(next);
     const [from, to] = chord(r.region, c);
     setBlade({ from, to, id: r.slices.length + 1 });
     setPhase('cutting');
     later(bladeMs, () => {
-      const next = cutRound(r, c);
       show(next);
       later(fallMs, () => {
         setBlade(null);
@@ -163,12 +179,13 @@ export default function App() {
         }
         const mult = cashMultiplier(next);
         track({ type: 'checkpoint', multiplier: mult, winChance: next.chance });
+        waiting.current = next;
         setPhase('checkpoint');
         setMessage({
           text: `The dot is on the bright side. Cash out ${formatMultiplier(mult)} or cut again.`,
           tone: 'neutral',
         });
-        if (autoRef.current) later(autoPauseMs, () => cut(next));
+        if (autoRef.current) later(autoPauseMs, () => waiting.current === next && cut(next));
       });
     });
   }
@@ -187,6 +204,15 @@ export default function App() {
     } finally {
       placing.current = false;
     }
+    if (!mounted.current) {
+      // Left while the bet was being placed: no round was started, so refund it.
+      const t = ticket.current;
+      ticket.current = null;
+      void t?.settle(1);
+      return;
+    }
+    // A fresh round is worth M × πr² = RTP until its first cut is drawn.
+    resolved.current = RTP;
     // The dot is drawn up front, uniformly in the square, and never shown until the end.
     const r = newRound(mode, centre, maxCuts, { x: rng.next(), y: rng.next() });
     setEnding(null);
@@ -196,15 +222,15 @@ export default function App() {
   }
 
   const cashOut = () => {
-    const r = roundRef.current;
-    if (phase !== 'checkpoint' || !r) return;
+    const r = waiting.current;
+    if (!r) return;
     clearTimeout(timer.current);
     setAuto(false);
     finish(r, { kind: 'cashout', mult: cashMultiplier(r) });
   };
 
   const cutAgain = () => {
-    if (phase === 'checkpoint' && roundRef.current) cut(roundRef.current);
+    if (waiting.current) cut(waiting.current);
   };
 
   // Settings changes after a round clear its board back to a fresh preview.
