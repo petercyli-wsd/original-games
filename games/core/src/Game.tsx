@@ -87,7 +87,12 @@ export default function Game() {
   // The drop in flight is decided the moment it starts, so leaving mid-drop
   // settles at its real result, never at the safer pre-drop value.
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'dropping' ? resolved.current : round?.cash ?? 0));
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, step drawn). The ticket reads only this ref:
+  // a value derived from rendered state can be one render stale (the last
+  // round's result just after Bet again, or the pre-step cash-out just after a
+  // step) if the game unmounts before the next render.
+  const ticket = useTicket(() => resolved.current);
 
   const dropMs = turbo.turbo ? 190 : 760;
   const live = phase === 'dropping' || phase === 'checkpoint';
@@ -127,6 +132,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { target, stake: bet.value, intervals: [], cash: RTP, outcome: null, bust: null };
     setRound(r);
