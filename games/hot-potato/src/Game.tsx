@@ -92,10 +92,13 @@ export default function Game() {
 
   // A spin is decided the moment it starts, so leaving mid-spin settles at its
   // real result, never at the pre-spin value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, spin drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale (e.g. the
+  // pre-spin cash-out just after Spin, or 0 just after Bet) if the game
+  // unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() =>
-    phase === 'spinning' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0,
-  );
+  const ticket = useTicket(() => resolved.current);
 
   const spinMs = turbo.turbo ? 230 : 950;
   const hopMs = turbo.turbo ? 110 : 380;
@@ -146,9 +149,10 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    const r = fresh(bet.value);
+    resolved.current = cashOf(r);
     timers.clearAll();
     setLast(null);
-    const r = fresh(bet.value);
     setRound(r);
     // The first checkpoint comes before any spin: nothing is decided until you spin.
     setPhase('checkpoint');
@@ -173,10 +177,10 @@ export default function Game() {
   async function playAuto(stake: number): Promise<number | null> {
     const tgt = target;
     if (!(await ticket.place(stake))) return null;
-    setAutoBusy(true);
-    setLast(null);
     let r = fresh(stake);
     resolved.current = cashOf(r);
+    setAutoBusy(true);
+    setLast(null);
     setRound(r);
     setPhase('spinning');
     let paid = 0;
