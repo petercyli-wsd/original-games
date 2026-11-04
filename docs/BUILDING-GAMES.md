@@ -56,16 +56,16 @@ so the cash-out is a martingale starting at RTP = 0.99. Then by optional stoppin
 
 ## The UI contract
 
-Use `@originals/game-sdk/ui` (see `packages/game-sdk/src/ui`). Layout and round flow must match Half Moon:
+Use `@originals/game-sdk/ui` (see `packages/game-sdk/src/ui`). **The look (colours, type, spacing, what the stage may show) is set by `docs/STYLE.md`; read it first. Where this section and STYLE.md disagree, STYLE.md wins.** Layout and round flow must match Half Moon:
 
-- **Panel (left):** `BetField`, then the game's own controls (`Chips` / `Slider`, a `VolBadge` hint showing the current volatility level), a small `dl.og-stats` with "Chance to win" and "Prize" for the chosen settings, the action buttons, then `PanelFoot` (Turbo plus How to play).
+- **Panel (left):** `BetField`, then the game's own controls (`Chips` / `Slider`, a `VolBadge` hint showing the current volatility level), the action buttons, then `PanelFoot` (Turbo plus How to play). No stats block repeating the odds (STYLE.md §5–6).
 - **Action buttons:** in idle it's **Bet**. While live at a checkpoint, it's **Cash out <amount>** (`kind="cash"`) plus a secondary that continues ("Drop next", "Flip", "Reveal x"…). When over, it's **Bet again**. Disable everything while an animation runs.
-- **Stage:** `StageTop` (status pill plus history chips), `Readouts` (win chance with `tone: 'chance'`, cash out now with `'cash'`, prize or next step with `'prize'`), `Board` holding the SVG plus `RoundOver`, then a `ChanceBar` while live or a `Caption` when idle.
+- **Stage:** `StageTop` (status plus history), at most one `Readouts` row (the one win chance, and optionally the prize; STYLE.md §6), `Board` holding the SVG plus `RoundOver`, then the one-sentence rule in a `Caption` (STYLE.md §7).
 - **Round flow:** idle → live → over. Over shows `RoundOver` (`Bet again` re-bets the same settings; `Clear board` returns to idle). Controls are disabled while live. Changing any setting while over clears the board to an idle preview of the new settings. Hotkeys come from `useHotkeys({ space, cashOut }, !infoOpen)`: Space is the main action, C is cash out, and Esc (handled by RoundOver) clears.
 - **Idle preview:** the board shows the settings (window, targets, initial geometry) so you can see the odds before betting.
-- **Turbo** (`useTurbo()`) shortens every animation to ~25%.
+- **Turbo** (`useTurbo()`) shortens every animation to ~25%. In Manual, each event takes about `EVENT_MS` (600 ms); use `eventMs(turbo)`.
 - **InfoModal** sections, in order: Goal, How to play, Reading the odds, The maths (name the theorem and give the formula), Payouts and fairness.
-- **Base skin is geometric.** Shapes, lines, dots and arcs; no themed illustration. Use the accent colour from the catalogue, plus `var(--red)` for risk, `var(--green)` for safe/win and `var(--gold)` for cash.
+- **Base skin is geometric and flat.** Shapes, lines, dots and arcs; no themed illustration, gradients, glows or shadows. Use one accent from the STYLE.md list, plus `var(--lose)` for risk and `var(--win)` for safe/win. Cash has no colour of its own.
 - **The board must show the odds as a literal quantity** wherever possible: an arc length, a shaded area, a count of lit cells, a bar. Label it.
 - **Responsive.** The kit stacks the board above the panel in frames narrower than 760 px. SVGs use a `viewBox` and scale; nothing may overflow at 420 px wide.
 - **Performance.** Each step's computation is under 50 ms. Precompute tables lazily and cache them by settings.

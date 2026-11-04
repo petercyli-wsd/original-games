@@ -169,7 +169,7 @@ export function PanelFoot({ turbo, onInfo }: { turbo: TurboState; onInfo(): void
         <span>Turbo</span>
       </label>
       <button type="button" className="og-ghost og-info-btn" onClick={onInfo}>
-        <span className="i">i</span> How to play
+        How to play
       </button>
     </div>
   );

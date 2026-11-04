@@ -118,6 +118,12 @@ export interface TurboState {
   forced: boolean;
 }
 
+/** How long one event (a roll, a draw, a cut, a step) takes in Manual, so the eye can follow it (docs/STYLE.md). */
+export const EVENT_MS = 600;
+
+/** An event's duration: `ms` in Manual, about a quarter of it with turbo on (and in Auto, which should pass turbo = true). */
+export const eventMs = (turbo: boolean, ms = EVENT_MS) => (turbo ? Math.round(ms * 0.25) : ms);
+
 export function useTurbo(): TurboState {
   const host = useSettings();
   const [local, setLocal] = useState(false);
