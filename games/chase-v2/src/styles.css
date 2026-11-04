@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .ch-board > svg.chase {
   width: 100%;
@@ -17,96 +17,51 @@
 .chase .cell {
   fill: var(--hover);
 }
+/* The hunter's reach: one flat tint. A runner step onto it is caught. */
+.chase .cell.reach {
+  fill: color-mix(in srgb, var(--lose) 30%, var(--hover));
+}
 .chase .wall {
-  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  fill: var(--bg);
   stroke: var(--line);
   stroke-width: 1;
 }
-.chase .heat {
-  fill: var(--green);
-  opacity: 0.38;
-  transition: x 0.25s ease, y 0.25s ease, width 0.25s ease, height 0.25s ease;
-}
 .chase .door {
-  fill: color-mix(in srgb, var(--green) 22%, transparent);
-  stroke: var(--green);
+  fill: none;
+  stroke: var(--win);
   stroke-width: 3;
 }
 .chase .door.won {
-  fill: color-mix(in srgb, var(--green) 45%, transparent);
-  filter: drop-shadow(0 0 12px var(--green));
-}
-.chase .door-mark {
-  fill: none;
-  stroke: var(--green);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: color-mix(in srgb, var(--win) 30%, var(--hover));
 }
 
-.chase .r-trail {
+.chase .trail {
   fill: none;
-  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke: var(--faint);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.chase .h-trail {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-/* The hunter's reach: squares it can step onto next. */
-.chase .reach {
-  fill: color-mix(in srgb, var(--red) 12%, transparent);
-  stroke: var(--red);
-  stroke-width: 2.5;
-  stroke-dasharray: 7 5;
 }
 
 /* The hunter's reply, shown before it moves. */
 .chase .h-next .ghost {
-  fill: color-mix(in srgb, var(--accent) 18%, transparent);
-  stroke: var(--accent);
+  fill: none;
+  stroke: var(--lose);
   stroke-width: 2.5;
-  stroke-dasharray: 5 4;
 }
 .chase .h-next .shaft {
-  stroke: var(--accent);
-  stroke-width: 3.5;
+  stroke: var(--lose);
+  stroke-width: 3;
   stroke-linecap: round;
 }
 .chase .h-next .head {
-  fill: var(--accent);
-}
-.chase .h-next .badge {
-  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
-  stroke: var(--red);
-  stroke-width: 2;
-}
-.chase .h-next text {
-  text-anchor: middle;
-  font-size: 13px;
-  font-weight: 800;
-  fill: #fff;
+  fill: var(--lose);
 }
 
-/* The runner's next step: k equally likely arrows. */
+/* The runner's next step: equally likely arrows. */
 .chase .step .shaft {
-  stroke-width: 3.5;
+  stroke-width: 3;
   stroke-linecap: round;
-}
-.chase .step .badge {
-  stroke-width: 2;
-}
-.chase .step text {
-  text-anchor: middle;
-  font-size: 13px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
 }
 .chase .step.safe .shaft {
   stroke: var(--text);
@@ -114,159 +69,44 @@
 .chase .step.safe .head {
   fill: var(--text);
 }
-.chase .step.safe .badge {
-  fill: var(--bg);
-  stroke: color-mix(in srgb, var(--text) 70%, transparent);
-}
-.chase .step.safe text {
-  fill: var(--text);
-}
 .chase .step.dead .shaft {
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .chase .step.dead .head {
-  fill: var(--red);
-}
-.chase .step.dead .badge {
-  fill: color-mix(in srgb, var(--red) 30%, var(--bg));
-  stroke: var(--red);
-}
-.chase .step.dead text {
-  fill: #fff;
+  fill: var(--lose);
 }
 .chase .step.out .shaft {
-  stroke: var(--green);
+  stroke: var(--win);
 }
 .chase .step.out .head {
-  fill: var(--green);
-}
-.chase .step.out .badge {
-  fill: color-mix(in srgb, var(--green) 22%, var(--bg));
-  stroke: var(--green);
-}
-.chase .step.out text {
-  fill: var(--green);
+  fill: var(--win);
 }
 
 .chase .runner,
 .chase .hunter {
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  transition-timing-function: ease;
 }
 .chase .runner circle {
-  fill: var(--text);
-  stroke: var(--bg);
+  fill: var(--accent);
+  stroke: var(--hover);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--text) 50%, transparent));
-}
-.chase .runner.escaped circle {
-  fill: var(--green);
-}
-.chase .runner.caught circle {
-  fill: var(--red);
 }
 .chase .runner .x {
-  stroke: #fff;
-  stroke-width: 3.5;
+  stroke: var(--bg);
+  stroke-width: 3;
   stroke-linecap: round;
 }
 .chase .hunter rect {
-  fill: var(--accent);
-  stroke: var(--bg);
+  fill: var(--lose);
+  stroke: var(--hover);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 60%, transparent));
-}
-.chase .hunter.got rect {
-  animation: ch-pulse 0.5s ease 2;
 }
 
-.ch-key {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 20px;
-  font-size: 13px;
-  color: var(--muted);
-}
-.ch-key span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-.ch-key i {
-  display: inline-block;
-}
-.ch-key .sq i {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--green) 55%, transparent);
-}
-.ch-key .rd i {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 2px dashed var(--red);
-  background: color-mix(in srgb, var(--red) 12%, transparent);
-  box-sizing: border-box;
-}
-
-/* The race: shortest walks runner → exit and hunter → runner, as counts of pips. */
-.ch-race {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 12px;
-}
-.ch-race .rc {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--hover);
-  font-size: 13px;
-  color: var(--muted);
-}
-.ch-race .pips {
-  display: inline-flex;
-  gap: 3px;
-}
-.ch-race .pips i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text);
-}
-.ch-race .hunt .pips i {
-  border-radius: 1px;
-  transform: rotate(45deg) scale(0.85);
-  background: var(--accent);
-}
-.ch-race b {
-  min-width: 52px;
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.ch-rule {
-  margin: 0;
-  max-width: 560px;
-  text-align: center;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.4;
-}
 .ch-blocked {
   margin: 0;
-  font-size: 12px;
-  color: var(--red);
-}
-
-@keyframes ch-pulse {
-  50% {
-    opacity: 0.4;
-  }
+  font-size: var(--fs-1);
+  color: var(--lose);
 }
 
 @media (max-width: 760px) {
