@@ -103,16 +103,20 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const spinSeq = useRef(0);
 
-  // The colour of the edge in flight is drawn the moment the pick starts, so
-  // leaving mid-spin settles at its real result, never the pre-pick value.
+  // The open ticket's value. It is set to RTP the moment the bet is accepted
+  // and to the post-result value the moment each pick's colour is drawn, so
+  // leaving mid-spin settles at the real result, never the pre-pick value. The
+  // ticket reads only this ref: the rendered phase and round can be one render
+  // stale (right after Bet they still describe the previous round).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'picking' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const spinMs = turbo.turbo ? 200 : 780;
   const drawMs = turbo.turbo ? 70 : 260;
   const live = phase === 'picking' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -159,6 +163,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { board: boardId, stake: bet.value, col: emptyColouring(BOARDS[boardId].n), cash: RTP, picks: 0, outcome: null, bust: null, fresh: null };
     setRound(r);
