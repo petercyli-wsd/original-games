@@ -1,9 +1,11 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -12,10 +14,12 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
   fmtChance,
   useAutoBet,
+  eventMs,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -54,7 +58,7 @@ import {
 import { ChipDisc, Table, type Orientation } from './Table';
 import { Wheel, type WheelHandle } from './Wheel';
 
-const ACCENT = '#dc2626';
+const ACCENT = ACCENTS.pink;
 const CHIP_VALUES = [0.1, 0.5, 1, 5, 10, 25, 100, 500];
 const NEIGHBOUR_OPTIONS = [0, 1, 2, 3, 4];
 
@@ -130,7 +134,7 @@ export default function Game() {
 
   const total = cents(totalOf(layout));
   const stats = useMemo(() => layoutStats(layout), [layout]);
-  const spinMs = turbo.turbo ? 1000 : 4200;
+  const spinMs = eventMs(turbo.turbo, 2400);
 
   // ---------- Layout editing ----------
   const commit = useCallback((next: Layout) => {
@@ -274,13 +278,7 @@ export default function Game() {
     return new Set(hover ?? []);
   }, [hover, wheelHover, nb, busy]);
   const winner = last && !spinning ? last.pocket : null;
-  // The result tile keeps the last number even after the board is cleared.
-  const lastNum = spinning ? null : (recent[0]?.n ?? null);
   const vol = volatilityOf(stats.sd);
-
-  const counts = { red: 0, black: 0, green: 0 };
-  for (const r of recent) counts[colourOf(r.n)]++;
-  const nRecent = Math.max(1, recent.length);
 
   const status = spinning
     ? 'No more bets…'
@@ -323,7 +321,7 @@ export default function Game() {
                 aria-label={`Chip ${money(v)}`}
               >
                 <svg viewBox="-15 -15 30 30" aria-hidden="true">
-                  <ChipDisc value={v} r={14} />
+                  <ChipDisc value={v} r={14} className={Math.abs(chip.value - v) < 1e-9 ? 'on' : undefined} />
                 </svg>
               </button>
             ))}
@@ -356,17 +354,6 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className="og-stats">
-            <dt>Total bet</dt>
-            <dd>{money(total)}</dd>
-            <dt>Numbers covered</dt>
-            <dd>{total > 0 ? `${stats.covered} / 37` : '–'}</dd>
-            <dt>Chance of profit</dt>
-            <dd>{total > 0 ? fmtChance(stats.pProfit) : '–'}</dd>
-            <dt>Best payout</dt>
-            <dd>{total > 0 ? money(stats.maxMult * total) : '–'}</dd>
-          </dl>
-
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={bet}>
               {spinning ? 'Spinning…' : total > 0 ? `Bet ${money(total)}` : 'Bet'}
@@ -388,6 +375,13 @@ export default function Game() {
     >
       <StageTop status={status} tone={spinning ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Profit chance', value: total > 0 ? fmtChance(stats.pProfit) : '–', tone: 'chance' },
+          { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–', tone: 'prize' },
+        ]}
+      />
+
       <Board className="rl-board">
         <InstantResult multiplier={last && !spinning ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <div className="rl-wheel-wrap">
@@ -402,31 +396,13 @@ export default function Game() {
           />
         </div>
         <div className="rl-side">
-          <div className={'rl-last ' + (lastNum !== null ? colourOf(lastNum) : 'none')} key={spinning ? 'spin' : (recent[0]?.id ?? 0)}>
-            <span>{spinning ? 'No more bets' : 'Last number'}</span>
-            <b>{lastNum !== null ? lastNum : spinning ? '…' : '–'}</b>
-            <small>{lastNum !== null ? describe(lastNum).split(' · ').slice(1).join(' · ') : spinning ? 'Ball in play' : 'No spin yet'}</small>
-          </div>
           <div className="rl-recent" aria-label="Recent numbers">
             {recent.length === 0 && <span className="rl-none">Recent numbers appear here</span>}
             {recent.slice(0, 10).map((r, i) => (
-              <span key={r.id} className={'rl-num ' + colourOf(r.n) + (i === 0 ? ' first' : '')}>
+              <span key={r.id} className={'rl-num ' + colourOf(r.n) + (i === 0 && !spinning ? ' first' : '')}>
                 {r.n}
               </span>
             ))}
-          </div>
-          <div className="rl-split" title={`Last ${recent.length} spins`}>
-            <div className="rl-split-bar">
-              <i className="red" style={{ flexGrow: recent.length ? counts.red : 18 }} />
-              <i className="green" style={{ flexGrow: recent.length ? counts.green : 1 }} />
-              <i className="black" style={{ flexGrow: recent.length ? counts.black : 18 }} />
-            </div>
-            <div className="rl-split-legend">
-              <span>Red {recent.length ? Math.round((100 * counts.red) / nRecent) : 49}%</span>
-              <span>Zero {recent.length ? Math.round((100 * counts.green) / nRecent) : 3}%</span>
-              <span>Black {recent.length ? Math.round((100 * counts.black) / nRecent) : 49}%</span>
-            </div>
-            <small>{recent.length ? `Last ${recent.length} spins` : 'Expected share: 18 / 1 / 18 of 37'}</small>
           </div>
         </div>
       </Board>
@@ -446,7 +422,6 @@ export default function Game() {
       </div>
 
       <div className="rl-calls" role="group" aria-label="Announced bets">
-        <span className="rl-calls-label">Racetrack</span>
         {CALL_KEYS.map((c) => (
           <button
             key={c}
@@ -465,6 +440,8 @@ export default function Game() {
           </button>
         ))}
       </div>
+
+      <Caption>Win if the ball lands on a number your chips cover.</Caption>
 
       {infoOpen && (
         <InfoModal title="Roulette" onClose={() => setInfoOpen(false)}>
@@ -488,7 +465,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Every pocket is equally likely, so a bet's chance is the count of numbers it covers out of 37. Hover any bet, racetrack button or wheel pocket to light the
-              numbers it covers on the table and the wheel. The panel shows how many numbers your chips cover and your exact chance of a profit.
+              numbers it covers on the table and the wheel. The stage shows your exact chance of a profit and your best payout.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
