@@ -1,127 +1,33 @@
-// The slot machine: symbol art, the five reel windows, payline overlay and
+// The slot machine: flat symbols, the five reel windows, payline overlay and
 // line markers. Reel motion is driven by Game (WAAPI on the strip elements);
 // this file only renders what it's given.
 
-import { fmtChance } from '@originals/game-sdk/ui';
-import { type CSSProperties, type MutableRefObject, type ReactNode } from 'react';
-import { LINES, PAYLINES, REELS, ROWS, SCATTER, WILD, type SpinOdds } from './math';
+import { type MutableRefObject, type ReactNode } from 'react';
+import { LINES, PAYLINES, REELS, ROWS, SCATTER, WILD } from './math';
 
-/** A distinct colour per payline (golden-angle hues). */
-export const lineColour = (l: number) => `hsl(${Math.round((l * 137.508 + 20) % 360)} 90% 62%)`;
-
-const GRADS: [string, string][] = [
-  ['#f4feff', '#5fd8f0'], // diamond
-  ['#ffb3c0', '#d3123f'], // ruby
-  ['#9af5bb', '#04875c'], // emerald
-  ['#a9cbff', '#2050d8'], // sapphire
-  ['#ffe9a3', '#f08c00'], // triangle
-  ['#e1c2ff', '#7a35e6'], // square
-  ['#a7f8ea', '#0a958a'], // circle
-  ['#ffc58a', '#e8540b'], // wild
-];
-
-/** Shared gradients; rendered once, referenced by every symbol. */
-export function SymbolDefs() {
-  return (
-    <svg className="rl-defs" aria-hidden="true" width="0" height="0">
-      <defs>
-        {GRADS.map(([a, b], i) => (
-          <linearGradient key={i} id={`rl-g${i}`} x1="0" y1="0" x2="0.35" y2="1">
-            <stop offset="0" stopColor={a} />
-            <stop offset="1" stopColor={b} />
-          </linearGradient>
-        ))}
-        <radialGradient id="rl-g8" cx="0.38" cy="0.32" r="0.75">
-          <stop offset="0" stopColor="#fffbea" />
-          <stop offset="0.45" stopColor="#fbbf24" />
-          <stop offset="1" stopColor="#9a3412" />
-        </radialGradient>
-        <radialGradient id="rl-shine" cx="0.3" cy="0.2" r="0.6">
-          <stop offset="0" stopColor="#fff" stopOpacity="0.75" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-    </svg>
-  );
-}
-
-const FACET = { fill: 'none', stroke: '#fff', strokeOpacity: 0.45, strokeWidth: 1.6, strokeLinejoin: 'round' as const };
-const EDGE = { stroke: '#0008', strokeWidth: 2, strokeLinejoin: 'round' as const };
+/** Names of the plain shapes, best-paying first (the paytable in How to play lists them). */
+export const SHAPE_LABEL = ['Hexagon', 'Circle', 'Square', 'Triangle', 'Diamond', 'Ring', 'Frame', 'Wild', 'Scatter'];
 
 const ART: Record<number, ReactNode> = {
-  0: (
-    <>
-      <polygon points="30,16 70,16 90,40 50,90 10,40" fill="url(#rl-g0)" {...EDGE} />
-      <polyline points="10,40 90,40" {...FACET} />
-      <polyline points="30,16 40,40 50,16 60,40 70,16" {...FACET} />
-      <polyline points="40,40 50,90 60,40" {...FACET} />
-      <polygon points="30,16 50,16 40,40 22,40" fill="url(#rl-shine)" />
-    </>
-  ),
-  1: (
-    <>
-      <polygon points="50,8 87,29 87,71 50,92 13,71 13,29" fill="url(#rl-g1)" {...EDGE} />
-      <polygon points="50,28 69,39 69,61 50,72 31,61 31,39" {...FACET} />
-      <path d="M50 8V28M87 29L69 39M87 71L69 61M50 92V72M13 71L31 61M13 29L31 39" {...FACET} />
-      <polygon points="50,8 13,29 31,39 50,28" fill="url(#rl-shine)" />
-    </>
-  ),
-  2: (
-    <>
-      <polygon points="30,10 70,10 88,28 88,72 70,90 30,90 12,72 12,28" fill="url(#rl-g2)" {...EDGE} />
-      <rect x="29" y="27" width="42" height="46" {...FACET} />
-      <path d="M30 10L29 27M70 10L71 27M88 72L71 73M12 72L29 73M12 28L29 27M88 28L71 27M30 90L29 73M70 90L71 73" {...FACET} />
-      <polygon points="30,10 70,10 71,27 29,27" fill="url(#rl-shine)" />
-    </>
-  ),
-  3: (
-    <>
-      <circle cx="50" cy="50" r="39" fill="url(#rl-g3)" {...EDGE} />
-      <polygon points="50,24 68,32 76,50 68,68 50,76 32,68 24,50 32,32" {...FACET} />
-      <path d="M50 11V24M77.6 22.4L68 32M89 50H76M77.6 77.6L68 68M50 89V76M22.4 77.6L32 68M11 50H24M22.4 22.4L32 32" {...FACET} />
-      <circle cx="38" cy="34" r="12" fill="url(#rl-shine)" />
-    </>
-  ),
-  4: (
-    <>
-      <polygon points="50,12 91,84 9,84" fill="url(#rl-g4)" {...EDGE} />
-      <polygon points="50,40 70,74 30,74" {...FACET} />
-    </>
-  ),
-  5: (
-    <>
-      <rect x="15" y="15" width="70" height="70" rx="12" fill="url(#rl-g5)" {...EDGE} />
-      <polygon points="50,30 70,50 50,70 30,50" {...FACET} />
-    </>
-  ),
-  6: (
-    <>
-      <circle cx="50" cy="50" r="36" fill="url(#rl-g6)" {...EDGE} />
-      <circle cx="50" cy="50" r="15" fill="#0b0d14" fillOpacity="0.55" stroke="#fff" strokeOpacity="0.45" strokeWidth="1.6" />
-    </>
-  ),
+  0: <polygon className="rl-f" points="50,14 81,32 81,68 50,86 19,68 19,32" />,
+  1: <circle className="rl-f" cx="50" cy="50" r="33" />,
+  2: <rect className="rl-f" x="20" y="20" width="60" height="60" />,
+  3: <polygon className="rl-f" points="50,16 86,82 14,82" />,
+  4: <polygon className="rl-f" points="50,12 86,50 50,88 14,50" />,
+  5: <circle className="rl-o" cx="50" cy="50" r="29" />,
+  6: <rect className="rl-o" x="22" y="22" width="56" height="56" />,
   [WILD]: (
     <>
-      <rect x="7" y="7" width="86" height="86" rx="16" fill="url(#rl-g7)" {...EDGE} />
-      <polygon
-        points="50,14 57,33 77,33 61,45 67,64 50,53 33,64 39,45 23,33 43,33"
-        fill="#fff"
-        fillOpacity="0.92"
-        stroke="#7c2d12"
-        strokeOpacity="0.35"
-        strokeWidth="1.5"
-      />
-      <text x="50" y="85" textAnchor="middle" className="rl-sym-text" fontSize="17">
+      <rect className="rl-o" x="10" y="26" width="80" height="48" />
+      <text x="50" y="58" textAnchor="middle" className="rl-sym-text" fontSize="22">
         WILD
       </text>
     </>
   ),
   [SCATTER]: (
     <>
-      <ellipse cx="50" cy="44" rx="44" ry="13" fill="none" stroke="#fbbf24" strokeOpacity="0.55" strokeWidth="2.5" transform="rotate(-16 50 44)" />
-      <circle cx="50" cy="44" r="29" fill="url(#rl-g8)" {...EDGE} />
-      <polygon points="50,24 54,40 70,44 54,48 50,64 46,48 30,44 46,40" fill="#fff" fillOpacity="0.95" />
-      <text x="50" y="92" textAnchor="middle" className="rl-sym-text scatter" fontSize="13">
+      <circle className="rl-f" cx="50" cy="38" r="24" />
+      <text x="50" y="82" textAnchor="middle" className="rl-sym-text" fontSize="15">
         SCATTER
       </text>
     </>
@@ -140,12 +46,12 @@ export interface ReelsProps {
   /** Symbols per reel, top to bottom (3 when settled, longer while spinning). */
   cols: number[][];
   stripRefs: MutableRefObject<(HTMLDivElement | null)[]>;
-  /** Cells to light as "r-row" keys; null = no win presentation. */
+  /** Cells to mark as "r-row" keys; null = no win presentation. */
   lit: Set<string> | null;
-  /** Reels that are spinning (blurred) and reels building suspense. */
+  /** Reels that are spinning and reels building suspense. */
   spinning: boolean[];
   anticip: boolean[];
-  /** Paylines to draw over the reels. */
+  /** Paylines to draw over the reels (the winning ones). */
   shownLines: number[];
   /** How far along each shown line pays (count of reels), for the stroke. */
   lineCounts: Record<number, number>;
@@ -154,7 +60,6 @@ export interface ReelsProps {
   onHoverLine(l: number | null): void;
   /** Tapping a tab pins its line (tap again to unpin). */
   onPinLine(l: number): void;
-  free: boolean;
 }
 
 /** Left / right line markers: numbered tabs at each line's entry and exit row. */
@@ -182,8 +87,7 @@ function Markers({
             .map((l) => (
               <span
                 key={l}
-                className={'rl-marker' + (l < activeLines ? ' on' : '') + (shown.has(l) || hoverLine === l ? ' lit' : '')}
-                style={{ '--lc': lineColour(l) } as CSSProperties}
+                className={'rl-marker' + (l < activeLines ? ' on' : '') + (shown.has(l) ? ' won' : '') + (hoverLine === l ? ' pick' : '')}
                 title={`Line ${l + 1}${l < activeLines ? '' : ' (not played)'}`}
                 onMouseEnter={() => onHoverLine(l)}
                 onMouseLeave={() => onHoverLine(null)}
@@ -198,11 +102,12 @@ function Markers({
   );
 }
 
-export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lineCounts, activeLines, hoverLine, onHoverLine, onPinLine, free }: ReelsProps) {
+export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lineCounts, activeLines, hoverLine, onHoverLine, onPinLine }: ReelsProps) {
   const shown = new Set(shownLines);
-  const drawn = hoverLine !== null && !shown.has(hoverLine) ? [...shownLines, hoverLine] : shownLines;
+  const picked = hoverLine !== null && !shown.has(hoverLine);
+  const drawn = picked ? [...shownLines, hoverLine] : shownLines;
   return (
-    <div className={'rl-machine' + (free ? ' free' : '')}>
+    <div className="rl-machine">
       <Markers side={0} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} onPinLine={onPinLine} shown={shown} />
       <div className="rl-window">
         <div className="rl-reels">
@@ -230,12 +135,12 @@ export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lin
         </div>
         <svg className="rl-lines" viewBox={`0 0 ${REELS * 100} ${ROWS * 100}`} preserveAspectRatio="none" aria-hidden="true">
           {drawn.map((l) => {
+            const isPick = picked && l === hoverLine;
             const n = lineCounts[l] ?? REELS;
             const pts = PAYLINES[l].map((row, r) => `${r * 100 + 50},${row * 100 + 50}`);
             return (
-              <g key={l} style={{ '--lc': lineColour(l) } as CSSProperties} className={'rl-line' + (l === hoverLine && !shown.has(l) ? ' hover' : '')}>
-                <polyline points={`0,${PAYLINES[l][0] * 100 + 50} ${pts.join(' ')} ${REELS * 100},${PAYLINES[l][4] * 100 + 50}`} className="rl-line-under" vectorEffect="non-scaling-stroke" />
-                <polyline points={pts.slice(0, Math.max(1, n)).join(' ')} className="rl-line-over" vectorEffect="non-scaling-stroke" />
+              <g key={l} className={'rl-line' + (isPick ? ' pick' : '')}>
+                <polyline points={pts.slice(0, Math.max(1, isPick ? REELS : n)).join(' ')} className="rl-line-over" vectorEffect="non-scaling-stroke" />
               </g>
             );
           })}
@@ -247,73 +152,3 @@ export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lin
 }
 
 export const ALL_LINES = Array.from({ length: LINES }, (_, i) => i);
-
-/**
- * The spin's odds as a bar: its filled share is the exact chance the spin pays
- * anything, split into free spins, more than the bet and up to the bet. While
- * the reels land it shows the chance given the reels already stopped.
- */
-export function OddsMeter({ odds, label, note, from }: { odds: SpinOdds; label: string; note?: ReactNode; from?: number | null }) {
-  const parts = [
-    { k: 'more', p: odds.more, name: 'More than bet' },
-    { k: 'less', p: odds.less, name: 'Up to bet' },
-    { k: 'free', p: odds.free, name: 'Free spins' },
-  ];
-  const up = from != null && odds.pays > from + 1e-12;
-  const down = from != null && odds.pays < from - 1e-12;
-  return (
-    <div className="rl-odds" role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={1} aria-valuenow={odds.pays}>
-      <div className="rl-odds-head">
-        <span>{label}</span>
-        {note != null && <small>{note}</small>}
-        {from != null && (up || down) && (
-          <em key={`${from}-${odds.pays}`} className={up ? 'up' : 'down'}>
-            {up ? '▲' : '▼'} from {fmtChance(from)}
-          </em>
-        )}
-        <b>{fmtChance(odds.pays)}</b>
-      </div>
-      <div className="rl-odds-track">
-        {parts.map((x) => (
-          <i key={x.k} className={x.k} style={{ width: `${x.p * 100}%` }} />
-        ))}
-      </div>
-      <div className="rl-odds-key">
-        {parts.map((x) => (
-          <span key={x.k}>
-            <i className={x.k} />
-            {x.name} <b>{fmtChance(x.p)}</b>
-          </span>
-        ))}
-        <span className="none">
-          <i />
-          Nothing <b>{fmtChance(Math.max(0, 1 - odds.pays))}</b>
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/** The whole rule, under the reels, in three short pieces. */
-export function RuleStrip({ mult }: { mult: number }) {
-  return (
-    <div className="rl-rule" aria-label="Rules">
-      <span>
-        <span className="rl-rule-icons">
-          <SymbolArt sym={4} />
-          <SymbolArt sym={4} />
-          <SymbolArt sym={4} />
-        </span>
-        <b>Pays:</b> 3+ alike from the left on a line
-      </span>
-      <span>
-        <SymbolArt sym={WILD} />
-        <b>Wild</b> stands in on reels 2–4
-      </span>
-      <span>
-        <SymbolArt sym={SCATTER} />
-        <b>3+ anywhere:</b> free spins, wins ×{mult}
-      </span>
-    </div>
-  );
-}
