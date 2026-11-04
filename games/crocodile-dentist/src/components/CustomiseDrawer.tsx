@@ -1,27 +1,11 @@
 import { useState } from 'react';
-import { DEFAULT_CONFIG, type CrocColors, type CrocConfig } from '../config';
+import { DEFAULT_CONFIG, type CrocConfig } from '../config';
 
 interface Props {
   config: CrocConfig;
   onChange: (cfg: CrocConfig) => void;
   onClose: () => void;
 }
-
-const COLOR_LABELS: Record<keyof CrocColors, string> = {
-  bg: 'Page background',
-  panel: 'Panel',
-  accent: 'Primary button',
-  croc: 'Croc skin',
-  crocShade: 'Croc shading',
-  belly: 'Croc belly',
-  mouth: 'Mouth',
-  tongue: 'Tongue',
-  tooth: 'Teeth',
-  you: 'You',
-  house: 'House',
-  bite: 'Bite / loss',
-  win: 'Win',
-};
 
 const parseList = (s: string) =>
   s
@@ -76,7 +60,7 @@ export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
       <div className="drawer-head">
         <h2>Customise</h2>
         <button className="ghost" onClick={onClose} aria-label="Close">
-          ✕
+          Close
         </button>
       </div>
       <div className="drawer-body" key={version}>
@@ -86,17 +70,6 @@ export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
         <ListRow label="Bad-teeth options" value={config.badTeethOptions} onChange={(badTeethOptions) => set({ badTeethOptions })} />
         <p className="cfg-note">Maths changes apply from the next bet.</p>
 
-        <h3>Pace (ms)</h3>
-        <NumberRow label="House thinking time" step={50} value={config.houseDelay} onChange={(houseDelay) => set({ houseDelay: Math.max(0, houseDelay) })} />
-        <NumberRow label="Turbo thinking time" step={50} value={config.turboHouseDelay} onChange={(turboHouseDelay) => set({ turboHouseDelay: Math.max(0, turboHouseDelay) })} />
-
-        <h3>Colours</h3>
-        {(Object.keys(COLOR_LABELS) as (keyof CrocColors)[]).map((key) => (
-          <label className="cfg-row" key={key}>
-            <span>{COLOR_LABELS[key]}</span>
-            <input type="color" value={config.colors[key]} onChange={(e) => set({ colors: { ...config.colors, [key]: e.target.value } })} />
-          </label>
-        ))}
       </div>
       <div className="drawer-foot">
         <button
