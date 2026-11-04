@@ -1,4 +1,4 @@
-/* Diamonds: five gem slots, the hand banner and the paytable strip. */
+/* Diamonds: five gem slots; matched gems are outlined in the win colour. */
 
 /* Keep every panel row at full height; the panel scrolls instead. */
 .og-panel > * {
@@ -7,23 +7,18 @@
 
 .dm-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--red);
-}
-.dm-stat-sub {
-  font-weight: 500;
-  color: var(--muted);
+  color: var(--lose);
 }
 
 .dm-board {
-  min-height: 300px;
-  padding: 64px 8px 12px;
+  min-height: 260px;
+  padding: 64px var(--sp-2) var(--sp-3);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
 }
 .og-board > svg.dm-svg {
   width: min(100%, 700px);
@@ -33,200 +28,49 @@
 }
 
 .dm-slot {
-  fill: color-mix(in srgb, var(--bg) 70%, transparent);
+  fill: var(--raised);
   stroke: var(--line);
-  stroke-width: 1.5;
-  transition: fill 0.25s ease, stroke 0.25s ease;
+  stroke-width: 1;
 }
 .dm-slot.lit {
-  fill: color-mix(in srgb, var(--gem) 12%, var(--bg));
-  stroke: var(--gem);
+  stroke: var(--win);
   stroke-width: 2;
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--gem) 55%, transparent));
 }
-.dm-bar {
-  fill: var(--hover);
-  transition: fill 0.25s ease;
-}
-.dm-bar.lit {
-  fill: var(--gem);
-}
-.dm-socket polygon,
-.dm-socket polyline {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 1.5;
-  stroke-dasharray: 4 4;
-  stroke-linejoin: round;
+.dm-socket {
+  fill: var(--line-strong);
 }
 
 .dm-drop {
   animation-name: dm-drop;
-  animation-timing-function: cubic-bezier(0.3, 0.9, 0.35, 1.15);
+  animation-timing-function: ease-out;
   animation-fill-mode: both;
 }
 @keyframes dm-drop {
-  0% {
+  from {
     opacity: 0;
-    transform: translateY(-120px) scale(0.85);
+    transform: translateY(-80px);
   }
-  55% {
+  to {
     opacity: 1;
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 .dm-gem-shape {
-  transition: opacity 0.25s ease, filter 0.25s ease;
-  filter: drop-shadow(0 6px 8px rgba(0, 0, 0, 0.45));
+  fill: var(--text);
 }
 .dm-gem-shape.dim {
-  opacity: 0.32;
-  filter: saturate(0.4);
-}
-
-.dm-hand {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
-  min-height: 34px;
-  padding: 0 12px;
-  text-align: center;
-  font-size: 14px;
-  color: var(--muted);
-}
-.dm-hand b {
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  color: var(--text);
-}
-.dm-hand.win,
-.dm-hand.part,
-.dm-hand.lose {
-  animation: dm-hand-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
-}
-.dm-hand > span {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.dm-hand.win b {
-  color: var(--accent);
-}
-.dm-hand.win > span {
-  color: var(--green);
-  font-size: 18px;
-}
-.dm-hand.part > span {
-  color: var(--gold);
-  font-size: 18px;
-}
-.dm-hand.lose > span {
-  color: var(--red);
-  font-size: 18px;
-}
-.dm-hand kbd {
-  padding: 1px 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
-}
-@keyframes dm-hand-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
-.dm-paytable {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px;
-  border-radius: var(--radius-lg);
-  background: var(--raised);
-}
-.dm-pay {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  padding: 10px 6px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  background: var(--bg);
-  text-align: center;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-.dm-pay.hit {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg));
-  box-shadow: 0 0 22px -8px var(--accent);
-  transform: translateY(-2px);
-}
-.dm-pay.hit.miss {
-  border-color: var(--red);
-  background: color-mix(in srgb, var(--red) 10%, var(--bg));
-  box-shadow: 0 0 22px -10px var(--red);
-}
-.dm-pay.hit.miss .dm-pay-mult {
-  color: var(--gold);
-}
-.dm-pay.zero.hit .dm-pay-mult {
-  color: var(--red);
-}
-.dm-pay.zero .dm-pay-mult {
-  color: var(--muted);
-}
-.dm-pattern {
-  display: flex;
-  gap: 2px;
-  height: 14px;
-}
-.dm-mini {
-  width: 12px;
-  height: 14px;
-}
-.dm-pay-name {
-  overflow: hidden;
-  max-width: 100%;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  color: var(--muted);
-}
-.dm-pay-mult {
-  font-size: 16px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--text);
-}
-.dm-pay.hit .dm-pay-mult {
-  color: var(--accent);
-}
-.dm-pay-odds {
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  opacity: 0.4;
 }
 
 .dm-info-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-1);
   font-variant-numeric: tabular-nums;
 }
 .dm-info-table th,
 .dm-info-table td {
-  padding: 5px 6px;
+  padding: var(--sp-1) var(--sp-2);
   border-bottom: 1px solid var(--line);
   text-align: right;
 }
@@ -235,26 +79,13 @@
   text-align: left;
 }
 .dm-info-table th {
-  font-size: 12px;
+  font-weight: 600;
   color: var(--muted);
 }
 
 @container (max-width: 760px) {
   .dm-board {
-    min-height: 220px;
+    min-height: 200px;
     padding-top: 62px;
-    gap: 10px;
-  }
-  .dm-paytable {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 6px;
-    padding: 6px;
-  }
-  .dm-pay {
-    gap: 2px;
-    padding: 6px 4px;
-  }
-  .dm-hand b {
-    font-size: 19px;
   }
 }
