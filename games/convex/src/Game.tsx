@@ -3,8 +3,8 @@ import {
   ActionButton,
   BetField,
   Board,
+  ACCENTS,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -67,9 +68,8 @@ interface Round {
   lastQ: number;
 }
 
-const ACCENT = '#43aa8b';
 const MAX_TEXT = `${MAX_WIN.toLocaleString('en-US')}×`;
-const RULE = 'Each dot must land in green. Land in red and you lose. Cash out any time.';
+const RULE = 'Every dot must land in green; one dot in red loses.';
 
 const outcomeTitle = (o: Outcome, target: Target) =>
   ({
@@ -107,8 +107,8 @@ export default function Game() {
   const autoRef = useRef(auto);
   autoRef.current = auto;
 
-  const dropMs = turbo.turbo ? 190 : 760;
-  const freeMs = turbo.turbo ? 110 : 340;
+  const dropMs = eventMs(turbo.turbo);
+  const freeMs = eventMs(turbo.turbo, 200);
   const autoMs = turbo.turbo ? 160 : 520;
   const live = phase === 'dropping' || phase === 'checkpoint';
 
@@ -232,36 +232,28 @@ export default function Game() {
   if (phase === 'over' && outcome) status = `${outcomeTitle(outcome, t)} · ${n} of ${t} dots placed`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const overThird =
+  // One chance for the finished round: how likely the dot that ended it was to land green.
+  const overItem =
     outcome === 'red'
-      ? { label: 'Red was', value: fmtChance(round?.lastQ ?? 0), sub: `dot ${n + 1} landed in it`, tone: 'lose' as const }
+      ? { label: 'Dot landed in red', value: fmtChance(round?.lastQ ?? 0), tone: 'lose' as const }
       : outcome === 'full'
-        ? { label: 'Last dot had', value: `${fmtChance(1 - (round?.lastQ ?? 0))} green`, sub: 'and landed in it', tone: 'prize' as const }
-        : { label: 'Next dot was', value: `${fmtChance(1 - q)} green`, sub: outcome === 'max' ? `max win ${MAX_TEXT}` : 'you stopped here', tone: 'prize' as const };
+        ? { label: 'Last dot green', value: fmtChance(1 - (round?.lastQ ?? 0)), tone: 'chance' as const }
+        : { label: 'Next dot green', value: fmtChance(1 - q), tone: 'chance' as const };
 
   const readouts =
     phase === 'idle'
-      ? [
-          { label: 'Chance to place all', value: fmtChance(chance), sub: `${t} dots, all in green`, tone: 'chance' as const },
-          { label: 'Cash out now', value: '—', sub: 'from dot 3 on', tone: 'cash' as const },
-          { label: 'Free dots', value: `${FREE_DROPS} of ${t}`, sub: 'always land safe', tone: 'prize' as const },
-        ]
+      ? [{ label: 'Chance to place all', value: fmtChance(chance), tone: 'chance' as const }]
       : phase === 'over'
-        ? [
-            { label: 'Dots placed', value: `${n} / ${t}`, sub: outcome === 'red' ? `dot ${n + 1} landed in red` : outcome === 'full' ? 'all landed green' : 'cashed out early', tone: 'chance' as const },
-            { label: 'Paid', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' as const },
-            overThird,
-          ]
+        ? [overItem]
         : [
-            { label: 'Next dot green', value: fmtChance(1 - q), sub: free ? 'free dot' : 'the green share', tone: 'chance' as const },
-            { label: 'Cash out now', value: free ? '—' : fmtMult(cash), sub: free ? 'from dot 3 on' : formatAmount(stake * cash, 2), tone: 'cash' as const },
-            { label: 'If it lands green', value: fmtMult(afterSafeDrop(cash, q)), sub: `dot ${Math.min(n + 1, t)} of ${t}`, tone: 'prize' as const },
+            { label: 'Next dot green', value: fmtChance(1 - q), tone: 'chance' as const },
+            { label: 'If it lands green', value: fmtMult(afterSafeDrop(cash, q)), tone: 'prize' as const },
           ];
 
   return (
     <GameLayout
       name="Convex"
-      accent={ACCENT}
+      accent={ACCENTS.sky}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -287,22 +279,6 @@ export default function Game() {
             value={auto}
             onChange={changeAuto}
           />
-
-          {live ? (
-            <dl className="og-stats">
-              <dt>Next dot lands green</dt>
-              <dd>{fmtChance(1 - q)}</dd>
-              <dt>Cash out now</dt>
-              <dd>{free ? '—' : fmtMult(cash)}</dd>
-            </dl>
-          ) : (
-            <dl className="og-stats">
-              <dt>Chance to place all {target}</dt>
-              <dd>{fmtChance(convexChance(target))}</dd>
-              <dt>Max win</dt>
-              <dd>{MAX_TEXT}</dd>
-            </dl>
-          )}
 
           {phase === 'checkpoint' ? (
             <>
@@ -337,11 +313,9 @@ export default function Game() {
           dropping={dropping}
           cursor={cursor}
           crossMs={free ? freeMs : dropMs}
-          fadeMs={turbo.turbo ? 90 : 260}
           bust={round?.bust ?? null}
           chance={chance}
         />
-        {/* The result card covers only the legend band under the square (in flow on narrow frames). */}
         {phase === 'over' && round?.outcome && (
           <div className="cvx-over">
             <RoundOver
@@ -359,20 +333,14 @@ export default function Game() {
         )}
       </Board>
 
-      <div className="cvx-foot">
-        {live ? (
-          <ChanceBar p={1 - q} label="Next dot lands green" note={free ? `Free dot: the first ${FREE_DROPS} dots always land safe.` : RULE} />
-        ) : (
-          <Caption>{RULE}</Caption>
-        )}
-      </div>
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Convex" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              Dots drop at random into the square, one at a time. Each dot must land in the <b style={{ color: 'var(--green)' }}>green</b> zone. A dot
-              that lands in <b style={{ color: 'var(--red)' }}>red</b> loses the round. Place every dot you chose and the round pays out; or cash out
+              Dots drop at random into the square, one at a time. Each dot must land in the <b style={{ color: 'var(--win)' }}>green</b> zone. A dot
+              that lands in <b style={{ color: 'var(--lose)' }}>red</b> loses the round. Place every dot you chose and the round pays out; or cash out
               after any dot.
             </p>
           </InfoSection>
@@ -390,8 +358,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b style={{ color: 'var(--red)' }}>red</b> share of the square is exactly the chance that the next dot loses, and the green share is
-              the chance it lands safe. Each grid cell is 1% of the square, so you can count it; each green patch is labelled with its share.
+              The <b style={{ color: 'var(--lose)' }}>red</b> share of the square is exactly the chance that the next dot loses, and the green share is
+              the chance it lands safe. The screen shows the green share as the chance for the next dot.
             </p>
             <p>
               Why the zones look the way they do: the dots must stay the corners of the shape they make. Red is the inside of the shape, plus the
