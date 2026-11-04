@@ -105,16 +105,22 @@ export default function Game() {
   const [view, setView] = useState<View>(BLANK);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // An action's ballots are all drawn the moment it starts, so leaving
-  // mid-count settles at the real result, never at the earlier value.
+  // `resolved` is the open ticket's value right now. It is set synchronously at
+  // every transition: RTP as soon as the bet is placed, the post-result value
+  // the moment an action starts (all its ballots are drawn then), and the
+  // settled value when the round ends. Leaving the game settles at it. It is
+  // never derived from rendered state, which can be one render stale (just
+  // after Bet again it still held the previous round, worth its full prize if
+  // that round was won).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'counting' ? resolved.current : round ? cashValue(round.series) : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const live = phase === 'counting' || phase === 'checkpoint';
   const speed = turbo.turbo ? 0.25 : 1;
   const ms = (t: number) => Math.max(16, Math.round(t * speed));
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -156,6 +162,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { stake: bet.value, series: newSeries(pick, voters, elections), cash: RTP, outcome: null };
     setRound(r);
