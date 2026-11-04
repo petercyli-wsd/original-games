@@ -1,6 +1,6 @@
-import { formatAmount } from "@originals/game-sdk";
 import { useHost } from "@originals/game-sdk/react";
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
@@ -14,8 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -38,21 +40,18 @@ import {
   ZONES,
   ZONE_NAMES,
   payout,
-  returnChance,
   throwDart,
-  tiersFor,
   topPrize,
   winChance,
   zoneChance,
   type Difficulty,
 } from "./math";
 
-const ACCENT = "#84cc16";
+const ACCENT = ACCENTS.amber;
 
 // Every chance on this board is a whole number of 1/10,000ths, so show it exactly
 // (19.25%, not 19.3%): two decimals at most, trailing zeros dropped.
 const fmtChance = (p: number) => `${parseFloat((p * 100).toFixed(2))}%`;
-const MAX_MARKS = 12;
 
 interface Last extends Mark {
   stake: number;
@@ -72,7 +71,6 @@ export default function Game() {
     lastRef.current = l;
     setLast(l);
   };
-  const [marks, setMarks] = useState<Mark[]>([]);
   const [flying, setFlying] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
@@ -83,24 +81,20 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const flightMs = turbo.turbo ? 170 : 620;
-  const settleMs = turbo.turbo ? 30 : 110;
+  const flightMs = eventMs(turbo.turbo);
+  const settleMs = eventMs(turbo.turbo, 110);
 
   async function playOnce(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
     resolved.current = 0;
     const t = throwDart(() => rng.next(), difficulty);
     resolved.current = t.multiplier;
-    // The previous dart becomes a pin on the board.
-    const prev = lastRef.current;
-    if (prev) setMarks((m) => [prev, ...m].slice(0, MAX_MARKS));
     showLast({
       id: ++seq.current,
       x: t.x,
       y: t.y,
       zone: t.zone,
       multiplier: t.multiplier,
-      tier: tiersFor(difficulty)[t.zone],
       stake,
     });
     setFlying(true);
@@ -119,7 +113,6 @@ export default function Game() {
   function clearBoard() {
     if (busy) return;
     showLast(null);
-    setMarks([]);
   }
 
   // A setting change clears the board back to an idle preview of the new rings.
@@ -194,17 +187,6 @@ export default function Game() {
             disabled={busy}
           />
 
-          <dl className="og-stats">
-            <dt>Chance to profit</dt>
-            <dd>{fmtChance(winChance(difficulty))}</dd>
-            <dt>Pays something</dt>
-            <dd>{fmtChance(returnChance(difficulty))}</dd>
-            <dt>Top prize</dt>
-            <dd>{fmtMult(top)}</dd>
-            <dt>Max win</dt>
-            <dd>{formatAmount(bet.value * top, 2)}</dd>
-          </dl>
-
           {auto.mode === "manual" ? (
             <ActionButton
               disabled={!canBet}
@@ -223,6 +205,13 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <Readouts
+        items={[
+          { label: "Profit chance", value: fmtChance(winChance(difficulty)), tone: "chance" },
+          { label: "Top prize", value: fmtMult(top), tone: "prize" },
+        ]}
+      />
+
       <Board className="dt-board">
         <InstantResult
           multiplier={shown ? shown.multiplier : null}
@@ -232,11 +221,10 @@ export default function Game() {
         <DartBoard
           difficulty={difficulty}
           dart={last}
-          marks={marks}
           flying={flying}
           flightMs={flightMs}
         />
-        {(marks.length > 0 || last) && !busy && (
+        {last && !busy && (
           <button
             type="button"
             className="dt-clear og-ghost"
@@ -248,39 +236,7 @@ export default function Game() {
         )}
       </Board>
 
-      <div
-        className="dt-pays"
-        aria-label={`${DIFFICULTY_NAMES[difficulty]} payouts`}
-      >
-        {ZONES.map((z) => {
-          const m = payout(difficulty, z);
-          const tier = tiersFor(difficulty)[z];
-          const isHit = shown?.zone === z;
-          return (
-            <div
-              key={z}
-              className={
-                `dt-pay t-${tier}` +
-                (isHit ? " hit" : "") +
-                (m === 0 ? " zero" : "")
-              }
-            >
-              <i aria-hidden="true" />
-              <b>{fmtMult(m)}</b>
-              <span>{ZONE_NAMES[z]}</span>
-              <small>{fmtChance(zoneChance(z))}</small>
-            </div>
-          );
-        })}
-      </div>
-
-      <Caption>
-        The dart lands uniformly on the board, so each ring's share of the area
-        is its exact chance. Every difficulty returns {(RTP * 100).toFixed(0)}%.{" "}
-        <span className="dt-keys">
-          <kbd>Space</kbd> bet · <kbd>1</kbd>–<kbd>4</kbd> difficulty
-        </span>
-      </Caption>
+      <Caption>The dart lands anywhere on the board; its ring pays that multiplier.</Caption>
 
       {infoOpen && (
         <InfoModal title="Darts" onClose={() => setInfoOpen(false)}>
@@ -294,15 +250,16 @@ export default function Game() {
             <ol>
               <li>
                 Set your bet and pick a difficulty: Easy, Medium, Hard or Expert
-                (keys 1–4). The rings recolour to show what each pays.
+                (keys 1–4). The multiplier written beside each ring changes with it.
               </li>
               <li>
-                Press Bet (or Space). The dart flies in, the ring it hits lights
-                up, and the result appears on the board and in the history.
+                Press Bet (or Space). The dart flies in and lands as a dot,
+                green if you profit and red if you lose, and the ring it hit is
+                marked. The result also appears in the history.
               </li>
               <li>
-                Earlier darts stay as pins. Clear board (or Esc) removes them;
-                changing difficulty clears them too.
+                The dot stays until your next throw. Clear board (or Esc)
+                removes it; changing difficulty clears it too.
               </li>
               <li>
                 Use Auto to run a series of throws with your own stop rules and

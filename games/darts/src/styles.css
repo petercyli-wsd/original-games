@@ -1,285 +1,77 @@
-/* Darts: the board (rings coloured by payout tier), the flying dart and the payout strip. */
+/* Darts: flat neutral rings with a multiplier on each, and one dot for the dart. */
 
 .og-panel > * {
   flex-shrink: 0;
 }
 
-/* Payout tiers, shared by rings, pins and legend: paying zones ranked by multiplier. */
-.og-game {
-  --board-base: #0d0f15;
-}
-.t-zero {
-  --c: #3a3f50;
-}
-.t-part {
-  --c: #c24b63;
-}
-.t-top {
-  --c: #f5a623;
-}
-.t-second {
-  --c: #f472b6;
-}
-.t-third {
-  --c: #a78bfa;
-}
-.t-fourth {
-  --c: #38bdf8;
-}
-.t-fifth {
-  --c: #84cc16;
-}
-.t-sixth {
-  --c: #2dd4bf;
-}
-
 .dt-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--red);
+  color: var(--lose);
 }
 
 /* ---------- Board ---------- */
 .dt-board {
   min-height: 300px;
-  padding: 46px 0 4px;
+  padding: var(--sp-4) 0 var(--sp-5);
 }
 .og-board > svg.dt-svg {
-  width: min(100%, 600px);
+  width: min(100%, 720px);
   height: auto;
   max-height: min(66vh, 600px);
-  aspect-ratio: 1;
+  aspect-ratio: 300 / 224;
   overflow: visible;
-}
-
-.dt-halo {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
-  stroke-width: 1;
-  filter: drop-shadow(
-    0 0 12px color-mix(in srgb, var(--accent) 35%, transparent)
-  );
-}
-.dt-rim {
-  stroke: #2c3040;
-  stroke-width: 1.2;
-  filter: drop-shadow(0 10px 22px #000b);
-}
-
-.dt-zone {
-  fill: color-mix(in srgb, var(--c) 46%, var(--board-base));
-  transition: fill 0.35s ease;
-}
-.dt-zone.alt {
-  fill: color-mix(in srgb, var(--c) 30%, var(--board-base));
-}
-.dt-zone.band {
-  fill: color-mix(in srgb, var(--c) 88%, var(--board-base));
-}
-.dt-zone.band.alt {
-  fill: color-mix(in srgb, var(--c) 66%, var(--board-base));
-}
-.dt-zone.t-zero {
-  fill: #1b1e28;
-}
-.dt-zone.t-zero.alt {
-  fill: #13151d;
-}
-.dt-zone.band.t-zero {
-  fill: #2a2e3b;
-}
-.dt-zone.band.t-zero.alt {
-  fill: #20232e;
-}
-.dt-zone.miss {
-  fill: #101219;
 }
 
 .dt-wire {
   fill: none;
-  stroke: rgba(226, 232, 240, 0.32);
-  stroke-width: 0.45;
-}
-.dt-ticks circle {
-  fill: rgba(226, 232, 240, 0.28);
+  stroke: var(--line-strong);
+  stroke-width: 0.5;
 }
 .dt-edge {
   fill: none;
-  stroke: rgba(226, 232, 240, 0.35);
+  stroke: var(--line-strong);
   stroke-width: 0.8;
 }
 
-.dt-hit {
-  fill: color-mix(in srgb, var(--c) 60%, #ffffff);
-  stroke: #fff;
+/* Sizes here are SVG user units: the board scales as one picture. */
+.dt-label line {
+  stroke: var(--faint);
+  stroke-width: 0.4;
+}
+.dt-label circle {
+  fill: var(--faint);
+}
+.dt-label text {
+  fill: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.dt-label.hit text {
+  font-weight: 700;
+}
+.dt-label.hit line {
   stroke-width: 0.8;
-  pointer-events: none;
-  filter: drop-shadow(0 0 4px var(--c));
-  animation: dt-hit 0.9s ease-out both;
-}
-.dt-hit.is-miss {
-  fill: color-mix(in srgb, var(--red) 70%, transparent);
-  stroke: var(--red);
-  filter: none;
-}
-@keyframes dt-hit {
-  0% {
-    opacity: 0;
-  }
-  20% {
-    opacity: 0.55;
-  }
-  100% {
-    opacity: 0.16;
-  }
-}
-
-.dt-mark {
-  fill: var(--c);
-  stroke: #07070b;
-  stroke-width: 0.9;
-}
-.dt-mark.t-zero {
-  fill: #8b93a7;
 }
 
 .dt-dart {
   pointer-events: none;
-  will-change: transform;
 }
-.dt-shadow {
-  fill: #000;
-  opacity: 0.45;
-}
-.dt-shaft {
-  stroke: #cbd5e1;
-  stroke-width: 1.3;
-  stroke-linecap: round;
-}
-.dt-barrel {
-  stroke: #f1f5f9;
-  stroke-width: 3;
-  stroke-linecap: round;
-}
-.dt-flight {
-  fill: var(--accent);
-  stroke: #0b0d12;
-  stroke-width: 0.7;
-  stroke-linejoin: round;
-}
-.dt-flight-spine {
-  stroke: #0b0d12;
+.dt-dot {
+  stroke: var(--bg);
   stroke-width: 0.8;
-}
-.dt-tip {
-  fill: #fff;
-}
-.dt-impact {
-  fill: none;
-  stroke: var(--c);
-  stroke-width: 1.4;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: dt-impact 0.6s ease-out both;
-}
-.dt-impact.t-zero {
-  stroke: var(--red);
-}
-@keyframes dt-impact {
-  from {
-    transform: scale(0.3);
-    opacity: 1;
-  }
-  to {
-    transform: scale(3.2);
-    opacity: 0;
-  }
 }
 
 .dt-clear {
   position: absolute;
-  right: 0;
-  bottom: 4px;
+  left: 0;
+  bottom: var(--sp-1);
   z-index: 3;
-  font-size: 12px;
+  font-size: var(--fs-1);
   font-weight: 600;
-  padding: 6px 10px;
-}
-
-/* ---------- Payout strip ---------- */
-.dt-pays {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
-}
-.dt-pay {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  padding: 10px 4px 8px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  overflow: hidden;
-  transition:
-    border-color 0.2s ease,
-    transform 0.2s ease,
-    box-shadow 0.2s ease;
-}
-.dt-pay i {
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: var(--c);
-}
-.dt-pay b {
-  font-size: 16px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  color: var(--c);
-  white-space: nowrap;
-}
-.dt-pay.zero b {
-  color: var(--muted);
-  opacity: 0.6;
-}
-.dt-pay span {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-}
-.dt-pay small {
-  font-size: 11px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.dt-pay.hit {
-  border-color: var(--c);
-  box-shadow:
-    0 0 18px -6px var(--c),
-    inset 0 0 0 1px var(--c);
-  transform: translateY(-2px);
-}
-.dt-pay.hit.t-zero {
-  border-color: var(--red);
-  box-shadow: inset 0 0 0 1px var(--red);
-}
-
-.dt-keys {
-  white-space: nowrap;
-}
-.dt-keys kbd,
-.og-caption kbd {
-  padding: 1px 5px;
-  border-radius: 4px;
-  border: 1px solid var(--line-strong);
-  background: var(--raised);
-  font: inherit;
-  font-size: 11px;
-  font-weight: 700;
+  padding: var(--sp-2) var(--sp-3);
 }
 
 /* ---------- Info table ---------- */
@@ -291,13 +83,13 @@
 .dt-info-table {
   width: 100%;
   border-collapse: collapse;
-  margin: 6px 0 4px;
-  font-size: 13px;
+  margin: var(--sp-2) 0 var(--sp-1);
+  font-size: var(--fs-1);
   font-variant-numeric: tabular-nums;
 }
 .dt-info-table th,
 .dt-info-table td {
-  padding: 5px 6px;
+  padding: var(--sp-1) var(--sp-2);
   text-align: right;
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
@@ -307,44 +99,12 @@
   text-align: left;
 }
 .dt-info-table th {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+  font-weight: 600;
   color: var(--muted);
 }
 
-@media (max-width: 520px) {
-  .dt-info-table {
-    font-size: 12px;
-  }
-  .dt-info-table th,
-  .dt-info-table td {
-    padding: 4px 4px;
-  }
-  .dt-info-table th {
-    letter-spacing: 0.2px;
-  }
-}
-
 @container (max-width: 760px) {
-  .dt-board {
-    padding-top: 54px;
-  }
   .og-board > svg.dt-svg {
-    width: min(100%, 400px);
-  }
-  .dt-pays {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-  }
-  .dt-pay {
-    flex: 0 0 calc(25% - 4.5px);
-  }
-  .dt-pay b {
-    font-size: 15px;
-  }
-  .dt-keys {
-    display: none;
+    width: min(100%, 460px);
   }
 }
