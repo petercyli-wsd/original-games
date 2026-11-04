@@ -1,4 +1,3 @@
-import { fmtChance } from '@originals/game-sdk/ui';
 import { useEffect, useState } from 'react';
 import { fileOf, inTarget, isLight, rankOf, squareName, type Target } from './math';
 
@@ -147,57 +146,15 @@ export default function Board({ target, path, move, moveMs, dist, next, now, out
       {hops.map(([s, p]) => (
         <g key={'n' + s} className="next">
           <rect x={sx(s) + 1.5} y={sy(s) + 1.5} width={S - 3} height={S - 3} rx={3} className={'ring ' + trendOf(p, now)} />
-          <text x={cx(s)} y={sy(s) + S - 6} className="pct">
-            {fmtChance(p)}
-          </text>
         </g>
       ))}
 
       <g className="token-move" transform={`translate(${pos.x.toFixed(2)} ${pos.y.toFixed(2)})`}>
         <circle r={14} className={tokenClass} />
-        <path d="M -3 -7 L -3 6 L 5 6" className="glyph" />
+        <text y={5.5} className="glyph">
+          N
+        </text>
       </g>
     </svg>
-  );
-}
-
-/** The key under the board: every symbol on it, in a few words each. */
-export function Legend({ next, now, left }: { next: Map<number, number> | null; now: number; left: number }) {
-  const hops = next ? [...next.values()] : [];
-  const up = hops.filter((p) => trendOf(p, now) === 'up').length;
-  const nextText = !next
-    ? 'Dashed squares: where the next hop can land'
-    : left === 1
-      ? `Last hop: ${up} of ${hops.length} squares win`
-      : `Next hop: ${up} of ${hops.length} squares raise your chance`;
-  return (
-    <div className="knight-legend">
-      <span>
-        <svg viewBox="0 0 24 14" aria-hidden="true">
-          <circle cx={4} cy={7} r={2.5} className="mass" />
-          <circle cx={15} cy={7} r={5.5} className="mass" />
-        </svg>
-        Dot size = chance it ends there
-      </span>
-      <span>
-        <svg viewBox="0 0 24 14" aria-hidden="true">
-          <circle cx={12} cy={7} r={5.5} className="mass in" />
-        </svg>
-        Green dots add up to your chance
-      </span>
-      <span>
-        <svg viewBox="0 0 24 14" aria-hidden="true">
-          <rect x={1} y={1.5} width={9} height={11} rx={2} className="ring up" />
-          <rect x={13} y={1.5} width={9} height={11} rx={2} className="ring down" />
-        </svg>
-        {nextText}
-      </span>
-      <span>
-        <svg viewBox="0 0 24 14" aria-hidden="true">
-          <rect x={1} y={1.5} width={22} height={11} rx={2} className="swatch" />
-        </svg>
-        Each hop flips colour: it ends on light
-      </span>
-    </div>
   );
 }
