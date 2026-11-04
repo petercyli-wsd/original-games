@@ -92,7 +92,13 @@ export default function Game() {
   // A step's outcome is decided the moment it starts, so leaving mid-animation
   // settles at its real result, never at the pre-step value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'opening' || phase === 'revealing' ? resolved.current : round ? cashValue(round.state) : 0));
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, step drawn, reveal started; a switch keeps the
+  // value). The ticket reads only this ref: a value derived from rendered state
+  // can be one render stale (the last round's result just after Bet again, or
+  // the pre-step cash-out just after a step) if the game unmounts before the
+  // next render.
+  const ticket = useTicket(() => resolved.current);
 
   const swingMs = turbo.turbo ? 160 : 600;
   const flowMs = turbo.turbo ? 160 : 650;
@@ -148,6 +154,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const held = Math.min(pick, doors - 1);
     const r: Round = {
