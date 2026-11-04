@@ -209,7 +209,7 @@ export default function App() {
 
         {inRound ? (
           <div className="actions">
-            <button key="draw" className="primary" disabled={phase !== 'live'} onClick={draw}>
+            <button key="draw" className="primary secondary" disabled={phase !== 'live'} onClick={draw}>
               {phase === 'drawing' ? 'Drawing…' : 'Draw ball'}
             </button>
             <button key="cash" className="primary cash" disabled={!canCash} onClick={() => dispatch({ type: 'cashOut' })}>

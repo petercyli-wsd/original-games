@@ -181,6 +181,15 @@ input:focus-visible {
   display: grid;
   gap: var(--sp-2);
 }
+/* Draw (continue) is the outline secondary, as in the kit; Cash out is the light primary. */
+.primary.secondary {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+.primary.secondary:not(:disabled):hover {
+  background: var(--hover);
+}
 /* Cash out is the secondary style until a draw makes it available. */
 .primary.cash:disabled {
   color: var(--text);
