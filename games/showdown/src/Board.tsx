@@ -53,19 +53,21 @@ export default function Board({ s, k, flip, flipping, over, p, overTitle }: Boar
   const need = houseNeeds(k);
   const left = YOU.filter((_, i) => s.you & (1 << i)).length;
 
-  let head: { text: string; tone?: 'g' | 'r' };
+  let head: { text: string; tone?: 'g' | 'r' } | null;
   if (!live) head = { text: overTitle ?? 'Series over' };
   else if (shown)
     head = shown.win
       ? { text: `${YOU[shown.i]} beats ${HOUSE[shown.j]}: you take the round`, tone: 'g' }
       : { text: `${HOUSE[shown.j]} beats ${YOU[shown.i]}: the house takes it`, tone: 'r' };
-  else head = { text: 'Higher card takes the round · no ties' };
+  else head = null;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="sd" role="img" aria-label={`Series chance ${pct(p)}. You have ${left} cards left. ${s.wins}–${s.losses}.`}>
-      <text x={W / 2} y={26} className={'sd-head' + (head.tone ? ` ${head.tone}` : '')}>
-        {head.text}
-      </text>
+      {head && (
+        <text x={W / 2} y={26} className={'sd-head' + (head.tone ? ` ${head.tone}` : '')}>
+          {head.text}
+        </text>
+      )}
 
       {/* ---------- The face-down piles and the flip ---------- */}
       <Pile cx={YOU_X} label="You" left={left} flip={flip} side="you" flipping={flipping} />
@@ -82,9 +84,6 @@ export default function Board({ s, k, flip, flipping, over, p, overTitle }: Boar
       <text x={16} y={HAND_Y - 12} className="sd-axis start">
         Cards left
       </text>
-      <text x={W - 16} y={HAND_Y - 12} className="sd-note end">
-        Played cards don't come back
-      </text>
       <Hand
         y={HAND_Y}
         side="house"
@@ -96,20 +95,8 @@ export default function Board({ s, k, flip, flipping, over, p, overTitle }: Boar
         flipping={flipping}
       />
       <Hand y={HAND_Y + CARD_H + ROW_GAP} side="you" name="You" kind="even cards" values={YOU} mask={s.you} flip={flip} flipping={flipping} />
-      <text x={valueX(1) - 15} y={HAND_Y + 2 * CARD_H + ROW_GAP + 22} className="sd-note start">
-        Spending a high card weakens your hand
-      </text>
-      <text x={W - 16} y={HAND_Y + 2 * CARD_H + ROW_GAP + 22} className="sd-note end">
-        higher →
-      </text>
 
-      {/* ---------- Series odds bar ---------- */}
-      <text x={BX} y={BY - 10} className="sd-bar-label">
-        Chance to win the series
-      </text>
-      <text x={BX + BW} y={BY - 9} className="sd-bar-value">
-        {pct(p)}
-      </text>
+      {/* ---------- Series odds bar: the picture only; the number is the readout above ---------- */}
       <rect x={BX} y={BY} width={BW} height={14} rx={7} className="sd-track" />
       <rect x={BX} y={BY} width={Math.max(0, BW * p)} height={14} rx={7} className="sd-fill" />
     </svg>
@@ -147,10 +134,10 @@ function Hand({
       </text>
       {values.map((v, idx) => {
         const inHand = (mask & (1 << idx)) !== 0;
-        // The pair being shown lights up; once applied it greys out with the rest of the spent cards.
+        // The pair being shown is outlined in its outcome colour; once applied the spent card keeps that outline until the next flip.
         const on = inHand && flipping && flip?.revealed && at(idx);
         const last = !inHand && !flipping && at(idx);
-        const cls = 'sd-card' + (inHand ? '' : ' spent') + (on ? (won ? ' on won' : ' on lost') : '') + (last ? ' last' : '');
+        const cls = 'sd-card' + (inHand ? '' : ' spent') + (on ? (won ? ' on won' : ' on lost') : '') + (last ? (won ? ' last won' : ' last lost') : '');
         const x = valueX(v);
         return (
           <g key={v} className={cls}>
@@ -195,7 +182,6 @@ function Pile({ cx, label, left, flip, side, flipping }: { cx: number; label: st
         <>
           {backs > 1 && <rect x={x + 4} y={y + 4} width={68} height={92} rx={8} className="sd-back under" />}
           <rect x={x} y={y} width={68} height={92} rx={8} className="sd-back" />
-          <rect x={x + 8} y={y + 8} width={52} height={76} rx={4} className="sd-back-inner" />
         </>
       )}
       {flip && (
