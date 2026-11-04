@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -47,7 +48,6 @@ import {
   moveOdds,
   prizeFor,
   roll,
-  rollOutlook,
   selectable,
   startChance,
   volatilityOf,
@@ -76,11 +76,10 @@ interface Last {
   stake: number;
 }
 
-const ACCENT = '#4cc9f0';
-const RULE = 'A ball wanders the maze; green exit wins, red trap loses.';
+const ACCENT = ACCENTS.sky;
+const RULE = 'The ball wanders at random: reach the exit before a trap to win.';
 const OUTCOME_TITLE: Record<Outcome, string> = { exit: 'Out the exit', trap: 'Trapped', cashed: 'Cashed out' };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const pctLabel = (p: number) => (p < 0.1 ? `${(p * 100).toFixed(1)}%` : `${Math.round(p * 100)}%`);
 
 function newRound(settings: Settings, stake: number): Round {
   return { settings, stake, prize: prizeFor(settings), ball: settings.start, trail: [settings.start], moves: 0, cash: RTP, outcome: null };
@@ -111,7 +110,8 @@ export default function Game() {
   const ticket = useTicket(() => (phase === 'moving' || pinned.current ? resolved.current : phase === 'live' && round ? round.cash : 0));
 
   const settings: Settings = { maze: mazeId, start };
-  const moveMs = turbo.turbo ? 70 : 200;
+  // A roll of ROLL moves is one event (~600 ms); a single Step is stretched to the same.
+  const [moveMs, setMoveMs] = useState(() => eventMs(turbo.turbo, 600 / ROLL));
   const autoMs = turbo.turbo ? 35 : 120;
   const live = phase === 'moving' || phase === 'live';
 
@@ -133,10 +133,13 @@ export default function Game() {
     const cash = end === 'exit' ? r.prize : end === 'trap' ? 0 : r.prize * m.odds[endCell];
     resolved.current = cash;
     pinned.current = true;
+    // The whole roll (or a lone step) takes about one event; each hop gets an equal share.
+    const hop = eventMs(turbo.turbo, 600 / Math.max(1, path.length));
+    setMoveMs(hop);
     setPhase('moving');
     let cur = r;
     path.forEach((cell, k) => {
-      timers.after(k * moveMs, () => {
+      timers.after(k * hop, () => {
         // The cash-out readout ticks with the ball (the button stays locked until the roll ends).
         const e = endOf(m, cell);
         const now = e === 'exit' ? cur.prize : e === 'trap' ? 0 : cur.prize * m.odds[cell];
@@ -144,7 +147,7 @@ export default function Game() {
         setRound(cur);
       });
     });
-    timers.after(path.length * moveMs, () => {
+    timers.after(path.length * hop, () => {
       pinned.current = false;
       if (end) return finish(cur, end, cash);
       const after = { ...cur, cash };
@@ -274,7 +277,6 @@ export default function Game() {
   const end = round?.outcome === 'exit' || round?.outcome === 'trap' ? round.outcome : null;
   const p = end === 'exit' ? 1 : end === 'trap' ? 0 : m.odds[ball];
   const moves = !isAuto && phase === 'live' && !end ? moveOdds(m, ball) : null;
-  const outlook = moves ? rollOutlook(m, ball, ROLL) : null;
   const prize = round?.prize ?? prizeFor(settings);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
@@ -308,26 +310,16 @@ export default function Game() {
   }
 
   const showRound = !!round && (isAuto ? autoBusy || !!round.outcome : true);
-  const readouts: ReadoutItem[] = [
-    {
-      label: 'Win chance',
-      value: fmtChance(showRound ? p : p0),
-      sub: !showRound ? 'from the start' : end || round?.outcome ? 'final' : 'under the ball',
-      tone: 'chance',
-    },
-    {
-      label: 'Cash out now',
-      value: showRound && (live || autoBusy || round?.outcome) ? fmtMult(cash) : '—',
-      sub: isAuto ? (target === null ? 'Auto plays to the end' : `Auto cashes at ${fmtMult(target)}`) : showRound ? formatAmount(stake * cash, 2) : 'after each roll',
-      tone: 'cash',
-    },
-    { label: 'Exit pays', value: fmtMult(prize), sub: formatAmount((isAuto ? bet.value : stake) * prize, 2), tone: 'prize' },
-  ];
-
   const autoTargets = AUTO_TARGETS.filter((v) => v === null || v < prizeFor(settings));
   const autoTarget = target !== null && target < prizeFor(settings) ? target : null;
-  const startOptions = presets.map((c) => ({ value: c, label: pctLabel(maze(mazeId).odds[c]) }));
-  if (!presets.includes(start)) startOptions.push({ value: start, label: `◎ ${pctLabel(maze(mazeId).odds[start])}` });
+  const readouts: ReadoutItem[] = [
+    { label: 'Win chance', value: fmtChance(showRound ? p : isAuto ? autoChance(settings, autoTarget) : p0), tone: 'chance' },
+    { label: 'Exit pays', value: fmtMult(prize), tone: 'prize' },
+  ];
+
+  // Start options show what the exit would pay from there (the chance is the readout above).
+  const startOptions = presets.map((c) => ({ value: c, label: fmtMult(prizeFor({ maze: mazeId, start: c })) }));
+  if (!presets.includes(start)) startOptions.push({ value: start, label: fmtMult(prizeFor({ maze: mazeId, start })) });
 
   const settingsPanel = (
     <>
@@ -339,7 +331,7 @@ export default function Game() {
         disabled={locked}
         onChange={(v) => change(() => pickMaze(v))}
       />
-      <Label hint="or tap any cell">Start · win chance</Label>
+      <Label hint="or tap any cell">Start · exit pays</Label>
       <Chips label="Start cell" wrap options={startOptions} value={start} disabled={locked} onChange={(v) => change(() => setStart(v))} />
     </>
   );
@@ -357,12 +349,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Exit pays</dt>
-                <dd>{fmtMult(prizeFor(settings))}</dd>
-              </dl>
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live'} onClick={cashOut}>
@@ -394,12 +380,6 @@ export default function Game() {
                 disabled={auto.running || autoBusy}
                 onChange={(v) => change(() => setTarget(v === 0 ? null : v))}
               />
-              <dl className="og-stats">
-                <dt>{autoTarget === null ? 'Chance to win' : `Chance to reach ${fmtMult(autoTarget)}`}</dt>
-                <dd>{fmtChance(autoChance(settings, autoTarget))}</dd>
-                <dt>Exit pays</dt>
-                <dd>{fmtMult(prizeFor(settings))}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="mz-blocked">{bet.blocked}</p>}
@@ -425,23 +405,9 @@ export default function Game() {
           pickable={pickable}
           onPick={(c) => change(() => setStart(c))}
         />
-        <div className="mz-strip" aria-label="Distances">
-          <span className="ex">
-            <i />
-            Exit {end === 'exit' ? <b>reached</b> : <><b>{plural(m.toExit[ball], 'move')}</b> away</>}
-          </span>
-          <span className="tr">
-            <i />
-            Trap {end === 'trap' ? <b>fell in</b> : <><b>{plural(m.toTrap[ball], 'move')}</b> away</>}
-          </span>
-          <span className="mv">
-            {round ? `${plural(round.moves, 'move')} played` : 'No moves yet'}
-            {!end && <> · about <b>{Math.round(m.moves[ball])}</b> to go</>}
-          </span>
-        </div>
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -453,28 +419,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={p}
-          label="Win chance"
-          note={
-            moves && outlook ? (
-              <>
-                The ball takes one of these {moves.length} gaps, 1 in {moves.length} each; their odds average to this
-                {traps ? `, and ${traps === 1 ? 'one leads' : `${traps} lead`} into a trap` : exits ? ', and one leads out' : ''}. Next roll of {ROLL}:{' '}
-                <b className="g">{fmtChance(outlook.exit)} exit</b> · <b className="r">{fmtChance(outlook.trap)} trap</b>.
-              </>
-            ) : (
-              'Rolling…'
-            )
-          }
-        />
-      ) : (
-        <Caption>
-          <b className="mz-rule">{RULE}</b> Each cell's colour and number are your chance of escaping from there. Tap a cell to start the ball on it; lower
-          odds pay more.
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Maze" onClose={() => setInfoOpen(false)}>
@@ -491,10 +437,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Every cell is shaded from red to green and labelled with the exact chance of reaching the exit before a trap if the ball stood there; the thin bar
-              at the bottom of each cell fills to the same chance. The number on the ball is your live chance. At a checkpoint the cells the ball can roll to
-              next carry badges with the chance each would leave you; the ball picks one at random, so they average to your chance. Along a corridor the odds
-              change in even steps, and a dead end has the same odds as its mouth.
+              Every cell is shaded from red to green by the exact chance of reaching the exit before a trap if the ball stood there; the greener the cell, the
+              better the odds. The Win chance above the board is the chance under the ball. At a checkpoint the cells the ball can roll to next are outlined;
+              it picks one at random, so their chances average to yours. Along a corridor the odds change in even steps, and a dead end has the same odds as
+              its mouth. The exit is the green dot, the traps are the red crosses, and the ring marks your start.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
