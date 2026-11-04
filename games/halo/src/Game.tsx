@@ -152,10 +152,15 @@ export default function Game() {
 
   // Each step is decided the moment it starts, so leaving mid-animation
   // settles at its real result, never at the pre-step value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, leg or release drawn). The ticket reads only this
+  // ref: a value derived from rendered state can be one render stale, e.g. the
+  // last round's payout just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef(0);
   // Set synchronously while a step animates, so a double click (or C in the same tick) can't act twice.
   const stepping = useRef(false);
-  const ticket = useTicket(() => (phase === 'walking' || phase === 'releasing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const live = phase === 'walking' || phase === 'checkpoint' || phase === 'releasing';
@@ -224,6 +229,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     frames.stop();
     stepping.current = false;
     const r: Round = {

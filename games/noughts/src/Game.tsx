@@ -124,8 +124,13 @@ export default function Game() {
 
   // An action's marks are all drawn the moment it starts, so leaving
   // mid-animation settles at the real result, never at the earlier value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, action drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's cash-out just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'moving' ? resolved.current : round ? cashValue(round.series) : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const live = phase === 'moving' || phase === 'checkpoint';
   const speed = turbo.turbo ? 0.25 : 1;
@@ -182,6 +187,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { side, games, stake: bet.value, series: newSeries(side, games), played: [], cash: RTP, outcome: null };
     setRound(r);

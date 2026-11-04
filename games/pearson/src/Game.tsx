@@ -119,10 +119,14 @@ export default function Game() {
     // Only on mount: the order just picks a head start.
   }, []);
 
-  // The steps in flight are all decided when the button is pressed, so leaving
-  // mid-step (or mid-run) settles at their real result, never at the pre-step value.
+  // The open ticket's value. The steps in flight are all decided when the
+  // button is pressed, so this is set to their result before they animate:
+  // leaving mid-step (or mid-run) settles at the real result, never at the
+  // pre-step value. The ticket reads only this ref: the rendered phase and
+  // round can be one render stale (leaving right after Bet used to settle the
+  // new stake at the previous round's payout).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const moveMs = turbo.turbo ? 300 : 1150;
   const gapMs = turbo.turbo ? 60 : 200;
@@ -191,6 +195,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { steps, home, stake: bet.value, prize: prizeFor(steps, home), dists: [START], cash: RTP, outcome: null };
     setRound(r);

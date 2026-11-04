@@ -138,11 +138,14 @@ export default function Game() {
   const seq = useRef(0);
 
   // A call is decided the moment it starts, so leaving mid-call settles at its
-  // real result, never at the pre-call value.
+  // real result, never at the pre-call value. The ticket reads only this ref:
+  // call() sets it synchronously after the stake is accepted, to the value
+  // after the call (which is also the checkpoint's cash-out; a switch keeps
+  // it), and playAuto does the same per call. Reading render state instead
+  // settled a new stake at 0 if the game unmounted between place() and the
+  // next render (the previous round's 'over' state).
   const resolved = useRef(0);
-  const ticket = useTicket(() =>
-    phase === 'calling' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0,
-  );
+  const ticket = useTicket(() => resolved.current);
 
   const callMs = turbo.turbo ? 160 : 620;
   const autoCallMs = turbo.turbo ? 45 : 150;

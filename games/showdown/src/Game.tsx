@@ -124,8 +124,13 @@ export default function Game() {
 
   // A flip is decided the moment it starts, so leaving mid-flip settles at
   // its real result, never at the pre-flip value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, flip drawn, auto series drawn). The ticket reads
+  // only this ref: a value derived from rendered state can be one render stale
+  // (the pre-flip cash-out just after Flip next, or the last series' state just
+  // after Bet again) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'flipping' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const flipMs = turbo.turbo ? 230 : 920;
   const autoFlipMs = turbo.turbo ? 90 : 360;
@@ -178,6 +183,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setAutoView(null);
     setLast(null);

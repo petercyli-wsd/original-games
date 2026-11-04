@@ -80,10 +80,13 @@ export function reducer(s: GameState, a: Action): GameState {
       const bit = 1 << rd.probing;
       const live = a.holds ? rd.live | bit : rd.live;
       const dead = a.holds ? rd.dead : rd.dead | bit;
-      const r = analysis(t, live, dead).r;
+      // A decided round is worth exactly 1 or 0; skip the 2^u enumeration (and its cache entry) there.
+      const won = isWon(t, live);
+      const lost = !won && isLost(t, dead);
+      const r = won ? 1 : lost ? 0 : analysis(t, live, dead).r;
       const round: Round = { ...rd, live, dead, probing: null, last: rd.probing, trail: [...rd.trail, r] };
-      if (isWon(t, live)) return finish(s, round, 'won', prize(t));
-      if (isLost(t, dead)) return finish(s, round, 'lost', 0);
+      if (won) return finish(s, round, 'won', prize(t));
+      if (lost) return finish(s, round, 'lost', 0);
       return { ...s, phase: 'checkpoint', round };
     }
 

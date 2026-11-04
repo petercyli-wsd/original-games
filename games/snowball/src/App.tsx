@@ -1,5 +1,6 @@
-import { formatAmount, formatMultiplier, type BetTicket } from '@originals/game-sdk';
+import { formatAmount, formatMultiplier } from '@originals/game-sdk';
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { useTicket } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
 import Tally from './components/Tally';
@@ -44,7 +45,7 @@ function outcomeText(outcome: Outcome, r: Round, mult: number) {
 }
 
 export default function App() {
-  const { wallet, rng, track } = useHost();
+  const { rng, track } = useHost();
   const balance = useBalance();
   const host = useSettings();
   const [localTurbo, setLocalTurbo] = useState(false);
@@ -54,8 +55,14 @@ export default function App() {
   const [betText, setBetText] = useState('1.00');
   const [infoOpen, setInfoOpen] = useState(false);
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
-  const ticket = useRef<BetTicket | null>(null);
-  const placing = useRef(false);
+  // `resolved` is the open bet's value right now, set synchronously at every
+  // transition (RTP once the stake is accepted, the drawn result the moment a
+  // ball is chosen). The ticket reads only this ref, so leaving the game
+  // settles at the true value even before the next render: never at the last
+  // round's result just after Bet again, nor at the pre-draw cash-out just
+  // after Draw ball.
+  const resolved = useRef(0);
+  const ticket = useTicket(() => resolved.current);
   const [error, setError] = useState('');
 
   const { phase, round, drawing, result } = state;
@@ -71,9 +78,9 @@ export default function App() {
 
   // Settle when a round ends.
   useEffect(() => {
-    if (phase !== 'over' || !result || !ticket.current) return;
-    void ticket.current.settle(result.mult);
-    ticket.current = null;
+    if (phase !== 'over' || !result) return;
+    resolved.current = result.mult;
+    ticket.settle(result.mult);
   }, [phase, result]);
 
   // Every pause after a draw is a checkpoint.
@@ -83,36 +90,28 @@ export default function App() {
     }
   }, [phase, round?.history.length]);
 
-  // Leaving mid-round cashes out at the fair value, counting a draw under way as made.
-  const latest = useRef(state);
-  latest.current = state;
-  useEffect(
-    () => () => {
-      if (ticket.current && latest.current.round) void ticket.current.settle(settledValue(latest.current));
-    },
-    [],
-  );
-
   const bet = parseFloat(betText) || 0;
   const betInvalid = !(bet > 0) || bet > balance;
 
   const start = useCallback(async () => {
-    if (placing.current || ticket.current) return;
-    placing.current = true;
-    try {
-      ticket.current = await wallet.placeBet(bet);
-      setError('');
-      dispatch({ type: 'start', bet, preset });
-    } catch {
+    if (ticket.active()) return;
+    if (!(await ticket.place(bet))) {
       setError(bet > balance ? 'Not enough balance.' : 'Enter a valid bet.');
-    } finally {
-      placing.current = false;
+      return;
     }
-  }, [wallet, bet, balance, preset]);
+    // Before the first draw the round is worth exactly RTP (M × P0).
+    resolved.current = RTP;
+    setError('');
+    dispatch({ type: 'start', bet, preset });
+  }, [ticket, bet, balance, preset]);
 
   const draw = useCallback(() => {
-    if (phase === 'live' && round) dispatch({ type: 'draw', index: rng.int(round.balls.length) });
-  }, [phase, round, rng]);
+    if (phase !== 'live' || !round) return;
+    const action = { type: 'draw', index: rng.int(round.balls.length) } as const;
+    // The ball is decided now: leaving mid-draw settles at its result.
+    resolved.current = settledValue(reducer(state, action));
+    dispatch(action);
+  }, [phase, round, rng, state]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -90,7 +90,11 @@ export default function Game() {
   const resolved = useRef(0);
   // Set synchronously, so a double press can't start two rolls from one state.
   const inFlight = useRef(false);
-  const ticket = useTicket(() => (phase === 'rolling' ? resolved.current : round?.cash ?? 0));
+  // The ticket reads only `resolved`, set synchronously at every transition
+  // (stake placed, roll drawn): a value derived from rendered state can be one
+  // render stale, e.g. the last round's payout just after Bet again, if the
+  // game unmounts before the next render.
+  const ticket = useTicket(() => resolved.current);
 
   const k = turbo.turbo ? 0.25 : 1;
   const flickMs = Math.round(70 * k);
@@ -134,6 +138,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       die,

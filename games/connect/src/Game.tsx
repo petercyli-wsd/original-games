@@ -101,7 +101,12 @@ export default function Game() {
   // The next edge is decided the moment it is picked, so leaving mid-animation
   // settles at its real result, never at the pre-edge value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'placing' ? resolved.current : round?.cash ?? 0));
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, step drawn). The ticket reads only this ref:
+  // a value derived from rendered state can be one render stale (the last
+  // round's result just after Bet again, or the pre-step cash-out just after a
+  // step) if the game unmounts before the next render.
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const cursorMs = Math.round(520 * speed);
@@ -144,6 +149,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { side, n, E: budgetOf(n, spare), stake: bet.value, prize: prizeFor(side, n, spare), edges: [], cash: RTP, outcome: null };
     setRound(r);

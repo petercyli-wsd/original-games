@@ -96,10 +96,13 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
-  // A polarizer's outcome is decided the moment it fires, so leaving
-  // mid-animation settles at the real result, never at the pre-shot value.
+  // The open ticket's value: RTP from the bet, then each polarizer's result
+  // the moment it fires (before it animates), so leaving mid-animation settles
+  // at the real result, never at the pre-shot value. The ticket reads only
+  // this ref: the rendered phase and round can be one render stale (leaving
+  // right after Bet used to settle the new stake at the previous round's payout).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'firing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const emitMs = Math.round(450 * speed);
@@ -138,6 +141,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { id: ++seq.current, stake: bet.value, angle: 0, cash: RTP, path: [], outcome: null };
     setRound(r);

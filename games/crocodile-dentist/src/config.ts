@@ -1,6 +1,7 @@
-// Default settings for the mock-up. All of these can also be changed live from
-// the ⚙ Customise drawer, which saves to the browser and can copy the result
-// out as JSON to paste back in here.
+// Default settings for the mock-up. The pace and colours can also be changed
+// live from the ⚙ Customise drawer, which saves to the browser and can copy the
+// result out as JSON to paste back in here. The maths (RTP, teeth, bad-teeth
+// options) is fixed here: see withFixedMaths.
 
 export interface CrocColors {
   bg: string;
@@ -55,12 +56,24 @@ export const DEFAULT_CONFIG: CrocConfig = {
 
 const KEY = 'croc.config.v3';
 
+/**
+ * The maths is not customisable: the RTP, the jaw size and the bad-teeth
+ * options always come from DEFAULT_CONFIG, whatever is saved in the browser
+ * or sent by the drawer. (An editable RTP let a player raise their own return
+ * to 100%, and a custom jaw could pay more than manifest.maxMultiplier.) Only
+ * the pace and the colours are the player's to change.
+ */
+export function withFixedMaths(cfg: CrocConfig): CrocConfig {
+  const { rtp, teeth, badTeethOptions, defaultBadTeeth } = DEFAULT_CONFIG;
+  return { ...cfg, rtp, teeth, badTeethOptions, defaultBadTeeth };
+}
+
 export function loadConfig(): CrocConfig {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_CONFIG;
     const saved = JSON.parse(raw) as Partial<CrocConfig>;
-    return { ...DEFAULT_CONFIG, ...saved, colors: { ...DEFAULT_CONFIG.colors, ...saved.colors } };
+    return withFixedMaths({ ...DEFAULT_CONFIG, ...saved, colors: { ...DEFAULT_CONFIG.colors, ...saved.colors } });
   } catch {
     return DEFAULT_CONFIG;
   }

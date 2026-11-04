@@ -77,10 +77,15 @@ export default function Game() {
   const [blade, setBlade] = useState<Blade>({ x: 0.5, down: false, on: false });
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A cut is decided the moment it starts falling, so leaving mid-animation
-  // settles at its real result, never at the pre-cut value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // change: RTP right after the bet is placed, and the post-cut value the
+  // moment a cut is drawn (so leaving mid-animation settles at its real
+  // result). The ticket reads only this ref, never render state: a stale render
+  // (leaving right after Bet, before React re-renders) would otherwise settle
+  // the new stake at the previous round's payout, or right after Next cut at
+  // the pre-cut value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'cutting' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const slideMs = Math.round(460 * speed);
@@ -128,6 +133,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { brk, total: cuts, stake: bet.value, prize: prizeFor(brk / 100, cuts), cuts: [], cash: RTP, outcome: null };
     setRound(r);

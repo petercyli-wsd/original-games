@@ -131,10 +131,13 @@ export default function Game() {
   const win = useMemo(() => windowAt(dist), [dist]);
 
   // A reveal is decided the moment it starts, so leaving mid-animation settles
-  // at its real result, never at the pre-reveal value.
+  // at its real result, never at the pre-reveal value. The ticket reads only
+  // this ref, which start() sets synchronously after the stake is accepted
+  // (to the post-tower cash-out) and fire() sets to the beam's result. Reading
+  // render state instead would, in the gap between place() and the next
+  // render, settle a new stake at the previous round's value (e.g. its prize).
   const resolved = useRef(0);
-  const animating = phase === 'rising' || phase === 'firing';
-  const ticket = useTicket(() => (animating ? resolved.current : round ? round.prize * round.p : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const ms = turbo.turbo ? { rise: 380, fire: 400 } : { rise: 1500, fire: 1500 };
   const live = phase !== 'idle' && phase !== 'over';

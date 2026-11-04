@@ -5,7 +5,7 @@ import Croc from './components/Croc';
 import CustomiseDrawer from './components/CustomiseDrawer';
 import InfoModal from './components/InfoModal';
 import Tip from './components/Tip';
-import { colorVars, loadConfig, saveConfig, type CrocConfig } from './config';
+import { colorVars, loadConfig, saveConfig, withFixedMaths, type CrocConfig } from './config';
 import { fairValue, initialState, reducer } from './game';
 import { BITE, buildLadder, cardValue, fmtAmt, fmtMult, fmtPct, ladderStats, pickTraps, winChance } from './math';
 
@@ -336,7 +336,7 @@ export default function App() {
       </main>
 
       {infoOpen && <InfoModal rtp={config.rtp} teeth={N} onClose={closeInfo} />}
-      {drawerOpen && <CustomiseDrawer config={config} onChange={setConfig} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && <CustomiseDrawer config={config} onChange={(c) => setConfig(withFixedMaths(c))} onClose={() => setDrawerOpen(false)} />}
     </div>
   );
 }

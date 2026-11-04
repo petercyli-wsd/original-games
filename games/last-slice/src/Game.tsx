@@ -139,7 +139,11 @@ export default function Game() {
   // A spin is decided the moment it starts, so leaving mid-spin settles at its
   // real result, never at the pre-spin value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'spinning' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0));
+  // The ticket reads only `resolved`, set synchronously at every transition
+  // (stake placed, spin drawn, switch): a value derived from rendered state can
+  // be one render stale (e.g. 0 from the last round just after Bet again) if the
+  // game unmounts before the next render.
+  const ticket = useTicket(() => resolved.current);
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
@@ -231,6 +235,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     setNote(null);
@@ -270,6 +275,7 @@ export default function Game() {
       setNote(`Backing ${LETTERS[i]} now would pay over ${MAX_WIN.toLocaleString('en-US')}× (the max win), so it is not allowed.`);
       return;
     }
+    resolved.current = cash;
     setNote(`Switched to ${LETTERS[i]}: cash-out stays ${fmtMult(cash)}, prize relocked at ${fmtMult(prize)}.`);
     setRound({ ...round, mine: i, prize });
     setMine(i);
@@ -281,6 +287,7 @@ export default function Game() {
     const cfg = { k, shape, mine };
     const tgt = target;
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     const w = wheel(cfg.k, cfg.shape);
     setAutoBusy(true);
     setLast(null);

@@ -98,10 +98,14 @@ export default function Game() {
   const seq = useRef(0);
   const lastU = useRef(0.5);
 
-  // A ball is decided the moment it is dropped, so leaving mid-drop settles at
-  // its real result, never at the pre-drop value.
+  // `resolved` is the open bet's value right now, set synchronously at every
+  // transition (RTP once the stake is accepted, the dropped ball's result the
+  // moment it is drawn, the kept cash-out on a switch). The ticket reads only
+  // this ref: a value derived from rendered state can be one render stale if
+  // the game unmounts before the next render (0 or the last round's state just
+  // after Bet, or the pre-drop cash-out just after Drop next).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? cashOf(round) : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
@@ -157,6 +161,7 @@ export default function Game() {
   // ---------- Manual round ----------
 
   function finish(r: Round, outcome: Outcome, paid: number) {
+    resolved.current = paid;
     ticket.settle(paid);
     pushHistory(paid);
     setNote(null);
@@ -180,6 +185,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     setNote(null);
@@ -212,6 +218,7 @@ export default function Game() {
       setNote(`Backing the ${BIN_NAME[i]} bin now would pay over ${MAX_WIN.toLocaleString('en-US')}× (the max win), so it is not allowed.`);
       return;
     }
+    resolved.current = cash;
     setNote(`Switched to the ${BIN_NAME[i]} bin: cash-out stays ${fmtMult(cash)}, prize relocked at ${fmtMult(prize)}.`);
     setRound({ ...round, mine: i, prize });
     setMine(i);
@@ -222,6 +229,7 @@ export default function Game() {
   async function playAuto(stake: number): Promise<number | null> {
     const tgt = target;
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     setAutoBusy(true);
     setLast(null);
     let r = newRound(mine, stake);

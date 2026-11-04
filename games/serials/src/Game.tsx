@@ -133,8 +133,11 @@ export default function Game() {
 
   async function start() {
     if (live || bet.blocked) return;
-    fair.current = RTP;
     if (!(await ticket.place(bet.value))) return;
+    // Only an accepted bet writes the ticket's value: a second Bet press that
+    // place() refuses (one render stale, the round already open) must not
+    // reset the open round's resolved value back to RTP.
+    fair.current = RTP;
     timers.clearAll();
     const r: Round = { cut, total, stake: bet.value, n: drawTop(rng.next()), drawn: [], prize: openingPrize(cut), cash: RTP, outcome: null };
     setRound(r);

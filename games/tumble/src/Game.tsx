@@ -90,10 +90,13 @@ export default function Game() {
   const [stepKey, setStepKey] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A roll is decided the moment it starts, so leaving mid-roll settles at its
-  // real result, never at the pre-roll value.
+  // What an open bet is worth if the game unmounts, read only from this ref
+  // (never from render state, which lags a tick: leaving right after Bet or a
+  // roll must not settle at the last render's value). It is RTP right after
+  // the bet, and each roll sets it to the post-roll value the moment the roll
+  // is decided, so leaving mid-roll settles at the real result.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'rolling' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const rollMs = turbo.turbo ? 170 : 650;
   const live = phase === 'rolling' || phase === 'checkpoint';
@@ -130,6 +133,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { rolls, cubes, target, stake: bet.value, prize: prizeFor(rolls, cubes, target), faces: startFaces(cubes), done: 0, cash: RTP, outcome: null };
     setRound(r);

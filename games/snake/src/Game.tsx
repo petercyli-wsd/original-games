@@ -122,8 +122,16 @@ export default function Game() {
 
   // The step in flight is decided the moment it starts, so leaving mid-spin
   // settles at its real result, never at the safer pre-step value.
+  // `resolved` is the open ticket's value right now, set synchronously at
+  // every transition: RTP when the stake is placed and the post-step value
+  // (4/f × cash, or 0) the moment a step is drawn. The ticket reads only this
+  // ref: a value derived from rendered state can be one render stale (the
+  // pre-step cash-out just after Step, or the last round's payout just after
+  // Bet again) if the game unmounts before the next render.
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'spin' || phase === 'move' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
+  /** The round waiting at a checkpoint: the only one that can be stepped on or cashed (null while stepping or over). */
+  const waiting = useRef<Round | null>(null);
   // Scheduled auto-steps read the latest setting, so switching auto off stops at the next checkpoint.
   const autoRef = useRef(auto);
   autoRef.current = auto;
@@ -141,6 +149,7 @@ export default function Game() {
   };
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    waiting.current = null;
     timers.clearAll();
     ticket.settle(cash);
     pushHistory(cash);
@@ -152,11 +161,12 @@ export default function Game() {
   function scheduleAuto(r: Round, mode: Auto = autoRef.current) {
     if (!autoGo(r.path, r.grid, mode)) return;
     timers.after(autoMs, () => {
-      if (autoGo(r.path, r.grid)) stepOnce(r);
+      if (waiting.current === r && autoGo(r.path, r.grid)) stepOnce(r);
     });
   }
 
   function stepOnce(r: Round) {
+    waiting.current = null;
     timers.clearAll();
     const dir = rng.int(4) as Dir;
     const res = step(r.grid, r.path, r.cash, dir);
@@ -177,6 +187,7 @@ export default function Game() {
       timers.after(moveMs, () => {
         const stop = autoStop(next.grid, next.target, next.path);
         if (stop) return finish(next, stop, next.cash);
+        waiting.current = next;
         setPhase('checkpoint');
         track({ type: 'checkpoint', multiplier: next.cash, winChance: liveOutlook(next.grid, next.target, next.path, next.cash).win });
         scheduleAuto(next);
@@ -187,6 +198,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { grid, target, stake: bet.value, path: [centre(grid)], cash: RTP, outcome: null, crash: null };
     setRound(r);
@@ -194,12 +206,13 @@ export default function Game() {
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
-    finish(round, 'cashed', round.cash);
+    const r = waiting.current;
+    if (!r) return;
+    finish(r, 'cashed', r.cash);
   }
 
   function stepNext() {
-    if (phase === 'checkpoint' && round) stepOnce(round);
+    if (waiting.current) stepOnce(waiting.current);
   }
 
   function clear() {

@@ -202,7 +202,8 @@ export function analysis(t: Topology, live: number, dead: number): Analysis {
   return a;
 }
 
-export const reliability = (t: Topology, q = Q) => analyse(t, 0, 0, q).r;
+// At Q this is the cached start analysis (prize() calls it on every cash-out and render).
+export const reliability = (t: Topology, q = Q) => (q === Q ? analysis(t, 0, 0).r : analyse(t, 0, 0, q).r);
 
 /** Whether revealing wire e could change the odds. Irrelevant wires are skipped. */
 export const matters = (a: Analysis, e: number) => Math.abs(a.ifHolds[e] - a.ifSnaps[e]) > 1e-12;

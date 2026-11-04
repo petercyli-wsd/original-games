@@ -84,8 +84,9 @@ export default function Game() {
 
   // The fair value on unmount is the drawn reading itself, read from a ref (not
   // render state), so leaving at any instant after the bet settles the true result.
-  // Before the cards are drawn it is a refund.
-  const resolved = useRef(1);
+  // Before the cards are drawn it is the stake's fair value, RTP (a stake that
+  // never got accepted is refunded by the ticket itself).
+  const resolved = useRef(RTP);
   const ticket = useTicket(() => resolved.current);
 
   const t = turbo.turbo;
@@ -95,7 +96,7 @@ export default function Game() {
   const suspenseMs = t ? 90 : 480;
 
   async function playOnce(stake: number): Promise<number | null> {
-    resolved.current = 1;
+    resolved.current = RTP;
     if (!(await ticket.place(stake))) return null;
     const r = playRound(rng.next, risk);
     resolved.current = r.multiplier;

@@ -16,7 +16,7 @@
 // scratching, selling and buying, E[payout] = RTP × E[total staked]. The tests
 // check this by exact enumeration.
 
-import { floor8, type Volatility } from '@originals/game-sdk';
+import type { Volatility } from '@originals/game-sdk';
 
 export const RTP = 0.99;
 
@@ -62,8 +62,14 @@ export const sellMultiplier = (s: Setup, g: number, r: number) => prizeMultiplie
 /** Fair price of one extra go with r cards left, as a multiple of the main bet. */
 export const buyPriceMultiplier = ({ cards, goes }: Setup, r: number) => cards / (goes * r);
 
-/** Buy price in currency, rounded down to 8 dp (never above the fair price). */
-export const buyPrice = (s: Setup, bet: number, r: number) => floor8(bet * buyPriceMultiplier(s, r));
+/**
+ * Buy price in currency, rounded UP to 8 dp (never below the fair price). It is
+ * a stake the player pays, so rounding down would sell each go for slightly
+ * less than it is worth (a per-buy RTP a hair above target). The 1e-6 slack
+ * (in units of 1e-8) keeps prices already on the 8 dp grid unchanged despite
+ * floating-point noise, mirroring floor8.
+ */
+export const buyPrice = (s: Setup, bet: number, r: number) => Math.ceil(bet * buyPriceMultiplier(s, r) * 1e8 - 1e-6) / 1e8;
 
 /**
  * A go can be bought only when it adds something: at least two cards left and

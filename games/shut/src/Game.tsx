@@ -129,14 +129,17 @@ export default function Game() {
 
   // A roll is decided the moment it starts, so leaving mid-roll settles at its
   // real result (the best close, or 0), never at the pre-roll value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition: RTP when the stake is placed, the post-roll value (best close,
+  // or 0) when a roll is drawn, and prize · V after a close (equal to the
+  // post-roll value, since a riskier close relocks the prize). The ticket reads
+  // only this ref: a value derived from rendered state can be one render stale
+  // (the pre-roll cash-out just after Roll, or the last round's state just
+  // after Bet again) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => {
-    if (phase === 'rolling' || phase === 'closing' || autoBusy) return resolved.current;
-    if (!round) return 0;
-    if (phase === 'choose') return valueOf(round);
-    if (phase === 'checkpoint') return round.prize * winChance(round.mask);
-    return 0;
-  });
+  const ticket = useTicket(() => resolved.current);
+  /** The manual roll waiting for its close (null once it is spent or the round ends). */
+  const awaiting = useRef<Round | null>(null);
 
   const isAutoRef = useRef(false);
   const k = turbo.turbo ? 0.25 : 1;
@@ -151,6 +154,7 @@ export default function Game() {
   }
 
   function finish(r: Round, outcome: Outcome, paid: number) {
+    awaiting.current = null;
     ticket.settle(paid);
     pushHistory(paid);
     setHover(null);
@@ -160,13 +164,16 @@ export default function Game() {
 
   /** Closes the chosen tiles (prize relocked if it isn't the best close), then pauses at a checkpoint or ends. */
   async function close(r: Round, pick: Close) {
-    if (r.total === null) return;
+    // Only the roll on show can be spent, and only once (no second close or
+    // relock from a stale render while the first one animates).
+    if (r.total === null || awaiting.current !== r) return;
     const options = closes(r.before, r.total);
     const prize = relock(r.prize, options[0].win, pick);
     if (prize === null) {
       setNote(`Closing ${label(pick.tiles)} would relock the prize above ${MAX_WIN.toLocaleString('en-US')}× (the max win), so it is not allowed.`);
       return;
     }
+    awaiting.current = null;
     const cash = prize * pick.win;
     resolved.current = cash;
     setNote(null);
@@ -186,6 +193,7 @@ export default function Game() {
     const options = closes(r.mask, total);
     resolved.current = options.length ? r.prize * options[0].win : 0;
     const rolled: Round = { ...r, before: r.mask, prev: r.mask, dice, total, closed: 0, rolls: r.rolls + 1 };
+    awaiting.current = rolled;
     setNote(null);
     setHover(null);
     setRound({ ...rolled, dice: null });
@@ -210,6 +218,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     const r = fresh(n, bet.value);

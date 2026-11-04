@@ -94,16 +94,21 @@ export default function Game() {
   const [drawing, setDrawing] = useState<{ chord: Chord; clear: boolean } | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A step is decided the moment it starts, so leaving mid-animation settles
-  // at its real result, never at the pre-step value.
+  // `resolved` is the open ticket's value right now. It is set synchronously at
+  // every transition: RTP as soon as the bet is placed, the post-result value
+  // the moment an end or chord starts to move (it is already decided), and the
+  // settled value when the round ends. Leaving the game settles at it. It is
+  // never derived from rendered state, which can be one render stale (just
+  // after Bet again it still held the previous round's result).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'moving' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const spinMs = turbo.turbo ? 200 : 720;
   const drawMs = turbo.turbo ? 90 : 340;
   const live = phase === 'moving' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number, bad: Chord | null = null) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash, bad });
@@ -201,6 +206,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { target, pace, stake: bet.value, chords: [], first: null, base: RTP, cash: RTP, risks: [], outcome: null, bad: null };
     setRound(r);

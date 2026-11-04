@@ -36,7 +36,7 @@ import {
   cashAt,
   centsAt,
   clampTarget,
-  crashCents,
+  crashFromDraw,
   endTime,
   fmtX,
   levelOf,
@@ -192,7 +192,7 @@ export default function Game() {
     const f: Flight = {
       id: ++seq.current,
       stake,
-      crash: crashCents(rng.next()),
+      crash: crashFromDraw(rng.next()),
       target: isAuto || autoCash ? target : null,
       auto: isAuto,
       start: performance.now(),

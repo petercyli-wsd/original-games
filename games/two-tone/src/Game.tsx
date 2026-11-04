@@ -97,14 +97,21 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
-  // The edge in flight is decided the moment it starts, so leaving mid-draw
-  // settles at its real result, never at the safer pre-edge value.
+  // The open bet's fair value. The edge in flight is decided the moment it
+  // starts, so leaving mid-draw settles at its real result, never at the safer
+  // pre-edge value. The ticket reads only this ref, which is set
+  // synchronously: RTP the moment the bet is accepted, then the post-edge
+  // value as each edge is drawn. (Reading the rendered phase / round instead
+  // could be one render stale: right after Add edge it would settle at the
+  // pre-edge cash and dodge a bust, and right after Bet again at the previous
+  // round's payout.)
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'drawing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const live = phase === 'drawing' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -144,6 +151,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { nodes, target, stake: bet.value, graph: emptyGraph(nodes), cash: RTP, outcome: null, bust: null };
     setRound(r);
