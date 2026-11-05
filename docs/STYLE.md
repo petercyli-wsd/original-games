@@ -97,11 +97,13 @@ The kit's layout, unchanged in structure:
 
 ## 6. The odds: one readout
 
-The board shows the odds as a picture (a green share of a track, an arc, a count of lit cells). On top of that the stage shows **at most one probability number**, once:
+The odds are a picture of **the whole bet**: a green share of a track, an arc, a count of lit cells, or a bar. On top of that the stage shows **at most one probability number**, once:
 
 - `Readouts` holds at most two items: the one chance (labelled plainly, e.g. "Win chance", "Next drop safe") and, if useful, the one prize ("Prize", "If inside"). The cash-out value is on the Cash out button, so it is not repeated as a readout. Drop `sub` lines that restate a value.
-- No `ChanceBar` when the board already pictures the odds. Use `ChanceBar` only when the board can't, and then leave the chance out of `Readouts`.
+- Keep one `ChanceBar` (or the game's own flat win/lose split bar) for the whole-bet chance unless the board itself already pictures **the whole bet**. If the board pictures only the next step (a red arc, the green faces of a die, one slot out of N), it doesn't. The bar is the picture of the readout's number, not a second readout, so the two may sit together. Never remove a bar that moves after each step: watching it move is how a player sees why their chance changed.
+- Win and lose areas on the board stay coloured `--win` / `--lose` (or neutral for "pays back less than the stake"). Don't flatten them to one grey. Area that pays has to look like it pays.
 - No percentage labels scattered on the board, no "from X% → Y%" previews, no per-option odds tables on the stage. A label on the board is fine when it *is* the picture's unit (a numbered track, a multiplier on a step).
+- A paytable of **payouts** (hand → multiplier, zone → multiplier) may stay on the stage when the board doesn't already label what each outcome pays. Keep it to one compact flat row or column, highlighting the hit. The chances go in the How to play modal.
 - The panel doesn't repeat the chance either.
 
 ## 7. The rule under the board
