@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -17,6 +17,7 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
+  eventMs,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -33,7 +34,6 @@ import {
   PLACES,
   ROLLS,
   RTP,
-  cubeChance,
   prizeFor,
   roll,
   startChance,
@@ -64,7 +64,7 @@ interface Round {
   outcome: Outcome | null;
 }
 
-const ACCENT = '#84a59d';
+const ACCENT = ACCENTS.sky;
 const PLACE_NAME: Record<Place, string> = { top: 'Top', side: 'Side', bottom: 'Bottom' };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
@@ -95,7 +95,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'rolling' ? resolved.current : round?.cash ?? 0));
 
-  const rollMs = turbo.turbo ? 170 : 650;
+  const rollMs = eventMs(turbo.turbo);
   const live = phase === 'rolling' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -178,7 +178,6 @@ export default function Game() {
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
   const p0 = startChance(rolls, cubes, target);
-  const perCube = cubeChance('top', rolls, target);
 
   let status = `Ready · ${plural(k, 'cube')}, ${plural(n, 'roll')}, red ${CALL_LABEL[t]}`;
   if (phase === 'rolling') status = `Roll ${done + 1} of ${n}`;
@@ -209,20 +208,13 @@ export default function Game() {
           <Label hint="every cube must match">Cubes</Label>
           <Chips label="Cubes" options={CUBES.map((v) => ({ value: v, label: v }))} value={cubes} disabled={live} onChange={(v) => change(() => setCubes(v))} />
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(rolls, cubes, target))}</dd>
-          </dl>
-
           {phase === 'checkpoint' ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && rollNext(round)}>
-                {left === 1 ? 'Last roll' : 'Roll next'} · {fmtChance(pNow)} to win
+                {left === 1 ? 'Last roll' : 'Roll next'}
               </ActionButton>
             </>
           ) : (
@@ -239,14 +231,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(pNow),
-            sub: live ? `${plural(left, 'roll')} to go` : phase === 'over' ? `after ${plural(done, 'roll')}` : `${plural(k, 'cube')}, ${plural(n, 'roll')}`,
-            tone: 'chance',
-          },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after each roll', tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -267,25 +253,13 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label={`Chance every red face ends ${CALL_LABEL[t]}`}
-          note="Each cube's bar splits where its red face will end. The four cells around a cube are its chance after each way it can tip (¼ each); they average to its bar."
-        />
-      ) : (
-        <Caption>
-          The red face moves as a 3-state chain: top → side, side → top ¼ · side ½ · bottom ¼, bottom → side. After {plural(rolls, 'roll')} it ends{' '}
-          {CALL_LABEL[target]} with chance {fmtChance(perCube)}
-          {cubes > 1 ? `, so all ${cubes} cubes do with ${fmtChance(perCube)}^${cubes} = ${fmtChance(p0)}` : ''}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Win if every red face ends where you called after the last roll.</Caption>
 
       {infoOpen && (
         <InfoModal title="Tumble" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              Each cube has one <b style={{ color: 'var(--red)' }}>red face</b>, starting on top. The cubes tip over in random directions. Call where every red
+              Each cube has one <b style={{ color: 'var(--suit-red)' }}>red face</b>, starting on top. The cubes tip over in random directions. Call where every red
               face ends after the last roll: on top, on a side, or on the bottom.
             </p>
           </InfoSection>
@@ -302,12 +276,12 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Under each cube, a bar is split into top, side and bottom: each part's width is the exact chance the red face ends there. Your call is the{' '}
-              <b style={{ color: 'var(--green)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts (the line at the
-              bottom).
+              <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts (the Win chance above
+              the board).
             </p>
             <p>
-              The four cells around a cube are the four ways it can tip. Each shows this cube's chance if it tips that way:{' '}
-              <b style={{ color: 'var(--green)' }}>green</b> if it would rise, <b style={{ color: 'var(--red)' }}>red</b> if it would fall. Each happens a quarter of the
+              The four cells around a cube are the four ways it can tip. Each is outlined{' '}
+              <b style={{ color: 'var(--win)' }}>green</b> if this cube's chance would rise that way, <b style={{ color: 'var(--lose)' }}>red</b> if it would fall. Each happens a quarter of the
               time, so their average is the bar.
             </p>
           </InfoSection>
