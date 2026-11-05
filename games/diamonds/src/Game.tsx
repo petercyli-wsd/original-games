@@ -213,6 +213,20 @@ export default function Game() {
         </svg>
       </Board>
       <Caption>Match gem shapes like a poker hand; bigger hands pay more.</Caption>
+      <ul className="dm-pay" aria-label={`${RISK_NAMES[risk]} paytable`}>
+        {HANDS.slice()
+          .reverse()
+          .map((h) => {
+            const m = payout(risk, h);
+            const hit = !!shown && shown.hand === h;
+            return (
+              <li key={h} className={'dm-pay-row' + (m >= 1 ? ' pays' : ' low') + (hit ? (m >= 1 ? ' hit win' : ' hit') : '')}>
+                <span>{HAND_NAMES[h]}</span>
+                <span className="dm-pay-m">{fmtMult(m)}</span>
+              </li>
+            );
+          })}
+      </ul>
 
       {infoOpen && (
         <InfoModal title="Diamonds" onClose={() => setInfoOpen(false)}>

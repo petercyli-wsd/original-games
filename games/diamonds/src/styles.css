@@ -66,6 +66,37 @@
   opacity: 0.4;
 }
 
+.dm-pay {
+  list-style: none;
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 var(--sp-4);
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+.dm-pay-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  color: var(--text);
+}
+.dm-pay-row.low {
+  color: var(--muted);
+}
+.dm-pay-row.hit {
+  font-weight: 600;
+  color: var(--text);
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+.dm-pay-row.hit.win {
+  color: var(--win);
+  outline-color: var(--win);
+}
+
 .dm-info-table {
   width: 100%;
   border-collapse: collapse;
