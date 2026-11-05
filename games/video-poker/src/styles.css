@@ -31,7 +31,7 @@
 }
 .vp-pay-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 46px;
+  grid-template-columns: minmax(0, 1fr) minmax(40px, 0.8fr) 46px;
   gap: var(--sp-2);
   align-items: baseline;
   padding: var(--sp-1) var(--sp-2);
@@ -58,6 +58,24 @@
 .vp-pay-row.head > * {
   font-weight: 500;
   color: var(--muted);
+}
+.vp-pay-row .vp-pay-bar {
+  align-self: center;
+  height: 6px;
+  background: var(--line);
+  overflow: hidden;
+}
+.vp-pay-bar u {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+  text-decoration: none;
+}
+.vp-pay-row.made .vp-pay-bar u {
+  background: var(--text);
+}
+.vp-pay-row.hit .vp-pay-bar u {
+  background: var(--win);
 }
 .vp-pay-row.made {
   background: var(--hover);
@@ -285,7 +303,7 @@
     padding: var(--sp-1);
   }
   .vp-pay-row {
-    grid-template-columns: minmax(0, 1fr) 34px;
+    grid-template-columns: minmax(0, 1fr) minmax(24px, 0.6fr) 34px;
     gap: var(--sp-1);
     padding: 2px var(--sp-1);
   }

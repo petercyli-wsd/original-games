@@ -41,11 +41,13 @@ export function PlayingCard({ slot, ms }: { slot: Slot; ms: number }) {
  * The paytable, as a plain table: hand and pay. `made` marks the hand already
  * in the dealt cards (neutral), `hit` the final paying hand (win).
  */
-export function Paytable({ table, made, hit }: { table: Paytable; made: number | null; hit: number | null }) {
+export function Paytable({ table, made, hit, dist }: { table: Paytable; made: number | null; hit: number | null; dist: readonly number[] }) {
   const rows = table.rows.map((row, i) => ({
     i,
     row,
     pays: table.pays[row.cats[0]],
+    // Chance of this hand for the current hold. Square-root scale so rare hands still show.
+    len: Math.sqrt(row.cats.reduce((s, c) => s + (dist[c] ?? 0), 0)),
     made: made !== null && row.cats.includes(made),
     hit: hit !== null && row.cats.includes(hit),
   }));
@@ -57,6 +59,7 @@ export function Paytable({ table, made, hit }: { table: Paytable; made: number |
         <div className="vp-pay-col" key={k} role="rowgroup">
           <div className="vp-pay-row head" role="row">
             <span role="columnheader">Hand</span>
+            <span role="columnheader" className="vp-pay-chance">Chance</span>
             <b role="columnheader">Pays</b>
           </div>
           {col.map((r) => (
@@ -64,6 +67,9 @@ export function Paytable({ table, made, hit }: { table: Paytable; made: number |
               <span role="cell" title={r.row.label}>
                 <i className="full">{r.row.label}</i>
                 <i className="short">{r.row.short ?? r.row.label}</i>
+              </span>
+              <span role="cell" className="vp-pay-bar" aria-hidden="true">
+                <u style={{ width: r.len > 0 ? `max(2px, ${(r.len * 100).toFixed(2)}%)` : 0 }} />
               </span>
               <b role="cell">{r.pays}×</b>
             </div>

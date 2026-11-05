@@ -43,6 +43,7 @@ import {
   deal,
   draw,
   handName,
+  holdDist,
   holdValue,
   payingChance,
   popcount5,
@@ -368,6 +369,7 @@ export default function Game() {
             table={pt}
             made={madeCat && madeCat !== NOTHING ? madeCat : null}
             hit={phase === 'over' && round?.cat ? round.cat : null}
+            dist={a && inHand ? holdDist(a, shownHold) : pt.dist}
           />
 
           <div className={'vp-hand' + (phase === 'over' ? ' over' : '') + (phase === 'over' && round && round.multiplier === 0 ? ' lost' : '')}>
