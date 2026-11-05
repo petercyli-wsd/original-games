@@ -54,7 +54,7 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
   const c = k === 1 ? 84 : k === 2 ? 72 : 58;
   const CROSS_Y = CROSS_TOP + 1.5 * c;
   const BAR_Y = CROSS_TOP + 3 * c + 20;
-  const VB_H = BAR_Y + BAR_H + 16;
+  const VB_H = BAR_Y + BAR_H + 44;
   const bw = Math.min(colW - 28, 300);
   const per = faces.map((f) => cubeChance(placeOf(f), left, target));
   const total = per.reduce((a, b) => a * b, 1);
@@ -77,11 +77,10 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
         const now = per[idx];
         const next = rollChances(f, left, target);
         const dir = tipping?.[idx];
+        const maxDelta = Math.max(...next.map((p) => Math.abs(p - now)));
         const bar = forecast(placeOf(f), left);
         const x0 = cx - bw / 2;
         let acc = 0;
-        const ti = PLACES.indexOf(target);
-        const tx = x0 + bw * (bar.slice(0, ti).reduce((a, b) => a + b, 0) + bar[ti] / 2);
         const [dx, dy] = dir ? OFFSET[dir] : [0, 0];
         return (
           <g key={idx}>
@@ -90,9 +89,15 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               const [ox, oy] = OFFSET[d];
               const p = next[j];
               const tone = left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
+              // Fill size shows how much this tip moves the chance, relative to the biggest tip.
+              const mag = maxDelta > 0 ? Math.abs(p - now) / maxDelta : 0;
+              const fs = c * 0.88 * (0.3 + 0.7 * mag);
+              const mx = cx + ox * c;
+              const my = cy + oy * c;
               return (
                 <g key={d} className={'cell ' + tone}>
-                  <rect x={cx + ox * c - c * 0.44} y={cy + oy * c - c * 0.44} width={c * 0.88} height={c * 0.88} rx={6} />
+                  <rect x={mx - c * 0.44} y={my - c * 0.44} width={c * 0.88} height={c * 0.88} rx={6} />
+                  {(tone === 'up' || tone === 'down') && <rect x={mx - fs / 2} y={my - fs / 2} width={fs} height={fs} rx={4} className="fill" />}
                 </g>
               );
             })}
@@ -117,7 +122,7 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               acc += bar[j];
               if (w <= 0) return null;
               return (
-                <g key={p} className={'seg' + (p === target ? ' target' : '')}>
+                <g key={p} className={'seg' + (p === target ? ' target' + (over ? (now === 0 ? ' lost' : '') : '') : '')}>
                   <rect x={x} y={BAR_Y} width={w} height={BAR_H} />
                   {w >= 46 && (
                     <text x={x + w / 2} y={BAR_Y + 15.5}>
@@ -128,10 +133,17 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               );
             })}
             <rect x={x0} y={BAR_Y} width={bw} height={BAR_H} className="bar-frame" />
-            <path d={`M ${tx} ${BAR_Y + BAR_H + 2} l -5 7 h 10 Z`} className={'bar-mark' + (over ? (now === 1 ? ' won' : now === 0 ? ' lost' : '') : '')} />
+            <text x={cx} y={BAR_Y + BAR_H + 15} className="note">
+              {k > 1 ? 'Where this red face ends' : 'Where the red face ends'}
+            </text>
           </g>
         );
       })}
+      {left > 0 && done > 0 && !over && (
+        <text x={VB_W / 2} y={VB_H - 6} className="note">
+          Tips around each cube: green helps, red hurts, bigger is more
+        </text>
+      )}
     </svg>
   );
 }

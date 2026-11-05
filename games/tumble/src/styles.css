@@ -43,6 +43,18 @@
 .tumble .cell.down rect {
   stroke: var(--lose);
 }
+.tumble .cell.up rect.fill {
+  fill: var(--win);
+  stroke: none;
+}
+.tumble .cell.down rect.fill {
+  fill: var(--lose);
+  stroke: none;
+}
+.tumble .note {
+  font-size: var(--fs-1);
+  fill: var(--muted);
+}
 .tumble .cell.off rect {
   fill: var(--bg);
 }
@@ -115,13 +127,7 @@
   stroke: var(--line-strong);
   stroke-width: 1;
 }
-.tumble .bar-mark {
-  fill: var(--accent);
-}
-.tumble .bar-mark.won {
-  fill: var(--win);
-}
-.tumble .bar-mark.lost {
+.tumble .seg.target.lost rect {
   fill: var(--lose);
 }
 

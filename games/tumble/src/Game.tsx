@@ -5,6 +5,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -253,6 +254,8 @@ export default function Game() {
         )}
       </Board>
 
+      <ChanceBar p={pNow} label="Chance every red face ends where you called" />
+
       <Caption>Win if every red face ends where you called after the last roll.</Caption>
 
       {infoOpen && (
@@ -276,13 +279,13 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Under each cube, a bar is split into top, side and bottom: each part's width is the exact chance the red face ends there. Your call is the{' '}
-              <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts (the Win chance above
-              the board).
+              <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts   (the Win chance
+              above the board, drawn again as the bar under it, which moves after every roll).
             </p>
             <p>
-              The four cells around a cube are the four ways it can tip. Each is outlined{' '}
-              <b style={{ color: 'var(--win)' }}>green</b> if this cube's chance would rise that way, <b style={{ color: 'var(--lose)' }}>red</b> if it would fall. Each happens a quarter of the
-              time, so their average is the bar.
+              The four cells around a cube are the four ways it can tip. Each is filled{' '}
+              <b style={{ color: 'var(--win)' }}>green</b> if this cube's chance would rise that way, <b style={{ color: 'var(--lose)' }}>red</b> if it would fall; a bigger fill
+              means a bigger change. Each happens a quarter of the time, so their average is the bar.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
