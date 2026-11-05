@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -17,6 +17,7 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
+  eventMs,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -26,23 +27,17 @@ import {
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
-import { ArenaBoard, Tally, ZoneCard, type TriRec } from './Board';
+import { ArenaBoard, Tally, type TriRec } from './Board';
 import {
   RTP,
   SERIES,
-  acuteChance,
-  arenaArea,
-  bandArea,
   cashOutValue,
-  formulaText,
-  sideFormulaText,
   onSide,
   prizeOf,
   samplePoint,
   sideChance,
   sideShare,
   stateWinChance,
-  thalesArea,
   volatilityOf,
   winChance,
   type Arena,
@@ -52,7 +47,7 @@ import {
   type Side,
 } from './math';
 
-const ACCENT = '#ff9b85';
+const ACCENT = ACCENTS.amber;
 
 /**
  * idle → dropping (A and B fall) → landed (checkpoint) → falling (C) →
@@ -75,7 +70,7 @@ const ARENA_LABEL: Record<Arena, string> = { square: 'Square', disc: 'Disc', tri
 function outcomeTitle(r: Round): string {
   if (r.outcome === 'cashed') return 'Cashed out';
   if (r.outcome === 'won') return r.s.series > 1 ? `All ${r.s.series} ${r.s.side}` : r.s.side === 'acute' ? 'Acute triangle' : 'Obtuse triangle';
-  return `${r.s.side === 'acute' ? 'Obtuse' : 'Acute'}: C landed in the red`;
+  return r.s.side === 'acute' ? 'Obtuse triangle' : 'Acute triangle';
 }
 
 function roundState(r: Round, phase: Phase): RoundState {
@@ -113,8 +108,8 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'dropping' || phase === 'falling' || phase === 'sure' ? resolved.current : round?.cash ?? 0));
 
-  const dropMs = turbo.turbo ? 180 : 720;
-  const pauseMs = turbo.turbo ? 150 : 600;
+  const dropMs = eventMs(turbo.turbo);
+  const pauseMs = eventMs(turbo.turbo);
   const live = phase !== 'idle' && phase !== 'over';
   const busy = phase === 'dropping' || phase === 'falling' || phase === 'sure';
 
@@ -224,12 +219,7 @@ export default function Game() {
 
   // Once A and B are down the zone is exact; before (idle, or between triangles) it's the average.
   const exact = !!cur && phase !== 'dropping' && !(phase === 'between');
-  const area = arenaArea(s.arena);
-  const band = exact && cur ? bandArea(s.arena, cur.a, cur.b) / area : null;
-  const disc = exact && cur ? thalesArea(s.arena, cur.a, cur.b) / area : null;
   const share = exact && cur ? sideShare(s, cur.a, cur.b) : p;
-  const remaining = s.series - st.settled - (st.ab ? 1 : 0);
-  const nextChance = st.ab ? sideShare(s, st.ab[0], st.ab[1]) : p;
   const triWord = (n: number) => `${n} triangle${n === 1 ? '' : 's'}`;
 
   let status = `Ready · back ${s.side === 'acute' ? 'Acute' : 'Obtuse'} · ${triWord(s.series)} in a ${s.arena}`;
@@ -240,8 +230,6 @@ export default function Game() {
   if (phase === 'between') status = `Checkpoint · ${st.settled} of ${s.series} ${s.side}`;
   if (phase === 'over' && round?.outcome) status = outcomeTitle(round);
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  const formula = sideFormulaText(s);
 
   // The board shows the current triangle; between triangles it keeps the last one until the next drop.
   const boardTri = cur;
@@ -276,7 +264,6 @@ export default function Game() {
                   <ArenaGlyph arena={a} /> {ARENA_LABEL[a]}
                 </span>
               ),
-              title: `Acute ${fmtChance(acuteChance(a))}`,
             }))}
             value={arena}
             disabled={live}
@@ -292,22 +279,13 @@ export default function Game() {
             onChange={(v) => change(() => setSeries(v))}
           />
 
-          <dl className="og-stats">
-            <dt>Per triangle</dt>
-            <dd>{fmtChance(sideChance(chosen))}</dd>
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(winChance(chosen))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeOf(chosen))}</dd>
-          </dl>
-
           {phase === 'landed' || phase === 'between' ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={next}>
-                {phase === 'landed' ? `Drop C · ${fmtChance(nextChance)} ${s.side}` : `Next triangle · ${fmtChance(p)}`}
+                {phase === 'landed' ? 'Drop C' : 'Next triangle'}
               </ActionButton>
             </>
           ) : (
@@ -324,27 +302,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(winNow),
-            sub: round
-              ? round.outcome === 'won' || round.outcome === 'lost'
-                ? `${triWord(st.settled)} of ${s.series} ${s.side}`
-                : st.ab
-                  ? `C ${fmtChance(nextChance)}${remaining > 0 ? ` · then ${triWord(remaining)} at ${fmtChance(p)}` : ''}`
-                  : `${triWord(Math.max(0, s.series - st.settled))} at ${fmtChance(p)} each`
-              : s.series > 1
-                ? `(${formula})${s.series === 2 ? '²' : '³'}`
-                : formula,
-            tone: 'chance',
-          },
-          {
-            label: phase === 'over' ? 'Paid' : 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'once A and B land',
-            tone: 'cash',
-          },
-          { label: 'Full win', value: fmtMult(prize), sub: s.series > 1 ? `if all ${s.series} are ${s.side}` : `if ABC is ${s.side}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(winNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -359,45 +318,24 @@ export default function Game() {
             dropKey={`${roundKey}-${k}`}
             dropMs={dropMs}
           />
-          <div className="th-side">
-            <ZoneCard side={s.side} share={share} band={band} disc={disc} average={!exact} />
-            <div className="th-slot">
-              {phase === 'over' && round?.outcome ? (
-                <RoundOver
-                  key={history[0]?.id}
-                  title={outcomeTitle(round)}
-                  multiplier={round.cash}
-                  stake={round.stake}
-                  nextBet={bet.value}
-                  blocked={bet.blocked}
-                  onBetAgain={() => void start()}
-                  onClear={clear}
-                  placement="center"
-                />
-              ) : (
-                <Tally tris={tris} count={s.series} side={s.side} />
-              )}
-            </div>
-          </div>
+          <Tally tris={tris} count={s.series} side={s.side} />
+          {phase === 'over' && round?.outcome && (
+            <RoundOver
+              key={history[0]?.id}
+              title={outcomeTitle(round)}
+              multiplier={round.cash}
+              stake={round.stake}
+              nextBet={bet.value}
+              blocked={bet.blocked}
+              onBetAgain={() => void start()}
+              onClear={clear}
+              placement="inline"
+            />
+          )}
         </div>
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={nextChance}
-          label={st.ab ? `C makes it ${s.side}` : `Next triangle is ${s.side}`}
-          note={
-            st.ab
-              ? `C lands uniformly in the ${s.arena}: the green share of the arena is exactly this chance.`
-              : `Before A and B land, a triangle is ${s.side} with chance ${formula} = ${fmtChance(p)}.`
-          }
-        />
-      ) : (
-        <Caption>
-          Thales: the angle at C is 90° exactly on the circle with diameter AB. A triangle in a {s.arena} is acute with chance{' '}
-          {s.arena === 'triangle' ? 'about' : `${formulaText(s.arena)} =`} {fmtChance(acuteChance(s.arena))}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>C must land in the green once A and B are down; with several triangles, every one must.</Caption>
 
       {infoOpen && (
         <InfoModal title="Thales" onClose={() => setInfoOpen(false)}>
@@ -418,9 +356,9 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Once A and B are down, the arena is split in two. The triangle is acute exactly when C lands inside the <b>band</b> between the two dashed
-              lines (square to AB through A and through B) and outside the <b>circle</b> with diameter AB. The <b style={{ color: 'var(--green)' }}>green</b>{' '}
-              area is where C wins and the <b style={{ color: 'var(--red)' }}>red</b> area where it loses; the green share of the arena is your exact chance.
-              The card beside the board adds it up: band − circle = acute.
+              lines (square to AB through A and through B) and outside the <b>circle</b> with diameter AB. The <b style={{ color: 'var(--win)' }}>green</b>{' '}
+              area is where C wins and the <b style={{ color: 'var(--lose)' }}>red</b> area where it loses; the green share of the arena is your exact chance.
+              Acute chance = band − circle.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
