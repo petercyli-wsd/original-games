@@ -6,6 +6,8 @@ const PAD = 8;
 
 export interface FieldProps {
   grid: Grid;
+  /** Escape chance for the runner on each square (hunter where it is now). */
+  heat: number[];
   runner: number;
   hunter: number;
   /** Where the runner and hunter have been this round. */
@@ -34,7 +36,7 @@ function arrowHead(x: number, y: number, dx: number, dy: number, size: number): 
     .join(' ');
 }
 
-export default function Field({ grid, runner, hunter, trail, hunterTrail, steps, reach, hunterNext, p, end, moveMs }: FieldProps) {
+export default function Field({ grid, heat, runner, hunter, trail, hunterTrail, steps, reach, hunterNext, p, end, moveMs }: FieldProps) {
   const cs = (SIZE - PAD * 2) / grid.w;
   const xy = (i: number) => ({ x: PAD + (i % grid.w) * cs + cs / 2, y: PAD + Math.floor(i / grid.w) * cs + cs / 2 });
   const pts = (cells: number[]) => cells.map((c) => `${xy(c).x.toFixed(1)},${xy(c).y.toFixed(1)}`).join(' ');
@@ -51,7 +53,14 @@ export default function Field({ grid, runner, hunter, trail, hunterTrail, steps,
         const x0 = x - cs / 2 + 2;
         const y0 = y - cs / 2 + 2;
         if (!open) return <rect key={i} x={x0} y={y0} width={cs - 4} height={cs - 4} rx={6} className="wall" />;
-        return <rect key={i} x={x0} y={y0} width={cs - 4} height={cs - 4} rx={6} className={reachSet.has(i) ? 'cell reach' : 'cell'} />;
+        // The green square's area is the escape chance if the runner stood here.
+        const side = (cs - 12) * Math.sqrt(heat[i] ?? 0);
+        return (
+          <g key={i}>
+            <rect x={x0} y={y0} width={cs - 4} height={cs - 4} rx={6} className={reachSet.has(i) ? 'cell reach' : 'cell'} />
+            {i !== grid.exit && side > 0.5 && <rect x={x - side / 2} y={y - side / 2} width={side} height={side} rx={3} className="heat" />}
+          </g>
+        );
       })}
 
       {/* The exit: an outlined win cell. */}

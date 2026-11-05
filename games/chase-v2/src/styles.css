@@ -21,6 +21,17 @@
 .chase .cell.reach {
   fill: color-mix(in srgb, var(--lose) 30%, var(--hover));
 }
+/* A green square per cell: its area is the escape chance if the runner stood there. */
+.chase .heat {
+  fill: var(--win);
+  opacity: 0.7;
+}
+.ch-legend {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+  text-align: center;
+}
 .chase .wall {
   fill: var(--bg);
   stroke: var(--line);

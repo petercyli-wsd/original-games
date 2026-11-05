@@ -6,6 +6,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -32,7 +33,7 @@ import {
   type ReadoutItem,
   type StatusTone,
 } from '@originals/game-sdk/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Field from './Board';
 import {
   AUTO_TARGETS,
@@ -43,6 +44,7 @@ import {
   autoChance,
   autoStops,
   board,
+  heatMap,
   hunterReach,
   hunterSteps,
   nextSteps,
@@ -310,6 +312,7 @@ export default function Game() {
   const grid = board();
   const shown = round?.start ?? start;
   const state = round?.state ?? startState(shown);
+  const heat = useMemo(() => heatMap(state.hunter), [state.hunter]);
   const end = round?.outcome === 'escaped' || round?.outcome === 'caught' ? round.outcome : null;
   const p = end === 'escaped' ? 1 : end === 'caught' ? 0 : (round?.mid ?? winChance(state));
   const atCheckpoint = !isAuto && (phase === 'live' || (phase === 'idle' && !round));
@@ -425,6 +428,7 @@ export default function Game() {
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
         <Field
           grid={grid}
+          heat={heat}
           runner={drawnRunner}
           hunter={drawnHunter}
           trail={round?.trail ?? []}
@@ -437,6 +441,9 @@ export default function Game() {
           moveMs={isAuto ? autoMs : moveMs}
         />
       </Board>
+
+      <ChanceBar p={p} label="Escape chance" />
+      <p className="ch-legend">Red: squares the hunter can reach next. Bigger green square: safer.</p>
 
       {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
@@ -472,6 +479,10 @@ export default function Game() {
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
+            <p>
+              The bar under the board is your escape chance and moves after every step. Each square holds a green square whose area is the chance of escaping
+              if the runner stood there now: bigger is safer. Squares tinted red are the ones the hunter can reach next.
+            </p>
             <p>
               The arrows are the runner's possible next steps. Each is equally likely, 1 in the number of arrows. A red arrow lands in the hunter's reach (its
               square and the squares next to it, tinted red), so the hunter steps onto the runner this turn; a green arrow reaches the exit. The share of red
