@@ -34,13 +34,10 @@ export interface BoardProps {
 
 export default function Board({ window, points, spanArc, bustArc, dropping, spin, spinMs, bustPoint }: BoardProps) {
   const spanDeg = spanArc ? Math.round(spanArc.length * 360) : 0;
-  const preview: Arc = { start: -window / 720, length: window / 360 };
 
   return (
     <svg viewBox="0 0 400 400" className="moon" role="img" aria-label={`Points span ${spanDeg} of ${window} degrees`}>
       <circle cx={C} cy={C} r={R} className="track" />
-      {/* Before the first drop: show the window itself. */}
-      {points.length === 0 && <path d={arcPath(preview)} className="window-preview" />}
       {spanArc && spanArc.length > 0 && <path d={arcPath(spanArc)} className="span" />}
       {bustArc && <path d={arcPath(bustArc)} className="bust-zone" />}
 

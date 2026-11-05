@@ -5,6 +5,7 @@ import {
   ACCENTS,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -16,7 +17,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useBetInput,
   useHistory,
@@ -28,7 +28,7 @@ import {
 import { formatAmount, type Volatility } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
 import Field from './Board';
-import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fitChance, fits, span, type Target, type Window } from './math';
+import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fillChance, fitChance, fits, span, type Target, type Window } from './math';
 
 type Phase = 'idle' | 'dropping' | 'checkpoint' | 'over';
 type Outcome = 'bust' | 'cashed' | 'full';
@@ -148,7 +148,8 @@ export default function Game() {
   const { q, arc } = danger(points, w);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const fill = fitChance(t, w);
+  // Whole-bet chance: the board still fills from the points already down.
+  const fill = fillChance(points, w, t);
   const vol = volatilityOf(win, target);
 
   let status = `Ready · ${t} points in a ${w}° window`;
@@ -204,14 +205,16 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar
+        p={phase === 'over' && round?.outcome === 'bust' ? 0 : fill}
+        label={phase === 'idle' || (phase === 'over' && round?.outcome === 'bust') ? 'Chance to fill the board' : 'Chance to fill the board from here'}
+      />
+
       <Readouts
         items={[
           live
-            ? { label: 'Next drop safe', value: fmtChance(1 - q), tone: 'chance' }
-            : { label: 'Chance to fill', value: fmtChance(fill), tone: 'chance' },
-          live
             ? { label: 'If it lands safe', value: fmtMult(cash / (1 - q)), tone: 'prize' }
-            : { label: 'Full prize', value: fmtMult(RTP / fill), tone: 'prize' },
+            : { label: 'Full prize', value: fmtMult(RTP / fitChance(t, w)), tone: 'prize' },
         ]}
       />
 
