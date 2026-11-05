@@ -11,6 +11,6 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#7aa2f7',
+  accent: '#7b93ff', // ACCENTS.blue (docs/STYLE.md)
   revision: { kind: 'new', date: '2026-11-02', note: 'Balls drop onto a floor of unequal bins; back the bin that is first to stack three balls.' },
 });
