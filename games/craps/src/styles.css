@@ -229,6 +229,26 @@
   justify-content: center;
   gap: var(--sp-2);
 }
+.cr-split {
+  width: min(100%, 560px);
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.cr-split-bar {
+  display: flex;
+  height: 10px;
+  gap: 2px;
+}
+.cr-split-bar .w { background: var(--win); }
+.cr-split-bar .l { background: var(--lose); }
+.cr-split-label {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
 .cr-slot .og-instant {
   position: relative;
   top: auto;

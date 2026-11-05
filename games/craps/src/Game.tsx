@@ -58,6 +58,7 @@ import {
   ODDS_LIMITS,
   PASS_RTP,
   POINTS,
+  WAYS,
   betChance,
   betRtp,
   cents,
@@ -762,6 +763,17 @@ export default function Game() {
             onClear={clearBoard}
             placement="inline"
           />
+        ) : null}
+        {!autoMode && (phase === 'point' || phase === 'rolling') && st.point !== null ? (
+          <div className="cr-split">
+            <div className="cr-split-bar" aria-hidden="true">
+              <span className="w" style={{ flex: lineSide === 'pass' ? WAYS[st.point] : 6 }} />
+              <span className="l" style={{ flex: lineSide === 'pass' ? 6 : WAYS[st.point] }} />
+            </div>
+            <div className="cr-split-label">
+              {lineSide === 'pass' ? WAYS[st.point] : 6} ways vs {lineSide === 'pass' ? 6 : WAYS[st.point]}
+            </div>
+          </div>
         ) : null}
         <Caption>Win the Pass line on a 7 or 11, or by rolling the point again before a 7.</Caption>
       </div>
