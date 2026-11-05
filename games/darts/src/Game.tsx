@@ -253,9 +253,10 @@ export default function Game() {
                 (keys 1–4). The multiplier written beside each ring changes with it.
               </li>
               <li>
-                Press Bet (or Space). The dart flies in and lands as a dot,
-                green if you profit and red if you lose, and the ring it hit is
-                marked. The result also appears in the history.
+                Press Bet (or Space). The dart flies in and lands as a white dot.
+                Rings are green where you profit, grey where you get back part
+                of your bet and red where you lose it. The ring it hit has its
+                multiplier marked. The result also appears in the history.
               </li>
               <li>
                 The dot stays until your next throw. Clear board (or Esc)

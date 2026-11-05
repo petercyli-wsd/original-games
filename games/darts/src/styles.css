@@ -61,7 +61,7 @@
 }
 .dt-dot {
   stroke: var(--bg);
-  stroke-width: 0.8;
+  stroke-width: 1.2;
 }
 
 .dt-clear {

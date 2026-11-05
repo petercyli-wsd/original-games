@@ -12,16 +12,13 @@ function annulus(r0: number, r1: number) {
   return r0 > 0 ? `${circle(r1)} ${circle(r0)}` : circle(r1);
 }
 
-// Rings alternate two neutral fills, outermost first.
-const FILL: Record<Zone, string> = {
-  miss: 'var(--raised)',
-  double: 'var(--hover)',
-  outer: 'var(--raised)',
-  triple: 'var(--hover)',
-  inner: 'var(--raised)',
-  bull: 'var(--hover)',
-  bullseye: 'var(--raised)',
-};
+// Flat fill by outcome: pays 1x or more = win, pays something under 1x = neutral,
+// pays nothing = lose (dimmed). Area is chance, so the coloured area is the odds.
+function zoneFill(m: number): string {
+  if (m >= 1) return 'var(--win)';
+  if (m > 0) return 'var(--line-strong)';
+  return 'color-mix(in srgb, var(--lose) 60%, var(--bg))';
+}
 
 // Leader lines fan out to the right, one per ring, bullseye at the top.
 const LABEL_R = 122;
@@ -48,12 +45,13 @@ export interface DartBoardProps {
 export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBoardProps) {
   const dartRef = useRef<SVGGElement>(null);
 
-  // Fly the dot in from below the board onto the drawn point.
+  // Fly the dot in from below the board, straight up the line of the (already decided)
+  // landing point, so it visibly heads to where it lands.
   useEffect(() => {
     const el = dartRef.current;
     if (!el || !dart || !flying || typeof el.animate !== 'function') return;
     const anim = el.animate(
-      [{ transform: `translate(0px, ${BOARD_R + 24}px)` }, { transform: `translate(${dart.x}px, ${dart.y}px)` }],
+      [{ transform: `translate(${dart.x}px, ${BOARD_R + 24}px)` }, { transform: `translate(${dart.x}px, ${dart.y}px)` }],
       { duration: flightMs, easing: 'cubic-bezier(0.35, 0.05, 0.55, 1)' },
     );
     return () => anim.cancel();
@@ -66,7 +64,7 @@ export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBo
   return (
     <svg className="dt-svg" viewBox="-150 -112 300 224" role="img" aria-label={hit ? `Dart in the ${ZONE_NAMES[hit]}` : 'Dartboard'}>
       {ZONES.map((z) => (
-        <path key={z} className="dt-zone" fill={FILL[z]} d={annulus(INNER_R[z], OUTER_R[z])} fillRule="evenodd" />
+        <path key={z} className="dt-zone" fill={zoneFill(payout(difficulty, z))} d={annulus(INNER_R[z], OUTER_R[z])} fillRule="evenodd" />
       ))}
 
       {/* Ring boundaries. */}
@@ -103,7 +101,7 @@ export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBo
       {/* The dart: the accent while flying, then a dot in the outcome colour until the next throw. */}
       {dart && (
         <g key={dart.id} ref={dartRef} className="dt-dart" style={{ transform: `translate(${dart.x}px, ${dart.y}px)` }}>
-          <circle r={3} fill={flying ? 'var(--accent)' : outcomeColor} className="dt-dot" />
+          <circle r={3} fill={flying ? 'var(--accent)' : 'var(--text)'} className="dt-dot" />
         </g>
       )}
     </svg>
