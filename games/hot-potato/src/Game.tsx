@@ -7,6 +7,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,7 +21,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -285,11 +285,8 @@ export default function Game() {
     tone = 'live';
   }
 
-  // One chance and one prize (docs/STYLE.md §6); the cash-out value lives on its button.
-  const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
-    { label: 'Prize', value: fmtMult(view.prize), tone: 'prize' },
-  ];
+  // The ChanceBar carries the one chance number (docs/STYLE.md §6); the cash-out value lives on its button.
+  const readouts: ReadoutItem[] = [{ label: 'Prize', value: fmtMult(view.prize), tone: 'prize' }];
 
   return (
     <GameLayout
@@ -344,6 +341,7 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
       <Readouts items={readouts} />
+      <ChanceBar p={round ? winNow : p0} label="Win chance" />
 
       <Board className="hp-board">
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
@@ -371,6 +369,7 @@ export default function Game() {
           placement="inline"
         />
       )}
+      <p className="hp-legend">Blows on a blue seat: green, you win · anywhere else: red, you lose</p>
       <Caption>{RULE}</Caption>
 
       {infoOpen && (

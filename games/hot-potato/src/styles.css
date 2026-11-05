@@ -101,6 +101,13 @@
   fill: var(--text);
 }
 
+.hp-legend {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
 .hp-note {
   margin: 0;
   font-size: var(--fs-1);
