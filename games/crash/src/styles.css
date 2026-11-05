@@ -224,6 +224,14 @@
   color: var(--lose);
 }
 
+/* ---------- Reach bar: chance of reaching the target from the line's current point ---------- */
+.crash-reach.won .og-chance-track i {
+  background: var(--win);
+}
+.crash-reach.lost .og-chance-track i {
+  background: var(--lose);
+}
+
 @container (max-width: 760px) {
   .crash-board,
   .crash-chart {

@@ -281,6 +281,35 @@ export default function Game() {
   const liveCents = f && phase === 'live' ? k : null;
   const milestone = liveCents !== null ? (f!.target !== null && f!.target > liveCents ? f!.target : nextMilestone(liveCents)) : null;
 
+  // After a cash-out or a crash the readout shows the result, not a live-looking chance.
+  const resultItem =
+    f && phase === 'reveal' && f.cash
+      ? { label: 'Cashed out', value: fmtX(f.cash.cents / 100), tone: 'win' as const }
+      : f && phase === 'over'
+        ? f.payout > 0
+          ? { label: f.outcome === 'max' ? 'Max win' : 'Cashed out', value: fmtX(f.outcome === 'max' ? MAX_MULTIPLIER : f.cash ? f.cash.cents / 100 : 0), tone: 'win' as const }
+          : { label: 'Crashed at', value: fmtX(shownCrash(f.crash)), tone: 'lose' as const }
+        : null;
+
+  // The odds picture: chance of reaching the target (or next milestone) from the line's current point.
+  // Idle: the whole-bet chance. After the round: the bet's chance, coloured by the result.
+  let reachP: number | null = null;
+  let reachTone: 'idle' | 'live' | 'won' | 'lost' = 'idle';
+  let reachLabel = '';
+  if (liveCents !== null && milestone !== null) {
+    reachP = liveCents / milestone;
+    reachTone = 'live';
+    reachLabel = `Chance of reaching ${fmtX(milestone / 100)} from here`;
+  } else if (f && phase !== 'idle') {
+    const ref = f.target ?? f.cash?.cents ?? null;
+    reachP = ref !== null ? winChance(ref) : null;
+    reachTone = f.payout > 0 ? 'won' : phase === 'over' ? 'lost' : 'won';
+    reachLabel = 'Chance the bet wins';
+  } else {
+    reachP = targetOn ? winChance(target) : winChance(200);
+    reachLabel = targetOn ? 'Win chance' : 'Chance of reaching 2.00×';
+  }
+
   const chartState: ChartState = !f || phase === 'idle' ? 'idle' : f.phase === 'over' ? (f.outcome === 'max' ? 'max' : 'crashed') : 'live';
 
   let status = targetOn ? `Auto cash-out at ${fmtX(target / 100)}` : 'Place a bet to launch';
@@ -371,11 +400,12 @@ export default function Game() {
 
       <Readouts
         items={[
-          liveCents !== null && milestone !== null
-            ? { label: `Reach ${fmtX(milestone / 100)}`, value: fmtChance(liveCents / milestone), tone: 'chance' }
-            : targetOn
-              ? { label: 'Win chance', value: fmtChance(winChance(target)), tone: 'chance' }
-              : { label: 'Reach 2.00×', value: fmtChance(winChance(200)), tone: 'chance' },
+          resultItem ??
+            (liveCents !== null && milestone !== null
+              ? { label: `Reach ${fmtX(milestone / 100)}`, value: fmtChance(liveCents / milestone), tone: 'chance' as const }
+              : targetOn
+                ? { label: 'Win chance', value: fmtChance(winChance(target)), tone: 'chance' as const }
+                : { label: 'Reach 2.00×', value: fmtChance(winChance(200)), tone: 'chance' as const }),
           ...(shownTarget !== null ? [{ label: 'Target pays', value: formatAmount(stake * (shownTarget / 100), 2), tone: 'prize' as const }] : []),
         ]}
       />
@@ -386,6 +416,20 @@ export default function Game() {
           <BigReadout f={phase === 'idle' ? null : f} k={k} />
         </Chart>
       </Board>
+
+      <div
+        className={`og-chance crash-reach ${reachTone}`}
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-valuenow={reachP ?? 0}
+        aria-label={reachLabel}
+        style={reachP === null ? { visibility: 'hidden' } : undefined}
+      >
+        <div className="og-chance-track">
+          <i style={{ width: `${Math.min(1, Math.max(0, reachP ?? 0)) * 100}%` }} />
+        </div>
+      </div>
 
       {phase === 'over' && f && !f.auto && (
         <RoundOver
