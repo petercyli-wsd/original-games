@@ -169,6 +169,21 @@ export default function Game() {
 
   const top = topPrize(risk);
 
+  // Deck strip: every card value in the deck with a bar sized by its chance per draw.
+  const stripRisk = round?.risk ?? risk;
+  const deck = DECKS[stripRisk];
+  const maxP = Math.max(...deck.map((c) => c.p));
+  const drawn = new Set<number>();
+  if (round) for (let i = 0; i < shown; i++) drawn.add(round.cards[i]);
+
+  // Chance to profit given the cards already turned (display only, from the deck's own probabilities).
+  const profitGiven = (start: number, left: number): number => {
+    if (left === 0) return start > 1 + 1e-9 ? 1 : 0;
+    return deck.reduce((a, c) => a + c.p * profitGiven(start * c.value, left - 1), 0);
+  };
+  const liveChance =
+    revealing && round && shown > 0 ? profitGiven(running ?? 1, CARDS_PER_ROUND - Math.min(shown, CARDS_PER_ROUND)) : profitChance(risk);
+
   return (
     <GameLayout
       name="Tarot"
@@ -209,7 +224,7 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Chance to profit', value: fmtChance(profitChance(risk)), tone: 'chance' },
+          { label: 'Chance to profit', value: fmtChance(liveChance), tone: 'chance' },
           { label: 'Top prize', value: fmtMult(top), tone: 'prize' },
         ]}
       />
@@ -261,6 +276,15 @@ export default function Game() {
           </b>
         </div>
       </Board>
+
+      <div className="tr-deck" role="img" aria-label={`${RISK_NAMES[stripRisk]} deck: card multipliers, bar length is the chance per draw`}>
+        {deck.map((c, idx) => (
+          <div key={c.arcana} className={'tr-pip' + (c.value >= 1 ? ' win' : ' lose') + (drawn.has(idx) ? ' hit' : '')} title={ARCANA_NAMES[c.arcana]}>
+            <b>{faceMult(c.value)}</b>
+            <i className="tr-pip-bar" style={{ width: `${Math.max(4, (c.p / maxP) * 100)}%` }} />
+          </div>
+        ))}
+      </div>
 
       <Caption>Win when the three card multipliers multiply to more than 1×.</Caption>
 

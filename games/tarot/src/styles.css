@@ -188,6 +188,53 @@
   color: var(--lose);
 }
 
+/* ---------- Deck strip ---------- */
+.tr-deck {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-2);
+}
+.tr-pip {
+  flex: 1 1 56px;
+  max-width: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-1) var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-variant-numeric: tabular-nums;
+}
+.tr-pip b {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--muted);
+}
+.tr-pip.win b {
+  color: var(--win);
+}
+.tr-pip.lose b {
+  color: var(--lose);
+}
+.tr-pip-bar {
+  display: block;
+  height: 4px;
+  align-self: flex-start;
+  border-radius: 2px;
+  background: var(--muted);
+}
+.tr-pip.win .tr-pip-bar {
+  background: var(--win);
+}
+.tr-pip.lose .tr-pip-bar {
+  background: var(--lose);
+}
+.tr-pip.hit {
+  border-color: var(--text);
+}
+
 /* ---------- Info table ---------- */
 .tr-info-table {
   width: 100%;
