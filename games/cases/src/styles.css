@@ -101,6 +101,34 @@
 .cs-marker.top { top: 0; border-top-color: var(--accent); border-bottom: 0; }
 .cs-marker.bottom { bottom: 0; border-bottom-color: var(--accent); border-top: 0; }
 
+/* The odds bar: every item's share of the case. Grey loses, green wins, accent is the top prize. */
+.cs-oddsbar {
+  display: flex;
+  gap: 2px;
+  height: 28px;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cs-oddsbar i {
+  flex-basis: 0;
+  min-width: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-style: normal;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--bg);
+}
+.cs-oddsbar i.lose { background: var(--line-strong); }
+.cs-oddsbar i.win { background: var(--win); }
+.cs-oddsbar i.top { background: var(--accent); }
+/* The landed item stays marked until the next bet. */
+.cs-oddsbar i.hit { outline: 2px solid var(--text); outline-offset: -2px; }
+
 /* The case contents, listed in How to play. */
 .cs-list {
   display: grid;

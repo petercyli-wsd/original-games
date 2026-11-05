@@ -180,7 +180,9 @@ export default function Game() {
   }, [last, difficulty, count]);
   const phase = last ? (opening ? 'spinning' : 'done') : 'preview';
 
-  const top = topItem(difficulty);
+  // The odds bar marks the landed item(s) after the spin, until the next bet or a setting change.
+  const hitSet = new Set(last && !opening ? last.openings.map((o) => o.index) : []);
+  const top = topItem(shownD);
   const pProfit = profitChance(difficulty, count);
   const vol = volatilityOf(difficulty, count);
 
@@ -286,6 +288,18 @@ export default function Game() {
         </div>
         <Caption>Only the item that stops under the marker pays.</Caption>
       </Board>
+
+      <div className="cs-oddsbar" role="img" aria-label="Item chances as shares of the bar: grey loses, green wins, pink is the top prize">
+        {items.map((it, i) => {
+          const share = it.weight / WEIGHT_TOTAL;
+          const cls = it.mult < 1 ? 'lose' : it.mult === top.mult ? 'top' : 'win';
+          return (
+            <i key={i} className={`${cls}${hitSet.has(i) ? ' hit' : ''}`} style={{ flexGrow: it.weight }} title={multLabel(it.mult)}>
+              {it.mult >= 1 && share >= 0.09 ? multLabel(it.mult) : ''}
+            </i>
+          );
+        })}
+      </div>
 
       {infoOpen && (
         <InfoModal title="Cases" onClose={() => setInfoOpen(false)}>
