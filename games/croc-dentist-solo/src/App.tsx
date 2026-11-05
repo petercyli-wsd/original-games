@@ -1,6 +1,5 @@
 import { type BetTicket } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
-import { DEFAULT_CONFIG, colorVars } from '@originals/crocodile-dentist/config';
 import Croc from '@originals/crocodile-dentist/croc';
 import Tip from '@originals/crocodile-dentist/tip';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
@@ -10,7 +9,6 @@ import { BAD_TEETH_OPTIONS, RTP, TEETH_OPTIONS } from './manifest';
 import { buildLadder, fmtAmt, fmtMult, fmtPct, pickTraps } from './math';
 
 const SEEN_INFO_KEY = 'croc-solo.seenInfo';
-const VARS = colorVars(DEFAULT_CONFIG.colors);
 
 function firstVisit() {
   try {
@@ -130,7 +128,7 @@ export default function App() {
   if (playing) mainLabel = canCash && round ? `Cash Out · ${fmtAmt(round.bet * cash)}` : 'Pick a tooth…';
 
   return (
-    <div className="croc-root" style={VARS}>
+    <div className="croc-root">
       <main className="shell">
         <aside className="panel">
           <div className="field-label">
@@ -216,10 +214,6 @@ export default function App() {
               playable={playing}
               onPress={(i) => dispatch({ type: 'press', i })}
               houseTarget={null}
-              fx={state.fx}
-              danger={playing ? shownK / remaining : 0}
-              focused={false}
-              open={playing}
             />
             {phase === 'over' && round && shown && last && (
               <div className={'result ' + (last.win ? 'w' : 'l')} key={state.history.length}>
