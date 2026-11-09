@@ -30,7 +30,7 @@ What this loop can and can't tell: the AI gate is a good filter (games the team 
   | Rules card, blind player, designer | `opus` | The evaluator is calibrated on this model. Don't change it without an A/B |
 
 - **At most 4 subagents at once.**
-- **Follow `docs/STYLE.md` if it exists.** The restyle writes it; every build and repair must follow it.
+- **Follow `docs/STYLE.md`.** Every build and repair must follow it. Until it reaches `main`, read it with `git show origin/restyle:docs/STYLE.md`, and give it to each build subagent. Keep §6: the whole-bet chance picture stays.
 
 ## 1. Start the cycle
 
