@@ -7,6 +7,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -547,9 +548,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar p={odds.pays} label={oddsLabel} />
+
       <Readouts
         items={[
-          { label: oddsLabel, value: fmtChance(odds.pays), tone: 'chance' },
           { label: winLabel, value: fmtMoney(winValue), tone: winValue > 0 ? 'win' : 'neutral' },
         ]}
       />

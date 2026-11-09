@@ -105,8 +105,8 @@ function Markers({
 export function Reels({ cols, stripRefs, lit, spinning, anticip, shownLines, lineCounts, activeLines, hoverLine, onHoverLine, onPinLine }: ReelsProps) {
   const shown = new Set(shownLines);
   const picked = hoverLine !== null && !shown.has(hoverLine);
-  // Only the hovered or pinned line is drawn: solid green if it won, else dashed in the accent.
-  const drawn = hoverLine !== null ? [hoverLine] : [];
+  // Every winning line is drawn solid green (as far as it pays); a hovered or pinned line that didn't win is dashed in the accent.
+  const drawn = picked ? [...shownLines, hoverLine] : shownLines;
   return (
     <div className="rl-machine">
       <Markers side={0} activeLines={activeLines} hoverLine={hoverLine} onHoverLine={onHoverLine} onPinLine={onPinLine} shown={shown} />
