@@ -6,6 +6,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   ACCENTS,
   Chips,
   GameLayout,
@@ -293,11 +294,6 @@ export default function Game() {
   }
 
   const readouts: ReadoutItem[] = [
-    {
-      label: 'Win chance',
-      value: fmtChance(round ? winNow : p0),
-      tone: 'chance',
-    },
     { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
   ];
 
@@ -360,6 +356,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      <ChanceBar p={round ? winNow : p0} label="Win chance" />
       <Readouts items={readouts} />
 
       <Board>
