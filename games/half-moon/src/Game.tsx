@@ -218,9 +218,12 @@ export default function Game() {
 
       <Readouts
         items={[
+          // A drop with no red arc can't bust, so it can't raise the cash-out either: say so, or the
+          // value looks stuck. The full prize depends on the path (it grows only on risky drops), so
+          // the idle figure is the average over full boards, as the pre-restyle label said.
           live
-            ? { label: 'If it lands safe', value: fmtMult(cash / (1 - q)), tone: 'prize' }
-            : { label: 'Full prize', value: fmtMult(RTP / fitChance(t, w)), tone: 'prize' },
+            ? { label: q === 0 ? 'Next drop is risk-free' : 'If it lands safe', value: fmtMult(cash / (1 - q)), tone: 'prize' }
+            : { label: 'Typical full prize', value: fmtMult(RTP / fitChance(t, w)), tone: 'prize' },
         ]}
       />
 
