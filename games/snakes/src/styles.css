@@ -116,21 +116,6 @@
   fill: var(--muted);
 }
 
-/* The odds picture: dots count the 36ths that land on a square. */
-.snk .ways circle {
-  fill: var(--hover);
-}
-.snk .ways circle.on {
-  fill: var(--muted);
-}
-.snk .sq.snake .ways circle {
-  fill: var(--bg);
-  opacity: 0.35;
-}
-.snk .sq.snake .ways circle.on {
-  fill: var(--bg);
-  opacity: 1;
-}
 
 /* The landing square stays outlined until the next round. */
 .snk .mark {

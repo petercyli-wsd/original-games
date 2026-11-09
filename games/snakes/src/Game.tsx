@@ -365,7 +365,7 @@ export default function Game() {
       <StageTop status={status} tone={tone} history={history} />
 
       {/* The cause of the chance (snakes on the ring) and the dots' unit, each under the blind evaluator's 9-token cut-off. */}
-      <ChanceBar p={bitten ? 0 : 1 - q} label={`Next roll safe · ${Math.round(q * 12)} snakes of 12`} note="Dots: ways the next roll lands there" />
+      <ChanceBar p={bitten ? 0 : 1 - q} label={`Next roll safe · ${Math.round(q * 12)} snakes of 12`} />
 
       <Readouts items={[{ label: 'Value if best square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
 
@@ -375,8 +375,6 @@ export default function Game() {
           <SnakeBoard
             d={d}
             token={token}
-            from={round?.pos ?? 0}
-            showOdds={phase !== 'over'}
             mode={mode}
             hopMs={hopMs}
             dice={dice}

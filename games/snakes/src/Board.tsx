@@ -1,4 +1,4 @@
-import { CELL, SQUARES, factorAt, landingWays, type Difficulty } from './math';
+import { CELL, SQUARES, factorAt, type Difficulty } from './math';
 
 // A 4×4 frame of 12 squares round a centre panel holding the dice and the value.
 const CS = 90; // cell size
@@ -37,9 +37,6 @@ export interface BoardProps {
   d: Difficulty;
   /** Where the token is drawn (moves square by square while rolling). */
   token: number;
-  /** The square the landing odds are measured from (where the next roll starts). */
-  from: number;
-  showOdds: boolean;
   mode: BoardMode;
   hopMs: number;
   dice: [number, number];
@@ -52,7 +49,7 @@ export interface BoardProps {
 
 const fmtFactor = (f: number) => f.toFixed(2) + '×';
 
-export default function Board({ d, token, from, showOdds, mode, hopMs, dice, landed, value, valueLabel, footer }: BoardProps) {
+export default function Board({ d, token, mode, hopMs, dice, landed, value, valueLabel, footer }: BoardProps) {
   const t = at(token);
   const centre = M + CS + GAP;
   const centreSize = 2 * CS + GAP;
@@ -63,7 +60,6 @@ export default function Board({ d, token, from, showOdds, mode, hopMs, dice, lan
         const { x, y } = at(j);
         const f = factorAt(d, j);
         const tone = f === 0 ? 'snake' : f >= 1 ? 'up' : 'down';
-        const w = landingWays(from, j);
         const isLanded = landed?.square === j;
         return (
           <g key={j} className={`sq ${tone}` + (isLanded ? ' landed' : '')}>
@@ -76,13 +72,8 @@ export default function Board({ d, token, from, showOdds, mode, hopMs, dice, lan
             <text x={x + CS / 2} y={y + CS / 2 + 14} className="factor">
               {f === 0 ? 'Snake' : fmtFactor(f)}
             </text>
-            {showOdds && (
-              <g className="ways" aria-label={`${w} of 36 rolls land here`}>
-                {Array.from({ length: 6 }, (_, i) => (
-                  <circle key={i} cx={x + CS / 2 - 22.5 + i * 9} cy={y + CS - 13} r={2.8} className={i < w ? 'on' : ''} />
-                ))}
-              </g>
-            )}
+            {/* No per-square landing dots: every opposite pair is hit exactly 1 in 6 from any square, so the dots
+                changed with position while carrying no risk information (the re-review read them as dead structure). */}
             {isLanded && <rect x={x} y={y} width={CS} height={CS} rx={8} className="mark" />}
           </g>
         );
