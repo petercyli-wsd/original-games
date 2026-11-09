@@ -8,7 +8,8 @@ const W = COLS * P;
 const GRID_H = ROWS * P;
 const STRIP_Y = GRID_H + 12;
 const FACE_H = 34;
-const H = STRIP_Y + FACE_H + 2;
+const KEY_Y = STRIP_Y + FACE_H + 18;
+const H = KEY_Y + 4;
 
 /** Top-left corner of square n on the serpentine (rows alternate direction). */
 function corner(n: number) {
@@ -133,6 +134,13 @@ export default function Board({ die, gates, next, pos, tokenAt, hopMs, profile, 
           </g>
         ))}
       </g>
+
+      {/* The picture's unit (docs/STYLE.md §6): what the grey bars in the squares mean. */}
+      {profile && (
+        <text x={W / 2} y={KEY_Y} className="key">
+          Bar height = chance the token lands there
+        </text>
+      )}
     </svg>
   );
 }
