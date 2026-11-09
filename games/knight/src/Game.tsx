@@ -234,7 +234,8 @@ export default function Game() {
 
   let status = `${HOPS} random hops · finish on green`;
   if (phase === 'moving') status = `${running ? 'Running · ' : ''}Hop ${taken + 1} of ${HOPS}`;
-  if (phase === 'checkpoint') status = `Cash out or hop on · ${left} left`;
+  // Players took a mid-round landing on green for a win; say that only the last square counts.
+  if (phase === 'checkpoint') status = `${left} hops left · last square counts`;
   if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${HOPS} hops`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
@@ -305,7 +306,7 @@ export default function Game() {
       <StageTop status={status} tone={tone} history={history} />
 
       {/* The whole-bet picture carries the one chance number (docs/STYLE.md §6). */}
-      <ChanceBar p={barP} label="Chance to end on green" note="Green dots on the board add up to this." />
+      <ChanceBar p={barP} label="Chance to end on green" note="Green dots add up to this" />
 
       <Readouts items={[{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }]} />
 

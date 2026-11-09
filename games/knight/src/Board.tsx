@@ -155,7 +155,7 @@ export default function Board({ target, path, move, moveMs, dist, next, now, out
       </text>
       {hops.length > 0 && (
         <text x={X0 + 4 * S} y={Y0 + 8 * S + 46} className="key">
-          Dashed = next hop · green raises your chance
+          Dashed: next hop, green raises chance
         </text>
       )}
 
