@@ -364,9 +364,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <ChanceBar p={bitten ? 0 : 1 - q} label="Next roll safe" />
+      {/* The cause of the chance (snakes on the ring) and the dots' unit, each under the blind evaluator's 9-token cut-off. */}
+      <ChanceBar p={bitten ? 0 : 1 - q} label={`Next roll safe · ${Math.round(q * 12)} snakes of 12`} note="Dots: ways the next roll lands there" />
 
-      <Readouts items={[{ label: 'Best next square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
+      <Readouts items={[{ label: 'Value if best square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
 
       <Board className={'snk-board' + (auto.mode === 'auto' ? ' auto' : '')}>
         {auto.mode === 'auto' && lastAuto && <InstantResult multiplier={lastAuto.multiplier} stake={lastAuto.stake} id={lastAuto.id} />}
