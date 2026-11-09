@@ -7,6 +7,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,7 +21,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -372,10 +372,8 @@ export default function Game() {
   }
 
   // One chance and one prize (docs/STYLE.md §6); the cash-out lives on its button.
-  const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
-    { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
-  ];
+  // The chance's number is the ChanceBar's (whole bet), so the readout holds only the prize.
+  const readouts: ReadoutItem[] = [{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }];
 
   const overTitle =
     round?.outcome === 'cashed'
@@ -455,6 +453,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      <ChanceBar p={round ? winNow : p0} label={round ? 'Win chance from here' : 'Win chance'} />
       <Readouts items={readouts} />
 
       <Board className="mj-board">

@@ -128,7 +128,7 @@
 
 /* ---------- Paths to victory ---------- */
 .mj-svg .pbar {
-  fill: var(--faint);
+  fill: var(--lose);
   transform-box: fill-box;
   transform-origin: 50% 100%;
 }
