@@ -5,6 +5,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -16,7 +17,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useBetInput,
   useHistory,
@@ -270,26 +270,21 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar
+        p={!started ? pickWin : phase === 'over' && round?.outcome === 'bust' ? 0 : dealWinChance(deal)}
+        label={!started || (phase === 'over' && round?.outcome === 'bust') ? 'Chance to match all' : 'Chance to match all from here'}
+      />
+
       <Readouts
-        items={
+        items={[
           started
-            ? [
-                {
-                  label: 'Next draw safe',
-                  value: live ? fmtChance(1 - q) : '—',
-                  tone: 'chance',
-                },
-                {
-                  label: live && q === 0 ? 'After this draw' : 'If it is a twin',
-                  value: live ? fmtMult(afterSafeDraw(cash, q)) : '—',
-                  tone: 'prize',
-                },
-              ]
-            : [
-                { label: 'Chance to match all', value: fmtChance(pickWin), tone: 'chance' },
-                { label: 'Typical full prize', value: fmtMult(RTP / pickWin), tone: 'prize' },
-              ]
-        }
+            ? {
+                label: live && q === 0 ? 'After this draw' : 'If it is a twin',
+                value: live ? fmtMult(afterSafeDraw(cash, q)) : '—',
+                tone: 'prize',
+              }
+            : { label: 'Typical full prize', value: fmtMult(RTP / pickWin), tone: 'prize' },
+        ]}
       />
 
       <Board className="socks-board">
