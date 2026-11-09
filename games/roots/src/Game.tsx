@@ -150,11 +150,14 @@ export default function Game() {
 
   async function start() {
     if (live || bet.blocked) return;
-    // a is drawn first; the bet then opens already worth its post-reveal value.
+    if (!(await ticket.place(bet.value))) return;
+    // a is drawn only once the bet is accepted, and the ticket is worth its
+    // post-reveal value at once. (Drawing a and writing the ref before place()
+    // let a second Bet press, refused while the first was placing, overwrite
+    // the open ticket's value with a different, unseen a.)
     const k: Coeffs = { a: draw(rng.next(), 1), c: null, b: null };
     const cash = cashOut(side, k, range);
     fair.current = cash;
-    if (!(await ticket.place(bet.value))) return;
     timers.clearAll();
     const r: Round = { side, range, stake: bet.value, k, cash, outcome: null, early: false };
     setRound(r);

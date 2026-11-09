@@ -87,16 +87,25 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const moveKey = useRef(0);
 
-  // A step's result is decided the moment it starts, so leaving mid-animation
-  // settles at its real result, never at the pre-step value.
+  // The value of the live ticket, kept in a ref and updated synchronously:
+  // RTP once the bet is placed, then each step's result the moment it is
+  // decided (before it animates). Leaving settles at this, never at render
+  // state, which lags a render behind (right after Bet it still holds the
+  // last round's board, worth the full prize if that round won; right after
+  // a step, the pre-step cash-out).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'opening' ? resolved.current : round ? cashValue(round.board) : 0));
+  // Set synchronously while a step resolves, so a second press (or a cash
+  // out) in the same tick can't act on the stale checkpoint.
+  const stepping = useRef(false);
+  const ticket = useTicket(() => resolved.current);
 
   const live = phase === 'opening' || phase === 'checkpoint';
   const speed = turbo.turbo ? 0.25 : 1;
   const limitNow = limitFor(n, share);
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    stepping.current = false;
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -108,6 +117,7 @@ export default function Game() {
     const b = r.board;
     if (b.status === 'bust') return finish(r, 'bust', 0);
     if (b.status === 'won') return finish(r, 'won', cashValue(b));
+    stepping.current = false;
     setRound(r);
     setPhase('checkpoint');
     track({ type: 'checkpoint', multiplier: cashValue(b), winChance: winChance(b) });
@@ -135,7 +145,8 @@ export default function Game() {
   }
 
   function advance(r: Round, mode: Mode) {
-    if (r.board.status !== 'live') return;
+    if (r.board.status !== 'live' || stepping.current) return;
+    stepping.current = true;
     const pick = (b: State) => pickFor(b, r.perm);
     const seq = mode === 'box' ? [open(r.board, pick(r.board))] : follow(r.board, pick);
     resolved.current = cashValue(seq[seq.length - 1]);
@@ -144,8 +155,9 @@ export default function Game() {
   }
 
   async function start() {
-    if (live || bet.blocked) return;
+    if (live || bet.blocked || stepping.current) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const perm = rng.shuffle([...Array(n).keys()]);
     const r: Round = { n, limit: limitNow, stake: bet.value, perm, board: newBoard(n, limitNow), cash: RTP, outcome: null };
@@ -155,12 +167,12 @@ export default function Game() {
   }
 
   function step(mode: Mode) {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'checkpoint' || !round || stepping.current) return;
     advance(round, mode);
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'checkpoint' || !round || stepping.current) return;
     finish(round, 'cashed', cashValue(round.board));
   }
 

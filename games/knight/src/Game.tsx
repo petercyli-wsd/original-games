@@ -107,8 +107,13 @@ export default function Game() {
 
   // The hops in flight are all decided when the button is pressed, so leaving
   // mid-jump (or mid-run) settles at their real result, never at the pre-hop value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, hops drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's payout just after Bet again, if the game unmounts before the next
+  // render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'moving' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const moveMs = eventMs(turbo.turbo);
   const gapMs = turbo.turbo ? 60 : 220;
@@ -165,6 +170,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { target: chosen, stake: bet.value, prize: prizeFor(chosen), path: [START], cash: RTP, outcome: null };
     setRound(r);

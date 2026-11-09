@@ -127,8 +127,14 @@ export default function Game() {
 
   // A kick is decided the moment it is taken, so leaving mid-flight settles
   // at its real result, never at the pre-kick value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, kick taken, auto round drawn); a switch keeps the
+  // cash-out, so it never changes it. The ticket reads only this ref: a value
+  // derived from rendered state can be one render stale (the pre-kick cash-out
+  // just after Next kick, or the last round's state just after Bet again) if
+  // the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'kicking' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   // Manual: the ball flies for about 600 ms (0.7 of the kick); Turbo about 150 ms (docs/STYLE.md).
   const kickMs = eventMs(turbo.turbo, 860);
@@ -174,6 +180,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setAutoView(null);
     setLast(null);

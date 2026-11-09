@@ -82,9 +82,14 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
 
   // An action's joins are drawn the moment it starts, so leaving mid-animation
-  // settles at the real result, never at the pre-join value.
+  // settles at the real result, never at the pre-join value. `resolved` is the
+  // open ticket's value right now, set synchronously at every transition (stake
+  // placed, joins drawn). The ticket reads only this ref: a value derived from
+  // rendered state can be one render stale (the last round's result just after
+  // Bet again, or the pre-join cash-out just after Next block) if the game
+  // unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'joining' ? resolved.current : round && round.status === 'live' ? cashValue(round) : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const joinMs = eventMs(turbo.turbo);
   const live = phase === 'joining' || phase === 'checkpoint';
@@ -121,6 +126,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r = newRound(backed);
     setStake(bet.value);

@@ -89,8 +89,10 @@ export default function Game() {
 
   // A test (or the reveal) is decided the moment it starts, so leaving
   // mid-animation settles at its real result, never at the pre-test value.
+  // The ticket reads only this ref (never render state, which lags a render
+  // behind): RTP right after the bet, then the post-result value of each step.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'testing' || phase === 'revealing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const testMs = turbo.turbo ? 260 : 1000;
   const revealMs = turbo.turbo ? 200 : 700;
@@ -135,6 +137,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const s: Settings = { range, bet: betOn, tests };
     const r: Round = { s, stake: bet.value, n: drawN(range, rng), prize: prize(s), results: [], cash: RTP, outcome: null };

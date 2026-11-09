@@ -112,8 +112,13 @@ export default function Game() {
 
   // The reveal in flight is decided the moment it starts, so leaving mid-spin
   // settles at its real result, never at the pre-reveal value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (RTP when the stake is placed, the post-reveal value the moment
+  // a digit is drawn). The ticket reads only this ref: a value derived from
+  // rendered state can be one render stale (e.g. the last round's prize just
+  // after Bet again) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'revealing' ? resolved.current : (round?.cash ?? 0)));
+  const ticket = useTicket(() => resolved.current);
 
   // One reveal is a roll then a focus: about eventMs in total.
   const rollMs = eventMs(turbo.turbo, 400);
@@ -159,6 +164,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const n = lowest(digits) + rng.int(rangeSize(digits));
     const r: Round = { bet: backing, digits, stake: bet.value, n, shown: allHidden(digits), cash: RTP, outcome: null, last: null };

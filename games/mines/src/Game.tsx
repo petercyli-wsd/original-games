@@ -99,8 +99,13 @@ export default function Game() {
 
   // A reveal is decided the moment the tile is clicked (the mines were placed
   // at bet time), so leaving mid-flip settles at its real result.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, tile clicked, auto bet drawn). The ticket reads
+  // only this ref: a value derived from rendered state can be one render stale
+  // (e.g. the pre-reveal cash-out just after a click, or the last round's state
+  // just after Bet again) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'revealing' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const flipMs = eventMs(turbo.turbo);
   const autoStepMs = turbo.turbo ? 30 : 95;
@@ -120,6 +125,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setAutoView(null);
     setLast(null);

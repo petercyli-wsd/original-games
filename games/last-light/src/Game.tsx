@@ -124,18 +124,22 @@ export default function Game() {
   const [roundKey, setRoundKey] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // Each walk is decided the moment it starts, so leaving mid-walk settles at
-  // its real result, never at the value before it.
+  // The value of the live ticket, kept in a ref and updated synchronously:
+  // RTP once the bet is placed, then each walk's result the moment it is drawn
+  // (before it animates). Leaving settles at this, never at render state,
+  // which lags a render behind (right after Bet it still holds the last
+  // round's payout; right after Walk on, the pre-walk cash-out).
   const resolved = useRef(0);
   // Set synchronously while a walk animates, so a double press can't act twice.
   const stepping = useRef(false);
-  const ticket = useTicket(() => (phase === 'walking' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const live = phase === 'walking' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
     stepping.current = false;
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -186,6 +190,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || stepping.current) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     frames.stop();
     const r: Round = { n, picks: [...picks], stake: bet.value, walk: startWalk(n), cash: RTP, outcome: null };
     setRoundKey((k) => k + 1);

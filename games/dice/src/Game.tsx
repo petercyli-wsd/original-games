@@ -50,8 +50,12 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
+  // The open ticket's value, set synchronously the moment the roll is drawn
+  // (right after the bet is accepted). The ticket reads only this ref: the
+  // rendered `rolling` flag can be one render stale, which settled a winning
+  // roll at 0 if the game unmounted before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (rolling ? resolved.current : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const target = targetFor(chance, dir);
   const multiplier = multiplierFor(chance);

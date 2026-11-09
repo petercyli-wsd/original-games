@@ -4,7 +4,7 @@ import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import Field from './components/Field';
 import InfoModal from './components/InfoModal';
 import { fmtAmt, fmtChance, fmtMult, fmtMultShort } from './format';
-import { initialState, position, reducer, type Outcome } from './round';
+import { initialState, position, reducer, type Action, type GameState, type Outcome } from './round';
 import {
   BURSTS,
   RTP,
@@ -35,9 +35,20 @@ export default function Game() {
   const { wallet, rng, track } = useHost();
   const balance = useBalance();
   const host = useSettings();
-  const [state, dispatch] = useReducer(reducer, undefined, initialState);
+  const [state, dispatchState] = useReducer(reducer, undefined, initialState);
+  // A synchronous mirror of the reducer state: every dispatch applies the same
+  // pure reducer here at once. Leaving the game settles from this mirror, never
+  // from the last render, which can be stale (just after Bet again it still
+  // held the previous round, so a new stake could be settled at the old
+  // round's result).
+  const latest = useRef<GameState>(state);
+  const dispatch = useCallback((a: Action) => {
+    latest.current = reducer(latest.current, a);
+    dispatchState(a);
+  }, []);
   const ticket = useRef<BetTicket | null>(null);
   const placing = useRef(false);
+  const mounted = useRef(true);
 
   const [betText, setBetText] = useState('1.00');
   const [W, setW] = useState<Track>(20);
@@ -77,21 +88,24 @@ export default function Game() {
   }, [phase, round?.checkpoints.length]);
 
   // Leaving mid-round cashes out at the current value, which is fair at any step.
-  const latest = useRef(state);
-  latest.current = state;
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       const r = latest.current.round;
       if (ticket.current && r) void ticket.current.settle(cashMultiplier(position(r), r.x0));
-    },
-    [],
-  );
+      ticket.current = null;
+    };
+  }, []);
 
   const start = useCallback(async () => {
     if (placing.current || ticket.current || betInvalid) return;
     placing.current = true;
     try {
-      ticket.current = await wallet.placeBet(bet);
+      const accepted = await wallet.placeBet(bet);
+      // Left while the bet was being placed: no round started, return the stake.
+      if (!mounted.current) return void accepted.settle(1);
+      ticket.current = accepted;
       dispatch({ type: 'start', bet, W, x0, burst, rules: { takeProfit, stopLoss } });
     } catch {
       /* rejected (e.g. insufficient funds): the button is already disabled for that */

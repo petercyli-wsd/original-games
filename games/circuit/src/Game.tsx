@@ -5,10 +5,13 @@ import Board, { TopologyGlyph } from './Board';
 import { initialState, reducer, type GameState } from './round';
 import {
   Q,
+  RTP,
   TOPOLOGIES,
   TOPOLOGY_IDS,
   analysis,
   cashMultiplier,
+  isLost,
+  isWon,
   nextWire,
   prize,
   reliability,
@@ -57,6 +60,7 @@ export default function Game() {
   // Settle the bet when a round ends.
   useEffect(() => {
     if (phase !== 'over' || !ticket.current || !round) return;
+    resolved.current = round.mult;
     void ticket.current.settle(round.mult);
     ticket.current = null;
     setAuto(false);
@@ -70,33 +74,54 @@ export default function Game() {
     }
   }, [phase, round?.trail.length]);
 
-  // Leaving mid-round cashes out at the current value (fair: it is the expectation).
-  const latest = useRef(state);
-  latest.current = state;
-  useEffect(
-    () => () => {
+  // `resolved` is the open bet's value right now, and leaving the game settles
+  // at it. It is set synchronously at every transition: RTP as soon as the bet
+  // is placed, the post-result value the moment a wire's fate is drawn (before
+  // its probe animation), and the settled value when the round ends. It is
+  // never derived from rendered state, which can be one render stale (just
+  // after Bet again it still held the previous round, worth its full prize if
+  // that round was won), and mid-probe it already reflects the drawn wire.
+  const resolved = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       clearTimeout(timer.current);
-      const rd = latest.current.round;
-      if (ticket.current && rd) void ticket.current.settle(cashMultiplier(TOPOLOGIES[rd.topo], currentR(latest.current)));
-    },
-    [],
-  );
+      const open = ticket.current;
+      ticket.current = null;
+      if (open) void open.settle(resolved.current);
+    };
+  }, []);
 
   // Draw the wire's fate now; show it once the probe animation finishes.
-  const scheduleResolve = useCallback(() => {
-    const holds = rng.next() < Q;
-    timer.current = setTimeout(() => dispatch({ type: 'resolve', holds }), probeMs);
-  }, [rng, probeMs]);
+  const scheduleResolve = useCallback(
+    (topo: TopologyId, live: number, dead: number, wire: number) => {
+      const holds = rng.next() < Q;
+      const t = TOPOLOGIES[topo];
+      const bit = 1 << wire;
+      const l = holds ? live | bit : live;
+      const d = holds ? dead : dead | bit;
+      resolved.current = isWon(t, l) ? prize(t) : isLost(t, d) ? 0 : cashMultiplier(t, analysis(t, l, d).r);
+      timer.current = setTimeout(() => dispatch({ type: 'resolve', holds }), probeMs);
+    },
+    [rng, probeMs],
+  );
 
   const startBet = useCallback(async () => {
     if (placing.current || ticket.current) return;
     placing.current = true;
     try {
-      ticket.current = await wallet.placeBet(bet);
+      const accepted = await wallet.placeBet(bet);
+      // Left while the bet was being placed: no round started, return the stake.
+      if (!mounted.current) return void accepted.settle(1);
+      ticket.current = accepted;
+      resolved.current = RTP;
       const topo = TOPOLOGIES[topoId];
       const order = rng.shuffle(topo.edges.map((_, e) => e));
-      dispatch({ type: 'start', topo: topoId, bet, order, first: nextWire(topo, 0, 0, order)! });
-      scheduleResolve();
+      const first = nextWire(topo, 0, 0, order)!;
+      dispatch({ type: 'start', topo: topoId, bet, order, first });
+      scheduleResolve(topoId, 0, 0, first);
     } catch {
       /* rejected (e.g. insufficient funds): the button is already disabled for that */
     } finally {
@@ -105,15 +130,18 @@ export default function Game() {
   }, [wallet, rng, bet, topoId, scheduleResolve]);
 
   const reveal = useCallback(() => {
-    if (phase !== 'checkpoint' || next === null) return;
+    if (phase !== 'checkpoint' || next === null || !round) return;
     dispatch({ type: 'probe', wire: next });
-    scheduleResolve();
-  }, [phase, next, scheduleResolve]);
+    scheduleResolve(round.topo, round.live, round.dead, next);
+  }, [phase, next, round, scheduleResolve]);
 
   const cashOut = useCallback(() => {
+    if (phase !== 'checkpoint' || !round) return;
+    const t = TOPOLOGIES[round.topo];
+    resolved.current = cashMultiplier(t, analysis(t, round.live, round.dead).r);
     setAuto(false);
     dispatch({ type: 'cashOut' });
-  }, []);
+  }, [phase, round]);
 
   // Auto: keep testing wires until the round is decided.
   useEffect(() => {

@@ -115,10 +115,15 @@ export default function Game() {
     setSpinState(v);
   };
 
-  // The factor in flight is decided the moment it starts, so leaving mid-spin
-  // settles at its real result, never at the pre-spin value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // change: RTP right after the bet is placed, and the post-factor value the
+  // moment a factor is drawn (so leaving mid-spin settles at its real result).
+  // The ticket reads only this ref, never render state: a stale render
+  // (leaving right after Bet, before React re-renders) would otherwise settle
+  // the new stake at the previous round's payout, or right after Spin at the
+  // pre-spin value.
   const resolved = useRef<number>(RTP);
-  const ticket = useTicket(() => (phase === 'spinning' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const t = turbo.turbo;
   const spinFor = (f: number) => Math.round((t ? 70 : 280) + (t ? 150 : 620) * turnFor(f));
@@ -160,6 +165,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || settingsBlock) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       digits,
@@ -171,7 +177,6 @@ export default function Game() {
       cash: RTP,
       outcome: null,
     };
-    resolved.current = RTP;
     setRound(r);
     setMove(null);
     setPhase('spinning');

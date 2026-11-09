@@ -27,7 +27,7 @@ import {
 import { formatAmount } from '@originals/game-sdk';
 import { useEffect, useRef, useState } from 'react';
 import Field, { type Outcome, type Reveal } from './Board';
-import { DECKS, RTP, afterTurn, cashOut, dealsRed, deckByKey, deckKey, prizeFor, settled, share, volatilityOf, type Deck } from './math';
+import { DECKS, RTP, afterTurn, dealsRed, deckByKey, deckKey, prizeFor, settled, share, valueAfterTurn, volatilityOf, type Deck } from './math';
 
 type Phase = 'idle' | 'turning' | 'calling' | 'checkpoint' | 'over';
 
@@ -68,10 +68,14 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const flips = useRef(0);
 
-  // A card's colour is decided the moment it starts to flip, so leaving
-  // mid-animation settles at its real result, never at the pre-flip value.
+  // `resolved` is the open ticket's value right now. It is set synchronously at
+  // every transition: RTP as soon as the bet is placed, the post-result value
+  // the moment a card starts to flip (its colour is already decided), and the
+  // settled value when the round ends. Leaving the game settles at it. It is
+  // never derived from rendered state, which can be one render stale (just
+  // after Bet again it still held the previous round's result).
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'turning' || phase === 'calling' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const flipMs = Math.round(420 * speed);
@@ -80,6 +84,7 @@ export default function Game() {
   const busy = phase === 'turning' || phase === 'calling';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -91,7 +96,7 @@ export default function Game() {
     const isRed = dealsRed(r.red, r.black, rng.next());
     const d = afterTurn(r.red, r.black, isRed);
     const done = settled(d.red, d.black);
-    const cash = done === 'won' ? r.prize : done === 'lost' ? 0 : cashOut(r.prize, d.red, d.black);
+    const cash = valueAfterTurn(r.prize, r.red, r.black, isRed);
     resolved.current = cash;
     setPhase('turning');
     setReveal({ red: isRed, id: ++flips.current, call: false });
@@ -120,6 +125,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const deck = deckByKey(deckId);
     const prize = prizeFor(deck);

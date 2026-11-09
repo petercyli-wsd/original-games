@@ -52,7 +52,8 @@ describe('Scratch maths', () => {
     expect(prizeMultiplier(s)).toBeCloseTo(4.95, 12);
     expect(sellMultiplier(s, 2, 13)).toBeCloseTo((4.95 * 2) / 13, 12);
     expect(buyPriceMultiplier(s, 12)).toBeCloseTo(prizeMultiplier(s) / 12 / RTP, 12);
-    expect(buyPrice(s, 1, 13)).toBeLessThanOrEqual(buyPriceMultiplier(s, 13));
+    expect(buyPrice(s, 1, 13)).toBeGreaterThanOrEqual(buyPriceMultiplier(s, 13));
+    expect(buyPrice(s, 1, 13) - buyPriceMultiplier(s, 13)).toBeLessThanOrEqual(1e-8);
     // Fewer cards left: each extra go costs more (and is more likely to win).
     expect(buyPriceMultiplier(s, 13)).toBeLessThan(buyPriceMultiplier(s, 12));
   });

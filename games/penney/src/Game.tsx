@@ -107,9 +107,14 @@ export default function Game() {
 
   // The coin in the air is decided the moment it is tossed, so leaving
   // mid-flip settles at its real result, never at the pre-flip value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, coin tossed). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale (the last round's
+  // result just after Bet again, or the pre-flip cash-out just after a flip,
+  // e.g. one fired by auto-flip's timer) if the game unmounts before the next render.
   const resolved = useRef(0);
   const roundNo = useRef(0);
-  const ticket = useTicket(() => (phase === 'flipping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
   // Scheduled auto-flips read the latest setting, so switching auto off stops at the next checkpoint.
   const autoRef = useRef(auto);
   autoRef.current = auto;
@@ -164,6 +169,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || problem) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { id: ++roundNo.current, you, house, stake: bet.value, flips: '', node: '', cash: RTP, outcome: null };
     setRound(r);

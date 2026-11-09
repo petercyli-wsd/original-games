@@ -18,7 +18,8 @@ export default function App() {
   const { wallet, rng, track } = useHost();
   const balance = useBalance();
   const hostSettings = useSettings();
-  const [config, setConfig] = useState<CrocConfig>(loadConfig);
+  // Fixed maths (loadConfig applies withFixedMaths); the drawer only shows it.
+  const [config] = useState<CrocConfig>(loadConfig);
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   // The open bet. `placing` blocks double-starts while the wallet responds.
   const ticket = useRef<BetTicket | null>(null);
@@ -269,7 +270,7 @@ export default function App() {
       </main>
 
       {infoOpen && <InfoModal rtp={config.rtp} teeth={N} rounds={ladder.map((r) => fmtMult(cardValue(r)))} onClose={closeInfo} />}
-      {drawerOpen && <CustomiseDrawer config={config} onChange={setConfig} onClose={() => setDrawerOpen(false)} />}
+      {drawerOpen && <CustomiseDrawer config={config} onClose={() => setDrawerOpen(false)} />}
     </div>
   );
 }

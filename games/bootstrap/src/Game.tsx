@@ -85,10 +85,14 @@ export default function Game() {
   const [pHeld, setPHeld] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A seed in flight is decided when it starts, so leaving mid-animation
-  // settles at its real result, never at the pre-drop value.
+  // The open bet's fair value. A seed in flight is decided when it starts, so
+  // leaving mid-animation settles at its real result, never at the pre-drop
+  // value. The ticket reads only this ref, which is set synchronously: RTP the
+  // moment the bet is accepted, then the post-drop value as each seed is drawn.
+  // (Reading the rendered phase / round instead could be one render stale and
+  // settle a fresh stake at the previous round's cash-out.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const dropMs = turbo.turbo ? 140 : 560;
   const waveMs = turbo.turbo ? 45 : 170;
@@ -96,6 +100,7 @@ export default function Game() {
   const settings: Settings = { n, k, side };
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -147,6 +152,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { s: settings, stake: bet.value, st: { seeds: [], C: 0 }, cash: RTP, outcome: null };
     setRound(r);

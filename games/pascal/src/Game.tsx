@@ -100,9 +100,14 @@ export default function Game() {
   const seq = useRef(0);
 
   // A card is decided the moment it is dealt, so leaving mid-animation settles
-  // at its real result, never at the pre-deal value.
+  // at its real result, never at the pre-deal value. `resolved` is the open
+  // ticket's value right now, set synchronously at every transition (stake
+  // placed, cards drawn). The ticket reads only this ref: a value derived from
+  // rendered state can be one render stale (the last round's result just after
+  // Bet again, or the pre-deal cash-out just after Deal) if the game unmounts
+  // before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'stepping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const live = phase === 'stepping' || phase === 'checkpoint';
@@ -159,6 +164,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       id: ++seq.current,

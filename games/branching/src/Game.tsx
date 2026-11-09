@@ -84,16 +84,22 @@ export default function Game() {
   const [growing, setGrowing] = useState<Tree | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A generation's children are drawn the moment it starts growing, so leaving
-  // mid-animation settles at its real result, never at the pre-growth value.
+  // The open bet's fair value. A generation's children are drawn the moment it
+  // starts growing, so leaving mid-animation settles at its real result, never
+  // at the pre-growth value. The ticket reads only this ref, which is set
+  // synchronously: RTP the moment the bet is accepted, then the post-growth
+  // value as each generation is drawn. (Reading the rendered phase / round
+  // instead could be one render stale and settle a fresh stake at the previous
+  // round's cash-out.)
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'growing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const growMs = turbo.turbo ? 190 : 760;
   const easeMs = turbo.turbo ? 90 : 360;
   const live = phase === 'growing' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -126,6 +132,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { family, gens, stake: bet.value, tree: seedTree(), cash: RTP, outcome: null };
     setRound(r);

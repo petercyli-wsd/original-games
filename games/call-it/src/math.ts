@@ -80,6 +80,16 @@ export function settled(red: number, black: number): 'lost' | 'won' | null {
 }
 
 /**
+ * What the round is worth once a turned card's colour is known: the prize if
+ * only reds are left, 0 if no reds are left, else prize × the new red share.
+ */
+export function valueAfterTurn(prize: number, red: number, black: number, isRed: boolean): number {
+  const d = afterTurn(red, black, isRed);
+  const done = settled(d.red, d.black);
+  return done === 'won' ? prize : done === 'lost' ? 0 : cashOut(prize, d.red, d.black);
+}
+
+/**
  * The deck bar: the cards left, reds first, as segments of a bar of the given
  * width. Its red length divided by its total length is the red share.
  */

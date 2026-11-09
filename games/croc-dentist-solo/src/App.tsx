@@ -4,7 +4,7 @@ import Croc from '@originals/crocodile-dentist/croc';
 import Tip from '@originals/crocodile-dentist/tip';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
-import { banked, initialState, reducer } from './game';
+import { banked, fairValue, initialState, reducer } from './game';
 import { BAD_TEETH_OPTIONS, RTP, TEETH_OPTIONS } from './manifest';
 import { buildLadder, fmtAmt, fmtMult, fmtPct, pickTraps } from './math';
 
@@ -59,13 +59,12 @@ export default function App() {
     }
   }, [playing, round?.safe]);
 
-  // Leaving mid-round cashes out whatever has been banked (0 before the first safe press).
+  // Leaving mid-round settles at the bet's fair value: the banked cash-out, or the RTP before the first press.
   const latest = useRef(state);
   latest.current = state;
   useEffect(
     () => () => {
-      const rd = latest.current.round;
-      if (ticket.current) void ticket.current.settle(rd && latest.current.phase === 'playing' ? banked(rd) : 0);
+      if (ticket.current) void ticket.current.settle(fairValue(latest.current));
     },
     [],
   );

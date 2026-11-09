@@ -97,15 +97,20 @@ export default function Game() {
   const [flash, setFlash] = useState<number | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // A sweep is decided the moment it starts, so leaving mid-animation settles
-  // at its real result, never at the pre-sweep value.
+  // The open bet's fair value. A sweep is decided the moment it starts, so
+  // leaving mid-animation settles at its real result, never at the pre-sweep
+  // value. The ticket reads only this ref, which is set synchronously: RTP the
+  // moment the bet is accepted, then the post-sweep value as each sweep is
+  // drawn. (Reading the rendered phase / round instead could be one render
+  // stale and settle a fresh stake at the previous round's cash-out.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'sweeping' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const revealMs = turbo.turbo ? 80 : 320;
   const live = phase === 'sweeping' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -144,6 +149,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked || picks.length === 0) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { size, picks, stake: bet.value, prize: prizeFor(size, picks), state: initialState(size), cash: RTP, outcome: null };
     setRound(r);

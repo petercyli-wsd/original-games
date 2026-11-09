@@ -93,12 +93,16 @@ export default function Game() {
   const [face, setFace] = useState<Hand>(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // The throw in flight is decided when it starts: leaving mid-animation
-  // settles at its real result, never at the pre-throw value.
+  // The open ticket's value, kept in a ref and set synchronously: RTP the
+  // moment the bet is accepted, then each throw's post-result cash-out the
+  // moment it is drawn. Leaving mid-animation settles at the real result.
+  // The ticket reads only this ref: the rendered phase / round can be one
+  // render stale, which settled a new stake at the previous round's cash-out
+  // when the game unmounted right after Bet.
   const resolved = useRef(0);
   const inFlight = useRef(false);
   const autoModeRef = useRef<'manual' | 'auto'>('manual');
-  const ticket = useTicket(() => (phase === 'throwing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   // One readable event in Manual, a quarter of that in Auto or with Turbo.
   const throwMs = eventMs(turbo.turbo || autoModeRef.current === 'auto');
@@ -142,6 +146,7 @@ export default function Game() {
   async function start(h: Hand = hand) {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     inFlight.current = false;
     const r = fresh(bet.value);
@@ -155,7 +160,8 @@ export default function Game() {
   }
 
   function cashOut() {
-    if (phase !== 'live' || !round || round.k === 0) return;
+    // inFlight: a throw already drawn but not yet rendered must not be cashed at its pre-throw value.
+    if (phase !== 'live' || !round || round.k === 0 || inFlight.current) return;
     finish(round, 'cashed', round.cash);
   }
 
@@ -176,6 +182,7 @@ export default function Game() {
 
   async function playAuto(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     let r = fresh(stake);
     setRound(r);
     for (;;) {

@@ -1,6 +1,5 @@
-// Default settings for the mock-up. The maths can also be changed live from
-// the Customise drawer, which saves to the browser and can copy the result
-// out as JSON to paste back in here.
+// Default settings for the mock-up. The maths (RTP, teeth, bad-teeth options)
+// is fixed here and can't be changed from the Customise drawer: see withFixedMaths.
 
 export interface CrocConfig {
   rtp: number;
@@ -19,18 +18,24 @@ export const DEFAULT_CONFIG: CrocConfig = {
 
 const KEY = 'croc.config.v3';
 
+/**
+ * The maths is not customisable: the RTP, the jaw size and the bad-teeth
+ * options always come from DEFAULT_CONFIG, whatever is saved in the browser
+ * or sent by the drawer. (An editable RTP let a player raise their own return
+ * to 100%, and a custom jaw could pay more than manifest.maxMultiplier.)
+ */
+export function withFixedMaths(cfg: CrocConfig): CrocConfig {
+  const { rtp, teeth, badTeethOptions, defaultBadTeeth } = DEFAULT_CONFIG;
+  return { ...cfg, rtp, teeth, badTeethOptions, defaultBadTeeth };
+}
+
 export function loadConfig(): CrocConfig {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return DEFAULT_CONFIG;
-    // Older saves also held colours and pacing; those are no longer settings.
+    // Older saves also held colours, pacing and editable maths; none of those are settings now.
     const saved = JSON.parse(raw) as Partial<CrocConfig>;
-    return {
-      rtp: saved.rtp ?? DEFAULT_CONFIG.rtp,
-      teeth: saved.teeth ?? DEFAULT_CONFIG.teeth,
-      badTeethOptions: saved.badTeethOptions ?? DEFAULT_CONFIG.badTeethOptions,
-      defaultBadTeeth: saved.defaultBadTeeth ?? DEFAULT_CONFIG.defaultBadTeeth,
-    };
+    return withFixedMaths({ ...DEFAULT_CONFIG, ...saved });
   } catch {
     return DEFAULT_CONFIG;
   }

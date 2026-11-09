@@ -50,6 +50,11 @@ export interface Ticket {
  * Owns the round's BetTicket. If the game unmounts mid-round (the player
  * leaves), the open bet is settled at `fairValue()`, the cash-out the player
  * could have taken, which is fair at every step under the cash-out rule.
+ *
+ * `fairValue` must read a ref that is updated in the same handler that places
+ * the bet or draws the outcome, never rendered state: render state lags by one
+ * render, so leaving right after a bet or a draw would settle at the previous
+ * value (the fairness audit found this in ~70 games).
  */
 export function useTicket(fairValue: () => number): Ticket {
   const { wallet } = useHost();

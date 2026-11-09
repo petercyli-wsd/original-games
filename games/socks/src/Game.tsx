@@ -74,10 +74,14 @@ export default function Game() {
   const [hand, setHand] = useState<Hand | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // The token in flight is decided the moment it is drawn, so leaving
-  // mid-draw settles at its real result, never at the safer pre-draw value.
+  // `resolved` is the open bet's value right now, set synchronously at every
+  // transition (RTP once the stake is accepted, the drawn result the moment a
+  // token is drawn). The ticket reads only this ref: a value derived from
+  // rendered state can be one render stale if the game unmounts before the
+  // next render (the last round's payout just after Bet again, or the safer
+  // pre-draw cash-out just after Draw).
   const resolved = useRef<number>(0);
-  const ticket = useTicket(() => (phase === 'drawing' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   // Risky draws get a pause in the hand; free draws (room on the table) flow quickly.
   const tb = turbo.turbo;
@@ -92,6 +96,7 @@ export default function Game() {
 
   function finish(r: Round, outcome: Outcome, cash: number) {
     timers.clearAll();
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -135,6 +140,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { stake: bet.value, deal: newDeal(pairs, slots), cash: RTP, outcome: null };
     setRound(r);

@@ -91,10 +91,15 @@ export default function Game() {
   const [flip, setFlip] = useState<Flip | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // Every coin in an action is tossed the moment it starts, so leaving
-  // mid-animation settles at the real result, never at the earlier value.
+  // The open bet's fair value. Every coin in an action is tossed the moment it
+  // starts, so leaving mid-animation settles at the real result, never at the
+  // earlier value. The ticket reads only this ref, which is set synchronously:
+  // RTP the moment the bet is accepted, then the post-result value as each
+  // action's coins are tossed. (Reading the rendered phase / round instead
+  // could be one render stale: right after Bet again it would settle the new
+  // stake at the finished round's value, the whole prize after a win.)
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dueling' ? resolved.current : round ? cashValue(round.duel, round.settings) : 0));
+  const ticket = useTicket(() => resolved.current);
 
   const live = phase === 'dueling' || phase === 'checkpoint';
   const speed = turbo.turbo ? 0.25 : 1;
@@ -103,6 +108,7 @@ export default function Game() {
   const settings: Settings = { players, streak, seat, side };
 
   function finish(r: Round, outcome: Outcome, cash: number) {
+    resolved.current = cash;
     ticket.settle(cash);
     pushHistory(cash);
     setRound({ ...r, outcome, cash });
@@ -156,6 +162,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { settings, stake: bet.value, duel: newDuel(players), cash: RTP, outcome: null };
     setRound(r);

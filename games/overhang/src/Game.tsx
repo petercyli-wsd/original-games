@@ -51,17 +51,24 @@ export default function Game() {
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // What the open bet is worth if the game is closed now (the outcome of a drop
   // in flight is already decided).
+  // It is set synchronously at every transition (RTP when a bet is placed, then
+  // the decided result of each drop as it starts), never derived from rendered
+  // state, so it can't be one render stale.
   const banked = useRef(0);
+  const mounted = useRef(true);
 
   const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
       timers.current.forEach(clearTimeout);
-      if (ticket.current) void ticket.current.settle(banked.current);
-    },
-    [],
-  );
+      const t = ticket.current;
+      ticket.current = null;
+      if (t) void t.settle(banked.current);
+    };
+  }, []);
 
   const spec = MODES[round?.mode ?? mode];
   const xs = round?.xs ?? [];
@@ -136,15 +143,22 @@ export default function Game() {
   const start = useCallback(async () => {
     if (placing.current || ticket.current) return;
     placing.current = true;
+    let placed: BetTicket;
     try {
-      ticket.current = await wallet.placeBet(bet);
+      placed = await wallet.placeBet(bet);
     } catch {
       return;
     } finally {
       placing.current = false;
     }
+    // Closed while the bet was being placed: no round was started or drawn, so return the stake.
+    if (!mounted.current) {
+      void placed.settle(1);
+      return;
+    }
+    ticket.current = placed;
+    banked.current = RTP;
     const r: Round = { bet, mode, xs: [], ps: [], mult: RTP };
-    banked.current = 0;
     setRound(r);
     setTopple(null);
     setResult(null);

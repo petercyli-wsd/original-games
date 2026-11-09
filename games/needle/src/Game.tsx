@@ -117,8 +117,13 @@ export default function Game() {
 
   // Each reveal is decided the moment it starts, so leaving mid-animation
   // settles at its real result, never at the pre-reveal value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, centre dropped, needle spun). The ticket reads
+  // only this ref: a value derived from rendered state can be one render stale,
+  // e.g. the last round's payout just after Bet again, if the game unmounts
+  // before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' || phase === 'spinning' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const dropMs = eventMs(turbo.turbo);
   const spinMs = eventMs(turbo.turbo, 1000);
@@ -182,6 +187,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { s: { floor, side, length, needles }, stake: bet.value, needles: [], cash: RTP, outcome: null };
     setRoundKey((n) => n + 1);

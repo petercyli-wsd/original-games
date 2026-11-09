@@ -102,10 +102,15 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const roundSeq = useRef(0);
 
-  // The arriving car is drawn the moment the step starts, so leaving
-  // mid-animation settles at its real result, never at the pre-step value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // change: RTP right after the bet is placed, and the post-arrival value the
+  // moment a car is drawn (so leaving mid-animation settles at its real
+  // result). The ticket reads only this ref, never render state: a stale render
+  // (leaving right after Bet, before React re-renders) would otherwise settle
+  // the new stake at the previous round's payout, or right after Next car at
+  // the pre-step value.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'moving' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const legMs = turbo.turbo ? 80 : 320;
   const live = phase === 'moving' || phase === 'checkpoint';
@@ -146,6 +151,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { id: ++roundSeq.current, n, stake: bet.value, yard: initialYard(n), cash: RTP, outcome: null };
     setRound(r);

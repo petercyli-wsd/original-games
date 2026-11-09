@@ -118,8 +118,13 @@ export default function Game() {
 
   // A crossing is decided the moment it starts (the road was drawn at bet
   // time), so leaving mid-hop settles at its real result.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (stake placed, step drawn). The ticket reads only this ref: a
+  // value derived from rendered state can be one render stale, e.g. the last
+  // round's cash-out just after Bet again, if the game unmounts before the
+  // next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'crossing' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  const ticket = useTicket(() => resolved.current);
 
   // Manual: the token slides into the lane over a readable 600 ms; traffic then drops in over 450 ms (docs/STYLE.md).
   const hopMs = eventMs(turbo.turbo);
@@ -141,6 +146,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setAutoView(null);
     setLast(null);

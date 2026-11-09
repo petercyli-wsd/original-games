@@ -82,8 +82,13 @@ export default function Game() {
 
   // An item's slot is decided the moment it starts to fall, so leaving
   // mid-animation settles at its real result, never at the pre-move value.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (RTP when the stake is placed, the post-drop value the moment an
+  // item's slot is drawn). The ticket reads only this ref: a value derived from
+  // rendered state can be one render stale (e.g. the last round's prize just
+  // after Bet again) if the game unmounts before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'running' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
   const itemMs = eventMs(turbo.turbo);
@@ -125,6 +130,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = {
       id: ++seq.current,

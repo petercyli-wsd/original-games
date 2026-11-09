@@ -129,10 +129,17 @@ export default function Game() {
 
   const chosen: Bet = { kind, k: clampK(n, k) };
 
-  // A bead is decided the moment it is released, so leaving mid-fall settles
-  // at its real result, never at the pre-drop value.
+  // The open ticket's value, kept in a ref and set synchronously: RTP the
+  // moment the bet is accepted, then each bead's post-drop cash-out the moment
+  // it is released (an Auto round's whole result as soon as it is drawn). So
+  // leaving mid-fall settles at the real result, never at the pre-drop value.
+  // The ticket reads only this ref: the rendered phase / round can be one
+  // render stale, which settled a new stake at 0 (or a just-drawn bead at the
+  // pre-drop value) when the game unmounted before the next render.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' || autoBusy ? resolved.current : round && !round.outcome ? round.cash : 0));
+  /** A bead is in the air (drawn, not yet landed): no second drop and no cash-out at the old value. */
+  const dropping = useRef(false);
+  const ticket = useTicket(() => resolved.current);
 
   const fallMs = eventMs(turbo.turbo);
   const tiltMs = eventMs(turbo.turbo, 400);
@@ -156,6 +163,8 @@ export default function Game() {
   }
 
   function drop(r: Round) {
+    if (dropping.current) return;
+    dropping.current = true;
     const bead = beadFrom(rng.next());
     const s = addBead(r.s, bead);
     const res = settled(s, r.bet);
@@ -165,6 +174,7 @@ export default function Game() {
     setFalling({ id: ++seq.current, bead, ms });
     setPhase('dropping');
     timers.after(ms, () => {
+      dropping.current = false;
       const next = { ...r, s, cash };
       setRound(next);
       setFalling(null);
@@ -178,7 +188,9 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
+    dropping.current = false;
     stopRun();
     setAutoView(null);
     setLast(null);
@@ -188,20 +200,21 @@ export default function Game() {
   }
 
   function dropAll() {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'checkpoint' || !round || dropping.current) return;
     runOut.current = true;
     setRunning(true);
     drop(round);
   }
 
   function cashOut() {
-    if (phase !== 'checkpoint' || !round) return;
+    if (phase !== 'checkpoint' || !round || dropping.current) return;
     finish(round, 'cashed', round.cash);
   }
 
   function clear() {
     if (live || autoBusy) return;
     timers.clearAll();
+    dropping.current = false;
     stopRun();
     setRound(null);
     setFalling(null);
@@ -253,6 +266,7 @@ export default function Game() {
   // Switching Manual / Auto starts from a clean board.
   useEffect(() => {
     timers.clearAll();
+    dropping.current = false;
     stopRun();
     setRound(null);
     setAutoView(null);

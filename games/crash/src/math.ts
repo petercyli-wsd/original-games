@@ -3,7 +3,8 @@
 // moment the bet is placed. Cash out before the crash and you win the
 // multiplier on screen.
 //
-// The crash point. Work in cents (1.00× = 100). From one uniform U in [0, 1):
+// The crash point. Work in cents (1.00× = 100). From one uniform U in (0, 1]
+// (U = 1 − the host draw; see crashFromDraw):
 //
 //     C = min(CAP, floor(99 / U))            (CAP = 100,000,000 = 1,000,000×)
 //
@@ -45,6 +46,17 @@ export function crashCents(u: number): number {
   if (!(u > 0)) return CAP;
   return Math.min(CAP, Math.floor(99 / u));
 }
+
+/**
+ * The crash point from one host draw u in [0, 1). The host rng is a 32-bit
+ * grid {j / 2^32}, which includes 0 but not 1. Feeding it straight into
+ * crashCents would make P(C ≥ k) = (floor(2^32·99/k) + 1) / 2^32, a hair above
+ * 99/k (the +1 is the draw u = 0): worth +0.023% RTP to a player who rides to
+ * the cap. Using U = 1 − u, which lies in (0, 1], gives
+ * P(C ≥ k) = floor(2^32·99/k) / 2^32 ≤ 99/k, so grid rounding can only ever
+ * favour the house, by under 2^-32 in probability.
+ */
+export const crashFromDraw = (u: number) => crashCents(1 - u);
 
 /** P(C ≥ k): the exact chance that the curve reaches k cents. */
 export const reachChance = (k: number) => (k <= 99 ? 1 : Math.min(1, 99 / k));

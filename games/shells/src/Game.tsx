@@ -112,12 +112,15 @@ export default function Game() {
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
-  // A move is decided when it starts, so leaving mid-animation settles at its
-  // real result; between moves the bet is worth its fair cash-out.
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // change: RTP right after the bet is placed, the post-move value the moment a
+  // move is drawn (so leaving mid-animation settles at its real result), the
+  // result once the reveal starts. A switch keeps the value. The ticket reads
+  // only this ref, never render state: a stale render (leaving right after Bet
+  // or Next, before React re-renders) would otherwise settle the new stake at
+  // the previous round's value or the pre-move value.
   const resolved = useRef(0);
-  const ticket = useTicket(() =>
-    phase === 'moving' || phase === 'revealing' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? valueOf(round) : 0,
-  );
+  const ticket = useTicket(() => resolved.current);
 
   const swapMs = turbo.turbo ? 150 : 560;
   const blindMs = turbo.turbo ? 200 : 820;
@@ -173,6 +176,7 @@ export default function Game() {
   async function start() {
     if (live || autoBusy || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     setLast(null);
     const r = newRound(bet.value);
@@ -264,12 +268,12 @@ export default function Game() {
 
   async function playAuto(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
+    resolved.current = RTP;
     const tgt = target;
     setAutoBusy(true);
     setPhase('idle');
     setLast(null);
     let r: Round | null = newRound(stake);
-    resolved.current = RTP;
     setRound(r);
     let outcome: Outcome | null = null;
     let payout = 0;

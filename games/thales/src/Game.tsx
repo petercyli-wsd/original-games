@@ -103,10 +103,13 @@ export default function Game() {
   const [roundKey, setRoundKey] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
-  // Each reveal is decided the moment it starts, so leaving mid-animation
-  // settles at its real result, never at the pre-reveal value.
+  // What an open bet is worth if the game unmounts, read only from this ref
+  // (never from render state, which lags a tick: leaving right after Bet or a
+  // drop must not settle at the last render's value). It is RTP right after
+  // the bet, and each reveal sets it to the post-reveal value the moment the
+  // reveal is decided, so leaving mid-animation settles at the real result.
   const resolved = useRef(0);
-  const ticket = useTicket(() => (phase === 'dropping' || phase === 'falling' || phase === 'sure' ? resolved.current : round?.cash ?? 0));
+  const ticket = useTicket(() => resolved.current);
 
   const dropMs = eventMs(turbo.turbo);
   const pauseMs = eventMs(turbo.turbo);
@@ -166,6 +169,7 @@ export default function Game() {
   async function start() {
     if (live || bet.blocked) return;
     if (!(await ticket.place(bet.value))) return;
+    resolved.current = RTP;
     timers.clearAll();
     const r: Round = { s: { arena, side, series }, stake: bet.value, tris: [], cash: RTP, outcome: null };
     setRoundKey((n) => n + 1);
