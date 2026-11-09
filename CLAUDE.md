@@ -115,6 +115,7 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
   - each event can be followed, and the last result stays marked;
   - nothing on the board is removable;
   - one decision type, with no mid-round switching unless switching *is* the game.
+- **The blind sandbox hides any element whose own text is 9+ space-separated tokens, and never shows it again** once hidden (a MutationObserver only hides). A status line that starts long stays invisible for the whole session; `=` and `·` count as words, and JSX splitting `{a}, {b}` into several text nodes adds tokens. Keep on-board text and status lines under 9 tokens, or render them as one template string.
 - **Reviews go stale when code changes,** including a manifest `status` edit. If only metadata changed, point `evidence.json` at the current files and hash and resubmit. Local `review.json` can be from a rejected iteration round: check its hash before submitting.
 
 ## Lobby
@@ -129,7 +130,7 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 |---|---|
 | `main` | The November revamp: v7, gate, Archive, 5 new games, 14 improved, 16 archived |
 | `fairness` (pushed) | The audit fixes and tests for all 114 games, plus this file. **Needs a PR merged into `main` first.** |
-| `restyle` (worktree `../original-games-restyle`) | 67 games flattened to `docs/STYLE.md`. The re-review found 29 regressions (odds legibility mostly; ~13 under the gate). §6 was fixed and 11 games restored but not re-reviewed; 18 untouched. Merging `fairness` conflicts in 6 files (crocodile-dentist ×3, drift, maze, snowball). Not ready to merge. |
+| `restyle` (worktree `../original-games-restyle`) | 67 games flattened to `docs/STYLE.md`, `fairness` merged in (conflicts resolved). All 29 regressed games re-restored under §6 and re-reviewed with 3-player panels (local queue only, `.evaluator/_pending.json`): 25 pass the gate. Open on 2026-11-09: tumble fails after 2 fix rounds (3.28; needs a §6 decision on per-tile percentages), reels/crash-colours/snowball have a committed fix awaiting re-review, drift is gated by its team rating (3.00) as before. STYLE.md §6 gained the unit-key rule (≤ 2 lines, < 9 tokens). |
 | `search` (main checkout) | The `/search-games` loop. 2 cycles kept Derby v2, Back to Back and Stepladder (all unrated by the team). Ledger in `.evaluator/_search/ledger.md`. |
 
 Open items:
