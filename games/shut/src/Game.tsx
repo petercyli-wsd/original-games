@@ -7,6 +7,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -386,9 +387,8 @@ export default function Game() {
     tone = 'live';
   }
 
-  // One chance, one payout.
+  // The chance is the bar under the status line; the readouts keep only the prize.
   const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(winNow), tone: 'chance' },
     { label: 'Prize', value: fmtMult(r.prize), tone: 'prize' },
   ];
 
@@ -491,6 +491,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      <ChanceBar p={winNow} label={phase === 'idle' || !round ? 'Chance to shut the box' : phase === 'over' ? 'Chance to shut the box (round over)' : 'Chance to shut the box from here'} />
       <Readouts items={readouts} />
 
       <Board className="shut-board">
