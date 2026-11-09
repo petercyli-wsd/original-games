@@ -379,7 +379,8 @@ export default function Game() {
             title={atCheckpoint && !on ? (pays > MAX_PRIZE ? 'over the max prize' : `switch: keeps your cash-out, prize becomes ${fmtMult(pays)}`) : undefined}
             onClick={() => choose(p)}
           >
-            <span className="n">{p === 'SD' ? 'Sudden death' : PICK_NAME[p]}</span>
+            {/* The middle bet pays if the five kicks each end level: name it by that, not by what follows. */}
+            <span className="n">{p === 'SD' ? 'Level after 5' : PICK_NAME[p]}</span>
             <small>{pr > 0 && pr < 1 ? fmtMult(pays) : pr >= 1 ? 'certain' : '—'}</small>
           </button>
         );

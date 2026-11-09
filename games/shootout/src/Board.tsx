@@ -159,7 +159,7 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, goalFor }: Bo
         )
       ) : (
         <text x={518} y={60} className="sd-label">
-          sudden death
+          if level after 5: sudden death
         </text>
       )}
 
@@ -209,7 +209,7 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, goalFor }: Bo
         Home
       </text>
       <text x={320} y={BAR.y + BAR.h + 32} className={'bar-label sd' + (pick === 'SD' ? ' mine' : '')}>
-        Sudden death
+        Level after 5
       </text>
       <text x={BAR.x + BAR.w} y={BAR.y + BAR.h + 32} className={'bar-label b' + (pick === 'B' ? ' mine' : '')}>
         Away
