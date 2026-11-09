@@ -5,6 +5,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,7 +16,6 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
-  fmtChance,
   eventMs,
   fmtMult,
   useBetInput,
@@ -245,6 +245,9 @@ export default function Game() {
   const cardScore = (pl: 'top' | 'bottom') => (covered(pl, at) ? 100 : 0) + targetSquares.filter((s) => covered(pl, s)).length;
   const placement = cardScore('top') <= cardScore('bottom') ? 'top' : 'bottom';
 
+  // The whole-bet picture: chance of ending on green from here (exact; 1 or 0 once decided).
+  const barP = phase === 'over' && round?.outcome !== 'cashed' ? ((round?.cash ?? 0) > 0 ? 1 : 0) : live || phase === 'over' ? pNow : p0;
+
   const rule = `${HOPS} random knight moves: win if the knight ends on green.`;
 
   return (
@@ -301,16 +304,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          {
-            label: 'Chance to win',
-            value: phase === 'over' ? (round?.outcome === 'cashed' ? '—' : (round?.cash ?? 0) > 0 ? '100%' : '0%') : fmtChance(live ? pNow : p0),
-            tone: 'chance',
-          },
-          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
-        ]}
-      />
+      {/* The whole-bet picture carries the one chance number (docs/STYLE.md §6). */}
+      <ChanceBar p={barP} label="Chance to end on green" note="Green dots on the board add up to this." />
+
+      <Readouts items={[{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }]} />
 
       <Board className="knight-board">
         <Field
