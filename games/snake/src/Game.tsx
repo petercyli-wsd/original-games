@@ -4,6 +4,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -266,21 +267,16 @@ export default function Game() {
   if (phase === 'over' && outcome) status = outcome === 'target' || outcome === 'trapped' ? outcomeTitle(outcome, t) : `${outcomeTitle(outcome, t)} · ${len} of ${t}`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
+  // Whole-bet chance: reaching the target from here. A bust is 0; a finished round is priced at its final state.
+  const overLook = phase === 'over' && outcome ? (outcome === 'wall' || outcome === 'body' ? 0 : outcome === 'target' ? 1 : liveOutlook(n, t, path, cash).win) : null;
+  const chanceP = overLook ?? look.win;
+
   const readouts: ReadoutItem[] =
     phase === 'idle'
-      ? [
-          { label: 'Win chance', value: fmtChance(look.win), tone: 'chance' },
-          { label: 'Avg prize', value: fmtMult(averageWin(n, t)), tone: 'prize' },
-        ]
+      ? [{ label: 'Avg prize', value: fmtMult(averageWin(n, t)), tone: 'prize' }]
       : phase === 'over'
-        ? [
-            { label: 'Length', value: `${len} / ${t}`, tone: 'chance' },
-            { label: 'Paid', value: fmtMult(cash), tone: 'cash' },
-          ]
-        : [
-            { label: 'Win chance', value: fmtChance(look.win), tone: 'chance' },
-            { label: 'If it survives', value: free ? fmtMult((cash * 4) / free) : '—', tone: 'prize' },
-          ];
+        ? [{ label: 'Paid', value: fmtMult(cash), tone: 'cash' }]
+        : [{ label: 'If it survives', value: free ? fmtMult((cash * 4) / free) : '—', tone: 'prize' }];
 
   const mode: BoardMode = phase === 'checkpoint' ? 'live' : phase;
 
@@ -351,6 +347,8 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+
+      <ChanceBar p={chanceP} label={phase === 'idle' || phase === 'over' ? `Chance to reach length ${t}` : `Chance to reach length ${t} from here`} />
 
       <Readouts items={readouts} />
 
