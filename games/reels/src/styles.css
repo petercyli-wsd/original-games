@@ -206,6 +206,64 @@
   stroke-dasharray: 6 5;
 }
 
+/* A partial return is neutral, never green. */
+.rl-cabinet.part .rl-cell.win {
+  outline-color: var(--text);
+}
+.rl-cabinet.part .rl-line-over {
+  stroke: var(--text);
+}
+.rl-cabinet.part .rl-marker.won {
+  background: var(--text);
+}
+
+/* ---------- Paytable: one flat row under the reels ---------- */
+.rl-paytable {
+  width: min(100%, 560px);
+  margin: var(--sp-2) auto 0;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rl-pt-head {
+  margin-bottom: var(--sp-1);
+}
+.rl-pt-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-1);
+}
+.rl-pt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: var(--sp-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.rl-pt .rl-sym {
+  width: 22px;
+  height: 22px;
+}
+.rl-pt.on {
+  border-color: var(--text);
+  background: var(--hover);
+  color: var(--text);
+}
+.rl-pt-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.rl-pt-note .on {
+  color: var(--text);
+}
+
 /* ---------- Banner (free-spin announcements) ---------- */
 .rl-banner {
   position: absolute;

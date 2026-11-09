@@ -453,6 +453,8 @@ export default function Game() {
     : last && result
       ? `${result.text}${last.freeSpins ? ` · ${last.freeSpins} free spins` : ''}`
       : `${VOL_LABEL[vol]} reels · ${lines} line${lines > 1 ? 's' : ''}`;
+  // A result that returns less than the stake is neutral, not green.
+  const partial = !busy && result?.tone === 'part';
   const tone = busy ? 'live' : result ? (result.tone === 'part' ? 'idle' : result.tone) : 'idle';
 
   // ---- The one chance: exact chance this spin pays, given the reels already stopped ----
@@ -552,12 +554,12 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: winLabel, value: fmtMoney(winValue), tone: winValue > 0 ? 'win' : 'neutral' },
+          { label: winLabel, value: fmtMoney(winValue), tone: winValue > 0 && !partial ? 'win' : 'neutral' },
         ]}
       />
 
       <Board className="rl-board">
-        <div className="rl-cabinet">
+        <div className={'rl-cabinet' + (partial ? ' part' : '')}>
           <Reels
             cols={cols}
             stripRefs={stripRefs}
@@ -587,6 +589,27 @@ export default function Game() {
               )}
             </div>
           )}
+        </div>
+        <div className={'rl-paytable' + (partial ? ' part' : '')} aria-label="Paytable">
+          <div className="rl-pt-head">Pays × line bet, in a row</div>
+          <div className="rl-pt-grid">
+            {Array.from({ length: PAYING }, (_, s) => (
+              <div key={s} className={'rl-pt' + (!busy && shownWins.some((w) => w.sym === s) ? ' on' : '')} title={SHAPE_LABEL[s]}>
+                <SymbolArt sym={s} />
+                {[2, 1, 0].map((k) => (
+                  <span key={k}>
+                    {k + 3}: {set.pays[s][k]}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+          <div className="rl-pt-note">
+            <span>Wild: any symbol but scatter</span>
+            <span className={!busy && scatterHit ? 'on' : ''}>
+              {`Scatter 3+: ${FREE_SPINS[3]}, ${FREE_SPINS[4]}, ${FREE_SPINS[5]} free spins`}
+            </span>
+          </div>
         </div>
       </Board>
 
