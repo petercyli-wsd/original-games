@@ -7,6 +7,7 @@ import {
   Board,
   ACCENTS,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -351,16 +352,16 @@ export default function Game() {
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
-  // One chance and one payout (docs/STYLE.md §6); the cash-out lives on its button.
+  // Whole-bet chance (docs/STYLE.md §6): the ChanceBar under the stage top. Manual: crossing every
+  // remaining lane to the finish, which rises as lanes are crossed. Auto: reaching the target lane.
+  const barP = isAuto ? reachChance(difficulty, target) : round?.hit != null ? 0 : reachChance(d, LANES - pos);
+  const barLabel = isAuto ? `Chance to reach lane ${target}` : pos === 0 && phase !== 'over' ? 'Chance to cross all lanes' : 'Chance to cross the rest';
+  // The bar carries the one chance; Readouts keeps the prize.
   const readouts: ReadoutItem[] = isAuto
-    ? [
-        { label: 'Win chance', value: fmtChance(reachChance(difficulty, target)), tone: 'chance' },
-        { label: `Lane ${target} pays`, value: fmtMult(multiplier(difficulty, target)), tone: 'prize' },
-      ]
-    : [
-        { label: 'Next lane clear', value: phase === 'over' ? '—' : fmtChance(laneSafe(d)), tone: 'chance' },
-        { label: 'Next lane pays', value: phase === 'over' ? '—' : fmtMult(multiplier(d, nextLane)), tone: 'prize' },
-      ];
+    ? [{ label: `Lane ${target} pays`, value: fmtMult(multiplier(difficulty, target)), tone: 'prize' }]
+    : // The bar is the chance of crossing every lane, so the prize beside it is what the far side pays
+      // (each lane's own payout is labelled on the road).
+      [{ label: `Lane ${LANES} pays`, value: fmtMult(multiplier(d, LANES)), tone: 'prize' }];
 
   const difficultyPicker = (
     <>
@@ -455,6 +456,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      <ChanceBar p={barP} label={barLabel} />
       <Readouts items={readouts} />
 
       <Board className={'ck-board' + (isAuto ? ' auto' : '')}>
@@ -506,7 +508,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Each lane is hit with the same chance, {DIFFICULTY[d].hits} in {OUT_OF} on {DIFFICULTY[d].label}: the red cells of the Traffic strip. Lanes are drawn
-              independently when you bet, so no lane, streak or position is luckier than another. "Next lane clear" above the road is that chance, and every
+              independently when you bet, so no lane, streak or position is luckier than another. The bar above the road is the chance of crossing every lane still ahead (it rises as you cross), and every
               pad shows what you can cash out once you stand on it. The strip under the road shows all {LANES} lanes at once.
             </p>
           </InfoSection>
