@@ -240,7 +240,8 @@ export default function Game() {
       Math.abs(net) < 0.005
         ? `Even: ${formatAmount(r.total, 2)} back`
         : net > 0
-          ? `You win +${formatAmount(net, 2)}`
+          ? // Gross back on the total stake, then the net: with stakes split across bands, a bare net reads as a puzzle.
+            `${formatAmount(back, 2)} back on ${formatAmount(r.total, 2)} (+${formatAmount(net, 2)})`
           : back > 0
             ? `${formatAmount(back, 2)} of ${formatAmount(r.total, 2)} back`
             : `You lose ${formatAmount(r.total, 2)}`;

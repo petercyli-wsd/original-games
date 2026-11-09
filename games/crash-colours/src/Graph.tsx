@@ -147,18 +147,19 @@ export default function Graph({ m, phase, lines, staked }: { m: number; phase: P
           </g>
         )}
         {/* Band labels above the curve so it never hides them. */}
+        {/* A backed band's label says so, which also names the accent bar down its left edge. */}
         <text className="cc-region-label red" x={X1 - 10} y={Y1 - 10}>
-          Red
+          {staked.red ? 'Red · your bet' : 'Red'}
         </text>
         <text className="cc-region-label green start" x={X0 + 10} y={ySplit - 9}>
-          Green
+          {staked.green ? 'Green · your bet' : 'Green'}
         </text>
         <text
           className="cc-region-label moon start"
           x={X0 + 10}
           y={moonInside ? Math.min(Y0 + (yMoon - Y0) / 2 + 5, yMoon - 4) : yMoon + 17}
         >
-          Moon
+          {staked.moon ? 'Moon · your bet' : 'Moon'}
         </text>
 
         {started && (
