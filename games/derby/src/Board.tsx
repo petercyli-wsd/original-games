@@ -73,7 +73,7 @@ export default function Board(props: BoardProps) {
     <svg viewBox={`0 0 ${W} ${H}`} className={'derby' + (narrow ? ' narrow' : '')} role="img" aria-label={`Race to ${L}. Your runner #${me + 1} has ${fmtChance(now)} to win.`}>
       {/* Tote */}
       <text x={16} y={16} className="cap">
-        Tote · each runner's share of the win
+        Tote · each runner's chance to win (yours in colour)
       </text>
       <rect x={16} y={TOTE_Y} width={toteW} height={TOTE_H} rx={6} className="tote-bg" />
       {tote.map((s) =>
@@ -204,8 +204,11 @@ function NextLeg({ W, H, outcomes, now, dim }: { W: number; H: number; outcomes:
   let acc = left;
   return (
     <g className={'next-leg' + (dim ? ' dim' : '')}>
+      <text x={left} y={12} className="cap">
+        {dim ? 'This leg' : 'Next leg'} · how far your runner goes
+      </text>
       <text x={left} y={27} className="cap">
-        {dim ? 'This leg' : 'Next leg'}
+        width = how likely · height = chance after
       </text>
       <rect x={left} y={top} width={width} height={h} rx={6} className="leg-bg" />
       {outcomes.map((o) => {
