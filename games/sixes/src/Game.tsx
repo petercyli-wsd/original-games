@@ -356,7 +356,8 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
-      <ChanceBar p={round ? winNow : p0} label="Win chance" />
+      {/* Unit key for the bars under the dice (docs/STYLE.md §6), under the blind evaluator's 9-token cut-off. */}
+      <ChanceBar p={round ? winNow : p0} label="Win chance" note="Die bars: chance of a six, piece per roll" />
       <Readouts items={readouts} />
 
       <Board>
