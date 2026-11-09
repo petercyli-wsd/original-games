@@ -93,7 +93,7 @@ export default function Board({ target, path, move, moveMs, dist, next, now, out
   const hops = next ? [...next.entries()] : [];
 
   return (
-    <svg viewBox={`0 0 400 ${Y0 + 8 * S + 16}`} className="knight" role="img" aria-label={`Knight on ${squareName(at)}`}>
+    <svg viewBox={`0 0 400 ${Y0 + 8 * S + 50}`} className="knight" role="img" aria-label={`Knight on ${squareName(at)}`}>
       {squares.map((s) => {
         // Only light squares can be the final square, so only those are filled green.
         const hit = inTarget(s, target) && isLight(s);
@@ -148,6 +148,16 @@ export default function Board({ target, path, move, moveMs, dist, next, now, out
           <rect x={sx(s) + 1.5} y={sy(s) + 1.5} width={S - 3} height={S - 3} rx={3} className={'ring ' + trendOf(p, now)} />
         </g>
       ))}
+
+      {/* The picture's units (docs/STYLE.md §6): what a dot's size and a dashed square mean. */}
+      <text x={X0 + 4 * S} y={Y0 + 8 * S + 30} className="key">
+        Dot size = chance the knight ends there
+      </text>
+      {hops.length > 0 && (
+        <text x={X0 + 4 * S} y={Y0 + 8 * S + 46} className="key">
+          Dashed = next hop · green raises your chance
+        </text>
+      )}
 
       <g className="token-move" transform={`translate(${pos.x.toFixed(2)} ${pos.y.toFixed(2)})`}>
         <circle r={14} className={tokenClass} />

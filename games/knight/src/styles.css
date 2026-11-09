@@ -37,6 +37,12 @@
   font-weight: 500;
   fill: var(--muted);
 }
+.knight .key {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  fill: var(--muted);
+  text-anchor: middle;
+}
 .knight .mass {
   fill: var(--muted);
   pointer-events: none;
@@ -69,10 +75,12 @@
 .knight .next {
   pointer-events: none;
 }
+/* Next-hop squares are dashed so they can't be mistaken for the solid green target outlines. */
 .knight .ring {
   fill: none;
   stroke: var(--text);
   stroke-width: 2;
+  stroke-dasharray: 5 4;
 }
 .knight .ring.up {
   stroke: var(--win);
