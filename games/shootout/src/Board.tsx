@@ -126,7 +126,8 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, goalFor }: Bo
   const seg = [odds.regA, aSd, bSd, odds.regB];
   const xs: number[] = [BAR.x];
   for (const v of seg) xs.push(xs[xs.length - 1] + v * BAR.w);
-  const pickSpan = pick === 'A' ? [xs[0], xs[2]] : pick === 'B' ? [xs[2], xs[4]] : [xs[1], xs[3]];
+  // Green is every ending that pays your bet, red every ending that doesn't.
+  const wins = (i: number) => (pick === 'A' ? i <= 1 : pick === 'B' ? i >= 2 : i === 1 || i === 2);
   const kickerName = next ? TEAM_LABEL[next.team] : TEAM_LABEL[goalFor];
   const kickNo = next ? (next.team === 'A' ? s.a.length : s.b.length) + 1 : 0;
 
@@ -194,17 +195,14 @@ export default function Board({ s, pA, pB, pick, odds, next, shot, goalFor }: Bo
         </text>
       )}
 
-      {/* The odds bar: lengths are the exact chances; the pale middle is sudden death. */}
+      {/* The odds bar: lengths are the exact chances; green is where your bet wins, red where it loses. */}
       <rect x={BAR.x} y={BAR.y} width={BAR.w} height={BAR.h} rx={6} className="bar-bg" />
       {seg.map((v, i) =>
         v > 0 ? (
-          <rect key={i} x={xs[i]} y={BAR.y} width={v * BAR.w} height={BAR.h} className={'bar-seg ' + (i === 1 || i === 2 ? 'sd' : 'out')} />
+          <rect key={i} x={xs[i]} y={BAR.y} width={v * BAR.w} height={BAR.h} className={'bar-seg ' + (wins(i) ? 'win' : 'lose')} />
         ) : null,
       )}
-      {odds.A > 0 && odds.B > 0 && <line x1={xs[2]} y1={BAR.y - 4} x2={xs[2]} y2={BAR.y + BAR.h + 4} className="bar-split" />}
-      {pickSpan[1] - pickSpan[0] > 0.5 && (
-        <rect x={pickSpan[0]} y={BAR.y - 3} width={pickSpan[1] - pickSpan[0]} height={BAR.h + 6} rx={7} className="bar-pick" />
-      )}
+      {xs.slice(1, 4).map((x, i) => (seg[i] > 0 && seg[i + 1] > 0 ? <line key={i} x1={x} y1={BAR.y} x2={x} y2={BAR.y + BAR.h} className="bar-split" /> : null))}
       {/* SD bracket under the middle. */}
       {odds.SD > 0 && odds.SD < 1 && <path d={`M ${xs[1]} ${BAR.y + BAR.h + 4} v 5 H ${xs[3]} v -5`} className="sd-bracket" />}
       <text x={BAR.x} y={BAR.y + BAR.h + 32} className={'bar-label a' + (pick === 'A' ? ' mine' : '')}>

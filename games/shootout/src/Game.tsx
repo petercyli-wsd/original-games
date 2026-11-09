@@ -521,8 +521,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The keeper covers exactly the miss chance of the goal mouth; the shot lands at a uniformly random point, so the green corners are the kicker's
-              chance to score. The bar at the bottom splits 100% into Home and Away; its pale middle is the share decided in sudden death, which is also the
-              chance it goes there. The side you back is outlined in the accent colour, and its goals on the scoreboard are drawn in it. Each kick's chance per
+              chance to score. The bar at the bottom splits 100% into Home and Away; the middle is the share decided in sudden death, which is also the
+              chance it goes there. The green part of the bar is every ending that pays your bet, the red part every ending that does not. The side you back has its goals on the scoreboard are drawn in it. Each kick's chance per
               matchup shows when you hover its button. Space takes the next kick and C cashes out.
             </p>
           </InfoSection>

@@ -219,20 +219,15 @@
 .shoot .bar-bg {
   fill: var(--hover);
 }
-.shoot .bar-seg.out {
-  fill: var(--muted);
+.shoot .bar-seg.win {
+  fill: var(--win);
 }
-.shoot .bar-seg.sd {
-  fill: var(--line-strong);
+.shoot .bar-seg.lose {
+  fill: var(--lose);
 }
 .shoot .bar-split {
   stroke: var(--card);
   stroke-width: 3;
-}
-.shoot .bar-pick {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2.5;
 }
 .shoot .sd-bracket {
   fill: none;
