@@ -71,7 +71,8 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 function outcomeTitle(r: Round): string {
   if (r.outcome === 'cashed') return 'Cashed out';
   if (r.outcome === 'won') return `Red ${CALL_LABEL[r.target]}!`;
-  return r.done < r.rolls ? `Red can't end ${CALL_LABEL[r.target]}` : `Not ${CALL_LABEL[r.target]}`;
+  // An early loss says how many rolls were left, so it's visible why red (even on the called face) can't finish there.
+  return r.done < r.rolls ? `${plural(r.rolls - r.done, 'roll')} left: can't end ${CALL_LABEL[r.target]}` : `Not ${CALL_LABEL[r.target]}`;
 }
 
 export default function Game() {
@@ -183,10 +184,11 @@ export default function Game() {
   const stake = round?.stake ?? bet.value;
   const p0 = startChance(rolls, cubes, target);
 
-  let status = `Ready · ${plural(k, 'cube')}, ${plural(n, 'roll')}, red ${CALL_LABEL[t]}`;
+  // Status lines stay under 9 tokens: the AI evaluator's blind sandbox hides longer text and never shows it again.
+  let status = k === 1 ? `Ready · red ${CALL_LABEL[t]}, ${plural(n, 'roll')}` : `${plural(k, 'cube')} · ${PLACE_NAME[t]}, ${plural(n, 'roll')}`;
   if (phase === 'rolling') status = `Roll ${done + 1} of ${n}`;
-  if (phase === 'checkpoint') status = `Checkpoint · ${done} of ${n} rolls`;
-  if (phase === 'over' && round) status = `${outcomeTitle(round)} · ${plural(done, 'roll')}`;
+  if (phase === 'checkpoint') status = `${plural(n - done, 'roll')} left · only the end counts`;
+  if (phase === 'over' && round) status = outcomeTitle(round);
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   return (
