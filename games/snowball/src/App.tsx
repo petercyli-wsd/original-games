@@ -1,6 +1,6 @@
 import { formatAmount, formatMultiplier } from '@originals/game-sdk';
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
-import { eventMs, useTicket } from '@originals/game-sdk/ui';
+import { ChanceBar, eventMs, useTicket } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import InfoModal from './components/InfoModal';
 import Tally from './components/Tally';
@@ -17,14 +17,6 @@ import {
   type Round,
 } from './game';
 import { DRAWS, MAJORITY, PRESETS, PRESET_IDS, RTP, prize, type PresetId } from './math';
-
-// Readable win chance: never shows 0% or 100% while the round is still open.
-function chance(p: number) {
-  if (p === 0 || p === 1) return `${p * 100}%`;
-  if (p < 0.001) return '<0.1%';
-  if (p > 0.999) return '>99.9%';
-  return `${(p * 100).toFixed(1)}%`;
-}
 
 const OUTCOME_TITLE: Record<Outcome, string> = {
   cashed: 'Cashed out',
@@ -249,13 +241,9 @@ export default function App() {
           </div>
         </div>
 
+        <ChanceBar p={p} label="Blue wins" />
+
         <div className="readout">
-          <div>
-            <span className="tile-label">Blue wins</span>
-            <b className="mid" aria-live="polite">
-              {chance(p)}
-            </b>
-          </div>
           <div>
             <span className="tile-label">Prize</span>
             <b className="mid">{formatMultiplier(view.prize)}</b>

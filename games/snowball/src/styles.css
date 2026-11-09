@@ -170,7 +170,7 @@ input:focus-visible {
   background: var(--text);
 }
 .primary:not(:disabled):hover {
-  background: #ffffff;
+  background: var(--muted);
 }
 .primary small {
   font-size: var(--fs-1);
@@ -290,6 +290,39 @@ input:focus-visible {
 }
 
 /* One flat row: the one chance and the prize. */
+/* The whole-bet chance bar (kit ChanceBar markup; this game loads only the kit
+   tokens, so the kit's rules are repeated here): green = blue wins. Flat; moves
+   after every draw. */
+.og-chance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.og-chance-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.og-chance-head b {
+  color: var(--text);
+  font-size: var(--fs-4);
+  font-variant-numeric: tabular-nums;
+}
+.og-chance-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--hover);
+  overflow: hidden;
+}
+.og-chance-track i {
+  display: block;
+  height: 100%;
+  background: var(--win);
+  transition: width var(--dur-event) ease;
+}
+
 .readout {
   display: flex;
   flex-wrap: wrap;
