@@ -25,6 +25,8 @@ export default function Tally({ blue, red, live }: Props) {
         <span className="t-blue">
           <b>{blue}</b> blue
         </span>
+        {/* Name the finish: the centre slot's small numeral alone didn't say what it was. */}
+        <span className="t-goal">first to {MAJORITY} wins</span>
         <span className="t-red">
           red <b>{red}</b>
         </span>

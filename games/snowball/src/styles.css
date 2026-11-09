@@ -365,6 +365,11 @@ input:focus-visible {
   font-size: var(--fs-4);
   font-weight: 600;
 }
+.tally-head .t-goal {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  color: var(--muted);
+}
 .tally-row {
   display: grid;
   grid-template-columns: repeat(11, minmax(0, 1fr));
