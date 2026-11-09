@@ -33,6 +33,7 @@ import {
   RTP,
   SPLITS,
   anyWinChance,
+  chancesFrom,
   crashPoint,
   multAt,
   multiplierOf,
@@ -224,7 +225,14 @@ export default function Game() {
   const shownStaked: Record<Band, boolean> = { red: shownStakes.red > 0, green: shownStakes.green > 0, moon: shownStakes.moon > 0 };
 
   const safeStakes = invalid ? { red: 0, green: 0, moon: 0 } : stakes;
-  const winChance = total > 0 ? anyWinChance(safeStakes, lines) : 0;
+  // In flight the chance is taken from the current multiplier (display only): the bands are a partition
+  // (Red below the split, Green above it) with Moon inside Green, so "any return" is the backed share of what
+  // is left. Before the bet it is the same number for m = 1.
+  const liveChance = (s: typeof safeStakes, ls: typeof lines, at: number) => {
+    const c = chancesFrom(ls, at);
+    return (s.red > 0 ? c.red : 0) + (s.green > 0 ? c.green : s.moon > 0 ? c.moon : 0);
+  };
+  const winChance = isLive && round ? liveChance(round.stakes, round.lines, m) : total > 0 ? anyWinChance(safeStakes, lines) : 0;
   const vol = total > 0 ? volatilityOf(safeStakes, lines) : 'medium';
 
   const winText = (r: Round) => {
@@ -348,7 +356,7 @@ export default function Game() {
         </div>
       </div>
 
-      <Readouts items={[{ label: 'Chance of any return', value: fmtChance(winChance), tone: 'chance' }]} />
+      <Readouts items={[{ label: isLive ? 'Chance of any return from here' : 'Chance of any return', value: fmtChance(winChance), tone: 'chance' }]} />
 
       <Board className="cc-board">
         <Graph m={m} phase={phase} lines={shownLines} staked={shownStaked} />

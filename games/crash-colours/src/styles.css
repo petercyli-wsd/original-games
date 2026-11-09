@@ -121,6 +121,8 @@
 .cc-region-label.red { fill: var(--c-red); }
 .cc-region-label.green { fill: var(--c-green); }
 .cc-region-label.moon { fill: var(--muted); }
+/* "your bet" in the accent, the same colour as the bar down a backed band's edge. */
+.cc-region-label .cc-mine-word { fill: var(--accent); }
 
 .cc-tick line {
   stroke: var(--line);
