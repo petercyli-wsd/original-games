@@ -106,7 +106,7 @@
 .cc-region.moon { fill: color-mix(in srgb, var(--text) 10%, transparent); }
 .cc-mine { fill: var(--accent); }
 /* The part of the odds the climb has already used up. */
-.cc-spent rect { fill: color-mix(in srgb, var(--card) 75%, transparent); }
+.cc-spent rect { fill: color-mix(in srgb, var(--card) 88%, transparent); }
 .cc-spent line { stroke: var(--line-strong); stroke-width: 1; }
 .cc-region-label {
   text-anchor: end;

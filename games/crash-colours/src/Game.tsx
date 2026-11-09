@@ -238,13 +238,13 @@ export default function Game() {
     const back = net + r.total;
     const you =
       Math.abs(net) < 0.005
-        ? `${formatAmount(r.total, 2)} back`
+        ? `Even: ${formatAmount(r.total, 2)} back`
         : net > 0
-          ? `+${formatAmount(net, 2)}`
+          ? `You win +${formatAmount(net, 2)}`
           : back > 0
             ? `${formatAmount(back, 2)} of ${formatAmount(r.total, 2)} back`
-            : `−${formatAmount(r.total, 2)}`;
-    return `${winText(r)} · ${you}`;
+            : `You lose ${formatAmount(r.total, 2)}`;
+    return `${you} · ${winText(r)}`;
   };
   const status = phase === 'live' ? 'In flight…' : phase === 'over' && round ? resultText(round) : 'Pick your colours';
   const tone = phase === 'live' ? 'live' : phase === 'over' && round ? (round.mult > 1.0000001 ? 'won' : round.mult === 0 ? 'lost' : 'idle') : 'idle';
