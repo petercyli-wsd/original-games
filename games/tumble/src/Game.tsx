@@ -16,7 +16,6 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
-  fmtChance,
   fmtMult,
   eventMs,
   useBetInput,
@@ -72,7 +71,7 @@ const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 function outcomeTitle(r: Round): string {
   if (r.outcome === 'cashed') return 'Cashed out';
   if (r.outcome === 'won') return `Red ${CALL_LABEL[r.target]}!`;
-  return r.done < r.rolls ? 'No way back' : `Not ${CALL_LABEL[r.target]}`;
+  return r.done < r.rolls ? `Red can't end ${CALL_LABEL[r.target]}` : `Not ${CALL_LABEL[r.target]}`;
 }
 
 export default function Game() {
@@ -234,12 +233,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
-          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
-        ]}
-      />
+      {/* The whole-bet picture carries the one chance number (docs/STYLE.md §6). */}
+      <ChanceBar p={pNow} label="Chance every red face ends where you called" />
+
+      <Readouts items={[{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }]} />
 
       <Board className="tumble-board">
         <Field faces={faces} left={left} rolls={n} target={t} tipping={tipping} stepKey={stepKey} rollMs={rollMs} over={phase === 'over'} />
@@ -257,8 +254,6 @@ export default function Game() {
           />
         )}
       </Board>
-
-      <ChanceBar p={pNow} label="Chance every red face ends where you called" />
 
       <Caption>Win if every red face ends where you called after the last roll.</Caption>
 
@@ -283,13 +278,13 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Under each cube, a bar is split into top, side and bottom: each part's width is the exact chance the red face ends there. Your call is the{' '}
-              <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts   (the Win chance
-              above the board, drawn again as the bar under it, which moves after every roll).
+              <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts   (the chance bar under the status line, which moves after every roll).
             </p>
             <p>
-              The four cells around a cube are the four ways it can tip. Each is filled{' '}
-              <b style={{ color: 'var(--win)' }}>green</b> if this cube's chance would rise that way, <b style={{ color: 'var(--lose)' }}>red</b> if it would fall; a bigger fill
-              means a bigger change. Each happens a quarter of the time, so their average is the bar.
+              The four cells around a cube are the four ways it can tip. Each cell is a gauge of this cube's chance after that tip: the{' '}
+              <b style={{ color: 'var(--win)' }}>green</b> part is how much it would rise, the <b style={{ color: 'var(--lose)' }}>red</b> part how much it would
+              fall, and grey is what stays. From a top or bottom face every tip lands on a side, so all four cells match. Each tip happens a quarter of the time,
+              so their average is the bar.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

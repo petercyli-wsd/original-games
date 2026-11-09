@@ -38,7 +38,7 @@ function Cube({ face, size }: { face: Face; size: number }) {
   };
   return (
     <g className="cube">
-      {face === 'bottom' && <rect x={-h - 7} y={-h - 7} width={size + 14} height={size + 14} rx={8} className="under" />}
+      {face === 'bottom' && <rect x={-h} y={h + 3} width={size} height={7} rx={2} className="face red under" />}
       {DIRS.map((d) => (
         <polygon key={d} points={trap[d]} className={'face ' + sideFill(d)} />
       ))}
@@ -59,6 +59,8 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
   const per = faces.map((f) => cubeChance(placeOf(f), left, target));
   const total = per.reduce((a, b) => a * b, 1);
   const done = rolls - left;
+  // From a top or bottom face every tip lands on a side, so every tip is worth the same.
+  const allSame = faces.every((f) => rollChances(f, left, target).every((p) => Math.abs(p - cubeChance(placeOf(f), left, target)) < 1e-12));
   const pipGap = 22;
   const pipX0 = VB_W / 2 - ((rolls - 1) * pipGap) / 2;
 
@@ -77,7 +79,7 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
         const now = per[idx];
         const next = rollChances(f, left, target);
         const dir = tipping?.[idx];
-        const maxDelta = Math.max(...next.map((p) => Math.abs(p - now)));
+        const scale = Math.max(now, ...next, 1e-9);
         const bar = forecast(placeOf(f), left);
         const x0 = cx - bw / 2;
         let acc = 0;
@@ -88,16 +90,24 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
             {DIRS.map((d, j) => {
               const [ox, oy] = OFFSET[d];
               const p = next[j];
-              const tone = left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
-              // Fill size shows how much this tip moves the chance, relative to the biggest tip.
-              const mag = maxDelta > 0 ? Math.abs(p - now) / maxDelta : 0;
-              const fs = c * 0.88 * (0.3 + 0.7 * mag);
+              const tone = over || left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
               const mx = cx + ox * c;
               const my = cy + oy * c;
+              // The tile is a gauge: fill height = this cube's chance after the tip, on a scale where the tile top is the
+              // highest of "now" and the four tips. Grey up to the lower of now/after; the green (rise) or red (fall) band is the change.
+              const tw = c * 0.88;
+              const base = (Math.min(p, now) / scale) * tw;
+              const band = tone === 'up' || tone === 'down' ? Math.max(3, (Math.abs(p - now) / scale) * tw) : 0;
+              const ty = my + tw / 2;
               return (
                 <g key={d} className={'cell ' + tone}>
-                  <rect x={mx - c * 0.44} y={my - c * 0.44} width={c * 0.88} height={c * 0.88} rx={6} />
-                  {(tone === 'up' || tone === 'down') && <rect x={mx - fs / 2} y={my - fs / 2} width={fs} height={fs} rx={4} className="fill" />}
+                  <rect x={mx - tw / 2} y={my - tw / 2} width={tw} height={tw} rx={6} className="well" />
+                  {tone !== 'off' && (
+                    <>
+                      <rect x={mx - tw / 2 + 2} y={ty - 2 - base} width={tw - 4} height={Math.max(base, 0)} className="base" />
+                      {band > 0 && <rect x={mx - tw / 2 + 2} y={ty - 2 - base - band} width={tw - 4} height={band} className="band" />}
+                    </>
+                  )}
                 </g>
               );
             })}
@@ -114,6 +124,12 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
                 <Cube face={f} size={c * 0.74} />
               </g>
             </g>
+
+            {!dir && !over && f === 'bottom' && (
+              <text x={cx} y={cy + 1.44 * c + 14} className="note under-note">
+                red face underneath
+              </text>
+            )}
 
             {/* Forecast: where this red face ends, as exact shares of the bar. */}
             {PLACES.map((p, j) => {
@@ -139,9 +155,9 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
           </g>
         );
       })}
-      {left > 0 && done > 0 && !over && (
+      {left > 0 && !over && (
         <text x={VB_W / 2} y={VB_H - 6} className="note">
-          Tips around each cube: green helps, red hurts, bigger is more
+          {allSame ? 'Any tip: same chance' : 'Next tip: green helps, red hurts'}
         </text>
       )}
     </svg>

@@ -30,33 +30,25 @@
   fill: var(--text);
 }
 
-/* The cross of cells around each cube: outline green if tipping there would
-   raise the chance, red if it would lower it. */
-.tumble .cell rect {
-  fill: var(--hover);
-  stroke: transparent;
-  stroke-width: 2.5;
+/* The cross of cells around each cube: each is a gauge of this cube's chance
+   after that tip. Grey is what stays; the green (rise) or red (fall) band is the change. */
+.tumble .cell .well {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
 }
-.tumble .cell.up rect {
-  stroke: var(--win);
+.tumble .cell .base {
+  fill: var(--faint);
 }
-.tumble .cell.down rect {
-  stroke: var(--lose);
-}
-.tumble .cell.up rect.fill {
+.tumble .cell.up .band {
   fill: var(--win);
-  stroke: none;
 }
-.tumble .cell.down rect.fill {
+.tumble .cell.down .band {
   fill: var(--lose);
-  stroke: none;
 }
 .tumble .note {
   font-size: var(--fs-1);
   fill: var(--muted);
-}
-.tumble .cell.off rect {
-  fill: var(--bg);
 }
 .tumble .home {
   fill: var(--bg);
@@ -99,10 +91,8 @@
 .tumble .face.red {
   fill: var(--suit-red);
 }
-.tumble .under {
-  fill: none;
-  stroke: var(--suit-red);
-  stroke-width: 2.5;
+.tumble .under-note {
+  fill: var(--text);
 }
 
 /* Forecast bars: the player's call is the green share. */
