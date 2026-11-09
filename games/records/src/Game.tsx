@@ -5,6 +5,7 @@ import {
   Board,
   ACCENTS,
   Caption,
+  ChanceBar,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -16,7 +17,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useBetInput,
   useHistory,
@@ -236,9 +236,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar p={pNow} label={live || phase === 'over' ? `Chance to get ${k} records from here` : `Chance to get ${k} records`} />
+
       <Readouts
         items={[
-          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
           { label: `Prize at ${k} records`, value: fmtMult(prize), tone: 'prize' },
         ]}
       />
@@ -297,7 +298,7 @@ export default function Game() {
               item 20. That is why records get rare late in the queue.
             </p>
             <p>
-              <b>The whole bet</b>: the Win chance above the board is your chance to finish with enough records from here. It jumps up on a record and slips
+              <b>The whole bet</b>: the bar above the board is your chance to finish with enough records from here. It jumps up on a record and slips
               down a little on every miss. The row of items shows your records (green ticks), misses (grey dots) and the items still to come. Item 1 is always
               a record, and the average payout is {(RTP * 100).toFixed(0)}% of the stake.
             </p>
