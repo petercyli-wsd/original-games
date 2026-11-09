@@ -5,6 +5,7 @@ import {
   ACCENTS,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -268,12 +269,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
-          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
-        ]}
-      />
+      {/* Whole-bet chance: the track pictures only the next roll, so this bar moves after every roll. */}
+      <ChanceBar p={pNow} label={phase === 'idle' ? 'Chance to land on every gate' : 'Chance to land on every gate from here'} />
+
+      <Readouts items={[{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }]} />
 
       <Board className="landing-board">
         <Track
