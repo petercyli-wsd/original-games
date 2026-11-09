@@ -102,6 +102,13 @@
 .snk .sq.snake .factor {
   fill: var(--bg);
 }
+/* Squares that pay more than the stake read as wins. */
+.snk .sq.up .sq-bg {
+  stroke: var(--win);
+}
+.snk .sq.up .factor {
+  fill: var(--win);
+}
 .snk .start {
   text-anchor: start;
   font-size: 11px;

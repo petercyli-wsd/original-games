@@ -7,6 +7,7 @@ import {
   BetField,
   Board,
   Caption,
+  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -21,7 +22,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -261,7 +261,7 @@ export default function Game() {
   const mode: BoardMode = bitten ? 'bitten' : outcome ? (cash > 1 ? 'cashed' : 'returned') : live ? 'live' : 'idle';
   const valueLabel =
     bitten ? 'Bitten' : outcome ? 'Cashed out' : phase === 'checkpoint' ? 'Value' : phase === 'rolling' ? 'Rolling' : 'Starts at';
-  let footer = 'Each opposite pair: 1 in 6';
+  let footer = 'Roll to move round';
   if (rolls.length > 0) footer = `Roll ${rolls.length} · rolled ${lastRoll.sum}`;
   if (phase === 'rolling' && !landed) footer = tumble.on ? 'Rolling…' : `Moving ${dice[0] + dice[1]} squares`;
 
@@ -364,12 +364,9 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          { label: 'Next roll safe', value: phase === 'over' || bitten ? '—' : fmtChance(1 - q), tone: 'chance' },
-          { label: 'Best next square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' },
-        ]}
-      />
+      <ChanceBar p={bitten ? 0 : 1 - q} label="Next roll safe" />
+
+      <Readouts items={[{ label: 'Best next square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
 
       <Board className={'snk-board' + (auto.mode === 'auto' ? ' auto' : '')}>
         {auto.mode === 'auto' && lastAuto && <InstantResult multiplier={lastAuto.multiplier} stake={lastAuto.stake} id={lastAuto.id} />}
