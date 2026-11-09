@@ -13,7 +13,7 @@ const TOP = 8;
 const Y0 = TOP + H;
 /** The bottom row's lower tips. */
 const FLOOR = Y0 + N * S + H;
-const BAR_Y = FLOOR + 22;
+const BAR_Y = FLOOR + 30;
 export const VIEW_H = BAR_Y + 14 + 6;
 
 /** The card piles in the top corners: 3 × 2 cards each. */
@@ -186,6 +186,9 @@ export default function Board({ svgRef, gate, walker, trail, phase, outcome, ste
 
       {/* The bar: the bottom tiles, each sized by its chance; the green share is the chance to win. */}
       <g className="bar">
+        <text x={CX} y={BAR_Y - 6} className="cap mid">
+          Where the ball lands · green = gate
+        </text>
         {(() => {
           let cursor = 24;
           const BW = W - 48;

@@ -90,6 +90,9 @@
   font-weight: 600;
   fill: var(--muted);
 }
+.pascal .cap.mid {
+  text-anchor: middle;
+}
 .pascal .pile.right > text {
   text-anchor: end;
 }
