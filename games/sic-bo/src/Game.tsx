@@ -6,6 +6,7 @@ import {
   AutoBetControls,
   Board,
   Caption,
+  ChanceBar,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -17,7 +18,6 @@ import {
   StageTop,
   VolBadge,
   eventMs,
-  fmtChance,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -329,9 +329,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={rolling ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <ChanceBar p={total > 0 ? stats.pHit : 0} label="Chance a chip pays" />
+
       <Readouts
         items={[
-          { label: 'Win chance', value: total > 0 ? fmtChance(stats.pHit) : '–', tone: 'chance' },
           { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–' },
         ]}
       />
