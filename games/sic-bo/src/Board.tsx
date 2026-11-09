@@ -96,6 +96,9 @@ function CellBody({ bet }: { bet: BetDef }) {
   }
 }
 
+// The dice-icon rows look alike (a pair, a triple, two different faces, one face), so each says what it is.
+const KIND_WORD: Partial<Record<BetDef['kind'], string>> = { double: 'pair', triple: 'triple', combo: 'combo', single: 'per die' };
+
 const ROWS: { cls: string; kinds: BetDef['kind'][] }[] = [
   { cls: 'r1', kinds: ['small', 'odd', 'anyTriple', 'even', 'big'] },
   { cls: 'r2', kinds: ['double', 'triple'] },
@@ -141,6 +144,7 @@ export function Table({ layout, hits, paid, disabled, onAdd, onRemove, money }: 
         <span className="sb-cell-body">
           <CellBody bet={bet} />
         </span>
+        {KIND_WORD[bet.kind] && <span className="sb-kind">{KIND_WORD[bet.kind]}</span>}
         <span className="sb-pays">{won ? `+${money(paid[bet.id] ?? 0)}` : paysLabel(bet)}</span>
         {amt > 0 && <span className="sb-chip">{chipText(amt)}</span>}
       </button>

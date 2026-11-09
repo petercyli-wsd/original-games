@@ -171,6 +171,15 @@
   background: var(--hover);
 }
 .sb-row.r1 .sb-cell { height: 70px; }
+/* Rows of dice icons carry a one-word kind (pair, triple, combo) over the payout. */
+.sb-row.r2 .sb-cell,
+.sb-row.r4 .sb-cell { height: 64px; gap: 0; }
+.sb-kind {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--muted);
+}
 .sb-row.r5 .sb-cell { height: 52px; flex-direction: row; gap: var(--sp-2); }
 .sb-cell-body {
   max-width: 100%;
@@ -294,6 +303,6 @@
   .sb-row.r1 { grid-template-columns: 1.2fr 1fr 1.2fr 1fr 1.2fr; }
   .sb-row.r1 .sb-cell { height: 62px; }
   .sb-cell { height: 50px; }
-  .sb-row.r5 .sb-cell { flex-direction: column; gap: 2px; height: 54px; }
+  .sb-row.r5 .sb-cell { flex-direction: column; gap: 0; height: 64px; }
   .sb-chip { top: -6px; right: -6px; }
 }
