@@ -143,6 +143,8 @@ export default function App() {
   const shownN = shown ? shown.N : N;
   const shownK = shown ? shown.k : validK;
   const remaining = shown ? shown.pressed.filter((p) => !p).length : shownN;
+  // Bad teeth still unpressed (all k while the game runs; one fewer after a bite): the next press's risk, as a count.
+  const badLeft = shown ? shown.traps.filter((t) => !shown.pressed[t]).length : shownK;
   const rung = inPlay && round ? round.ladder[round.r] : preview[0];
   const canCash = phase === 'you' && !!round && round.r > 0;
   const betInvalid = !(bet > 0) || bet > balance;
@@ -238,6 +240,16 @@ export default function App() {
                 <b>{fmtMult(rung.bite)}</b>
               </div>
             )}
+          </div>
+
+          {/* What the next press risks: one dot per unpressed tooth, the bad ones red (STYLE.md §6 unit key). */}
+          <div className="teeth-left" aria-label={`${badLeft} bad of ${remaining} unpressed teeth`}>
+            <span className="label">{`${badLeft} bad ${badLeft === 1 ? 'tooth' : 'teeth'} among ${remaining} unpressed`}</span>
+            <div className="teeth-dots">
+              {Array.from({ length: remaining }, (_, i) => (
+                <i key={i} className={i < badLeft ? 'bad' : ''} />
+              ))}
+            </div>
           </div>
 
           <div className="board-wrap">
