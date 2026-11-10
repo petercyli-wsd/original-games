@@ -284,3 +284,13 @@ export const QUICK_LEVERAGE = [2, 10, 50, 100, 500, 1000];
 /** Slider position (0–1000) ⇄ leverage, on a log scale. */
 export const levFromSlider = (x: number) => clampLeverage(MIN_LEVERAGE * (MAX_LEVERAGE / MIN_LEVERAGE) ** (x / 1000));
 export const sliderFromLev = (lev: number) => (1000 * Math.log(clampLeverage(lev) / MIN_LEVERAGE)) / Math.log(MAX_LEVERAGE / MIN_LEVERAGE);
+
+/** Display only: the ways a position can end, as chances that sum to 1 (profit = tp + ep). */
+export function outcomeSegments(o: Odds, tpOn: boolean) {
+  return [
+    { key: 'tp', p: o.tp, label: 'TP', show: tpOn },
+    { key: 'ep', p: o.expireProfit, label: 'profit', show: true },
+    { key: 'el', p: Math.max(0, o.expire - o.expireProfit), label: 'loss', show: true },
+    { key: 'lo', p: o.lo, label: 'bust', show: true },
+  ].filter((x) => x.show);
+}

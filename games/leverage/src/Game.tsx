@@ -59,6 +59,7 @@ import {
   type Direction,
   type Expiry,
   type Odds,
+  outcomeSegments,
   type Outcome,
   type Setup,
 } from './math';
@@ -462,6 +463,8 @@ export default function Game() {
         </Chart>
       </Board>
 
+      <OutcomeBar o={o} tpOn={b.hi !== null} />
+
       {phase === 'over' && p && !p.auto && (
         <RoundOver
           key={p.id}
@@ -497,8 +500,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The chance above the chart is the exact probability the position finishes in profit if held to expiry. While a position is open it updates from
-              where you are.
+              The bar under the chart splits every way the position can end: take profit, expiry in profit, expiry at a loss, and stop loss or bust. Each
+              width is its exact chance. The chance above the chart is the profit share. While a position is open both update from where you are.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -523,6 +526,23 @@ export default function Game() {
         </InfoModal>
       )}
     </GameLayout>
+  );
+}
+
+/** How the position can end, as one flat bar: widths are the exact chances, never printed. */
+function OutcomeBar({ o, tpOn }: { o: Odds; tpOn: boolean }) {
+  const segs = outcomeSegments(o, tpOn);
+  return (
+    <div className="lev-odds">
+      <div className="lev-odds-track" role="img" aria-label="How the position can end">
+        {segs.map((s) => (
+          <i key={s.key} className={s.key} style={{ width: `${s.p * 100}%` }}>
+            {s.p >= 0.12 ? s.label : ''}
+          </i>
+        ))}
+      </div>
+      <span className="lev-odds-key">{`Bar: how the position can end`}</span>
+    </div>
   );
 }
 

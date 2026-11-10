@@ -328,3 +328,45 @@
     top: 58px;
   }
 }
+
+/* ---------- Outcome bar ---------- */
+.lev-odds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.lev-odds-track {
+  display: flex;
+  height: 22px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--hover);
+}
+.lev-odds-track i {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 22px;
+  font-style: normal;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--text);
+  transition: width var(--dur-ui) ease;
+}
+.lev-odds-track i.tp {
+  background: var(--win);
+}
+.lev-odds-track i.ep {
+  background: color-mix(in srgb, var(--win) 45%, var(--bg));
+}
+.lev-odds-track i.el {
+  background: var(--line-strong);
+}
+.lev-odds-track i.lo {
+  background: var(--lose);
+}
+.lev-odds-key {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
