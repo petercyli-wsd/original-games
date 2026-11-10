@@ -30,3 +30,21 @@ A concept goes to the build stage only if it passes all of these on paper:
 | One knob | One visible control moves P(win) by at least 25:1 |
 | Not a reskin | No existing game has the same board, draw and decision (`docs/CATALOGUE.md`, `games/`, market list) |
 | Fair pricing | Exact P(win \| state) exists (closed form, DP or enumeration) for the martingale cash-out in `docs/BUILDING-GAMES.md` |
+
+## Search-loop rule: the odds must be readable from the board (added 2026-11-09)
+
+Four games built from concepts that passed the paper screen failed the blind-player gate on the same ground: the headline win chance moved after each draw, but the board gave no visible reason, so the player "trusted the number".
+
+| Game | Gate | What the player could not see |
+|---|---|---|
+| `piggyback` | 3.00 twice, simplicity 2 | why a hop into a clear lead cut the chance; why stacks carried riders |
+| `truel` | 3.13, then 2.85 after repair | why the most accurate shooter was the worst bet and why a miss raised your chance |
+| `fault` | 2.52 twice | why a ball that added a block lowered the chance; what "ends it" meant |
+| `rope` | 2.61, then 2.54 after repair | why the start chance was 44.6%; why a round ended early on a computed "no way to hold" |
+
+Before building, a concept must show on paper:
+- the chance after a draw changes by an amount you can read off a literal board quantity (a count, a length, a share of a bar), not off a hidden cascade or combinatorial count;
+- the option that looks strongest is not the worst bet;
+- no round ends on a computation instead of a draw the player watched.
+
+Cascade and merge maths (collisions, stacking, connected runs) is the likeliest to break this. Repair rounds that only add labels did not move the score.
