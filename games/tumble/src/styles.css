@@ -30,20 +30,29 @@
   fill: var(--text);
 }
 
-/* The cross of cells around each cube: each is a gauge of this cube's chance
-   after that tip. Grey is what stays; the green (rise) or red (fall) band is the change. */
+/* The cross of cells around each cube: each prints this cube's chance after that tip,
+   tinted green if it beats the chance now, red if it is worse, neutral if the same. */
 .tumble .cell .well {
   fill: var(--bg);
   stroke: var(--line);
   stroke-width: 1;
 }
-.tumble .cell .base {
-  fill: var(--faint);
+.tumble .cell text {
+  font-weight: 700;
+  fill: var(--muted);
 }
-.tumble .cell.up .band {
+.tumble .cell.up .well {
+  fill: color-mix(in srgb, var(--win) 18%, var(--card));
+  stroke: var(--win);
+}
+.tumble .cell.up text {
   fill: var(--win);
 }
-.tumble .cell.down .band {
+.tumble .cell.down .well {
+  fill: color-mix(in srgb, var(--lose) 16%, var(--card));
+  stroke: var(--lose);
+}
+.tumble .cell.down text {
   fill: var(--lose);
 }
 .tumble .note {

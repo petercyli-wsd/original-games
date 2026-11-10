@@ -79,7 +79,6 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
         const now = per[idx];
         const next = rollChances(f, left, target);
         const dir = tipping?.[idx];
-        const scale = Math.max(now, ...next, 1e-9);
         const bar = forecast(placeOf(f), left);
         const x0 = cx - bw / 2;
         let acc = 0;
@@ -93,20 +92,16 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               const tone = over || left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
               const mx = cx + ox * c;
               const my = cy + oy * c;
-              // The tile is a gauge: fill height = this cube's chance after the tip, on a scale where the tile top is the
-              // highest of "now" and the four tips. Grey up to the lower of now/after; the green (rise) or red (fall) band is the change.
+              // Each tile is one of the four equally likely tips and prints this cube's chance if it tips there:
+              // green if that beats the chance now, red if it is worse, neutral if the same (STYLE.md §6, per-outcome cells).
               const tw = c * 0.88;
-              const base = (Math.min(p, now) / scale) * tw;
-              const band = tone === 'up' || tone === 'down' ? Math.max(3, (Math.abs(p - now) / scale) * tw) : 0;
-              const ty = my + tw / 2;
               return (
                 <g key={d} className={'cell ' + tone}>
                   <rect x={mx - tw / 2} y={my - tw / 2} width={tw} height={tw} rx={6} className="well" />
                   {tone !== 'off' && (
-                    <>
-                      <rect x={mx - tw / 2 + 2} y={ty - 2 - base} width={tw - 4} height={Math.max(base, 0)} className="base" />
-                      {band > 0 && <rect x={mx - tw / 2 + 2} y={ty - 2 - base - band} width={tw - 4} height={band} className="band" />}
-                    </>
+                    <text x={mx} y={my + c * 0.09} style={{ fontSize: c * (k === 1 ? 0.24 : 0.27) }}>
+                      {pct(p)}
+                    </text>
                   )}
                 </g>
               );
@@ -157,7 +152,7 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
       })}
       {left > 0 && !over && (
         <text x={VB_W / 2} y={VB_H - 6} className="note">
-          {allSame ? 'Any tip: same chance' : 'Next tip: green helps, red hurts'}
+          {allSame ? 'Any tip: same chance' : k > 1 ? "Tile: this cube's chance after that tip" : 'Tile: your chance after that tip'}
         </text>
       )}
     </svg>

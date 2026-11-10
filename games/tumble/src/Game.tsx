@@ -283,10 +283,10 @@ export default function Game() {
               <b style={{ color: 'var(--win)' }}>green part</b>. With several cubes, the round's chance is the product of the green parts   (the chance bar under the status line, which moves after every roll).
             </p>
             <p>
-              The four cells around a cube are the four ways it can tip. Each cell is a gauge of this cube's chance after that tip: the{' '}
-              <b style={{ color: 'var(--win)' }}>green</b> part is how much it would rise, the <b style={{ color: 'var(--lose)' }}>red</b> part how much it would
-              fall, and grey is what stays. From a top or bottom face every tip lands on a side, so all four cells match. Each tip happens a quarter of the time,
-              so their average is the bar.
+              The four cells around a cube are the four ways it can tip. Each cell shows this cube's chance after that tip:{' '}
+              <b style={{ color: 'var(--win)' }}>green</b> if it would rise, <b style={{ color: 'var(--lose)' }}>red</b> if it would fall, plain if it stays the
+              same. From a top or bottom face every tip lands on a side, so all four cells match. Each tip happens a quarter of the time, so their average is the
+              cube's chance now.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
