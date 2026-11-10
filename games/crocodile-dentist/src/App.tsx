@@ -242,6 +242,11 @@ export default function App() {
             )}
           </div>
 
+          {/* The whole bet: the win chance as a share of a track, moving after every press (STYLE.md §6). */}
+          <div className="win-track" aria-hidden="true">
+            <i className={phase === 'over' && last ? (last.win ? 'w' : 'l') : ''} style={{ width: `${(liveChance * 100).toFixed(2)}%` }} />
+          </div>
+
           {/* What the next press risks: one dot per unpressed tooth, the bad ones red (STYLE.md §6 unit key). */}
           <div className="teeth-left" aria-label={`${badLeft} bad of ${remaining} unpressed teeth`}>
             <span className="label">{`${badLeft} bad ${badLeft === 1 ? 'tooth' : 'teeth'} among ${remaining} unpressed`}</span>

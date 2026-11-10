@@ -275,6 +275,24 @@ input:focus-visible {
   color: var(--lose);
 }
 
+/* The whole-bet win chance as a share of a flat track. */
+.win-track {
+  align-self: stretch;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lose) 35%, var(--card));
+  overflow: hidden;
+}
+.win-track i {
+  display: block;
+  height: 100%;
+  background: var(--win);
+  transition: width 0.3s ease;
+}
+.win-track i.l {
+  width: 0 !important;
+}
+
 /* The next press's risk as a count: one dot per unpressed tooth, bad ones red. */
 .teeth-left {
   display: flex;
