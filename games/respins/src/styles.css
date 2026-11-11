@@ -1,0 +1,63 @@
+/* Respins board. Layout, panel and readouts come from the kit. */
+
+.rsp {
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+}
+.rsp text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.rsp .lab {
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.rsp .msg {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* The respin lamps: lit = one more miss allowed. */
+.rsp .lamp {
+  transition: fill 120ms ease;
+}
+.rsp .lamp.on {
+  fill: var(--text);
+  stroke: var(--text);
+}
+.rsp .lamp.off {
+  fill: none;
+  stroke: var(--faint, var(--muted));
+  stroke-width: 1.5;
+}
+
+/* The grid. Empty cells are the cells that pay a coin, so they carry the win colour. */
+.rsp .cell {
+  fill: var(--bg);
+  stroke-width: 1.5;
+  transition: stroke 120ms ease;
+}
+.rsp .cell.empty {
+  stroke: var(--win, var(--green));
+}
+.rsp .cell.full {
+  stroke: var(--line-strong);
+}
+.rsp .coin {
+  fill: var(--accent);
+}
+.rsp .cell.spot {
+  stroke: var(--text);
+  stroke-width: 4;
+}
+.rsp .cell.hit {
+  stroke: var(--win, var(--green));
+  stroke-width: 4;
+}
+.rsp .cell.miss {
+  stroke: var(--lose, var(--red));
+  stroke-width: 4;
+}
