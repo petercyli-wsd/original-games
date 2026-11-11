@@ -13,7 +13,7 @@ original-games/
 │   ├── half-moon/           Reference for kit-based games (see docs/BUILDING-GAMES.md)
 │   └── <id>/                One folder per game
 ├── scripts/              eval runner, evidence builder, evaluator CLI, new-game scaffolder, game fork, headless play driver, report
-├── .claude/skills/       Claude Code skills: /review-game, /review-games, /refine-evaluator, /generate-games, /iterate-game
+├── .claude/skills/       Claude Code skills: /review-game, /review-games, /refine-evaluator, /generate-games, /iterate-game, /search-games
 ├── docs/IDEAS.md         Concept backlog + eval rubric
 ├── docs/CATALOGUE.md     Maths-first batch: theorem → game specs, uniqueness, results
 ├── docs/BUILDING-GAMES.md   The build and pricing contract for kit-based games
@@ -168,6 +168,7 @@ Reviews run in a Claude Code session on the team's subscription; results are sto
 | `/refine-evaluator` | Proposes a better prompt from the team's reviews, backtests it, and recommends whether to promote |
 | `/generate-games 4` | Generates a batch of new games: concepts screened against `docs/DESIGN-RULES.md` (and against every existing and archived game for reskins), built on the kit, reviewed, and kept only if they pass the keep gate (one repair round allowed); marked **New** |
 | `/iterate-game knight shells` | Improves existing games: a brief from the latest AI and team reviews, a repair, a fresh review, then accept (passes the gate, or +0.25 with no new cap), a second round, or revert. A prototype that still fails after two rounds goes to the Archive. Team-reviewed games are forked (`node scripts/fork-game.mjs <id>`) so the reviewed version stays archived with its reviews; improved games are marked **Improved** |
+| `/loop /search-games` | Runs the search unattended for days on branch `search`, one cycle at a time: forks that fix what the team's comments complain about, or batches of new concepts. Builds use Sonnet; reviews use the calibrated Opus evaluator in local mode, so nothing is written to the API. Kept games go to `docs/SEARCH.md` for the team to rank, and the loop stops itself when the team's ratings disagree with the gate, or when too many games are waiting for review |
 
 Each judgement runs in its own subagent that sees only its prompt file (and, for the blind player, the screenshots its play command takes), so no judge scores from the code. The skills drive `npm run evaluator` (`scripts/evaluator.ts`), which builds prompts with the same code the API uses and validates every result before storing it. Working files go to `.evaluator/` (git-ignored).
 

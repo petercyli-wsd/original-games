@@ -4,12 +4,16 @@
 // The copy is then improved in place by /iterate-game.
 //
 //   node scripts/fork-game.mjs <id> [<new-id>]     (default new id: <id>-v2, or the next free -vN)
+//   node scripts/fork-game.mjs <id> --keep         leaves the original as it is (archive it later,
+//                                                  once the team prefers the copy)
 
 import { cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const [id, wanted] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const keep = args.includes('--keep');
+const [id, wanted] = args.filter((a) => a !== '--keep');
 const games = join(root, 'games');
 if (!id || !existsSync(join(games, id))) {
   console.error('Usage: node scripts/fork-game.mjs <game-id> [<new-id>]');
@@ -33,9 +37,11 @@ const edit = (file, fn) => {
 const idLine = /(\bid:\s*)(['"])[^'"]+\2/;
 edit(`${next}/package.json`, (s) => s.replace(`"@originals/${id}"`, `"@originals/${next}"`));
 edit(`${next}/src/manifest.ts`, (s) => s.replace(idLine, `$1$2${next}$2`).replace(/\n\s*supersededBy:[^\n]*/, ''));
-edit(`${id}/src/manifest.ts`, (s) =>
-  s.replace(/status:\s*(['"])\w+\1/, `status: $1retired$1`).replace(/(\n)(\s*)(status:[^\n]*\n)/, `$1$2$3$2supersededBy: '${next}',\n`),
-);
+if (!keep) {
+  edit(`${id}/src/manifest.ts`, (s) =>
+    s.replace(/status:\s*(['"])\w+\1/, `status: $1retired$1`).replace(/(\n)(\s*)(status:[^\n]*\n)/, `$1$2$3$2supersededBy: '${next}',\n`),
+  );
+}
 
-console.log(`✓ games/${next} created from games/${id}; games/${id} archived (status retired, supersededBy '${next}').`);
+console.log(`✓ games/${next} created from games/${id}; ${keep ? `games/${id} left as it is` : `games/${id} archived (status retired, supersededBy '${next}')`}.`);
 console.log('Next: npm install --package-lock-only --ignore-scripts (the new workspace must be in package-lock.json, or the deploy fails).');

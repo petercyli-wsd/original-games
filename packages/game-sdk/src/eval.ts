@@ -43,12 +43,15 @@ export interface EvalReport {
   p99: number;
   max: number;
   avgSteps: number;
+  /** 99th-percentile round length: long tails make a game feel endless even in Turbo. */
+  p99Steps: number;
 }
 
 export function runEval<P>(spec: EvalSpec<P>, { rounds = 100_000, seed = 1 } = {}): EvalReport[] {
   return spec.configs.map(({ label, params, rtp: targetRtp }, i) => {
     const rng = createRng(seededSource(seed + i * 7919));
     const mults = new Float64Array(rounds);
+    const lengths = new Float64Array(rounds);
     let sum = 0;
     let sumSq = 0;
     let hits = 0;
@@ -60,8 +63,10 @@ export function runEval<P>(spec: EvalSpec<P>, { rounds = 100_000, seed = 1 } = {
       sumSq += res.multiplier ** 2;
       if (res.multiplier > 0) hits++;
       steps += res.steps;
+      lengths[r] = res.steps;
     }
     mults.sort();
+    lengths.sort();
     const mean = sum / rounds;
     const stdDev = Math.sqrt(Math.max(0, sumSq / rounds - mean ** 2));
     return {
@@ -76,6 +81,7 @@ export function runEval<P>(spec: EvalSpec<P>, { rounds = 100_000, seed = 1 } = {
       p99: mults[Math.floor(rounds * 0.99)],
       max: mults[rounds - 1],
       avgSteps: steps / rounds,
+      p99Steps: lengths[Math.floor(rounds * 0.99)],
     };
   });
 }

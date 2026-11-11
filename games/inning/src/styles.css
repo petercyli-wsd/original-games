@@ -1,0 +1,167 @@
+/* Inning board. Layout, panel and readouts come from the kit. The --in-* tokens
+   fall back to the kit's older names where STYLE.md's tokens are not defined yet. */
+.in-board {
+  --in-win: var(--win, var(--green));
+  --in-lose: var(--lose, var(--red));
+  --in-fs-1: var(--fs-1, 12px);
+  --in-fs-2: var(--fs-2, 14px);
+  --in-fs-3: var(--fs-3, 16px);
+  --in-fs-5: var(--fs-5, 28px);
+  --in-sp-1: var(--sp-1, 4px);
+  --in-sp-3: var(--sp-3, 12px);
+  --in-sp-4: var(--sp-4, 16px);
+}
+.in-board {
+  flex-direction: column;
+  gap: var(--in-sp-3);
+}
+.in-stage {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--in-sp-4);
+  width: 100%;
+}
+.in-diamond,
+.in-wheel {
+  flex: 1 1 220px;
+  max-width: 250px;
+  min-width: 0;
+}
+.in-diamond .field {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.in-diamond .base {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.in-diamond .home {
+  fill: var(--hover);
+}
+.in-diamond text {
+  text-anchor: middle;
+  fill: var(--muted);
+  font-family: inherit;
+  font-size: var(--in-fs-1);
+  font-weight: 600;
+}
+.in-diamond .runs {
+  font-size: var(--in-fs-5);
+  font-weight: 700;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.in-diamond .runs.won {
+  fill: var(--in-win);
+}
+.in-diamond .runs.lost {
+  fill: var(--in-lose);
+}
+.in-diamond .target {
+  fill: var(--accent);
+  font-weight: 700;
+}
+.in-diamond .light {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.in-diamond .light.on {
+  fill: var(--in-lose);
+  stroke: var(--in-lose);
+}
+.in-diamond .token {
+  transition-property: transform;
+  transition-timing-function: linear;
+}
+.in-diamond .token circle {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.in-diamond .token circle.scored {
+  fill: var(--in-win);
+}
+.in-wheel .wheel {
+  transform-box: view-box;
+  transform-origin: 120px 128px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.in-wheel .sector {
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.in-wheel .sector.good {
+  fill: var(--in-win);
+}
+.in-wheel .sector.bad {
+  fill: var(--in-lose);
+}
+.in-wheel .sector.landed {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.in-wheel .sec-label {
+  fill: var(--bg);
+  font-size: var(--in-fs-3);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: inherit;
+}
+.in-wheel .pointer {
+  fill: var(--text);
+}
+.in-wheel .hub {
+  fill: var(--card);
+}
+.in-wheel .last {
+  text-anchor: middle;
+  fill: var(--muted);
+  font-size: var(--in-fs-2);
+  font-weight: 600;
+  font-family: inherit;
+}
+.in-strip {
+  width: 100%;
+  max-width: 560px;
+}
+.in-strip-head {
+  font-size: var(--in-fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: var(--in-sp-1);
+}
+.in-strip-bar,
+.in-strip-labels {
+  display: flex;
+  width: 100%;
+}
+.in-strip-bar {
+  height: 18px;
+  background: var(--bg);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.in-strip-bar i {
+  display: block;
+  height: 100%;
+  background: var(--in-lose);
+  border-right: 2px solid var(--card);
+}
+.in-strip-bar i.win {
+  background: var(--in-win);
+  border-right: 0;
+}
+.in-strip-labels span {
+  font-size: var(--in-fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
