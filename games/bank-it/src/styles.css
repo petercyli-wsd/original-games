@@ -1,0 +1,150 @@
+/* Bank It board. Layout, panel and readouts come from the kit. Flat bar, flat die, six equal faces. */
+
+.bank-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.og-board.bank-board .bank-wrap > svg {
+  display: block;
+  width: 100%;
+  max-height: 54vh;
+  overflow: visible;
+}
+
+.bank text {
+  font-family: inherit;
+  fill: var(--text);
+}
+.bank .lab {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bank .lab.acc {
+  fill: var(--accent);
+}
+.bank .lab.mid {
+  text-anchor: middle;
+}
+.bank .lab.end,
+.bank .tick.end {
+  text-anchor: end;
+}
+.bank .tick {
+  font-size: var(--fs-1);
+  fill: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Score bar ---------- */
+.bank .track {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.bank .banked {
+  fill: var(--accent);
+  transition-property: width;
+  transition-timing-function: ease;
+}
+.bank .pot {
+  fill: var(--accent);
+  fill-opacity: 0.45;
+  transition-property: width;
+  transition-timing-function: ease;
+}
+.bank .lost {
+  fill: none;
+  stroke: var(--lose);
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+
+/* ---------- Die and faces ---------- */
+.bank .die-body {
+  fill: var(--text);
+}
+.bank .pip {
+  fill: var(--bg);
+}
+.bank .die-blank {
+  text-anchor: middle;
+  font-size: var(--fs-5);
+  font-weight: 600;
+  fill: var(--faint);
+}
+.bank .face .cell {
+  stroke-width: 1;
+}
+.bank .face.add .cell {
+  fill: var(--win);
+  stroke: var(--win);
+}
+.bank .face.wipe .cell {
+  fill: var(--lose);
+  stroke: var(--lose);
+}
+.bank .face.dim {
+  opacity: 0.35;
+}
+.bank .face text {
+  text-anchor: middle;
+  fill: var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+.bank .fnum {
+  font-size: var(--fs-4);
+  font-weight: 700;
+}
+.bank .fsub {
+  font-size: var(--fs-1);
+  font-weight: 600;
+}
+.bank .hit-frame {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.bank .hit-frame.bad {
+  stroke: var(--text);
+}
+
+/* ---------- Key and pips ---------- */
+.bank .key {
+  text-anchor: middle;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.bank .tp.on {
+  fill: var(--text);
+}
+.bank .tp.off {
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 1.5;
+}
+.bank .pip-ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+/* ---------- The one-line reason under the board ---------- */
+.bank-msg {
+  width: 100%;
+  min-height: 24px;
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.bank-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--lose);
+}
