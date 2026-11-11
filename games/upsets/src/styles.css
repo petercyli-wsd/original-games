@@ -1,0 +1,49 @@
+/* Upsets board. Layout, panel and readouts come from the kit. */
+.up-board.og-board { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: var(--sp-3); min-height: 0; }
+.up-board.og-board > svg.up-tree { display: block; width: min(100%, 380px); height: auto; max-height: none; margin: 0 auto; overflow: visible; }
+.up-tree text { text-anchor: middle; dominant-baseline: central; font-family: inherit; font-variant-numeric: tabular-nums; pointer-events: none; fill: var(--text); font-weight: 600; font-size: 13px; }
+.up-tree .rate { fill: var(--muted); font-size: 11px; font-weight: 500; }
+.up-tree .ln { fill: none; stroke: var(--line-strong); stroke-width: 2; stroke-linejoin: round; }
+.up-tree .ln.won { stroke: var(--muted); }
+.up-tree .ln.lost { stroke: var(--line); }
+.up-tree .ln.next { stroke: var(--text); }
+.up-tree .tok { fill: var(--raised); stroke: var(--line-strong); stroke-width: 1.5; }
+.up-tree .leaf.out .tok { fill: var(--bg); stroke: var(--line); }
+.up-tree .leaf.out .seed { fill: var(--faint); }
+.up-tree .node.empty { fill: var(--card); stroke: var(--line); stroke-width: 1.5; }
+.up-tree .node.empty.next { stroke: var(--text); }
+.up-tree .node circle { stroke-width: 2; }
+.up-tree .node.up circle { fill: var(--win); stroke: var(--win); }
+.up-tree .node.fav circle { fill: var(--lose); stroke: var(--lose); }
+.up-tree .node text { fill: var(--bg); }
+
+.up-duel { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-1); width: min(520px, 100%); margin: 0 auto; font-size: var(--fs-2); font-variant-numeric: tabular-nums; }
+.up-head, .up-key { font-size: var(--fs-1); color: var(--muted); text-align: center; }
+.up-row { display: flex; align-items: center; gap: var(--sp-3); }
+.up-name { flex: none; width: 6.5em; font-weight: 600; font-size: var(--fs-1); }
+.up-name.r { text-align: right; }
+.up-bar { position: relative; display: flex; flex: 1; height: 20px; border-radius: var(--radius); overflow: hidden; background: var(--bg); }
+.up-bar i { display: block; height: 100%; }
+.up-bar i.u { background: var(--win); }
+.up-bar i.f { background: var(--lose); }
+.up-bar .needle {
+  position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1px; background: var(--text);
+  left: calc(var(--u) * 100%);
+  animation-name: up-sweep; animation-timing-function: ease-in-out; animation-fill-mode: both;
+}
+@keyframes up-sweep {
+  0% { left: 0%; }
+  30% { left: 100%; }
+  60% { left: 0%; }
+  100% { left: calc(var(--u) * 100%); }
+}
+
+.up-score { display: flex; flex-direction: column; gap: var(--sp-2); width: min(520px, 100%); margin: 0 auto; }
+.up-pips { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); font-size: var(--fs-2); font-weight: 600; }
+.up-pips > div { display: flex; gap: var(--sp-1); }
+.up-pips i { width: 16px; height: 16px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line-strong); box-sizing: border-box; }
+.up-pips i.on.up { background: var(--win); border-color: var(--win); }
+.up-pips i.on.fav { background: var(--lose); border-color: var(--lose); }
+.up-note { margin: 0; text-align: center; font-size: var(--fs-2); font-weight: 600; }
+.up-note.sub { font-size: var(--fs-1); font-weight: 500; color: var(--muted); }
+.up-blocked { margin: 0; font-size: var(--fs-1); color: var(--lose); text-align: center; }
