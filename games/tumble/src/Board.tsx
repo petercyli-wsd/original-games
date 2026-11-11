@@ -3,7 +3,7 @@ import { DIRS, PLACES, cubeChance, forecast, placeOf, rollChances, type Dir, typ
 // Board geometry, in viewBox units. Each cube gets a column: the cube sits in
 // the middle of a cross of cells (the four ways it can tip next), and its
 // forecast bar sits underneath. The bottom line multiplies the bars.
-const CROSS_TOP = 68;
+const CROSS_TOP = 40;
 const BAR_H = 22;
 
 const OFFSET: Record<Dir, [number, number]> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0] };
@@ -38,7 +38,7 @@ function Cube({ face, size }: { face: Face; size: number }) {
   };
   return (
     <g className="cube">
-      {face === 'bottom' && <rect x={-h - 7} y={-h - 7} width={size + 14} height={size + 14} rx={8} className="under" />}
+      {face === 'bottom' && <rect x={-h} y={h + 3} width={size} height={7} rx={2} className="face red under" />}
       {DIRS.map((d) => (
         <polygon key={d} points={trap[d]} className={'face ' + sideFill(d)} />
       ))}
@@ -54,12 +54,13 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
   const c = k === 1 ? 84 : k === 2 ? 72 : 58;
   const CROSS_Y = CROSS_TOP + 1.5 * c;
   const BAR_Y = CROSS_TOP + 3 * c + 20;
-  const PROD_Y = BAR_Y + BAR_H + 66;
-  const VB_H = PROD_Y + 12;
+  const VB_H = BAR_Y + BAR_H + 44;
   const bw = Math.min(colW - 28, 300);
   const per = faces.map((f) => cubeChance(placeOf(f), left, target));
   const total = per.reduce((a, b) => a * b, 1);
   const done = rolls - left;
+  // From a top or bottom face every tip lands on a side, so every tip is worth the same.
+  const allSame = faces.every((f) => rollChances(f, left, target).every((p) => Math.abs(p - cubeChance(placeOf(f), left, target)) < 1e-12));
   const pipGap = 22;
   const pipX0 = VB_W / 2 - ((rolls - 1) * pipGap) / 2;
 
@@ -70,9 +71,6 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
         {Array.from({ length: rolls }, (_, j) => (
           <circle key={j} cx={pipX0 + j * pipGap} cy={20} r={6} className={j < done ? 'done' : tipping && j === done ? 'now' : 'todo'} />
         ))}
-        <text x={VB_W / 2} y={50} className="pip-label">
-          {left === 0 ? `all ${rolls} rolls done` : `${left} of ${rolls} roll${rolls > 1 ? 's' : ''} to go`}
-        </text>
       </g>
 
       {faces.map((f, idx) => {
@@ -84,8 +82,6 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
         const bar = forecast(placeOf(f), left);
         const x0 = cx - bw / 2;
         let acc = 0;
-        const ti = PLACES.indexOf(target);
-        const tx = x0 + bw * (bar.slice(0, ti).reduce((a, b) => a + b, 0) + bar[ti] / 2);
         const [dx, dy] = dir ? OFFSET[dir] : [0, 0];
         return (
           <g key={idx}>
@@ -93,19 +89,24 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
             {DIRS.map((d, j) => {
               const [ox, oy] = OFFSET[d];
               const p = next[j];
-              const tone = left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
+              const tone = over || left === 0 ? 'off' : p > now + 1e-12 ? 'up' : p < now - 1e-12 ? 'down' : 'same';
+              const mx = cx + ox * c;
+              const my = cy + oy * c;
+              // Each tile is one of the four equally likely tips and prints this cube's chance if it tips there:
+              // green if that beats the chance now, red if it is worse, neutral if the same (STYLE.md §6, per-outcome cells).
+              const tw = c * 0.88;
               return (
-                <g key={d} className={'cell ' + tone + (dir === d ? ' hit' : '')}>
-                  <rect x={cx + ox * c - c * 0.44} y={cy + oy * c - c * 0.44} width={c * 0.88} height={c * 0.88} rx={8} />
-                  {left > 0 && (
-                    <text x={cx + ox * c} y={cy + oy * c + c * 0.09} style={{ fontSize: c * (k === 1 ? 0.24 : 0.27) }}>
+                <g key={d} className={'cell ' + tone}>
+                  <rect x={mx - tw / 2} y={my - tw / 2} width={tw} height={tw} rx={6} className="well" />
+                  {tone !== 'off' && (
+                    <text x={mx} y={my + c * 0.09} style={{ fontSize: c * (k === 1 ? 0.24 : 0.27) }}>
                       {pct(p)}
                     </text>
                   )}
                 </g>
               );
             })}
-            <rect x={cx - c * 0.44} y={cy - c * 0.44} width={c * 0.88} height={c * 0.88} rx={8} className="home" />
+            <rect x={cx - c * 0.44} y={cy - c * 0.44} width={c * 0.88} height={c * 0.88} rx={6} className={'home' + (over ? (now === 1 ? ' won' : now === 0 ? ' lost' : '') : '')} />
             <g
               key={stepKey}
               className="mover"
@@ -119,6 +120,12 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               </g>
             </g>
 
+            {!dir && !over && f === 'bottom' && (
+              <text x={cx} y={cy + 1.44 * c + 14} className="note under-note">
+                red face underneath
+              </text>
+            )}
+
             {/* Forecast: where this red face ends, as exact shares of the bar. */}
             {PLACES.map((p, j) => {
               const w = bw * bar[j];
@@ -126,7 +133,7 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               acc += bar[j];
               if (w <= 0) return null;
               return (
-                <g key={p} className={'seg' + (p === target ? ' target' : '')}>
+                <g key={p} className={'seg' + (p === target ? ' target' + (over ? (now === 0 ? ' lost' : '') : '') : '')}>
                   <rect x={x} y={BAR_Y} width={w} height={BAR_H} />
                   {w >= 46 && (
                     <text x={x + w / 2} y={BAR_Y + 15.5}>
@@ -137,17 +144,17 @@ export default function Board({ faces, left, rolls, target, tipping, stepKey, ro
               );
             })}
             <rect x={x0} y={BAR_Y} width={bw} height={BAR_H} className="bar-frame" />
-            <path d={`M ${tx} ${BAR_Y + BAR_H + 2} l -5 7 h 10 Z`} className={'bar-mark' + (now === 0 ? ' zero' : '')} />
-            <text x={cx} y={BAR_Y + BAR_H + 28} className={'bar-val' + (now === 0 ? ' zero' : now === 1 ? ' one' : '')}>
-              {k > 1 ? pct(now) : `${pct(now)} ${CALL_LABEL[target]}`}
+            <text x={cx} y={BAR_Y + BAR_H + 15} className="note">
+              {k > 1 ? 'Where this red face ends' : 'Where the red face ends'}
             </text>
           </g>
         );
       })}
-
-      <text x={VB_W / 2} y={PROD_Y} className={'prod' + (over ? (total === 1 ? ' one' : total === 0 ? ' zero' : '') : '')}>
-        {k > 1 ? `${per.map(pct).join(' × ')} = ${pct(total)} to win` : `${pct(total)} to win`}
-      </text>
+      {left > 0 && !over && (
+        <text x={VB_W / 2} y={VB_H - 6} className="note">
+          {allSame ? 'Any tip: same chance' : k > 1 ? "Tile: this cube's chance after that tip" : 'Tile: your chance after that tip'}
+        </text>
+      )}
     </svg>
   );
 }

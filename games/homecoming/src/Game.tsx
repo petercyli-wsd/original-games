@@ -4,7 +4,7 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
+  ACCENTS,
   Chips,
   GameLayout,
   InfoModal,
@@ -17,6 +17,7 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
+  eventMs,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -57,9 +58,8 @@ const OUTCOME_TITLE: Record<BoardOutcome, string> = {
   cashed: 'Cashed out',
 };
 
-const ACCENT = '#e0aaff';
 const SIDE_LABEL: Record<Side, string> = { home: 'Home', away: 'Away' };
-const RULE = 'The dot steps at random. Back it to get home before the steps run out (or not to). Cash out any time.';
+const RULE = `Back Home or Away: does the dot get home within ${BUDGET} steps?`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -85,7 +85,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const stepMs = turbo.turbo ? 80 : 320;
+  const stepMs = eventMs(turbo.turbo);
   const live = phase === 'live' || phase === 'stepping';
 
   function finish(r: Round, outcome: BoardOutcome, cash: number) {
@@ -169,8 +169,6 @@ export default function Game() {
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
   const sel: Settings = { dim, side };
-  const pSel = startChance(sel);
-  const pHome = startChance({ dim, side: 'home' });
   const vol = volatilityOf(sel);
   const sideWord = s.side === 'home' ? 'comes home' : 'stays away';
   const slotsFrom = settled ? null : pending ? pending.from : pos;
@@ -184,7 +182,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Homecoming"
-      accent={ACCENT}
+      accent={ACCENTS.violet}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -198,7 +196,7 @@ export default function Game() {
             onChange={(v) => change(() => setDim(v))}
           />
 
-          <Label hint={`home in time ${fmtChance(pHome)}`}>Back</Label>
+          <Label>Back</Label>
           <Chips
             label="Back a side"
             options={[
@@ -209,13 +207,6 @@ export default function Game() {
             disabled={live}
             onChange={(v) => change(() => setSide(v))}
           />
-
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(pSel)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(RTP / pSel)}</dd>
-          </dl>
 
           {live ? (
             <>
@@ -243,16 +234,9 @@ export default function Game() {
           {
             label: `Chance it ${sideWord}`,
             value: settled ? (round?.outcome === 'cashed' ? '—' : chance >= 1 ? '100%' : '0%') : fmtChance(chance),
-            sub: `${dist} from home · ${left} steps left`,
             tone: 'chance',
           },
-          {
-            label: 'Cash out now',
-            value: live || settled ? fmtMult(cash) : '—',
-            sub: live || settled ? formatAmount(stake * cash, 2) : `starts at ${fmtMult(RTP)}`,
-            tone: 'cash',
-          },
-          { label: 'Prize', value: fmtMult(prize), sub: `if it ${sideWord}`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -282,13 +266,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar p={chance} label={`Chance it ${sideWord}`} note={RULE} />
-      ) : (
-        <Caption>
-          {RULE} Home in time: {DIMS.map((d) => `${d}D ${fmtChance(startChance({ dim: d, side: 'home' }))}`).join(', ')}.
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Homecoming" onClose={() => setInfoOpen(false)}>
@@ -316,7 +294,7 @@ export default function Game() {
             </p>
             <p>
               The shaded end of each track is out of reach: once a dot is there, the steps left cannot bring it home. It closes in as the steps are used.
-              The bar under the board is your exact chance right now; the panel shows it for the chosen settings before you bet.
+              The chance above the board is your exact chance right now, and updates after every step.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

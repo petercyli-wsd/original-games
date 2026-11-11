@@ -7,47 +7,38 @@
 
 /* ---------- Tiles ---------- */
 .pascal .tile > path {
-  fill: color-mix(in srgb, var(--text) 5%, transparent);
+  fill: var(--raised);
   stroke: none;
-  transition: fill 0.25s ease, stroke 0.25s ease, opacity 0.25s ease;
+  transition: fill var(--dur-ui) ease, stroke var(--dur-ui) ease;
 }
 .pascal .tile.live > path {
-  fill: color-mix(in srgb, var(--accent) 9%, var(--card));
-  stroke: color-mix(in srgb, var(--accent) 30%, transparent);
+  fill: var(--raised);
+  stroke: var(--line-strong);
   stroke-width: 1;
 }
 .pascal .tile.dead > path,
 .pascal .tile.past > path {
-  fill: color-mix(in srgb, var(--text) 3%, transparent);
+  fill: var(--bg);
 }
 .pascal .tile.visited > path {
-  fill: color-mix(in srgb, var(--accent) 30%, transparent);
+  fill: var(--hover);
 }
 .pascal .tile.gate > path {
-  fill: color-mix(in srgb, var(--green) 26%, var(--card));
-  stroke: var(--green);
-  stroke-width: 2;
+  fill: var(--win);
 }
 .pascal .tile.miss > path {
-  fill: color-mix(in srgb, var(--red) 18%, var(--card));
-  stroke: color-mix(in srgb, var(--red) 55%, transparent);
-  stroke-width: 1;
+  fill: var(--lose);
 }
-.pascal .tile.gate.dead > path {
-  fill: color-mix(in srgb, var(--green) 6%, var(--card));
-  stroke-dasharray: 3 3;
-}
+/* Bottom tiles the ball can no longer reach are spent. */
+.pascal .tile.gate.dead > path,
 .pascal .tile.miss.dead > path {
-  fill: color-mix(in srgb, var(--red) 5%, var(--card));
-  stroke: color-mix(in srgb, var(--red) 25%, transparent);
+  opacity: 0.4;
 }
-.pascal .tile.hit > path {
-  fill: color-mix(in srgb, var(--green) 55%, var(--card));
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 70%, transparent));
-}
+/* The landing tile keeps its outline after the round. */
+.pascal .tile.hit > path,
 .pascal .tile.fail > path {
-  fill: color-mix(in srgb, var(--red) 55%, var(--card));
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 70%, transparent));
+  stroke: var(--text);
+  stroke-width: 2;
 }
 .pascal .tile.pickable {
   cursor: pointer;
@@ -68,136 +59,83 @@
 }
 .pascal .trail.fresh {
   animation-name: pascal-draw;
-  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-timing-function: ease-out;
   animation-fill-mode: both;
 }
 .pascal .walker {
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  transition-timing-function: ease-out;
   pointer-events: none;
 }
 .pascal .walker circle {
-  fill: #fff;
+  fill: var(--text);
   stroke: var(--accent);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px var(--accent));
-}
-/* The round is waiting for the player: a ring pulses out of the ball. */
-.pascal .walker circle.wait {
-  fill: none;
-  stroke: var(--accent);
-  stroke-width: 2;
-  filter: none;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: pascal-wait 1.4s ease-out infinite;
 }
 .pascal .walker.through circle,
 .pascal .walker.locked circle {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 10px var(--green));
+  stroke: var(--win);
 }
 .pascal .walker.missed circle,
 .pascal .walker.unreachable circle {
-  stroke: var(--red);
-  filter: drop-shadow(0 0 10px var(--red));
+  stroke: var(--lose);
 }
 .pascal .walker.cashed circle {
-  stroke: var(--gold);
-  filter: drop-shadow(0 0 10px var(--gold));
+  stroke: var(--text);
 }
 
 /* ---------- Card piles ---------- */
 .pascal .cap {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
-.pascal .end,
+.pascal .cap.mid {
+  text-anchor: middle;
+}
 .pascal .pile.right > text {
   text-anchor: end;
 }
 .pascal .count {
-  font-size: 22px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  fill: var(--accent);
-}
-.pascal .count .of {
-  font-size: 13px;
+  font-size: var(--fs-4);
   font-weight: 600;
-  fill: var(--muted);
-}
-.pascal .next {
-  font-size: 12.5px;
-  font-weight: 700;
   font-variant-numeric: tabular-nums;
   fill: var(--text);
 }
+.pascal .count .of {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  fill: var(--muted);
+}
 .pascal .card rect {
-  fill: var(--accent);
-  stroke: color-mix(in srgb, var(--accent) 60%, #000);
-  stroke-width: 1;
+  fill: var(--text);
+  stroke: none;
 }
 .pascal .card text {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-2);
+  font-weight: 600;
   text-anchor: middle;
-  fill: #0b2a24;
+  fill: var(--bg);
 }
 .pascal .card.empty rect {
   fill: none;
-  stroke: color-mix(in srgb, var(--accent) 35%, transparent);
-  stroke-dasharray: 3 2.5;
+  stroke: var(--line-strong);
+  stroke-width: 1;
 }
 .pascal .fly {
   pointer-events: none;
   animation-name: pascal-deal;
-  animation-timing-function: cubic-bezier(0.3, 0.6, 0.3, 1);
+  animation-timing-function: ease-out;
   animation-fill-mode: both;
 }
 
 /* ---------- Bar ---------- */
 .pascal .bar .seg {
-  fill: color-mix(in srgb, var(--red) 45%, var(--card));
-  transition: x 0.3s ease, width 0.3s ease;
+  fill: var(--lose);
+  transition: x var(--dur-ui) ease, width var(--dur-ui) ease;
 }
 .pascal .bar .seg.g {
-  fill: var(--green);
-}
-.pascal .bar .pct {
-  font-size: 13px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  fill: var(--green);
-}
-.pascal .bar .pct.zero {
-  fill: var(--red);
-}
-.pascal .prompt {
-  font-size: 13px;
-  font-weight: 700;
-  text-anchor: middle;
-  fill: var(--accent);
-}
-
-/* ---------- The continue button stands out while the round waits ---------- */
-.og-btn.secondary.pas-next {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  color: var(--accent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent);
-}
-.og-btn.secondary.pas-next small {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.og-btn.secondary.pas-next:disabled {
-  box-shadow: none;
+  fill: var(--win);
 }
 
 @keyframes pascal-draw {
@@ -208,27 +146,18 @@
     stroke-dashoffset: 0;
   }
 }
+/* The dealt card travels to the ball's new tile, then is spent. */
 @keyframes pascal-deal {
   0% {
     transform: translate(var(--x0), var(--y0));
     opacity: 1;
   }
-  70% {
-    transform: translate(var(--x1), var(--y1)) scale(0.8);
+  92% {
+    transform: translate(var(--x1), var(--y1));
     opacity: 1;
   }
   100% {
-    transform: translate(var(--x1), var(--y1)) scale(0.5);
-    opacity: 0;
-  }
-}
-@keyframes pascal-wait {
-  from {
-    transform: scale(1);
-    opacity: 0.9;
-  }
-  to {
-    transform: scale(2.1);
+    transform: translate(var(--x1), var(--y1));
     opacity: 0;
   }
 }

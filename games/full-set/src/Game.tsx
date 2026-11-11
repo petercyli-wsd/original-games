@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -16,6 +16,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -39,7 +40,6 @@ import {
   clampBudget,
   darkCount,
   headline,
-  huntChance,
   litOf,
   prizeFor,
   volatilityOf,
@@ -49,7 +49,7 @@ import {
   type Segments,
 } from './math';
 
-const ACCENT = '#9bf6ff';
+const ACCENT = ACCENTS.sky;
 
 interface Round {
   id: number;
@@ -65,8 +65,6 @@ interface Round {
   outcome: Outcome | null;
   pace: Pace;
 }
-
-const plural = (x: number, w: string) => `${x} ${w}${x === 1 ? '' : 's'}`;
 
 const OUTCOME_TITLE: Record<Outcome, string> = { full: 'Full set', cashed: 'Cashed out', short: 'Out of reach' };
 /** A loss with draws still left means a repeat with no spare: the set went out of reach. */
@@ -122,7 +120,6 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const speed = turbo.turbo ? 0.25 : 1;
   const live = phase === 'drawing' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -150,9 +147,10 @@ export default function Game() {
 
     // One draw spins a full turn; a hunt hops quickly from landing to landing.
     const n = drawn.length;
-    const per = Math.round((n === 1 ? 640 : Math.min(420, Math.max(150, 1500 / n))) * speed);
+    // Manual: a single draw takes a readable 600 ms; Turbo about a quarter (docs/STYLE.md).
+    const per = eventMs(turbo.turbo, n === 1 ? 600 : Math.min(600, Math.max(150, 1500 / n)));
     const travel = Math.round(per * (n === 1 ? 0.9 : 0.8));
-    const hold = Math.round((n === 1 ? 140 : 260) * speed);
+    const hold = eventMs(turbo.turbo, n === 1 ? 140 : 260);
     setTravelMs(travel);
     setRound(next);
     setPhase('drawing');
@@ -231,8 +229,6 @@ export default function Game() {
   const stake = round?.stake ?? bet.value;
   const pNow = round?.outcome === 'full' ? 1 : round?.outcome === 'short' ? 0 : winChance(k, m, d);
   const cash = phase === 'over' && round ? round.cash : round ? prize * pNow : RTP;
-  const p0 = headline(segments, budget);
-  const hunt = huntChance(k, m, d);
   const spares = d - m;
   const range = BUDGETS[segments];
 
@@ -241,10 +237,6 @@ export default function Game() {
   if (phase === 'checkpoint') status = `Checkpoint · ${k - m} of ${k} lit`;
   if (phase === 'over' && round?.outcome) status = `${titleOf(round, round.outcome)} · ${k - m} of ${k} lit`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  let chanceSub = `${k} segments in ${D} draws`;
-  if (live) chanceSub = `${m} dark · ${plural(d, 'draw')} left`;
-  if (phase === 'over') chanceSub = round?.outcome === 'cashed' ? 'when you cashed out' : `${k - m} of ${k} lit in ${draws.length} draws`;
 
   return (
     <GameLayout
@@ -287,10 +279,6 @@ export default function Game() {
           </Label>
 
           <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(segments, budget))}</dd>
             <dt>Average draws to fill</dt>
             <dd>{averageDraws(segments).toFixed(1)}</dd>
           </dl>
@@ -306,10 +294,10 @@ export default function Game() {
                 title={`Draws until a new segment lights: ${spares + 1} tries at ${m}/${k} each`}
                 onClick={() => move(round, 'hunt')}
               >
-                {m === 1 ? 'Hunt the last one' : 'Hunt next segment'} · {fmtChance(hunt)}
+                {m === 1 ? 'Hunt the last one' : 'Hunt next segment'}
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, 'draw')}>
-                Draw once · {fmtChance(m / k)} new
+                Draw once
               </ActionButton>
             </>
           ) : (
@@ -326,14 +314,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Win chance', value: fmtChance(pNow), sub: chanceSub, tone: 'chance' },
-          {
-            label: 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'at every checkpoint',
-            tone: 'cash',
-          },
-          { label: 'Prize · full set', value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize · full set', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -365,25 +347,14 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label="Chance to light every segment"
-          note={`The green share of the strip under the ring. Each draw is new with chance ${m}/${k}: the dark share of the ring.`}
-        />
-      ) : (
-        <Caption>
-          Each draw lights a random segment, repeats included. All {k} within {D} draws happens {fmtChance(headline(k, D))} of the time (coupon
-          collector: k!·S(D, k)/k<sup>D</sup>); a full ring takes {averageDraws(k).toFixed(1)} draws on average. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Light every segment before your draws run out.</Caption>
 
       {infoOpen && (
         <InfoModal title="Full Set" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
               A ring is cut into equal segments. Every draw lands on a random point of the ring and lights the segment under it, even if it is already lit.
-              Light <b style={{ color: ACCENT }}>every segment</b> before your draws run out.
+              Light <b>every segment</b> before your draws run out.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
@@ -402,16 +373,16 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               <b>The ring.</b> Every point of the ring is equally likely, so the next draw lights a new segment with chance{' '}
-              <b>dark segments ÷ all segments</b>: the dark share of the ring, shown in the middle. When you have no spare draws, the lit segments turn
+              <b>dark segments ÷ all segments</b>: the dark share of the ring. When you have no spare draws, the lit segments turn
               red: they are exactly where the next draw ends the round.
             </p>
             <p>
-              <b>The inner ring</b> is your budget, one cell per draw. Used cells are cyan (new segment) or grey (repeat). The rest are split into one cell
+              <b>The inner ring</b> is your budget, one cell per draw. Used cells are filled with the accent colour (new segment) or dark grey (repeat). The rest are split into one cell
               per dark segment, then your <b>spares</b>. A repeat eats a spare.
             </p>
             <p>
               <b>The strip</b> splits every way the round can end: the full set, or stopped 1, 2, 3+ segments short. The{' '}
-              <b style={{ color: 'var(--green)' }}>green share</b> is your exact win chance, and the hunt button shows the chance that a hunt finds a new
+              <b style={{ color: 'var(--win)' }}>green share</b> is your exact win chance, and the hunt button shows the chance that a hunt finds a new
               segment before the spares run out: 1 − (lit share)<sup>spares + 1</sup>.
             </p>
           </InfoSection>

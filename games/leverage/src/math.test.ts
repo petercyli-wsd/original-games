@@ -14,6 +14,7 @@ import {
   bustTicks,
   levFromSlider,
   odds,
+  outcomeSegments,
   playPosition,
   priceAt,
   sliderFromLev,
@@ -190,6 +191,42 @@ describe('Leverage limits and RTP', () => {
     for (const r of runEval(evalSpec, { rounds: 30_000, seed: 3 })) {
       expect(Math.abs(r.rtp - manifest.rtp)).toBeLessThan(4 * r.stdError);
       expect(r.max).toBeLessThanOrEqual(manifest.maxMultiplier);
+    }
+  });
+});
+
+describe('Leverage outcome bar (display helper)', () => {
+  it('segment widths match brute force over every path and sum to 1', () => {
+    const cases: Barriers[] = [
+      { n: 4, lo: -4, hi: 3, T: 12 },
+      { n: 5, lo: -2, hi: null, T: 11 },
+      { n: 3, lo: -3, hi: 2, T: 10 },
+    ];
+    for (const b of cases) {
+      const w = { tp: 0, ep: 0, el: 0, lo: 0 };
+      for (let m = 0; m < 1 << b.T; m++) {
+        let k = 0;
+        let end: 'tp' | 'lo' | 'x' = 'x';
+        for (let i = 0; i < b.T; i++) {
+          k += (m >> i) & 1 ? 1 : -1;
+          const h = barrierHit(k, b);
+          if (h) {
+            end = h === 'tp' ? 'tp' : 'lo';
+            break;
+          }
+        }
+        // paths that stop early are counted once per continuation, so each path weighs 2^-T
+        if (end === 'x') w[valueAt(k, b.n) > 1 ? 'ep' : 'el']++;
+        else w[end]++;
+      }
+      const segs = outcomeSegments(odds(0, b, b.T), b.hi !== null);
+      const by = Object.fromEntries(segs.map((x) => [x.key, x.p]));
+      const total = 1 << b.T;
+      expect(by.ep).toBeCloseTo(w.ep / total, 9);
+      expect(by.el).toBeCloseTo(w.el / total, 9);
+      expect(by.lo).toBeCloseTo(w.lo / total, 9);
+      expect(by.tp ?? 0).toBeCloseTo(w.tp / total, 9);
+      expect(segs.reduce((a, x) => a + x.p, 0)).toBeCloseTo(1, 9);
     }
   });
 });

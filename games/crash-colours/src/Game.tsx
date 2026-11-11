@@ -12,7 +12,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   VolBadge,
+  ACCENTS,
+  eventMs,
   fmtChance,
   useAutoBet,
   useHotkeys,
@@ -30,8 +33,6 @@ import {
   RTP,
   SPLITS,
   anyWinChance,
-  bandOf,
-  chances,
   chancesFrom,
   crashPoint,
   multAt,
@@ -50,7 +51,6 @@ import {
 
 const NAMES: Record<Band, string> = { red: 'Red', green: 'Green', moon: 'Moon' };
 const CLIMB_MS = 2600;
-const TURBO_CLIMB_MS = 650;
 
 interface Round {
   id: number;
@@ -64,7 +64,7 @@ interface Round {
 interface Hist {
   id: number;
   crash: number;
-  band: Band;
+  mult: number;
 }
 
 const parseStake = (t: string) => {
@@ -152,11 +152,11 @@ export default function Game() {
     setRound({ id, crash, stakes: st, total: stake, mult, lines: ls });
     setM(1);
     setPhase('live');
-    await climb(crash, fast ? TURBO_CLIMB_MS : CLIMB_MS);
+    await climb(crash, eventMs(fast, CLIMB_MS));
     ticket.settle(mult);
     live.current = false;
     if (!alive.current) return mult;
-    setHist((h) => [{ id, crash, band: bandOf(crash, ls) }, ...h].slice(0, 16));
+    setHist((h) => [{ id, crash, mult }, ...h].slice(0, 16));
     setPhase('over');
     return mult;
   }
@@ -222,22 +222,17 @@ export default function Game() {
   // ---------- what the board shows ----------
   const shownLines = round && phase !== 'idle' ? round.lines : lines;
   const shownStakes = round && phase !== 'idle' ? round.stakes : invalid ? { red: 0, green: 0, moon: 0 } : stakes;
-  const pChance = chances(shownLines);
-  // While the line climbs, each card shows its band's chance out of what is left above the line.
-  const liveChance = round && phase === 'live' ? chancesFrom(round.lines, m) : null;
-  const pay = payouts(shownLines);
-
-  function bandState(b: Band): 'idle' | 'pending' | 'won' | 'lost' {
-    if (!round || phase === 'idle') return 'idle';
-    const ls = round.lines;
-    const done = phase === 'over';
-    if (b === 'red') return m >= ls.split ? 'lost' : done ? (winners(round.crash, ls).red ? 'won' : 'lost') : 'pending';
-    if (b === 'green') return m >= ls.split ? 'won' : done ? 'lost' : 'pending';
-    return m >= ls.moon ? 'won' : done ? 'lost' : 'pending';
-  }
+  const shownStaked: Record<Band, boolean> = { red: shownStakes.red > 0, green: shownStakes.green > 0, moon: shownStakes.moon > 0 };
 
   const safeStakes = invalid ? { red: 0, green: 0, moon: 0 } : stakes;
-  const winChance = total > 0 ? anyWinChance(safeStakes, lines) : 0;
+  // In flight the chance is taken from the current multiplier (display only): the bands are a partition
+  // (Red below the split, Green above it) with Moon inside Green, so "any return" is the backed share of what
+  // is left. Before the bet it is the same number for m = 1.
+  const liveChance = (s: typeof safeStakes, ls: typeof lines, at: number) => {
+    const c = chancesFrom(ls, at);
+    return (s.red > 0 ? c.red : 0) + (s.green > 0 ? c.green : s.moon > 0 ? c.moon : 0);
+  };
+  const winChance = isLive && round ? liveChance(round.stakes, round.lines, m) : total > 0 ? anyWinChance(safeStakes, lines) : 0;
   const vol = total > 0 ? volatilityOf(safeStakes, lines) : 'medium';
 
   const winText = (r: Round) => {
@@ -245,13 +240,28 @@ export default function Game() {
     const names = BANDS.filter((b) => w[b]).map((b) => NAMES[b]);
     return `${names.join(' + ')} ${names.length > 1 ? 'win' : 'wins'}`;
   };
-  const status = phase === 'live' ? 'In flight…' : phase === 'over' && round ? winText(round) : 'Pick your colours';
-  const tone = phase === 'live' ? 'live' : phase === 'over' && round ? (round.mult >= 1 ? 'won' : 'lost') : 'idle';
+  // The round's result in words (the crash point itself is the hero number on the graph).
+  const resultText = (r: Round) => {
+    const net = payoutOf(r.stakes, r.crash, r.lines) - r.total;
+    const back = net + r.total;
+    const you =
+      Math.abs(net) < 0.005
+        ? `Even: ${formatAmount(r.total, 2)} back`
+        : net > 0
+          ? // Gross back on the total stake, then the net: with stakes split across bands, a bare net reads as a puzzle.
+            `${formatAmount(back, 2)} back on ${formatAmount(r.total, 2)} (+${formatAmount(net, 2)})`
+          : back > 0
+            ? `${formatAmount(back, 2)} of ${formatAmount(r.total, 2)} back`
+            : `You lose ${formatAmount(r.total, 2)}`;
+    return `${you} · ${winText(r)}`;
+  };
+  const status = phase === 'live' ? 'In flight…' : phase === 'over' && round ? resultText(round) : 'Pick your colours';
+  const tone = phase === 'live' ? 'live' : phase === 'over' && round ? (round.mult > 1.0000001 ? 'won' : round.mult === 0 ? 'lost' : 'idle') : 'idle';
 
   return (
     <GameLayout
       name="Crash Colours"
-      accent="#ef4444"
+      accent={ACCENTS.pink}
       className="cc-game"
       panel={
         <>
@@ -284,7 +294,7 @@ export default function Game() {
                   2×
                 </button>
                 <button type="button" disabled={busy} onClick={() => setStake(b, '0.00')} aria-label={`Clear ${NAMES[b]} stake`}>
-                  ✕
+                  ×
                 </button>
               </div>
             </div>
@@ -298,7 +308,7 @@ export default function Game() {
             onChange={(v) => changeLines({ split: v })}
             disabled={busy}
           />
-          <Label hint={`${fmtChance(RTP / moon)} chance`}>Moon line</Label>
+          <Label hint={<VolBadge level={vol} />}>Moon line</Label>
           <div className="cc-moons">
             <Chips
               label="Moon line"
@@ -309,15 +319,6 @@ export default function Game() {
               disabled={busy}
             />
           </div>
-
-          <dl className="og-stats">
-            <dt>Chance of any return</dt>
-            <dd>{fmtChance(winChance)}</dd>
-            <dt>Volatility</dt>
-            <dd>
-              <VolBadge level={vol} />
-            </dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             isLive ? (
@@ -332,18 +333,7 @@ export default function Game() {
           ) : (
             <AutoBetControls auto={auto} disabled={!!blocked || isLive}>
               <p className="cc-auto-note">
-                Each auto bet stakes the mix above
-                {total > 0 && (
-                  <>
-                    {' '}
-                    (
-                    {BANDS.filter((b) => safeStakes[b] > 0)
-                      .map((b) => `${NAMES[b]} ${Math.round((safeStakes[b] / total) * 100)}%`)
-                      .join(' · ')}
-                    )
-                  </>
-                )}
-                . On win / on loss scale all three together.
+                Each auto bet stakes the mix above. On win / on loss scale all three together.
               </p>
             </AutoBetControls>
           )}
@@ -359,55 +349,19 @@ export default function Game() {
         </span>
         <div className="og-history" aria-label="Recent crash points">
           {hist.map((h) => (
-            <span key={h.id} className={`og-hist cc-hist ${h.band}`}>
+            <span key={h.id} className={'og-hist ' + (h.mult > 1.0000001 ? 'w' : h.mult > 0 ? 'p' : 'l')}>
               {fmtX(h.crash)}
             </span>
           ))}
         </div>
       </div>
 
-      <Board className="cc-board">
-        {phase === 'over' && round && <ResultLine key={round.id} round={round} wins={winText(round)} />}
-        <Graph m={m} phase={phase} lines={shownLines} />
-      </Board>
+      <Readouts items={[{ label: isLive ? 'Chance of any return from here' : 'Chance of any return', value: fmtChance(winChance), tone: 'chance' }]} />
 
-      <div className="cc-bands" aria-label="Colour bands">
-        {BANDS.map((b) => {
-          const st = bandState(b);
-          const s = shownStakes[b];
-          const pNow = liveChance ? liveChance[b] : pChance[b];
-          return (
-            <div key={b} className={`cc-band ${b} ${st}` + (s > 0 ? ' staked' : '')}>
-              <div className="cc-band-head">
-                <b>{NAMES[b]}</b>
-                <span>
-                  {liveChance && <small>now </small>}
-                  {fmtChance(pNow)}
-                </span>
-              </div>
-              <div className="cc-band-cond">{condition(b, shownLines)}</div>
-              <div className="cc-band-bar" title={`Exact chance ${fmtChance(pNow)}`}>
-                <i style={{ width: `${pNow * 100}%` }} />
-              </div>
-              {b === 'red' && (
-                <div className="cc-band-note">
-                  {pay.red < pay.green && pay.green / pay.red < 1.1 ? 'Pays a little less: instant 1.00× crashes count as Red' : 'Instant 1.00× crashes count as Red'}
-                </div>
-              )}
-              <div className="cc-band-foot">
-                <span>Pays {fmtPay(pay[b])}</span>
-                <b>{s > 0 ? (st === 'lost' ? `−${formatAmount(s, 2)}` : `${formatAmount(s * pay[b], 2)}`) : 'No bet'}</b>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      {phase === 'idle' && (
-        <Caption>
-          Back the colour band where the line crashes: Red under the green line, Green past it, Moon past the moon line. Each band is as tall as its
-          chance.
-        </Caption>
-      )}
+      <Board className="cc-board">
+        <Graph m={m} phase={phase} lines={shownLines} staked={shownStaked} />
+      </Board>
+      <Caption>Win if the crash lands in a colour band you backed.</Caption>
 
       {infoOpen && (
         <InfoModal title="Crash Colours" onClose={() => setInfoOpen(false)}>
@@ -420,9 +374,9 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Enter a stake for any of the three colours (leave a colour at 0 to skip it). ½, 2× and ✕ adjust each one.</li>
+              <li>Enter a stake for any of the three colours (leave a colour at 0 to skip it). ½, 2× and × (clear) adjust each one.</li>
               <li>Pick the green line (1.50×, 2.00× or 3.00×) and the moon line (5× to 1,000×).</li>
-              <li>Press Bet or Space. The bands light as the curve passes their lines. Space during the climb skips to the result.</li>
+              <li>Press Bet or Space. The curve climbs through the bands. Space during the climb skips to the result.</li>
               <li>Auto runs a series of bets with the same mix; on win / on loss scale all three stakes together.</li>
             </ol>
           </InfoSection>
@@ -431,8 +385,7 @@ export default function Game() {
               The graph's height is probability, not the multiplier: each colour band is exactly as tall as its chance. Red is everything under the green
               line, Green is everything above it, and Moon is the top slice above the moon line (so a Moon finish wins Green too). The multipliers on the
               right show where each value falls on that scale. As the line climbs, the part below it is shaded: those rounds would already have crashed.
-              The cards then show each band's chance <i>now</i>, its share of what is left above the line. Red drops to 0% once the line passes the green
-              line.
+              A bar down the left edge of a band marks the colours you backed. The stage shows your chance of any return for the current stakes.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -453,31 +406,5 @@ export default function Game() {
         </InfoModal>
       )}
     </GameLayout>
-  );
-}
-
-/** The round's result in words: where it crashed, which colours won, and what the ticket did. */
-function ResultLine({ round, wins }: { round: Round; wins: string }) {
-  const back = payoutOf(round.stakes, round.crash, round.lines);
-  const net = back - round.total;
-  const even = Math.abs(net) < 0.005;
-  const tone = even ? 'even' : net > 0 ? 'win' : 'lose';
-  const you = even
-    ? `you got your ${formatAmount(round.total, 2)} back`
-    : net > 0
-      ? `you won +${formatAmount(net, 2)}`
-      : back > 0
-        ? `you got back ${formatAmount(back, 2)} of ${formatAmount(round.total, 2)}`
-        : `you lost ${formatAmount(round.total, 2)}`;
-  return (
-    <div className={`cc-result ${tone}`} role="status">
-      <span>
-        Crashed at {fmtX(round.crash)} <i aria-hidden="true">·</i> <b className={bandOf(round.crash, round.lines)}>{wins}</b>
-      </span>
-      <i className="cc-result-sep" aria-hidden="true">
-        ·
-      </i>
-      <span className="cc-result-you">{you}</span>
-    </div>
   );
 }

@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -18,6 +18,7 @@ import {
   RoundOver,
   VolBadge,
   fmtChance,
+  eventMs,
   useAutoBet,
   useBetInput,
   useHotkeys,
@@ -32,7 +33,6 @@ import {
   MIN_TARGET,
   RTP,
   autoEnd,
-  band,
   cashAt,
   centsAt,
   clampTarget,
@@ -47,7 +47,7 @@ import {
   winChance,
 } from './math';
 
-const ACCENT = '#f97316';
+const ACCENT = ACCENTS.amber;
 const QUICK = [150, 200, 300, 1000, 10000];
 
 type Phase = 'idle' | 'live' | 'reveal' | 'over';
@@ -144,7 +144,7 @@ export default function Game() {
     if (rest <= 0) return finish(f, f.crash >= CAP ? 'max' : 'cashed');
     f.phase = 'reveal';
     f.tau = tau;
-    f.reveal = { wall: now, from: tau, ms: Math.max(140, Math.min(turbo.turbo ? 260 : 900, rest / f.speed)) };
+    f.reveal = { wall: now, from: tau, ms: Math.max(140, Math.min(eventMs(turbo.turbo), rest / f.speed)) };
     setPhase('reveal');
   }
 
@@ -281,6 +281,35 @@ export default function Game() {
   const liveCents = f && phase === 'live' ? k : null;
   const milestone = liveCents !== null ? (f!.target !== null && f!.target > liveCents ? f!.target : nextMilestone(liveCents)) : null;
 
+  // After a cash-out or a crash the readout shows the result, not a live-looking chance.
+  const resultItem =
+    f && phase === 'reveal' && f.cash
+      ? { label: 'Cashed out', value: fmtX(f.cash.cents / 100), tone: 'win' as const }
+      : f && phase === 'over'
+        ? f.payout > 0
+          ? { label: f.outcome === 'max' ? 'Max win' : 'Cashed out', value: fmtX(f.outcome === 'max' ? MAX_MULTIPLIER : f.cash ? f.cash.cents / 100 : 0), tone: 'win' as const }
+          : { label: 'Crashed at', value: fmtX(shownCrash(f.crash)), tone: 'lose' as const }
+        : null;
+
+  // The odds picture: chance of reaching the target (or next milestone) from the line's current point.
+  // Idle: the whole-bet chance. After the round: the bet's chance, coloured by the result.
+  let reachP: number | null = null;
+  let reachTone: 'idle' | 'live' | 'won' | 'lost' = 'idle';
+  let reachLabel = '';
+  if (liveCents !== null && milestone !== null) {
+    reachP = liveCents / milestone;
+    reachTone = 'live';
+    reachLabel = `Chance of reaching ${fmtX(milestone / 100)} from here`;
+  } else if (f && phase !== 'idle') {
+    const ref = f.target ?? f.cash?.cents ?? null;
+    reachP = ref !== null ? winChance(ref) : null;
+    reachTone = f.payout > 0 ? 'won' : phase === 'over' ? 'lost' : 'won';
+    reachLabel = 'Chance the bet wins';
+  } else {
+    reachP = targetOn ? winChance(target) : winChance(200);
+    reachLabel = targetOn ? 'Win chance' : 'Chance of reaching 2.00×';
+  }
+
   const chartState: ChartState = !f || phase === 'idle' ? 'idle' : f.phase === 'over' ? (f.outcome === 'max' ? 'max' : 'crashed') : 'live';
 
   let status = targetOn ? `Auto cash-out at ${fmtX(target / 100)}` : 'Place a bet to launch';
@@ -314,10 +343,8 @@ export default function Game() {
   const profit = Math.max(0, bet.value * (target / 100) - bet.value);
   const stats = (
     <dl className="og-stats">
-      <dt>Chance to win</dt>
-      <dd>{targetOn ? fmtChance(winChance(target)) : 'you decide'}</dd>
       <dt>Profit on win</dt>
-      <dd className="crash-profit">{targetOn ? '+' + formatAmount(profit, 2) : '—'}</dd>
+      <dd>{targetOn ? '+' + formatAmount(profit, 2) : '—'}</dd>
     </dl>
   );
 
@@ -363,47 +390,48 @@ export default function Game() {
           {status}
         </span>
         <div className="og-history crash-history" aria-label="Recent crash points">
-          {past
-            .slice()
-            .reverse()
-            .map((p) => (
-            <span key={p.id} className={`crash-hist ${band(p.crash)}` + (p.won ? ' won' : '')} title={p.won ? 'You won this round' : undefined}>
+          {past.map((p) => (
+            <span key={p.id} className={'og-hist ' + (p.won ? 'w' : 'l')} title={p.won ? 'You cashed out in time' : 'Crashed first'}>
               {fmtX(shownCrash(p.crash))}
             </span>
-            ))}
+          ))}
         </div>
       </div>
 
       <Readouts
         items={[
-          liveCents !== null && milestone !== null
-            ? { label: `Reach ${fmtX(milestone / 100)}`, value: fmtChance(liveCents / milestone), sub: 'from here', tone: 'chance' }
-            : targetOn
-              ? { label: 'Win chance', value: fmtChance(winChance(target)), sub: `cash out at ${fmtX(target / 100)}`, tone: 'chance' }
-              : { label: 'Reach 2.00×', value: fmtChance(winChance(200)), sub: 'chance per flight', tone: 'chance' },
-          {
-            label: liveCents === null && f?.cash ? 'Cashed out' : 'Cash out now',
-            value: liveCents !== null ? fmtX(liveCents / 100) : f?.cash ? fmtX(f.cash.cents / 100) : '—',
-            sub: liveCents !== null ? formatAmount(stake * (liveCents / 100), 2) : f?.cash ? formatAmount(stake * (f.cash.cents / 100), 2) : f && phase === 'over' ? 'crashed first' : 'during a flight',
-            tone: 'cash',
-          },
-          {
-            label: 'Target',
-            value: shownTarget !== null ? fmtX(shownTarget / 100) : 'Manual',
-            sub: shownTarget !== null ? '+' + formatAmount(stake * (shownTarget / 100) - stake, 2) : 'cash out any time',
-            tone: 'prize',
-          },
+          resultItem ??
+            (liveCents !== null && milestone !== null
+              ? { label: `Reach ${fmtX(milestone / 100)}`, value: fmtChance(liveCents / milestone), tone: 'chance' as const }
+              : targetOn
+                ? { label: 'Win chance', value: fmtChance(winChance(target)), tone: 'chance' as const }
+                : { label: 'Reach 2.00×', value: fmtChance(winChance(200)), tone: 'chance' as const }),
+          ...(shownTarget !== null ? [{ label: 'Target pays', value: formatAmount(stake * (shownTarget / 100), 2), tone: 'prize' as const }] : []),
         ]}
       />
 
       <Board className="crash-board">
         {f && phase === 'over' && f.auto && <InstantResult multiplier={f.payout} stake={f.stake} id={f.id} />}
         <Chart state={chartState} tau={f && phase !== 'idle' ? f.tau : 0} target={shownTarget} cash={f && phase !== 'idle' ? f.cash : null}>
-          <BigReadout f={phase === 'idle' ? null : f} k={k} stake={stake} targetOn={targetOn} target={target} />
+          <BigReadout f={phase === 'idle' ? null : f} k={k} />
         </Chart>
       </Board>
 
-      {phase === 'over' && f && !f.auto ? (
+      <div
+        className={`og-chance crash-reach ${reachTone}`}
+        role="meter"
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-valuenow={reachP ?? 0}
+        aria-label={reachLabel}
+        style={reachP === null ? { visibility: 'hidden' } : undefined}
+      >
+        <div className="og-chance-track">
+          <i style={{ width: `${Math.min(1, Math.max(0, reachP ?? 0)) * 100}%` }} />
+        </div>
+      </div>
+
+      {phase === 'over' && f && !f.auto && (
         <RoundOver
           key={f.id}
           title={f.outcome === 'max' ? 'Max win' : f.cash ? 'Cashed out' : `Crashed @ ${fmtX(shownCrash(f.crash))}`}
@@ -415,18 +443,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : liveCents !== null && milestone !== null ? (
-        <ChanceBar
-          p={liveCents / milestone}
-          label={`Chance it reaches ${fmtX(milestone / 100)} from here`}
-          note={`Exactly ${fmtX(liveCents / 100)} ÷ ${fmtX(milestone / 100)}: each step up the curve is a fair bet.`}
-        />
-      ) : (
-        <Caption>
-          The curve reaches any height x with chance {(RTP * 100).toFixed(0)}% ÷ x (right-hand scale). Cash out at x and you win x times your bet, so
-          every target and every click returns {(RTP * 100).toFixed(0)}%.
-        </Caption>
       )}
+      <Caption>Cash out before the curve crashes and win your bet times the multiplier.</Caption>
 
       {infoOpen && (
         <InfoModal title="Crash" onClose={() => setInfoOpen(false)}>
@@ -447,10 +465,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The scale on the right of the graph is the exact chance that the curve reaches each height before it crashes. In flight, the bar under the graph
-              shows the chance of reaching the next milestone (or your target) from where you are now: the current value divided by the milestone.
+              The curve reaches any height x with chance {(RTP * 100).toFixed(0)}% ÷ x. In flight, the chance above the graph is that of reaching the next
+              milestone (or your target) from where you are now: the current value divided by the milestone.
             </p>
-            <p>The history row shows past crash points: grey under 2×, green to 10×, gold to 100×, orange above.</p>
+            <p>The history row shows past crash points: green if you cashed out in time, red if the curve crashed first. The amber line is your auto cash-out target.</p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
@@ -569,38 +587,11 @@ function TargetField({
   );
 }
 
-function BigReadout({ f, k, stake, targetOn, target }: { f: Flight | null; k: number; stake: number; targetOn: boolean; target: number }) {
-  if (!f) {
-    return (
-      <div className="crash-big idle">
-        <b>1.00×</b>
-        <small>{targetOn ? `Auto cash-out at ${fmtX(target / 100)}` : 'Bet to launch · cash out before the crash'}</small>
-      </div>
-    );
-  }
+/** The one hero number: the live multiplier. After a crash it stays, in --lose (or --win if cashed out first), until the next bet. */
+function BigReadout({ f, k }: { f: Flight | null; k: number }) {
+  if (!f) return <div className="crash-big idle">{fmtX(1)}</div>;
   if (f.phase === 'over') {
-    return (
-      <div className={'crash-big ' + (f.outcome === 'max' ? 'max' : 'crashed')}>
-        <span>{f.outcome === 'max' ? 'Max win' : 'Crashed'}</span>
-        <b>{fmtX(f.outcome === 'max' ? MAX_MULTIPLIER : shownCrash(f.crash))}</b>
-        {f.cash && f.outcome !== 'max' && !f.auto && (
-          <em className="crash-tag">
-            You cashed {fmtX(f.cash.cents / 100)} · +{formatAmount(f.stake * (f.cash.cents / 100) - f.stake, 2)}
-          </em>
-        )}
-      </div>
-    );
+    return <div className={'crash-big ' + (f.payout > 0 ? 'won' : 'lost')}>{fmtX(f.outcome === 'max' ? MAX_MULTIPLIER : shownCrash(f.crash))}</div>;
   }
-  return (
-    <div className={'crash-big live' + (f.cash ? ' cashed' : '')}>
-      <b>{fmtX(k / 100)}</b>
-      {f.cash ? (
-        <em className="crash-tag">
-          You cashed {fmtX(f.cash.cents / 100)} · +{formatAmount(f.stake * (f.cash.cents / 100) - f.stake, 2)}
-        </em>
-      ) : (
-        <small>Payout {formatAmount(stake * (k / 100), 2)}</small>
-      )}
-    </div>
-  );
+  return <div className="crash-big live">{fmtX(k / 100)}</div>;
 }

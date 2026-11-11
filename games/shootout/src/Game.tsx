@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -31,7 +32,7 @@ import {
   type StatusTone,
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
-import Field, { type Shot } from './Board';
+import Field, { PICK_LABEL as PICK_NAME, TEAM_LABEL as TEAM_NAME, type Shot } from './Board';
 import {
   CASH_AT,
   EMPTY,
@@ -39,9 +40,7 @@ import {
   MATCHUP_IDS,
   MAX_PRIZE,
   PICKS,
-  PICK_NAME,
   RTP,
-  TEAM_NAME,
   addKick,
   autoRound,
   canSwitch,
@@ -89,7 +88,7 @@ interface Last {
   stake: number;
 }
 
-const RULE = 'Five penalties each, then sudden death; back a team.';
+const RULE = 'Most goals after five kicks each wins; level goes to sudden death.';
 
 function overTitle(r: Round): string {
   if (r.outcome === 'cashed') return 'Cashed out';
@@ -137,7 +136,8 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const kickMs = turbo.turbo ? 200 : 760;
+  // Manual: the ball flies for about 600 ms (0.7 of the kick); Turbo about 150 ms (docs/STYLE.md).
+  const kickMs = eventMs(turbo.turbo, 860);
   const autoKickMs = turbo.turbo ? 70 : 240;
   const live = phase === 'kicking' || phase === 'checkpoint';
 
@@ -336,17 +336,16 @@ export default function Game() {
   // During a kick, the board keeps the kicker's goal; otherwise it shows the next kicker's.
   const goalFor = shot && (phase === 'kicking' || autoBusy) ? shot.team : next ? next.team : (shot?.team ?? 'A');
   const vol = volatilityOf(MATCHUPS[matchup], pick);
-  const openChance = chanceOf(EMPTY, MATCHUPS[matchup], pick);
 
-  let status = `Ready · ${m.label}: Teal ${fmtChance(m.pA)}, Orange ${fmtChance(m.pB)} per kick`;
+  let status = `Ready · ${m.label} matchup`;
   let tone: StatusTone = 'idle';
   const kicksTaken = s.a.length + s.b.length;
   if (isAuto) {
     if (autoBusy || auto.running) {
-      status = `Autobet${auto.remaining !== null ? ` · ${auto.remaining} left` : ''} · Teal ${score(s)} Orange`;
+      status = `Autobet${auto.remaining !== null ? ` · ${auto.remaining} left` : ''} · Home ${score(s)} Away`;
       tone = 'live';
     } else if (last) {
-      status = `${last.multiplier > 0 ? 'Won' : 'Lost'} ${fmtMult(last.multiplier)} · Teal ${score(s)} Orange`;
+      status = `${last.multiplier > 0 ? 'Won' : 'Lost'} ${fmtMult(last.multiplier)} · Home ${score(s)} Away`;
       tone = last.multiplier > 0 ? 'won' : 'lost';
     } else status = `Auto · back ${PICK_NAME[pick]}, ${cashAt === null ? 'play to the end' : `cash out at ${fmtMult(cashAt)}`}`;
   } else if (phase === 'kicking' && shot) {
@@ -354,10 +353,10 @@ export default function Game() {
     tone = 'live';
   } else if (phase === 'checkpoint') {
     const decides = !!next && decisiveKick(s, m, shownPick);
-    status = `Checkpoint · Teal ${score(s)} Orange · ${decides ? 'next kick decides your bet' : `${kicksTaken} kick${kicksTaken === 1 ? '' : 's'}`}`;
+    status = `Checkpoint · Home ${score(s)} Away ·${decides ? 'next kick decides your bet' : `${kicksTaken} kick${kicksTaken === 1 ? '' : 's'}`}`;
     tone = 'live';
   } else if (phase === 'over' && round) {
-    status = `${overTitle(round)} · Teal ${score(s)} Orange`;
+    status = `${overTitle(round)} · Home ${score(s)} Away`;
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
@@ -380,8 +379,8 @@ export default function Game() {
             title={atCheckpoint && !on ? (pays > MAX_PRIZE ? 'over the max prize' : `switch: keeps your cash-out, prize becomes ${fmtMult(pays)}`) : undefined}
             onClick={() => choose(p)}
           >
-            <span className="n">{p === 'SD' ? 'Sudden death' : PICK_NAME[p]}</span>
-            <b>{fmtChance(pr)}</b>
+            {/* The middle bet pays if the five kicks each end level: name it by that, not by what follows. */}
+            <span className="n">{p === 'SD' ? 'Level after 5' : PICK_NAME[p]}</span>
             <small>{pr > 0 && pr < 1 ? fmtMult(pays) : pr >= 1 ? 'certain' : '—'}</small>
           </button>
         );
@@ -392,7 +391,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Shootout"
-      accent="#06d6a0"
+      accent={ACCENTS.sky}
       className="sh-game"
       panel={
         <>
@@ -405,39 +404,25 @@ export default function Game() {
             options={MATCHUP_IDS.map((id) => ({
               value: id,
               label: MATCHUPS[id].label,
-              title: `Teal ${fmtChance(MATCHUPS[id].pA)} · Orange ${fmtChance(MATCHUPS[id].pB)} per kick`,
+              title: `Home ${fmtChance(MATCHUPS[id].pA)} · Away ${fmtChance(MATCHUPS[id].pB)} per kick`,
             }))}
             value={matchup}
             disabled={locked}
             onChange={(v) => change(() => setMatchup(v))}
           />
-          <div className="sh-rates">
-            <span className="a">
-              <i /> Teal scores {fmtChance(MATCHUPS[matchup].pA)}
-            </span>
-            <span className="b">
-              <i /> Orange {fmtChance(MATCHUPS[matchup].pB)}
-            </span>
-          </div>
 
-          <Label hint={phase === 'checkpoint' ? 'switch keeps your cash-out' : 'chance · prize'}>{phase === 'checkpoint' ? 'Backing · switch' : 'Back'}</Label>
+          <Label hint={phase === 'checkpoint' ? 'switch keeps your cash-out' : 'prize'}>{phase === 'checkpoint' ? 'Backing · switch' : 'Back'}</Label>
           {pickButtons}
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(live ? chance : openChance)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(live ? prize : prizeFor(MATCHUPS[matchup], pick))}</dd>
-              </dl>
               {phase === 'checkpoint' ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={() => round && kick(round)}>
-                    {next ? `Next kick · ${TEAM_NAME[next.team]} ${fmtChance(next.p)}` : 'Next kick'}
+                    {next ? `Next kick · ${TEAM_NAME[next.team]}` : 'Next kick'}
                   </ActionButton>
                 </>
               ) : (
@@ -474,26 +459,11 @@ export default function Game() {
           {
             label: `${PICK_NAME[shownPick]}${shownPick === 'SD' ? '' : ' wins'}`,
             value: fmtChance(chance),
-            sub: live || isAuto ? 'your chance now' : 'your chance',
             tone: 'chance',
           },
-          isAuto
-            ? {
-                label: 'Auto cash-out',
-                value: cashAt === null ? 'End' : fmtMult(cashAt),
-                sub: cashAt === null ? 'plays every shootout out' : 'banks once it gets there',
-                tone: 'cash',
-              }
-            : {
-                label: 'Cash out now',
-                value: phase === 'checkpoint' || phase === 'over' ? fmtMult(cash) : '—',
-                sub: phase === 'checkpoint' || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first kick',
-                tone: 'cash',
-              },
           {
             label: 'Prize',
             value: fmtMult(isAuto ? prizeFor(m, shownPick) : prize),
-            sub: `pays ${formatAmount((isAuto ? bet.value : stake) * (isAuto ? prizeFor(m, shownPick) : prize), 2)}`,
             tone: 'prize',
           },
         ]}
@@ -509,7 +479,6 @@ export default function Game() {
           odds={o}
           next={next}
           shot={!isAuto && phase === 'checkpoint' ? null : shot}
-          live={live || autoBusy}
           goalFor={goalFor}
         />
         {!isAuto && phase === 'over' && round?.outcome && (
@@ -527,27 +496,14 @@ export default function Game() {
         )}
       </Board>
 
-      {!isAuto && live ? (
-        <ChanceBar
-          p={chance}
-          label={`Your chance: ${PICK_NAME[shownPick]}${shownPick === 'SD' ? '' : ' wins'}`}
-          note="Space takes the next kick, C cashes out. Cash-out = prize × your chance, so every kick is a fair bet."
-        />
-      ) : (
-        <Caption>
-          <b className="sh-rule">{RULE}</b>{' '}
-          {isAuto
-            ? `Auto plays whole shootouts${cashAt === null ? ' to the end' : `, cashing out at ${fmtMult(cashAt)}`}.`
-            : `The green corners of the goal are the chance to score; the bar is every outcome's exact chance. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Shootout" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              {RULE} Teal and Orange take five penalties each, in turn, Teal first. Whoever has more goals wins; if it is level, sudden death pairs follow until
-              one side scores and the other misses. Back Teal, Orange, or the shootout going to sudden death.
+              Home and Away take five penalties each, in turn, Home first. Whoever has more goals wins; if it is level, sudden death pairs follow until one
+              side scores and the other misses. Back Home, Away, or the shootout going to sudden death.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
@@ -566,16 +522,17 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The keeper covers exactly the miss chance of the goal mouth; the shot lands at a uniformly random point, so the green corners are the kicker's
-              chance to score. Beside the goal you see what each result of the next kick would do to your odds. The bar at the bottom splits 100% into Teal and
-              Orange; its hatched middle is the share decided in sudden death, which is also the chance it goes there.
+              chance to score. The bar at the bottom splits 100% into Home and Away; the middle is the share decided in sudden death, which is also the
+              chance it goes there. The green part of the bar is every ending that pays your bet, the red part every ending that does not. The side you back has its goals on the scoreboard are drawn in it. Each kick's chance per
+              matchup shows when you hover its button. Space takes the next kick and C cashes out.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              In regulation the final goal difference is today's difference plus Bin(Teal kicks left, p<sub>T</sub>) − Bin(Orange kicks left, p<sub>O</sub>), a
-              convolution of two binomials, computed exactly. A level score goes to sudden death, which Teal wins with the geometric-tail chance p<sub>T</sub>(1
-              − p<sub>O</sub>) / (p
-              <sub>T</sub>(1 − p<sub>O</sub>) + p<sub>O</sub>(1 − p<sub>T</sub>
+              In regulation the final goal difference is today's difference plus Bin(Home kicks left, p<sub>H</sub>) − Bin(Away kicks left, p<sub>A</sub>), a
+              convolution of two binomials, computed exactly. A level score goes to sudden death, which Home wins with the geometric-tail chance p<sub>H</sub>(1
+              − p<sub>A</sub>) / (p
+              <sub>H</sub>(1 − p<sub>A</sub>) + p<sub>A</sub>(1 − p<sub>H</sub>
               )) = {fmtChance(suddenDeath(m).A)} in this matchup.
             </p>
           </InfoSection>

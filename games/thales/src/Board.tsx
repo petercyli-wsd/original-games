@@ -1,5 +1,4 @@
 import { useId } from 'react';
-import { fmtChance } from '@originals/game-sdk/ui';
 import { SQUARE, TRIANGLE, bandPolygon, wideVertex, zoneOf, angles, type Arena, type Pt, type Side } from './math';
 
 /** Board units per arena unit (the arena spans [−1, 1]²). */
@@ -80,7 +79,7 @@ export function ArenaBoard({ arena, side, tri, zone, falling, dropKey, dropMs }:
 
   return (
     <svg
-      viewBox="-168 -168 336 336"
+      viewBox="-168 -180 336 348"
       className={'th-arena' + (preview ? ' preview' : '') + (acuteWins ? ' back-acute' : ' back-obtuse')}
       role="img"
       aria-label={preview ? `Empty ${arena} arena` : `Triangle in a ${arena}`}
@@ -123,9 +122,6 @@ export function ArenaBoard({ arena, side, tri, zone, falling, dropKey, dropMs }:
         <>
           <circle cx={A.x} cy={A.y} r={5} className="th-pt ghost" />
           <circle cx={B.x} cy={B.y} r={5} className="th-pt ghost" />
-          <text x={0} y={163} className="th-note">
-            example: C wins {acuteWins ? 'in the band, outside the circle' : 'off the band or inside the circle'}
-          </text>
         </>
       ) : (
         <g key={`pts-${dropKey}`}>
@@ -148,64 +144,16 @@ export function ArenaBoard({ arena, side, tri, zone, falling, dropKey, dropMs }:
         </g>
       )}
       {C && done && ang && wide !== null && (
-        <text x={0} y={-K - 4} className={'th-angle-note ' + (tri!.win ? 'good' : 'bad')}>
+        <text x={0} y={-K - 14} className={'th-angle-note ' + (tri!.win ? 'good' : 'bad')}>
           {names[wide]} = {ang[wide].toFixed(0)}° · obtuse
         </text>
       )}
       {C && done && ang && wide === null && (
-        <text x={0} y={-K - 4} className={'th-angle-note ' + (tri!.win ? 'good' : 'bad')}>
+        <text x={0} y={-K - 14} className={'th-angle-note ' + (tri!.win ? 'good' : 'bad')}>
           widest angle {Math.max(...ang).toFixed(0)}° · acute
         </text>
       )}
     </svg>
-  );
-}
-
-export interface ZoneCardProps {
-  side: Side;
-  /** The exact share of the arena where C wins (or the average before A, B land). */
-  share: number;
-  /** Band and Thales-disc areas as shares of the arena, once A and B are down. */
-  band: number | null;
-  disc: number | null;
-  average: boolean;
-}
-
-/** The odds as a literal area: band − disc = acute share. */
-export function ZoneCard({ side, share, band, disc, average }: ZoneCardProps) {
-  const acute = band !== null && disc !== null ? band - disc : null;
-  return (
-    <div className="th-card">
-      <div className="th-card-head">
-        <b>{fmtChance(share)}</b>
-        <span>{average ? `of triangles are ${side} on average` : `of the arena makes it ${side}`}</span>
-      </div>
-      {acute !== null && band !== null && disc !== null ? (
-        <div className="th-sum" aria-label="Area breakdown">
-          <span>
-            <i className="sw band" /> band {fmtChance(band)}
-          </span>
-          <span className="op">−</span>
-          <span>
-            <i className="sw disc" /> circle {fmtChance(disc)}
-          </span>
-          <span className="op">=</span>
-          <span>
-            acute <b>{fmtChance(Math.max(0, acute))}</b>
-          </span>
-        </div>
-      ) : (
-        <div className="th-sum muted">A and B land first; then the shaded area is your exact chance.</div>
-      )}
-      <div className="th-legend">
-        <span>
-          <i className="win" /> C wins here
-        </span>
-        <span>
-          <i className="lose" /> C loses here
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -220,7 +168,7 @@ export function Tally({ tris, count, side }: { tris: TriRec[]; count: number; si
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <polygon points="4,19 20,19 9,5" />
             </svg>
-            {state === 'won' ? `✓ ${side}` : state === 'lost' ? '✕' : i + 1}
+            {state === 'won' ? (side === 'acute' ? 'Acute' : 'Obtuse') : state === 'lost' ? 'Miss' : i + 1}
           </span>
         );
       })}

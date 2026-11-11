@@ -1,9 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   Board,
+  Caption,
+  ChanceBar,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -11,9 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -25,7 +29,7 @@ import {
   type BetInput,
 } from '@originals/game-sdk/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { DiceTray, DieFace, FACE_ROT, Table, type Rot } from './Board';
+import { DiceTray, Table } from './Board';
 import {
   BETS,
   BET_BY_ID,
@@ -35,7 +39,6 @@ import {
   betStats,
   isTriple,
   layoutStats,
-  paysLabel,
   placedIds,
   returnOf,
   rollDice,
@@ -48,7 +51,7 @@ import {
   type Layout,
 } from './math';
 
-const ACCENT = '#fb7185';
+const ACCENT = ACCENTS.pink;
 const CHIP_VALUES = [0.1, 1, 5, 25, 100];
 const KEY_OF: Record<string, string> = { s: 'small', b: 'big', o: 'odd', e: 'even', a: 'anyTriple' };
 
@@ -66,11 +69,6 @@ interface Last {
   stake: number;
 }
 
-interface Recent {
-  id: number;
-  dice: Dice;
-}
-
 function typing(e: KeyboardEvent) {
   const t = e.composedPath()[0] as HTMLElement | undefined;
   if (!t || !t.tagName) return false;
@@ -78,11 +76,9 @@ function typing(e: KeyboardEvent) {
   return t.tagName === 'INPUT' && !['range', 'checkbox', 'radio', 'button'].includes((t as HTMLInputElement).type);
 }
 
-const tagOf = (d: Dice) => (isTriple(d) ? 'triple' : sumOf(d) <= 10 ? 'small' : 'big');
 const describe = (d: Dice) => (isTriple(d) ? `Triple ${d[0]}` : `${sumOf(d) <= 10 ? 'Small' : 'Big'} · ${sumOf(d) % 2 ? 'Odd' : 'Even'}`);
 
 const INITIAL: Dice = [4, 2, 6];
-const restRot = (d: Dice): Rot[] => d.map((n, i) => ({ ...FACE_ROT[n], z: [-8, 6, -4][i] }));
 
 export default function Game() {
   const { rng } = useHost();
@@ -97,19 +93,14 @@ export default function Game() {
   const [rebetLayout, setRebetLayout] = useState<Layout | null>(null);
   const [rolling, setRolling] = useState(false);
   const [faces, setFaces] = useState<Dice>(INITIAL);
-  const [rots, setRots] = useState<Rot[]>(() => restRot(INITIAL));
   const [hop, setHop] = useState(0);
   const [last, setLast] = useState<Last | null>(null);
-  const [recent, setRecent] = useState<Recent[]>([]);
-  const [hover, setHover] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
   // The layout auto-bet scales (on win / on loss), and the one the player built.
   const layoutRef = useRef(layout);
   const baseRef = useRef(layout);
-  const rotsRef = useRef(rots);
-  rotsRef.current = rots;
 
   // The drawn outcome's multiplier, set the instant the dice are drawn. If the
   // game unmounts mid-tumble, the open ticket settles at this value (win or loss).
@@ -118,7 +109,7 @@ export default function Game() {
 
   const total = totalOf(layout);
   const stats = useMemo(() => layoutStats(layout), [layout]);
-  const rollMs = turbo.turbo ? 380 : 1300;
+  const rollMs = eventMs(turbo.turbo);
 
   // ---------- Layout editing ----------
   function commit(next: Layout) {
@@ -180,29 +171,23 @@ export default function Game() {
     const res = settle(lay, dice);
     resolved.current = res.multiplier;
 
-    // Cosmetic tumble: two or three full turns on each axis, landing on the drawn face.
-    const next = rotsRef.current.map((r, i) => {
-      const f = FACE_ROT[dice[i]];
-      const turnsX = 2 + Math.floor(rng.next() * 2);
-      const turnsY = 1 + Math.floor(rng.next() * 2);
-      return {
-        x: Math.ceil(r.x / 360) * 360 + 360 * turnsX + f.x,
-        y: Math.ceil(r.y / 360) * 360 + 360 * turnsY + f.y,
-        z: Math.ceil(r.z / 360) * 360 + 360 + Math.round(-14 + 28 * rng.next()),
-      };
-    });
+    // The old 3D tumble drew three numbers per die. The flat dice no longer use them,
+    // but the calls are kept (same count and order) so the RNG stream is unchanged.
+    for (let i = 0; i < 3; i++) {
+      rng.next();
+      rng.next();
+      rng.next();
+    }
 
     setLast(null);
     setRolling(true);
     setHop((h) => h + 1);
-    setRots(next);
-    // Unmounted mid-tumble: the ticket was already settled at the drawn result.
+    setFaces(dice);
+    // Unmounted mid-roll: the ticket was already settled at the drawn result.
     if (!(await timers.wait(rollMs + 90))) return null;
     ticket.settle(res.multiplier);
-    setFaces(dice);
     setRebetLayout(lay);
     setLast({ id: ++seq.current, dice, layout: lay, winners: res.winners, paid: res.paid, multiplier: res.multiplier, stake: t });
-    setRecent((r) => [{ id: seq.current, dice }, ...r].slice(0, 60));
     pushHistory(res.multiplier);
     setRolling(false);
     return res.multiplier;
@@ -275,10 +260,6 @@ export default function Game() {
         ? `Total bet ${money(total)} · press Bet`
         : 'Place chips on the table';
 
-  const hb = hover ? BET_BY_ID[hover] : null;
-  const hs = hb ? betStats(hb.id) : null;
-  const counts = { small: 0, big: 0, triple: 0 };
-  for (const r of recent) counts[tagOf(r.dice)]++;
 
   return (
     <GameLayout
@@ -332,16 +313,6 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className={'og-stats' + (auto.mode === 'auto' ? ' sb-stats-tight' : '')}>
-            <dt>Total bet</dt>
-            <dd>{money(total)}</dd>
-            <dt>Chance to win</dt>
-            <dd>{total > 0 ? fmtChance(stats.pHit) : '–'}</dd>
-            <dt>Best payout</dt>
-            <dd>{total > 0 ? `${money(stats.maxMult * total)}` : '–'}</dd>
-            <dt>Layout RTP</dt>
-            <dd>{total > 0 ? pct(stats.rtp) : '–'}</dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={bet}>
@@ -358,17 +329,23 @@ export default function Game() {
     >
       <StageTop status={status} tone={rolling ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <ChanceBar p={total > 0 ? stats.pHit : 0} label="Chance a chip pays" />
+
+      <Readouts
+        items={[
+          { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–' },
+        ]}
+      />
+
       <Board className="sb-board">
         <InstantResult multiplier={showResult ? last!.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
-        <DiceTray rots={rots} ms={rollMs} hop={hop} rolling={rolling} faces={faces} state={showResult ? (last!.multiplier >= 1 ? 'win' : 'lose') : 'idle'} />
-        <div className={'sb-verdict' + (showResult ? ' on' : '')} aria-live="polite">
-          {showResult && last ? (
+        <DiceTray ms={rollMs} hop={hop} rolling={rolling} faces={faces} state={showResult ? (last!.multiplier >= 1 ? 'win' : 'lose') : 'idle'} />
+        <div className="sb-verdict" aria-live="polite">
+          {showResult && last && (
             <>
               <b className="sb-sum">{sumOf(last.dice)}</b>
-              <span className={`sb-tag ${tagOf(last.dice)}`}>{describe(last.dice)}</span>
+              <span className="sb-tag">{describe(last.dice)}</span>
             </>
-          ) : (
-            <span className="sb-hint">{rolling ? 'Dice in the air…' : 'Three dice · 216 equally likely rolls'}</span>
           )}
         </div>
       </Board>
@@ -380,60 +357,10 @@ export default function Game() {
         disabled={busy}
         onAdd={addChip}
         onRemove={removeChip}
-        onHover={setHover}
         money={money}
       />
 
-      <div className="sb-info" aria-live="polite">
-        {hb && hs ? (
-          <>
-            <p>
-              <b>{hb.name}</b> pays {paysLabel(hb)}
-              {hb.kind === 'single' ? ' (1, 2 or 3 dice)' : ''} · wins on <b>{hs.wins}</b> of 216 rolls ({pct(hs.chance)}) · RTP {pct(hs.rtp)}
-            </p>
-            <div className="sb-cover">
-              <i style={{ width: `${hs.chance * 100}%` }} />
-            </div>
-          </>
-        ) : total > 0 ? (
-          <>
-            <p>
-              Your chips pay on <b>{Math.round(stats.pHit * 216)}</b> of 216 rolls ({pct(stats.pHit)}), profit on {Math.round(stats.pProfit * 216)} · layout RTP {pct(stats.rtp)}
-            </p>
-            <div className="sb-cover">
-              <i style={{ width: `${stats.pHit * 100}%` }} />
-              <i className="profit" style={{ width: `${stats.pProfit * 100}%` }} />
-            </div>
-          </>
-        ) : (
-          <>
-            <p>Click a cell to place a chip; right-click or Shift-click removes one. The bar in each cell is its chance.</p>
-            <div className="sb-cover empty" />
-          </>
-        )}
-      </div>
-
-      <div className="sb-recent">
-        <span className="sb-recent-label">Previous</span>
-        <div className="sb-rolls" aria-label="Recent rolls">
-          {recent.length === 0 && <span className="sb-none">No rolls yet</span>}
-          {recent.slice(0, 16).map((r) => (
-            <span key={r.id} className={`sb-roll ${tagOf(r.dice)}`} title={`${r.dice.join(' · ')} = ${sumOf(r.dice)}`}>
-              <span className="sb-roll-faces">
-                {r.dice.map((n, i) => (
-                  <DieFace key={i} n={n} size={12} />
-                ))}
-              </span>
-              <b>{sumOf(r.dice)}</b>
-            </span>
-          ))}
-        </div>
-        <div className="sb-counts" title={`Last ${recent.length} rolls`}>
-          <span className="small">S {counts.small}</span>
-          <span className="big">B {counts.big}</span>
-          <span className="triple">T {counts.triple}</span>
-        </div>
-      </div>
+      <Caption>Win if the three dice match a cell you backed.</Caption>
 
       {infoOpen && (
         <InfoModal title="Sic Bo" onClose={() => setInfoOpen(false)}>
@@ -453,8 +380,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each die is fair, so all 6 × 6 × 6 = 216 rolls are equally likely. Every cell shows how many of them it wins on as a thin bar along its foot (its share of the
-              cell width is its chance), and hovering a cell spells it out. The bar under the table shows the share of rolls your whole layout pays on.
+              Each die is fair, so all 6 × 6 × 6 = 216 rolls are equally likely. Each cell shows what it pays; the win chance above the dice is the
+              share of the 216 rolls your whole layout pays on. The pay table below gives every bet's exact count.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

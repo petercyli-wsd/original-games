@@ -6,7 +6,6 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +18,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -116,7 +116,7 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
-  const drawMs = () => (isAutoRef.current ? (fast ? 130 : 520) : fast ? 200 : 800);
+  const drawMs = () => (isAutoRef.current ? (fast ? 130 : 520) : eventMs(fast));
   const hops = () => (fast ? 4 : 9);
   const live = phase === 'drawing' || phase === 'checkpoint';
 
@@ -323,30 +323,9 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
   const readouts: ReadoutItem[] = [
-    {
-      label: 'Win chance',
-      value: fmtChance(round ? p : p0),
-      sub: started && !outcome ? `${turnsWord(toGo)} to go` : outcome === 'cashed' ? 'when you cashed out' : `survive ${turnsWord(r.k)}`,
-      tone: 'chance',
-    },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(r.paid) : showCash ? fmtMult(cash) : isAuto ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub:
-        phase === 'over'
-          ? formatAmount(stake * r.paid, 2)
-          : showCash
-            ? formatAmount(stake * cash, 2)
-            : isAuto
-              ? target > 0
-                ? 'or on the last turn'
-                : 'plays every turn'
-              : 'after the first turn',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+    { label: 'Win chance', value: fmtChance(round ? p : p0), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
   ];
 
   const nextLabel = share ? (share.safe === share.left ? 'free' : `${share.safe} of ${share.left} safe`) : '';
@@ -371,14 +350,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -407,12 +378,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="cross-note">{bet.blocked}</p>}
@@ -429,7 +394,7 @@ export default function Game() {
         <Grid k={r.k} order={r.order} hit={r.hit} hop={hop} options={options} p={p} outcome={outcome} />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -441,27 +406,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : undecided && share ? (
-        <ChanceBar
-          p={share.safe / share.left}
-          label="Next card is safe"
-          note={
-            share.safe === share.left
-              ? 'No red card is left: the next card is free, but the turns after it are not.'
-              : `${share.safe} green of the ${share.left} cards left. Red cards share the last card's colour or shape. Each card shows your win chance if it comes next.`
-          }
-        />
-      ) : undecided ? (
-        <ChanceBar p={1} label="First card" note="The first card is free: it only sets the first red cross." />
-      ) : (
-        <Caption>
-          <b className="cross-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' to the last turn'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `More turns: a smaller chance and a bigger prize. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Win if every card turned misses the last card’s colour and shape.</Caption>
 
       {infoOpen && (
         <InfoModal title="Cross" onClose={() => setInfoOpen(false)}>
@@ -470,7 +416,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>The grid is the whole deck: 12 cards, one per colour (row) and shape (column).</li>
+              <li>The grid is the whole deck: 12 cards, one per colour (row: light, grey or outline) and shape (column).</li>
               <li>Pick how many turns to survive (1, 2, 3, 5 or 8), then Bet. The first card is turned for free, then turn 1 follows at once.</li>
               <li>Each turned card leaves the grid. The next card must not share the last card's colour or shape, or the round is lost.</li>
               <li>After every survived turn you can cash out (C) or turn the next card (Space). Survive every turn and the prize is paid at once.</li>
@@ -479,13 +425,12 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b style={{ color: 'var(--red)' }}>red cross</b> is the last card's row and column. The red cards in it end the round; the green cards
-              are safe. The next card is equally likely to be any card left, so green over cards left is exactly the chance the next turn is safe.
+              The cross is the last card's row and column. Cards in it, outlined red, end the round; the cards outlined green are safe. The next card
+              is equally likely to be any card left, so green over cards left is exactly the chance the next turn is safe.
             </p>
             <p>
-              Each green card shows your win chance if it comes next (▲ up, ▼ down; on the last turn it simply says win), and is tinted brighter the higher that is. A card whose own row and
-              column are nearly used up makes a small cross, so it raises your chance; a card with a full row and column makes a big one. The win-chance
-              bar under the grid is the average of all the cards left, red ones counting 0.
+              A card whose own row and column are nearly used up makes a small cross, so it raises your chance; a card with a full row and column makes
+              a big one. The win chance is the average over all the cards left, red ones counting 0.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

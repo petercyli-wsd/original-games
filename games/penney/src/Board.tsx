@@ -113,16 +113,11 @@ export default function Board({ you, house, flips, pending, spinMs, moveMs, youM
       <rect className="future" x={NOW_X} y={AREA_TOP} width={colX(LAST) + R + 7 - NOW_X} height={AREA_BOTTOM - AREA_TOP} rx={12} />
       <line className="now" x1={NOW_X} x2={NOW_X} y1={AREA_TOP - 10} y2={AREA_BOTTOM} />
       <text x={BAR_X} y={26} className="cap">
-        FLIPS{n ? ` · ${n}` : ''}
+        Flips{n ? ` · ${n}` : ''}
       </text>
-      <text x={NOW_X + 12} y={26} className="cap accent">
-        STILL NEEDED →
+      <text x={NOW_X + 12} y={26} className="cap">
+        Still needed
       </text>
-
-      {/* Column guides. */}
-      {Array.from({ length: LAST - OLDEST + 1 }, (_, k) => OLDEST + k).map((c) => (
-        <line key={c} className="guide" x1={colX(c)} x2={colX(c)} y1={STRIP_Y + R + 6} y2={HOUSE_Y - R - 6} />
-      ))}
 
       {n === 0 && !pending && (
         <text x={(BAR_X + NOW_X) / 2} y={STRIP_Y + 5} className="hint">
@@ -158,14 +153,14 @@ export default function Board({ you, house, flips, pending, spinMs, moveMs, youM
 
       {/* Your pattern and the house's, lined up under the flips they match. */}
       <text x={BAR_X} y={YOU_Y - R - 12} className="label you">
-        YOUR PATTERN
+        Your pattern
         <tspan className="count" dx={8}>
           {youMatch} of {you.length}
         </tspan>
       </text>
       <PatternRow pattern={you} matched={youMatch} y={YOU_Y} side="you" live={mode !== 'over'} />
       <text x={BAR_X} y={HOUSE_Y - R - 12} className="label house">
-        HOUSE PATTERN
+        House pattern
         <tspan className="count" dx={8}>
           {houseMatch} of {house.length}
         </tspan>
@@ -205,11 +200,11 @@ export default function Board({ you, house, flips, pending, spinMs, moveMs, youM
             </g>
           )}
 
-          <text x={BAR_X} y={BAR_Y + BAR_H + 22} className="odds you">
-            YOU FIRST <tspan className="pct">{(p * 100).toFixed(1)}%</tspan>
+          <text x={BAR_X} y={BAR_Y + BAR_H + 22} className="odds">
+            You first
           </text>
-          <text x={BAR_X + BAR_W} y={BAR_Y + BAR_H + 22} className="odds house end">
-            <tspan className="pct">{((1 - p) * 100).toFixed(1)}%</tspan> HOUSE FIRST
+          <text x={BAR_X + BAR_W} y={BAR_Y + BAR_H + 22} className="odds end">
+            House first
           </text>
         </g>
       )}

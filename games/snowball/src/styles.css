@@ -1,11 +1,12 @@
-/* Lives inside the game's shadow root: use :host, not :root. The --og-* tokens
-   are inherited from the platform theme; fallbacks cover standalone dev. */
+/* Lives inside the game's shadow root: use :host, not :root. Colours, type and
+   spacing come from the kit's tokenStyles (docs/STYLE.md); this file only lays
+   out Snowball's own panel and board. Flat: no gradients, glows or shadows.
+   Blue is the player's side (the accent); red balls are --suit-red because the
+   rules name the colour. Both are flat fills. */
 
 :host {
   display: block;
   height: 100%;
-  color: var(--og-text, #f6f6f6);
-  font-family: var(--og-font, 'Outfit', system-ui, sans-serif);
 }
 
 * {
@@ -13,28 +14,22 @@
 }
 
 .sb {
-  --sb-blue: #7dd3fc;
-  --sb-blue-deep: #0ea5e9;
-  --sb-red: var(--og-red, #e9113c);
-  --sb-red-soft: #ff5a7a;
-  --sb-win: var(--og-green, #00e701);
-  --muted: var(--og-text-muted, #aaa7b2);
-  --line: var(--og-border, rgba(255, 255, 255, 0.14));
+  --accent: #5ec4e6; /* ACCENTS.sky */
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   height: 100%;
   min-height: 600px;
-  background: var(--og-bg-card, #101016);
-  border-radius: var(--og-radius-lg, 12px);
+  background: var(--card);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   color-scheme: dark;
 }
 
 .t-blue {
-  color: var(--sb-blue);
+  color: var(--accent);
 }
 .t-red {
-  color: var(--sb-red-soft);
+  color: var(--suit-red);
 }
 .muted {
   color: var(--muted);
@@ -48,19 +43,16 @@ input {
 button {
   cursor: pointer;
   border: 0;
-  border-radius: var(--og-radius, 8px);
-  transition: filter 0.15s ease, transform 0.1s ease, background 0.15s ease, border-color 0.15s ease;
+  border-radius: var(--radius);
+  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
 }
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: not-allowed;
-}
-button:not(:disabled):active {
-  transform: scale(0.98);
 }
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--sb-blue);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -69,42 +61,42 @@ input:focus-visible {
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  background: var(--og-bg-raised, #15151c);
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-4);
+  background: var(--raised);
+  border-right: 1px solid var(--line);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: var(--sp-2);
 }
 .label {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  font-size: 12px;
+  font-size: var(--fs-1);
   font-weight: 600;
   color: var(--muted);
 }
 .hint {
   font-weight: 500;
-  font-size: 11px;
-  opacity: 0.75;
+  font-size: var(--fs-1);
 }
 
 .bet-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 48px 48px;
-  background: var(--og-bg, #07070b);
+  background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: var(--og-radius, 8px);
+  border-radius: var(--radius);
   overflow: hidden;
 }
 .bet-row input {
   min-width: 0;
-  padding: 10px 12px;
-  font-size: 15px;
+  padding: 10px var(--sp-3);
+  font-size: var(--fs-3);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   background: transparent;
@@ -113,42 +105,42 @@ input:focus-visible {
 }
 .bet-row button {
   border-radius: 0;
-  font-weight: 700;
-  font-size: 13px;
-  background: var(--og-bg-hover, #21212a);
   border-left: 1px solid var(--line);
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
 }
 .bet-row button:not(:disabled):hover {
-  filter: brightness(1.25);
+  color: var(--text);
+  background: var(--hover);
 }
 
 .presets {
   display: grid;
-  gap: 4px;
-  padding: 4px;
-  background: var(--og-bg, #07070b);
-  border-radius: var(--og-radius, 8px);
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
 }
 .preset {
   display: grid;
   grid-template-columns: 1fr 52px 64px;
   align-items: center;
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: var(--sp-2) 10px;
+  font-size: var(--fs-2);
   font-weight: 600;
   text-align: left;
   color: var(--muted);
   background: transparent;
-  border: 1px solid transparent;
+  border-radius: 4px;
 }
 .preset:not(:disabled):hover {
-  color: var(--og-text, #f6f6f6);
-  background: var(--og-bg-hover, #21212a);
+  color: var(--text);
 }
 .preset.on {
-  color: var(--og-text, #f6f6f6);
-  background: var(--og-bg-hover, #21212a);
-  border-color: color-mix(in srgb, var(--sb-blue) 55%, transparent);
+  color: var(--text);
+  background: var(--hover);
 }
 .ratio {
   font-variant-numeric: tabular-nums;
@@ -158,77 +150,52 @@ input:focus-visible {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
-.preset.on .preset-prize {
-  color: var(--sb-blue);
-}
 .blurb {
-  font-size: 12px;
+  font-size: var(--fs-1);
   color: var(--muted);
   min-height: 1.3em;
 }
 
-.primary,
-.secondary {
-  padding: 13px 10px;
-  font-size: 15px;
-  font-weight: 700;
-}
 .primary {
   display: flex;
   align-items: baseline;
   justify-content: center;
-  gap: 8px;
+  gap: var(--sp-2);
   min-height: 50px;
-  color: var(--og-text-on-accent, #07070b);
-  background: var(--sb-blue);
-  box-shadow: 0 0 26px -8px color-mix(in srgb, var(--sb-blue) 70%, transparent);
+  padding: 13px var(--sp-3);
+  font-size: var(--fs-3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--bg);
+  background: var(--text);
 }
-.primary.cash {
-  background: var(--sb-win);
-  box-shadow: 0 0 26px -6px var(--og-green-glow, rgba(0, 231, 1, 0.35));
+.primary:not(:disabled):hover {
+  background: var(--muted);
 }
 .primary small {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--fs-1);
+  font-weight: 600;
   opacity: 0.7;
-}
-.secondary {
-  font-size: 13px;
-  color: var(--og-text, #f6f6f6);
-  background: var(--og-bg-hover, #21212a);
-}
-.primary:not(:disabled):hover,
-.secondary:not(:disabled):hover {
-  filter: brightness(1.1);
 }
 .actions {
   display: grid;
-  gap: 8px;
+  gap: var(--sp-2);
 }
+/* Draw (continue) is the outline secondary, as in the kit; Cash out is the light primary. */
+.primary.secondary {
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+.primary.secondary:not(:disabled):hover {
+  background: var(--hover);
+}
+/* Cash out is the secondary style until a draw makes it available. */
 .primary.cash:disabled {
-  color: var(--og-text, #f6f6f6);
-  background: var(--og-bg-hover, #21212a);
-  box-shadow: none;
-  font-size: 13px;
-}
-
-.stats {
-  display: grid;
-  gap: 8px;
-  margin: 4px 0 0;
-  font-size: 13px;
-}
-.stats div {
-  display: flex;
-  justify-content: space-between;
-}
-.stats dt {
-  color: var(--muted);
-}
-.stats dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  font-size: var(--fs-2);
 }
 
 .panel-foot {
@@ -236,44 +203,32 @@ input:focus-visible {
   justify-content: space-between;
   align-items: center;
   margin-top: auto;
-  padding-top: 4px;
+  padding-top: var(--sp-3);
 }
 .toggle {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
   color: var(--muted);
   cursor: pointer;
 }
 .toggle input {
-  width: 15px;
-  height: 15px;
-  accent-color: var(--sb-blue);
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--text);
 }
 .ghost {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: var(--fs-2);
   color: var(--muted);
   background: transparent;
   border: 1px solid var(--line);
 }
 .ghost:hover {
-  color: var(--og-text, #f6f6f6);
-}
-.ghost .i {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  font-size: 11px;
-  font-weight: 800;
-  font-style: italic;
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
+  color: var(--text);
+  border-color: var(--line-strong);
 }
 
 /* ---------- Stage ---------- */
@@ -281,69 +236,114 @@ input:focus-visible {
 .stage {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: var(--sp-4);
   min-width: 0;
-  padding: 22px clamp(16px, 3vw, 36px);
-  background:
-    radial-gradient(ellipse 70% 55% at 30% 70%, color-mix(in srgb, var(--sb-blue) 7%, transparent), transparent 70%),
-    var(--og-bg-card, #101016);
+  padding: var(--sp-5) clamp(var(--sp-4), 3vw, var(--sp-6));
+  background: var(--card);
+}
+
+.stage-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 26px;
+}
+.message {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: var(--fs-2);
+  font-weight: 600;
+  color: var(--muted);
+}
+.message.win {
+  color: var(--win);
+}
+.message.lose {
+  color: var(--lose);
+}
+.recent {
+  display: flex;
+  gap: var(--sp-1);
+  justify-content: flex-end;
+  overflow: hidden;
+  min-width: 0;
+}
+.recent span {
+  flex-shrink: 0;
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.recent .w {
+  color: var(--win);
+}
+.recent .l {
+  color: var(--lose);
+}
+.recent span:first-child {
+  border-color: currentColor;
+}
+
+/* One flat row: the one chance and the prize. */
+/* The whole-bet chance bar (kit ChanceBar markup; this game loads only the kit
+   tokens, so the kit's rules are repeated here): green = blue wins. Flat; moves
+   after every draw. */
+.og-chance {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.og-chance-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.og-chance-head b {
+  color: var(--text);
+  font-size: var(--fs-4);
+  font-variant-numeric: tabular-nums;
+}
+.og-chance-track {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--hover);
+  overflow: hidden;
+}
+.og-chance-track i {
+  display: block;
+  height: 100%;
+  background: var(--win);
+  transition: width var(--dur-event) ease;
 }
 
 .readout {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-6);
 }
-.tile {
+.readout > div {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
-  padding: 14px 16px;
-  background: var(--og-bg-raised, #15151c);
-  border: 1px solid var(--line);
-  border-radius: var(--og-radius-lg, 12px);
 }
 .tile-label {
-  font-size: 11px;
+  font-size: var(--fs-1);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--muted);
 }
-.big,
 .mid {
-  font-weight: 700;
+  font-size: var(--fs-4);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.05;
-}
-.big {
-  font-size: clamp(34px, 4.4vw, 48px);
-  letter-spacing: -0.02em;
-}
-.mid {
-  font-size: clamp(20px, 2.4vw, 26px);
-  margin-top: auto;
-}
-.sub {
-  font-size: 12px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-.meter {
-  height: 10px;
-  margin-top: 6px;
-  overflow: hidden;
-  background: var(--og-bg-hover, #21212a);
-  border-radius: 99px;
-}
-.meter i {
-  display: block;
-  height: 100%;
-  background: var(--sb-win);
-  box-shadow: 0 0 12px var(--og-green-glow, rgba(0, 231, 1, 0.35));
-  border-radius: inherit;
-  transition: width 0.35s ease;
+  white-space: nowrap;
 }
 
 /* The draw tally: the race the bet is on. Blue fills from the left, red from
@@ -351,150 +351,89 @@ input:focus-visible {
 .tally {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px 12px;
-  background: var(--og-bg-raised, #15151c);
-  border: 1px solid var(--line);
-  border-radius: var(--og-radius-lg, 12px);
+  gap: var(--sp-2);
 }
-.tally-head,
-.tally-foot {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+.tally-head {
+  display: flex;
+  justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  font-size: 13px;
+  font-size: var(--fs-2);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .tally-head b {
-  font-size: 20px;
+  font-size: var(--fs-4);
+  font-weight: 600;
 }
-.tally-head .t-red,
-.tally-foot .t-red {
-  text-align: right;
-}
-.tally-goal {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--og-text, #f6f6f6);
-  text-align: center;
-}
-.tally-foot {
-  font-size: 12px;
-}
-.tally-foot .muted {
-  text-align: center;
+.tally-head .t-goal {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  color: var(--muted);
 }
 .tally-row {
   display: grid;
   grid-template-columns: repeat(11, minmax(0, 1fr));
-  gap: clamp(3px, 0.8vw, 8px);
+  gap: clamp(3px, 0.8vw, var(--sp-2));
   margin: 0;
   padding: 0;
   list-style: none;
 }
 .tally-slot {
-  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  max-height: 44px;
   justify-self: center;
   width: 100%;
   max-width: 44px;
-  border: 2px dashed color-mix(in srgb, var(--og-text, #f6f6f6) 22%, transparent);
+  background: var(--bg);
+  border: 1px solid var(--line);
   border-radius: 50%;
 }
 .tally-slot.finish {
-  border: 2px solid var(--og-text, #f6f6f6);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--og-text, #f6f6f6) 12%, transparent);
+  border-color: var(--line-strong);
 }
 .finish-mark {
-  font-size: clamp(11px, 1.4vw, 15px);
-  font-weight: 800;
-  color: var(--og-text, #f6f6f6);
-}
-.tally-slot.blue,
-.tally-slot.red {
-  border-style: solid;
-  animation: slot-in 0.35s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
 }
 .tally-slot.blue {
-  background: radial-gradient(circle at 35% 30%, #e0f4ff 0 8%, var(--sb-blue) 34%, var(--sb-blue-deep) 100%);
-  border-color: var(--sb-blue);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 .tally-slot.red {
-  background: radial-gradient(circle at 35% 30%, #ffd0da 0 8%, var(--sb-red-soft) 34%, #b00d2e 100%);
-  border-color: var(--sb-red-soft);
+  background: var(--suit-red);
+  border-color: var(--suit-red);
 }
 .tally-slot.next {
-  border-color: color-mix(in srgb, var(--og-text, #f6f6f6) 55%, transparent);
-}
-@keyframes slot-in {
-  from {
-    transform: scale(0.3);
-    opacity: 0;
-  }
-}
-
-/* The urn's blue share: the chance of the next ball only. */
-.share-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 13px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.share-head b {
-  font-size: 18px;
-}
-.share-bar {
-  position: relative;
-  height: 22px;
-  overflow: hidden;
-  background: linear-gradient(180deg, var(--sb-red-soft), var(--sb-red));
-  border-radius: 6px;
-}
-.share-blue {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: linear-gradient(180deg, #bae6fd, var(--sb-blue) 45%, var(--sb-blue-deep));
-  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.35);
-  transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-.share-count {
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
+  border-color: var(--faint);
 }
 
 .board {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 18px;
-  align-items: stretch;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .urn-wrap {
-  --round-over-win: var(--sb-win);
-  --round-over-lose: var(--sb-red-soft);
+  --round-over-win: var(--win);
+  --round-over-lose: var(--lose);
   position: relative;
   display: grid;
   place-items: end center;
+  flex: 1;
   min-height: 230px;
-  padding: 10px 18px 14px;
-  background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(125, 211, 252, 0.08), transparent 70%), var(--og-bg, #07070b);
-  border: 1px solid var(--line);
-  border-radius: 14px 14px 46% 46% / 14px 14px 18% 18%;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
 }
 .urn-col {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--sp-3);
   width: 100%;
   height: 100%;
 }
@@ -502,41 +441,26 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: var(--sp-3);
   min-height: 40px;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-2);
+  font-weight: 600;
 }
 .tray-balls {
   display: flex;
-  gap: 4px;
+  gap: var(--sp-1);
 }
 .tray .ball {
   width: 32px;
   height: 32px;
 }
-.tray .ball.lifted {
-  animation: lift 0.35s cubic-bezier(0.3, 1.4, 0.5, 1) both;
-}
+.tray .ball.lifted,
 .tray .ball.twin-new {
-  animation: twin-pop 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  animation: fade-in var(--dur-ui) ease both;
 }
-.tray-text.t-blue {
-  color: var(--sb-blue);
-}
-.tray-text.t-red {
-  color: var(--sb-red-soft);
-}
-@keyframes lift {
+@keyframes fade-in {
   from {
     opacity: 0;
-    transform: translateY(80%) scale(0.6);
-  }
-}
-@keyframes twin-pop {
-  from {
-    opacity: 0;
-    transform: translateX(-100%) scale(0.4);
   }
 }
 .urn {
@@ -557,137 +481,33 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1), box-shadow 0.25s ease, opacity 0.2s ease;
 }
 .slot .ball {
   width: 82%;
   height: 82%;
 }
 .ball.blue {
-  background: radial-gradient(circle at 35% 30%, #e0f4ff 0 8%, var(--sb-blue) 34%, var(--sb-blue-deep) 100%);
+  background: var(--accent);
 }
 .ball.red {
-  background: radial-gradient(circle at 35% 30%, #ffd0da 0 8%, var(--sb-red-soft) 34%, #b00d2e 100%);
-}
-.ball.win {
-  background: var(--sb-win);
+  background: var(--suit-red);
 }
 .slot .ball.gone {
-  opacity: 0.12;
-  transform: scale(0.8);
+  opacity: 0.4;
 }
+/* The ball drawn last and its twin stay ringed until the next draw. */
 .slot .ball.ringed {
-  box-shadow:
-    0 0 0 2px var(--og-bg, #07070b),
-    0 0 0 4px var(--og-text, #f6f6f6);
-}
-.ball.twin {
-  animation: drop-in 0.42s cubic-bezier(0.3, 1.4, 0.5, 1) both;
-}
-@keyframes drop-in {
-  from {
-    opacity: 0;
-    transform: translateY(-160%) scale(0.6);
-  }
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
-.side {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-.card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 14px 16px;
-  background: var(--og-bg-raised, #15151c);
-  border: 1px solid var(--line);
-  border-radius: var(--og-radius-lg, 12px);
-}
-.card-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.card-head .muted {
-  font-weight: 500;
-  letter-spacing: 0;
-  text-transform: none;
-  font-size: 12px;
-  text-align: right;
-}
-.twin-rule {
-  flex-direction: row;
-  align-items: center;
-  gap: 14px;
-  font-size: 13px;
-  line-height: 1.35;
-}
-.rule-pic {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  flex: none;
-}
-.rule-pic .ball {
-  width: 18px;
-  height: 18px;
-}
-.rule-pic .arrow {
-  margin: 0 4px;
-  color: var(--muted);
-}
-.rule-sub {
-  display: block;
-  font-size: 12px;
-}
-
-.foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-.message {
+/* The one-sentence rule under the board. */
+.og-caption {
   margin: 0;
-  min-height: 1.4em;
-  font-size: 15px;
-  font-weight: 600;
-}
-.message.win {
-  color: var(--sb-win);
-}
-.message.lose {
-  color: var(--sb-red-soft);
-}
-.recent {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.recent span {
-  padding: 4px 8px;
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  text-align: center;
+  font-size: var(--fs-2);
+  line-height: 1.5;
   color: var(--muted);
-  background: var(--og-bg-raised, #15151c);
-  border-radius: 6px;
-}
-.recent .w {
-  color: var(--sb-win);
-  background: color-mix(in srgb, var(--sb-win) 14%, transparent);
-}
-.recent .l {
-  color: var(--sb-red-soft);
-  background: color-mix(in srgb, var(--sb-red) 14%, transparent);
 }
 
 /* ---------- Modal ---------- */
@@ -698,21 +518,19 @@ input:focus-visible {
   z-index: 1000;
   display: grid;
   place-items: center;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(3px);
+  padding: var(--sp-4);
+  background: rgb(0 0 0 / 0.6);
 }
 .modal {
   width: min(480px, 100%);
   max-height: calc(100vh - 32px);
   overflow: auto;
-  padding: 20px 22px;
-  font-size: 14px;
+  padding: var(--sp-4) var(--sp-5);
+  font-size: var(--fs-2);
   line-height: 1.55;
-  background: var(--og-bg-raised, #15151c);
+  background: var(--raised);
   border: 1px solid var(--line);
-  border-radius: var(--og-radius-lg, 12px);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  border-radius: var(--radius-lg);
 }
 .modal-head {
   display: flex;
@@ -721,54 +539,38 @@ input:focus-visible {
 }
 .modal h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--fs-4);
+  font-weight: 600;
 }
 .ghost.icon {
   padding: 4px 9px;
 }
 .rules {
   display: grid;
-  gap: 10px;
-  margin: 16px 0;
-  padding: 0;
-  list-style: none;
-}
-.rules li {
-  display: grid;
-  grid-template-columns: 16px 1fr;
-  gap: 10px;
-  align-items: start;
-}
-.rules .ball {
-  width: 16px;
-  height: 16px;
-  margin-top: 3px;
+  gap: var(--sp-2);
+  margin: var(--sp-3) 0;
+  padding-left: 20px;
 }
 .modal h3 {
-  margin: 14px 0 4px;
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  margin: var(--sp-4) 0 var(--sp-1);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
 }
 .modal p {
-  margin: 0 0 10px;
+  margin: 0 0 var(--sp-2);
 }
 kbd {
   padding: 0 5px;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-1);
   border: 1px solid var(--line);
   border-radius: 4px;
 }
 
 /* ---------- Narrow layouts ---------- */
-
-@media (max-width: 1000px) {
-  .board {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
 
 @media (max-width: 720px) {
   .sb {
@@ -777,17 +579,13 @@ kbd {
   }
   .stage {
     order: -1;
-    padding: 16px;
-    gap: 14px;
-  }
-  .readout {
-    grid-template-columns: 1fr 1fr;
-  }
-  .win-tile {
-    grid-column: 1 / -1;
+    padding: var(--sp-4);
+    gap: var(--sp-3);
   }
   .panel {
-    padding: 16px;
+    padding: var(--sp-4);
+    border-right: 0;
+    border-top: 1px solid var(--line);
   }
 }
 

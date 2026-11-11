@@ -116,18 +116,6 @@ const CENTRES: Record<string, { x: number; y: number }> = (() => {
   return m;
 })();
 
-const CHIP_COLOURS: [number, string][] = [
-  [1, '#64748b'],
-  [5, '#2563eb'],
-  [10, '#7c3aed'],
-  [25, '#ea580c'],
-  [100, '#059669'],
-  [500, '#27272a'],
-  [1000, '#b45309'],
-  [Infinity, '#db2777'],
-];
-export const chipColour = (v: number) => CHIP_COLOURS.find(([lim]) => v < lim - 1e-9)![1];
-
 /** 0.5 → "0.5", 12.5 → "12.5", 2500 → "2.5K". */
 export function fmtChip(v: number): string {
   if (v >= 1e6) return `${Number((v / 1e6).toFixed(1))}M`;
@@ -142,9 +130,7 @@ export function ChipDisc({ value, r = 13, className }: { value: number; r?: numb
   const fs = label.length <= 2 ? r * 0.82 : label.length === 3 ? r * 0.68 : r * 0.56;
   return (
     <g className={'rl-chip' + (className ? ' ' + className : '')}>
-      <circle r={r} fill={chipColour(value)} />
-      <circle r={r - 1.6} className="edge" strokeDasharray={`${((r - 1.6) * Math.PI) / 6} ${((r - 1.6) * Math.PI) / 6}`} />
-      <circle r={r * 0.66} className="face" fill={chipColour(value)} />
+      <circle r={r} />
       <text dy="0.36em" fontSize={fs}>
         {label}
       </text>

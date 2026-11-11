@@ -66,37 +66,25 @@ export default function Board({ circle, region, slices, blade, dot, dotTone, edi
       onPointerCancel={() => (dragging.current = false)}
     >
       <defs>
-        <pattern id="slice-grid" width={S / 10} height={S / 10} patternUnits="userSpaceOnUse">
-          <path d={`M ${S / 10} 0 L 0 0 0 ${S / 10}`} className="grid-line" />
-        </pattern>
-        <pattern id="slice-hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="8" className="hatch-line" />
-        </pattern>
         <clipPath id="slice-region">
           <path d={path(region)} />
         </clipPath>
-        <radialGradient id="slice-overlap">
-          <stop offset="0%" className="ov-0" />
-          <stop offset="100%" className="ov-1" />
-        </radialGradient>
       </defs>
 
       <rect x={0} y={0} width={S} height={S} className="square" />
 
-      {/* Discarded halves fall away and grey out. */}
+      {/* Discarded halves slide away and go dark. */}
       {slices.map((s, i) => (
         <g key={i} className="piece" style={{ '--dx': `${s.away.x * 7}px`, '--dy': `${s.away.y * 7}px` } as CSSProperties}>
           <path d={path(s.lost)} className="piece-fill" />
-          <path d={path(s.lost)} fill="url(#slice-hatch)" />
         </g>
       ))}
 
       <path d={path(region)} className="region" />
-      <rect x={0} y={0} width={S} height={S} fill="url(#slice-grid)" clipPath="url(#slice-region)" className="grid" />
 
       {/* The overlap: the circle as seen through what's left. */}
       <g clipPath="url(#slice-region)">
-        <circle cx={cx * S} cy={cy * S} r={r * S} fill="url(#slice-overlap)" className="overlap" />
+        <circle cx={cx * S} cy={cy * S} r={r * S} className="overlap" />
         <circle cx={cx * S} cy={cy * S} r={r * S} className="ring-live" />
       </g>
       <circle cx={cx * S} cy={cy * S} r={r * S} className="ring-ghost" />
@@ -123,7 +111,6 @@ export default function Board({ circle, region, slices, blade, dot, dotTone, edi
 
       {dot && (
         <g className={'dot ' + dotTone} transform={`translate(${dot.x * S} ${dot.y * S})`}>
-          <circle r={7} className="dot-ripple" />
           <circle r={7} className="dot-core" />
         </g>
       )}

@@ -1,6 +1,6 @@
 import { cashMultiplier, type AutoRules } from '../math';
 import type { Outcome, Phase } from '../round';
-import { fmtChance, fmtMult, fmtPct } from '../format';
+import { fmtMult, fmtPct } from '../format';
 
 interface Props {
   W: number;
@@ -29,7 +29,6 @@ export default function Field({ W, x0, path, checkpoints, rules, phase, outcome,
   const tail = path.slice(-(rows + 1));
   const first = path.length - tail.length;
   const points = tail.map((p, i) => `${p},${tail.length - 1 - i}`).join(' ');
-  const trail = path.slice(-7, -1);
   const motion = { transitionDuration: `${Math.round(stepMs * 0.9)}ms` };
   const ended = outcome === 'win' ? 'win' : outcome === 'lose' ? 'lose' : '';
   const live = phase === 'running' || phase === 'paused';
@@ -52,20 +51,10 @@ export default function Field({ W, x0, path, checkpoints, rules, phase, outcome,
           <div className="marker start" style={{ left: at(x0, W) }} title="Start" />
           {rules.takeProfit !== null && rules.takeProfit < W && <div className="marker tp" style={{ left: at(rules.takeProfit, W) }} title="Take profit" />}
           {rules.stopLoss !== null && rules.stopLoss > 0 && <div className="marker sl" style={{ left: at(rules.stopLoss, W) }} title="Stop loss" />}
-          {trail.map((p, i) => (
-            <i key={path.length - trail.length + i} className="ghost-dot" style={{ left: at(p, W), opacity: ((i + 1) / (trail.length + 1)) * 0.5 }} />
-          ))}
         </div>
 
         <div className="trace-box">
           <svg className="trace" viewBox={`0 0 ${W} ${rows}`} preserveAspectRatio="none" aria-hidden>
-            <defs>
-              <linearGradient id="drift-ink" gradientUnits="userSpaceOnUse" x1={0} x2={W} y1={0} y2={0}>
-                <stop offset="0" style={{ stopColor: 'var(--red)' }} />
-                <stop offset="0.5" style={{ stopColor: 'var(--gold)' }} />
-                <stop offset="1" style={{ stopColor: 'var(--green)' }} />
-              </linearGradient>
-            </defs>
             {QUARTERS.slice(1, -1).map((q) => (
               <line key={q} className="grid" x1={q * W} x2={q * W} y1={0} y2={rows} />
             ))}
@@ -79,7 +68,6 @@ export default function Field({ W, x0, path, checkpoints, rules, phase, outcome,
               ))}
             {tail.length > 1 && <polyline className="ink" points={points} />}
           </svg>
-          {path.length === 1 && phase === 'idle' && <p className="trace-hint">Place a bet to release the dot. Its path is drawn here.</p>}
         </div>
 
         <div className="scale bottom" aria-hidden>
@@ -92,7 +80,6 @@ export default function Field({ W, x0, path, checkpoints, rules, phase, outcome,
 
         {/* The needle: the dot on the rail, a hairline through the trace, and the cash-out value at the bottom. */}
         <div className="needle" style={{ left: at(x, W), ...motion }}>
-          <span className="chance">{fmtChance(x, W)}</span>
           <span className="dot" />
           <span className="hair" />
           <span className="value">{fmtMult(cashMultiplier(x, x0))}</span>

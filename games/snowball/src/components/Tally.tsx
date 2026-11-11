@@ -12,21 +12,21 @@ interface Props {
 // 6 of the 11 draws and wins. The empty slots are the draws left, and each
 // side's gap to the centre is how many more it needs.
 export default function Tally({ blue, red, live }: Props) {
-  const { blueNeeds, redNeeds, left } = tally(blue, red);
+  const { left } = tally(blue, red);
   const centre = MAJORITY - 1;
   const slots = Array.from({ length: DRAWS }, (_, i) => {
     if (i < blue) return 'blue';
     if (i >= DRAWS - red) return 'red';
     return '';
   });
-  const done = blueNeeds === 0 || redNeeds === 0;
   return (
     <div className="tally">
       <div className="tally-head">
         <span className="t-blue">
           <b>{blue}</b> blue
         </span>
-        <span className="tally-goal">First to {MAJORITY} of {DRAWS} draws wins</span>
+        {/* Name the finish: the centre slot's small numeral alone didn't say what it was. */}
+        <span className="t-goal">first to {MAJORITY} wins</span>
         <span className="t-red">
           red <b>{red}</b>
         </span>
@@ -44,11 +44,6 @@ export default function Tally({ blue, red, live }: Props) {
           );
         })}
       </ol>
-      <div className="tally-foot">
-        <span className="t-blue">{blueNeeds === 0 ? 'Blue made it' : done ? '' : `needs ${blueNeeds} more`}</span>
-        <span className="muted">{done ? '' : `${left} draws left`}</span>
-        <span className="t-red">{redNeeds === 0 ? 'Red made it' : done ? '' : `needs ${redNeeds} more`}</span>
-      </div>
     </div>
   );
 }

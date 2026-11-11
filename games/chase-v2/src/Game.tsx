@@ -18,7 +18,9 @@ import {
   Readouts,
   RoundOver,
   StageTop,
+  ACCENTS,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -48,7 +50,6 @@ import {
   nextSteps,
   playTurn,
   prizeFor,
-  race,
   startChance,
   startState,
   volatilityOf,
@@ -90,7 +91,8 @@ interface Last {
 }
 
 const OUTCOME_TITLE: Record<Outcome, string> = { escaped: 'Escaped', caught: 'Caught', cashed: 'Cashed out' };
-const RULE =
+const RULE = 'Reach the exit before the hunter catches the runner.';
+const INTRO =
   'The runner moves by itself, one random step at a time. The hunter steps one square closer every turn. Reach the exit before the hunter reaches you. Cash out any time.';
 
 function newRound(start: Start, stake: number): Round {
@@ -133,9 +135,11 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => (phase === 'moving' || autoBusy ? resolved.current : phase === 'live' && round ? round.cash : 0));
 
-  const moveMs = turbo.turbo ? 90 : 300;
+  // A turn is three parts (runner steps, hunter's reply shown, hunter moves) of
+  // 400 ms each, about 1.2 s in all.
+  const moveMs = eventMs(turbo.turbo, 400);
   // How long the hunter's reply is shown before it moves.
-  const showMs = turbo.turbo ? 140 : 550;
+  const showMs = eventMs(turbo.turbo, 400);
   const autoMs = turbo.turbo ? 70 : 200;
   const live = phase === 'moving' || phase === 'live';
 
@@ -315,12 +319,10 @@ export default function Game() {
   const steps = atCheckpoint && !end ? nextSteps(state) : null;
   const k = steps?.length ?? 0;
   const fatal = steps?.filter((m) => m.fate === 'caught').length ?? 0;
-  const outs = steps?.filter((m) => m.fate === 'out').length ?? 0;
   const reach = steps ? hunterReach(grid, state.hunter) : null;
-  // The race counters follow the pieces as they are drawn.
+  // The pieces as they are drawn (they move ahead of the logical state mid-turn).
   const drawnRunner = round?.runner ?? state.runner;
   const drawnHunter = round?.hunter ?? state.hunter;
-  const gap = race(grid, drawnRunner, drawnHunter);
   const prize = round?.prize ?? prizeFor(start);
   const cash = round?.mid != null ? round.prize * round.mid : (round?.cash ?? RTP);
   const stake = round?.stake ?? bet.value;
@@ -350,44 +352,21 @@ export default function Game() {
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
-  const readouts: ReadoutItem[] = isAuto
-    ? [
-        {
-          label: 'Escape chance',
-          value: round && (autoBusy || round.outcome) ? fmtChance(p) : fmtChance(p0),
-          sub: round && (autoBusy || round.outcome) ? `turn ${round.turn}` : 'from the start',
-          tone: 'chance',
-        },
-        {
-          label: 'Cash out now',
-          value: round && (autoBusy || round.outcome) ? fmtMult(round.cash) : '—',
-          sub: target === null ? 'Auto plays to the end' : `Auto cashes at ${fmtMult(target)}`,
-          tone: 'cash',
-        },
-        { label: 'Escape pays', value: fmtMult(prize), sub: formatAmount(bet.value * prize, 2), tone: 'prize' },
-      ]
-    : [
-        {
-          label: 'Escape chance',
-          value: fmtChance(p),
-          sub: round?.mid != null ? 'hunter still to move' : live ? 'green area under the runner' : phase === 'over' ? 'final' : 'from the start',
-          tone: 'chance',
-        },
-        {
-          label: 'Cash out now',
-          value: live || phase === 'over' ? fmtMult(cash) : '—',
-          sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : `starts at ${fmtMult(RTP)}`,
-          tone: 'cash',
-        },
-        { label: 'Escape pays', value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
-      ];
+  const readouts: ReadoutItem[] = [
+    {
+      label: 'Escape chance',
+      value: fmtChance(isAuto ? (round && (autoBusy || round.outcome) ? p : p0) : p),
+      tone: 'chance',
+    },
+    { label: 'Escape pays', value: fmtMult(prize), tone: 'prize' },
+  ];
 
   const autoTargets = AUTO_TARGETS.filter((v) => v === null || v < prizeFor(start));
 
   return (
     <GameLayout
       name="Chase"
-      accent="#e63946"
+      accent={ACCENTS.pink}
       className="ch-game"
       panel={
         <>
@@ -404,12 +383,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to escape</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Escape pays</dt>
-                <dd>{fmtMult(prizeFor(start))}</dd>
-              </dl>
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live'} onClick={cashOut}>
@@ -439,8 +412,6 @@ export default function Game() {
               <dl className="og-stats">
                 <dt>{target === null ? 'Chance to escape' : `Chance to reach ${fmtMult(target)}`}</dt>
                 <dd>{fmtChance(autoChance(start, target !== null && target < prizeFor(start) ? target : null))}</dd>
-                <dt>Escape pays</dt>
-                <dd>{fmtMult(prizeFor(start))}</dd>
               </dl>
             </AutoBetControls>
           )}
@@ -469,46 +440,12 @@ export default function Game() {
           end={end}
           moveMs={isAuto ? autoMs : moveMs}
         />
-        <div className="ch-race" aria-label="The race">
-          <span className="rc run" title="Shortest walk from the runner to the exit">
-            Runner to exit
-            <span className="pips">
-              {Array.from({ length: gap.toExit }, (_, i) => (
-                <i key={i} />
-              ))}
-            </span>
-            <b>
-              {gap.toExit} {gap.toExit === 1 ? 'step' : 'steps'}
-            </b>
-          </span>
-          <span className="rc hunt" title="Shortest walk from the hunter to the runner">
-            Hunter to runner
-            <span className="pips">
-              {Array.from({ length: gap.toRunner }, (_, i) => (
-                <i key={i} />
-              ))}
-            </span>
-            <b>
-              {gap.toRunner} {gap.toRunner === 1 ? 'step' : 'steps'}
-            </b>
-          </span>
-        </div>
-        <div className="ch-key" aria-label="Key">
-          <span className="sq">
-            <i />
-            Greener = safer (exit near, hunter far)
-          </span>
-          {!isAuto && (
-            <span className="rd">
-              <i />
-              Hunter can reach: a red step there is caught
-            </span>
-          )}
-        </div>
-        <p className="ch-rule">{RULE}</p>
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      <ChanceBar p={p} label="Escape chance" />
+      <p className="ch-legend">Red: squares the hunter can reach next. Bigger green square: safer.</p>
+
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -520,37 +457,17 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={p}
-          label="Escape chance"
-          note={
-            steps
-              ? `Next step: one of ${k} arrows at random, 1 in ${k} each.${fatal ? ` ${fatal} red ${fatal === 1 ? 'arrow lands' : 'arrows land'} where the hunter can reach.` : ' None lands where the hunter can reach.'}${outs ? ' The green one is the exit.' : ''}`
-              : round?.hunterNext
-                ? round.hunterNext.length > 1
-                  ? `The hunter steps one square closer: ${round.hunterNext.length} squares are equally close, so it picks one at random.`
-                  : round.hunterNext[0] === round.runner
-                    ? "The runner landed in the hunter's reach: the hunter steps onto it."
-                    : 'The hunter steps one square closer: only one square is closer, so the odds hold.'
-                : 'The runner steps…'
-          }
-        />
-      ) : (
-        <Caption>
-          Pick where the red hunter starts. After every runner step the hunter moves one square closer. The green area of a square is the escape chance if the
-          runner stood there: a short walk to the exit and a long one for the hunter make it greener.
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Chase" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
-            <p>{RULE} If the white runner reaches the green exit you win the prize.</p>
+            <p>{INTRO} If the runner (the dot) reaches the exit (the outlined green square) you win the prize.</p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick where the red hunter starts, then press Bet. Nothing moves yet: you can cash out your stake × {fmtMult(RTP)} or take the first step.</li>
+              <li>Pick where the hunter (the red diamond) starts, then press Bet. Nothing moves yet: you can cash out your stake × {fmtMult(RTP)} or take the first step.</li>
               <li>Each step, the runner moves to one of its open neighbours (up, down, left or right) at random. You do not steer it.</li>
               <li>
                 Then the hunter moves one square closer to the runner along a shortest path. Its arrow shows where it goes before it moves; if two squares are
@@ -563,23 +480,21 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each square holds a <b style={{ color: 'var(--green)' }}>green square</b> whose area is the chance of escaping if the runner stood there now, with
-              the hunter where it is: greener is safer, a full square would be a sure escape. The one under the runner is your live chance.
+              The bar under the board is your escape chance and moves after every step. Each square holds a green square whose area is the chance of escaping
+              if the runner stood there now: bigger is safer. Squares tinted red are the ones the hunter can reach next.
             </p>
             <p>
-              The arrows are the runner's possible next steps. Each is equally likely, 1 in the number of arrows. A <b style={{ color: 'var(--red)' }}>red</b>{' '}
-              arrow lands in the hunter's reach (its square and the squares next to it, outlined in dashed red), so the hunter steps onto the runner this turn;
-              a green arrow reaches the exit. The share of red arrows is exactly the chance of being caught on the next step.
+              The arrows are the runner's possible next steps. Each is equally likely, 1 in the number of arrows. A red arrow lands in the hunter's reach (its
+              square and the squares next to it, tinted red), so the hunter steps onto the runner this turn; a green arrow reaches the exit. The share of red
+              arrows is exactly the chance of being caught on the next step.
             </p>
             <p>
               The escape chance moves twice a turn: when the runner steps (to the average over the hunter's possible replies), and again when the hunter
               moves, but only if it had two equally close squares to pick between. A forced hunter move never changes the odds.
             </p>
             <p>
-              Under the board, the race counts the shortest walks: runner to exit, and hunter to runner. Every turn the hunter's count drops by one after the
-              runner's step, so it stays the same when the runner steps away and drops by two when it steps towards the hunter. A short walk to the exit and a
-              long one for the hunter make the escape chance higher; the chance itself also counts every random detour, so it is the green area, not the counters,
-              that prices your cash-out.
+              A short walk to the exit and a long one for the hunter make the escape chance higher; the chance also counts every random detour, and it is the
+              escape chance that prices your cash-out.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

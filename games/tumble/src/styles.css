@@ -3,7 +3,7 @@
 .tumble-board {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 .tumble {
@@ -20,62 +20,63 @@
 /* Roll counter */
 .tumble .pips .todo {
   fill: none;
-  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  stroke: var(--faint);
   stroke-width: 2;
 }
 .tumble .pips .done {
-  fill: var(--accent);
-}
-.tumble .pips .now {
-  fill: #fff;
-  filter: drop-shadow(0 0 6px var(--accent));
-}
-.tumble .pip-label {
-  font-size: 15px;
-  font-weight: 600;
   fill: var(--muted);
 }
+.tumble .pips .now {
+  fill: var(--text);
+}
 
-/* The cross of cells around each cube */
-.tumble .cell rect {
-  fill: var(--hover);
-  stroke: transparent;
-  stroke-width: 2.5;
-  transition: fill 0.25s ease;
+/* The cross of cells around each cube: each prints this cube's chance after that tip,
+   tinted green if it beats the chance now, red if it is worse, neutral if the same. */
+.tumble .cell .well {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
 }
 .tumble .cell text {
   font-weight: 700;
   fill: var(--muted);
 }
-.tumble .cell.up rect {
-  fill: color-mix(in srgb, var(--green) 20%, var(--card));
+.tumble .cell.up .well {
+  fill: color-mix(in srgb, var(--win) 18%, var(--card));
+  stroke: var(--win);
 }
 .tumble .cell.up text {
-  fill: var(--green);
+  fill: var(--win);
 }
-.tumble .cell.down rect {
-  fill: color-mix(in srgb, var(--red) 18%, var(--card));
+.tumble .cell.down .well {
+  fill: color-mix(in srgb, var(--lose) 16%, var(--card));
+  stroke: var(--lose);
 }
 .tumble .cell.down text {
-  fill: color-mix(in srgb, var(--red) 80%, var(--text));
+  fill: var(--lose);
 }
-.tumble .cell.off rect {
-  fill: color-mix(in srgb, var(--hover) 50%, transparent);
-}
-.tumble .cell.hit rect {
-  stroke: var(--accent);
+.tumble .note {
+  font-size: var(--fs-1);
+  fill: var(--muted);
 }
 .tumble .home {
-  fill: color-mix(in srgb, var(--accent) 12%, var(--card));
-  stroke: color-mix(in srgb, var(--accent) 45%, transparent);
+  fill: var(--bg);
+  stroke: var(--line-strong);
   stroke-width: 1.5;
-  stroke-dasharray: 4 4;
+}
+.tumble .home.won {
+  stroke: var(--win);
+  stroke-width: 2.5;
+}
+.tumble .home.lost {
+  stroke: var(--lose);
+  stroke-width: 2.5;
 }
 
 /* The cube, seen from above: top face in the middle, four sides around it */
 .tumble .mover {
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.45, 0, 0.3, 1);
+  transition-timing-function: ease-in-out;
 }
 .tumble .tip {
   animation-name: tumble-tip;
@@ -87,70 +88,46 @@
   stroke-linejoin: round;
 }
 .tumble .face.top {
-  fill: color-mix(in srgb, var(--accent) 70%, #fff);
+  fill: var(--text);
 }
 .tumble .face.ew {
-  fill: color-mix(in srgb, var(--accent) 60%, var(--card));
+  fill: var(--muted);
 }
 .tumble .face.ns {
-  fill: color-mix(in srgb, var(--accent) 42%, var(--card));
+  fill: var(--faint);
 }
+/* The rules name the red face, so it is drawn red. */
 .tumble .face.red {
-  fill: var(--red);
+  fill: var(--suit-red);
 }
-.tumble .under {
-  fill: color-mix(in srgb, var(--red) 70%, transparent);
-  filter: drop-shadow(0 0 8px var(--red));
+.tumble .under-note {
+  fill: var(--text);
 }
 
-/* Forecast bars */
+/* Forecast bars: the player's call is the green share. */
 .tumble .seg rect {
-  fill: color-mix(in srgb, var(--text) 14%, var(--card));
+  fill: var(--hover);
   stroke: var(--bg);
   stroke-width: 1.5;
-  transition: width 0.3s ease, x 0.3s ease;
 }
 .tumble .seg text {
-  font-size: 13px;
+  font-size: var(--fs-1);
   font-weight: 600;
   fill: var(--muted);
 }
 .tumble .seg.target rect {
-  fill: var(--green);
+  fill: var(--win);
 }
 .tumble .seg.target text {
-  fill: #0b0d12;
-  font-weight: 800;
+  fill: var(--bg);
 }
 .tumble .bar-frame {
   fill: none;
-  stroke: color-mix(in srgb, var(--text) 25%, transparent);
+  stroke: var(--line-strong);
   stroke-width: 1;
 }
-.tumble .bar-mark {
-  fill: var(--green);
-}
-.tumble .bar-mark.zero {
-  fill: var(--red);
-}
-.tumble .bar-val {
-  font-size: 19px;
-  font-weight: 700;
-  fill: var(--green);
-}
-.tumble .bar-val.zero {
-  fill: var(--red);
-}
-.tumble .prod {
-  font-size: 21px;
-  font-weight: 800;
-  fill: var(--text);
-}
-.tumble .prod.one {
-  fill: var(--green);
-}
-.tumble .prod.zero {
-  fill: var(--red);
+.tumble .seg.target.lost rect {
+  fill: var(--lose);
 }
 
 @keyframes tumble-tip {

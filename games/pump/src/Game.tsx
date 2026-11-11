@@ -4,9 +4,9 @@ import {
   ActionButton,
   AutoBetControls,
   BetField,
+  ACCENTS,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,6 +20,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -46,7 +47,6 @@ import {
   maxPumps,
   multiplier,
   popChance,
-  survival,
   type Difficulty,
 } from './math';
 import { runAutoRound, stepAt, type Step } from './round';
@@ -76,8 +76,6 @@ interface LastAuto {
 
 const OUTCOME_TITLE: Record<Outcome, string> = { popped: 'Popped!', cashed: 'Cashed out', max: 'Fully pumped' };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
-const hide = (n: number) => `${plural(n, 'pop')} ${n === 1 ? 'hides' : 'hide'}`;
-const oneIn = (p: number) => `1 in ${Math.round(1 / p).toLocaleString('en-US')}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -90,7 +88,6 @@ export default function Game() {
   const [autoTarget, setAutoTarget] = useState(5);
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRoundState] = useState<Round | null>(null);
-  const [tick, setTick] = useState(0);
   const [lastAuto, setLastAuto] = useState<LastAuto | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const roundRef = useRef<Round | null>(null);
@@ -107,7 +104,7 @@ export default function Game() {
   const fair = useRef(0);
   const ticket = useTicket(() => fair.current);
 
-  const pumpMs = turbo.turbo ? 150 : 560;
+  const pumpMs = eventMs(turbo.turbo); // the circle grows over a readable 600 ms (docs/STYLE.md)
   const d = POPS[difficulty];
   const top = maxPumps(d);
   const target = Math.min(autoTarget, top);
@@ -125,7 +122,6 @@ export default function Game() {
     const r = roundRef.current!;
     fair.current = step.kind === 'safe' ? step.cash : 0;
     setPhase('pumping');
-    setTick((t) => t + 1);
     setRound(step.kind === 'safe' ? { ...r, k: step.pump, cash: step.cash } : { ...r, popping: true });
     return timers.wait(pumpMs);
   }
@@ -230,7 +226,10 @@ export default function Game() {
   if (live) balloonState = round?.popping ? 'strain' : 'live';
   if (phase === 'over') balloonState = outcome === 'popped' ? 'popped' : outcome === 'max' ? 'max' : 'cashed';
 
-  const rungState = (i: number): RungState => {
+  // The circle swells for a popping pump too; the pop ring then stays at that size.
+  const balloonFill = round?.popping || (phase === 'over' && outcome === 'popped') ? Math.min(1, (k + 1) / rTop) : k / rTop;
+
+  const rungState =(i: number): RungState => {
     const pump = i + 1;
     if (pump <= k) return pump === k && phase !== 'idle' ? 'current' : 'passed';
     if (phase === 'over') {
@@ -252,12 +251,11 @@ export default function Game() {
   const tone = phase === 'over' ? (cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   const showRoundOver = phase === 'over' && outcome !== null && round && !round.auto && auto.mode === 'manual';
-  const pumpLabel = q > 0 ? `${fmtChance(1 - q)} safe` : '';
 
   return (
     <GameLayout
       name="Pump"
-      accent="#38bdf8"
+      accent={ACCENTS.sky}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live} />
@@ -276,8 +274,6 @@ export default function Game() {
             <dd>
               {d} of {POSITIONS}
             </dd>
-            <dt>First pump safe</dt>
-            <dd>{fmtChance(1 - d / POSITIONS)}</dd>
             <dt>Top prize ({top} pumps)</dt>
             <dd>{fmtMult(multiplier(d, top))}</dd>
           </dl>
@@ -289,7 +285,7 @@ export default function Game() {
                   Cash out <span>{formatAmount(stake * cash, 2)}</span>
                 </ActionButton>
                 <ActionButton kind="secondary" className="pump-btn" disabled={phase !== 'checkpoint'} onClick={() => void pumpOnce()}>
-                  {phase === 'pumping' ? 'Pumping…' : <>Pump <small>{fmtMult(multiplier(rd, k + 1))} · {pumpLabel}</small></>}
+                  {phase === 'pumping' ? 'Pumping…' : <>Pump <small>{fmtMult(multiplier(rd, k + 1))}</small></>}
                 </ActionButton>
               </div>
             ) : (
@@ -301,7 +297,7 @@ export default function Game() {
             )
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
-              <Label hint={<span className="pump-auto-hint">pays <b>{fmtMult(multiplier(d, target))}</b> · {fmtChance(survival(d, target))}</span>}>
+              <Label hint={<span className="pump-auto-hint">pays <b>{fmtMult(multiplier(d, target))}</b></span>}>
                 Pumps per bet
               </Label>
               <div className="pump-target">
@@ -326,58 +322,35 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Next pump safe',
-            value: phase === 'over' ? '—' : fmtChance(1 - q),
-            sub: phase === 'over' ? `${plural(k, 'safe pump')}` : `${plural(rd, 'pop')} in ${POSITIONS - k} left`,
-            tone: 'chance',
-          },
+          { label: 'Next pump safe', value: phase === 'over' ? '—' : fmtChance(1 - q), tone: 'chance' },
           phase === 'over'
-            ? { label: 'Payout', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' as const }
-            : { label: 'Cash out now', value: k > 0 ? fmtMult(cash) : '—', sub: k > 0 ? formatAmount(stake * cash, 2) : 'after the first pump', tone: 'cash' as const },
-          {
-            label: phase === 'over' ? 'Top of the ladder' : 'Next pump pays',
-            value: phase === 'over' || k >= rTop ? fmtMult(rungs[rTop - 1]) : fmtMult(rungs[k]),
-            sub: phase === 'over' ? `${rTop} pumps` : `pump ${Math.min(k + 1, rTop)} of ${rTop}`,
-            tone: 'prize',
-          },
+            ? { label: 'Payout', value: fmtMult(cash), tone: 'cash' as const }
+            : { label: 'Next pump pays', value: k >= rTop ? fmtMult(rungs[rTop - 1]) : fmtMult(rungs[k]), tone: 'prize' as const },
         ]}
       />
 
       <Board className="pump-board">
         {auto.mode === 'auto' && lastAuto && <InstantResult multiplier={lastAuto.multiplier} stake={lastAuto.stake} id={lastAuto.id} />}
         <div className="pump-scene">
-          <Balloon fill={k / rTop} state={balloonState} q={phase === 'over' ? 0 : q} label={k > 0 ? cash : null} tick={tick} pumpMs={pumpMs} />
-          {showRoundOver && (
-            <RoundOver
-              key={history[0]?.id}
-              title={OUTCOME_TITLE[outcome!]}
-              multiplier={cash}
-              stake={round!.stake}
-              nextBet={bet.value}
-              blocked={bet.blocked}
-              onBetAgain={() => void start()}
-              onClear={clear}
-              placement="center"
-            />
-          )}
+          <Balloon fill={balloonFill} state={balloonState} label={k > 0 ? cash : null} pumpMs={pumpMs} />
         </div>
         <Ladder rungs={rungs} state={rungState} focus={focus} target={auto.mode === 'auto' && !live ? target - 1 : null} />
       </Board>
 
-      {live ? (
-        <ChanceBar p={1 - q} label="Next pump is safe" note={`${hide(rd)} among the ${POSITIONS - k} positions left, so the next pump pops ${rd === 1 ? '1 time' : `${rd} times`} in ${POSITIONS - k}: the red share of the gauge.`} />
-      ) : phase === 'over' && outcome === 'cashed' ? (
-        <Caption>
-          {popAt <= rTop ? `This balloon would have popped on pump ${popAt} (${fmtMult(rungs[popAt - 1])} was out of reach).` : 'This balloon would have made it all the way.'}{' '}
-          The pops were fixed when you bet.
-        </Caption>
-      ) : (
-        <Caption>
-          {hide(d)} among {POSITIONS} pump positions. After k safe pumps you can cash out {RTP} × C(25, k) / C({POSITIONS - d}, k). Pumping
-          all {top} pays {fmtMult(multiplier(d, top))} ({oneIn(survival(d, top))}). RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
+      {showRoundOver && (
+        <RoundOver
+          key={history[0]?.id}
+          title={OUTCOME_TITLE[outcome!]}
+          multiplier={cash}
+          stake={round!.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
       )}
+      <Caption>Pump as far as you dare and cash out before the balloon pops.</Caption>
 
       {infoOpen && (
         <InfoModal title="Pump" onClose={() => setInfoOpen(false)}>
@@ -395,8 +368,9 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b style={{ color: 'var(--red)' }}>red share of the gauge</b> is the exact chance the next pump pops: the pops still hidden divided by the
-              positions left. It grows as you pump, which is why the ladder steps grow too. The ladder under the balloon lists every rung you can reach.
+              The chance the next pump pops is the pops still hidden divided by the positions left, and the board shows its complement as "Next pump safe". It
+              grows as you pump, which is why the ladder steps grow too. The ladder under the balloon lists every rung you can reach. A pop leaves a red ring
+              where the balloon was, and the ladder marks the pump that popped.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

@@ -1,6 +1,7 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
@@ -19,6 +20,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -42,11 +44,9 @@ import {
   fullBox,
   nextRoll,
   oneDie,
-  playableChance,
   relock,
   rollDice,
   startPrize,
-  tileSum,
   tilesOf,
   volatilityOf,
   winChance,
@@ -143,7 +143,8 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const k = turbo.turbo ? 0.25 : 1;
-  const ms = (manual: number, auto: number) => Math.round((isAutoRef.current ? auto : manual) * k);
+  // Manual events take about EVENT_MS (Turbo about a quarter); Auto keeps its own faster timings.
+  const ms = (manual: number, auto: number) => (isAutoRef.current ? Math.round(auto * k) : eventMs(turbo.turbo, manual));
   const live = phase === 'rolling' || phase === 'choose' || phase === 'closing' || phase === 'checkpoint';
 
   /** Value of a round whose roll is on show: the prize times the best close's chance (0 if none). */
@@ -181,7 +182,7 @@ export default function Game() {
     setHover(null);
     setRound(next);
     setPhase('closing');
-    if (!(await timers.wait(ms(380, 160)))) return;
+    if (!(await timers.wait(ms(500, 160)))) return;
     if (pick.after === 0) return finish(next, 'won', prize);
     setRound({ ...next, before: pick.after, total: null, closed: 0 });
     setPhase('checkpoint');
@@ -198,7 +199,7 @@ export default function Game() {
     setHover(null);
     setRound({ ...rolled, dice: null });
     setPhase('rolling');
-    if (!(await timers.wait(ms(700, 420)))) return;
+    if (!(await timers.wait(ms(600, 420)))) return;
     setRound(rolled);
     if (options.length === 0) {
       setPhase('closing');
@@ -209,7 +210,7 @@ export default function Game() {
       // Only one way to spend the roll: show it, then close it.
       setHover(options[0].tiles);
       setPhase('closing');
-      if (!(await timers.wait(ms(450, 200)))) return;
+      if (!(await timers.wait(ms(300, 200)))) return;
       return close(rolled, options[0]);
     }
     setPhase('choose');
@@ -263,7 +264,7 @@ export default function Game() {
       r = { ...r, before: r.mask, prev: r.mask, dice, total, closed: 0, rolls: r.rolls + 1 };
       setRound({ ...r, dice: null });
       setPhase('rolling');
-      if (!(await timers.wait(ms(700, 420)))) return null;
+      if (!(await timers.wait(ms(600, 420)))) return null;
       setRound(r);
       setPhase('closing');
       if (!best) {
@@ -364,11 +365,8 @@ export default function Game() {
   else if (landed) winNow = r.closed ? winChance(r.mask) : rollBest?.win ?? 0;
   const cash = phase === 'over' ? r.paid : r.prize * winNow;
   const stake = r.stake;
-  const playNext = playableChance(r.mask);
   const preview = hover ?? (phase === 'choose' && best ? best.tiles : 0);
   const tumbling = phase === 'rolling';
-  // The dice just dropped to one: the last close took the open tiles to 6 or less.
-  const switched = round !== null && r.lastClose !== 0 && r.mask !== 0 && oneDie(r.mask) && !oneDie(r.prev);
 
   let status = `Ready · box of ${n}`;
   let tone: StatusTone = 'idle';
@@ -389,61 +387,28 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
+  // The chance is the bar under the status line; the readouts keep only the prize.
   const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(winNow), sub: phase === 'over' ? 'round over' : landed && !r.closed ? 'after the best close' : 'best play from here', tone: 'chance' },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(r.paid) : showCash ? fmtMult(cash) : isAuto ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' || showCash ? formatAmount(stake * cash, 2) : 'after the first roll',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(r.prize), sub: `pays ${formatAmount(stake * r.prize, 2)}`, tone: 'prize' },
+    { label: 'Prize', value: fmtMult(r.prize), tone: 'prize' },
   ];
 
-  // ---------- The message line under the board ----------
-
-  // Short lines only: each says one thing (the blind-play sandbox hides prose of 9+ words).
-  const hovered = phase === 'choose' && hover !== null ? options.find((o) => o.tiles === hover) : undefined;
-  let choiceLines: string[] = [];
-  if (phase === 'choose' && round && best) {
-    if (hovered && hovered !== best) {
-      const p = relock(round.prize, best.win, hovered);
-      choiceLines =
-        p === null
-          ? [`${label(hovered.tiles)} would pass the ${MAX_WIN.toLocaleString('en-US')}× max win.`]
-          : [`${label(hovered.tiles)}: prize rises to ${fmtMult(p)}.`, `Cash-out stays ${fmtMult(cash)}.`];
-    } else if (hovered) {
-      choiceLines = [`${label(hovered.tiles)}: best odds, prize stays ${fmtMult(round.prize)}.`];
-    } else {
-      choiceLines = [`Same ${fmtMult(cash)} cash-out whichever you pick.`, 'A riskier pick raises the prize to match.'];
-    }
-  }
+  // ---------- The choice under the board (only while picking tiles) ----------
 
   let message: ReactNode = null;
-  if (!round) {
-    message = (
-      <ol className="shut-rules" aria-label="Rules">
-        <li>Close tiles adding up to the dice total.</li>
-        <li>Open tiles total ≤ 6: roll one die.</li>
-        <li>No open tiles add up? Round lost.</li>
-        <li>Shut every tile to win the prize.</li>
-      </ol>
-    );
-  } else if (!isAuto && phase === 'choose' && options.length > 1) {
+  if (!isAuto && phase === 'choose' && round && best && options.length > 1) {
     message = (
       <>
         <p>
-          Pick tiles adding up to <b>{r.total}</b>. <span className="muted">Chance to shut after each:</span>
+          Pick tiles adding up to <b>{r.total}</b>.
         </p>
         <div className="shut-options" role="group" aria-label={`Close tiles adding up to ${r.total}`}>
-          {options.map((o, i) => {
+          {options.map((o) => {
             const prize = relock(round.prize, best.win, o);
             return (
               <button
                 key={o.tiles}
                 type="button"
-                className={'shut-opt' + (i === 0 ? ' best' : '')}
+                className="shut-opt"
                 disabled={prize === null}
                 onMouseEnter={() => setHover(o.tiles)}
                 onMouseLeave={() => setHover(null)}
@@ -452,38 +417,12 @@ export default function Game() {
                 onClick={() => void close(round, o)}
               >
                 <b>{label(o.tiles)}</b>
-                <span>{o.after === 0 ? 'shuts the box' : `→ ${fmtChance(o.win)}`}</span>
-                {i === 0 && <small>best odds</small>}
+                <span>{o.after === 0 ? 'shuts the box' : `prize ${fmtMult(prize ?? round.prize)}`}</span>
               </button>
             );
           })}
         </div>
-        <p className="muted">
-          {choiceLines.map((t, i) => (
-            <span key={i}>{t} </span>
-          ))}
-        </p>
-      </>
-    );
-  } else if (phase === 'closing' && landed && r.total !== null && !r.closed && rollOptions.length === 1) {
-    message = (
-      <p>
-        Only <b>{label(rollOptions[0].tiles)}</b> makes {r.total}: it closes by itself.
-      </p>
-    );
-  } else if (phase === 'checkpoint' || (phase === 'closing' && r.closed)) {
-    const relocked = Math.abs(r.prize - r.prizeBefore) > 1e-9;
-    message = (
-      <>
-        <p>
-          Closed <b>{label(r.lastClose)}</b>: chance to shut {fmtChance(winChance(r.prev))} → <b>{fmtChance(winChance(r.mask))}</b>
-        </p>
-        {relocked && <p className="muted">Prize raised to {fmtMult(r.prize)}; cash-out kept.</p>}
-        {switched && (
-          <p className="switch">
-            Open tiles total {tileSum(r.mask)}, 6 or less: <b>now you roll one die</b>
-          </p>
-        )}
+        {note && <p className="shut-note">{note}</p>}
       </>
     );
   }
@@ -491,7 +430,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Shut"
-      accent="#7aa2ff"
+      accent={ACCENTS.blue}
       className="shut-game"
       panel={
         <>
@@ -501,7 +440,7 @@ export default function Game() {
           <Label hint={<VolBadge level={vol} />}>Box</Label>
           <Chips
             label="Box size"
-            options={BOXES.map((v) => ({ value: v, label: `1–${v}`, title: `${fmtChance(winChance(fullBox(v)))} to shut` }))}
+            options={BOXES.map((v) => ({ value: v, label: `1–${v}`, title: `Prize ${fmtMult(RTP / winChance(fullBox(v)))}` }))}
             value={n}
             disabled={busy}
             onChange={(v) => change(() => setN(v))}
@@ -509,12 +448,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
               {(phase === 'checkpoint' || phase === 'choose') && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -522,7 +455,7 @@ export default function Game() {
                   </ActionButton>
                   {phase === 'checkpoint' ? (
                     <ActionButton kind="secondary" onClick={() => void roll(round)}>
-                      Roll {oneDie(round.mask) ? 'one die' : 'two dice'} · {fmtChance(playNext)} playable
+                      Roll {oneDie(round.mask) ? 'one die' : 'two dice'}
                     </ActionButton>
                   ) : (
                     <ActionButton kind="secondary" disabled={!best} onClick={() => best && void close(round, best)}>
@@ -549,12 +482,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="shut-note">{bet.blocked}</p>}
@@ -564,6 +491,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      <ChanceBar p={winNow} label={phase === 'idle' || !round ? 'Chance to shut the box' : phase === 'over' ? 'Chance to shut the box (round over)' : 'Chance to shut the box from here'} />
       <Readouts items={readouts} />
 
       <Board className="shut-board">
@@ -579,7 +507,6 @@ export default function Game() {
             tumbling={tumbling}
             total={showRoll && phase !== 'rolling' ? r.total : null}
             strip={strip}
-            openSum={tileSum(stripMask)}
             busted={outcome === 'bust'}
             won={outcome === 'won'}
           />
@@ -589,7 +516,7 @@ export default function Game() {
         </div>
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={TITLE[round.outcome]}
@@ -601,34 +528,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={winNow}
-          label="Chance to shut the box"
-          note={
-            note ??
-            (phase === 'choose' && options.length > 1
-              ? 'Shown for the best-odds pick.'
-              : phase === 'checkpoint'
-                ? `Cash out ${fmtMult(cash)} now, or roll for ${fmtMult(r.prize)}.`
-                : undefined)
-          }
-        />
-      ) : isAuto && round && (autoBusy || auto.running) ? (
-        <ChanceBar
-          p={winNow}
-          label="Chance to shut the box"
-          note={
-            target > 0 && target < r.prize ? `Worth ${fmtMult(cash)} now · cashes at ${fmtMult(target)}` : `Worth ${fmtMult(cash)} now · plays to the end`
-          }
-        />
-      ) : (
-        <Caption>
-          {isAuto
-            ? `Each bet plays a whole round with the best close every roll${target > 0 ? `, cashing out once it is worth ${fmtMult(target)}` : ', to the end'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `Box 1–${n}: best play shuts it ${fmtChance(p0)} of the time for ${fmtMult(prize0)}. You can cash out after any roll. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Close open tiles that add up to each roll; shut them all to win.</Caption>
 
       {infoOpen && (
         <InfoModal title="Shut" onClose={() => setInfoOpen(false)}>
@@ -639,20 +540,19 @@ export default function Game() {
             <ol>
               <li>Pick the box size, then Bet. The first roll happens at once.</li>
               <li>Close open tiles that add up exactly to the roll: 9 can be 9, 8 + 1, 5 + 4, 4 + 3 + 2… If only one set works it closes by itself.</li>
-              <li>Once the open tiles total 6 or less, only one die is rolled (otherwise the last small tiles could never close). The board tells you when it happens.</li>
+              <li>Once the open tiles total 6 or less, only one die is rolled (otherwise the last small tiles could never close). The board shows "One die" when it happens.</li>
               <li>After each roll you can cash out (C) or roll again (Space). While choosing tiles, Space closes the best-odds set.</li>
               <li>Close every tile to win the prize. Auto plays whole rounds with the best close and cashes out at your target.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The band under the dice has one cell per dice total, as wide as that total's chance of being rolled (7 is six times as wide as 2). <b style={{ color: 'var(--green)' }}>Green</b> totals
-              can be made from your open tiles; <b style={{ color: 'var(--red)' }}>red</b> ones end the round. So the green share of the band is the chance your next roll can be played, and the
-              Roll button repeats it.
+              The band under the dice has one cell per dice total, as wide as that total's chance of being rolled (7 is six times as wide as 2). <b style={{ color: 'var(--win)' }}>Green</b> totals
+              can be made from your open tiles; <b style={{ color: 'var(--lose)' }}>red</b> ones end the round. So the green share of the band is the chance your next roll can be played.
             </p>
             <p>
-              The Chance to shut the box bar is your chance of closing every tile from here, playing the best tiles each roll. It moves after every close: closing big tiles early usually raises it,
-              because small totals are easy to make later. When a roll offers several sets of tiles, each choice shows the chance it leaves you.
+              The Win chance is your chance of closing every tile from here, playing the best tiles each roll. It moves after every close: closing big tiles early usually raises it,
+              because small totals are easy to make later. When a roll offers several sets of tiles, each choice shows the prize it leaves you.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

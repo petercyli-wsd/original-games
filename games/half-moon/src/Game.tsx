@@ -2,6 +2,7 @@ import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
   BetField,
+  ACCENTS,
   Board,
   Caption,
   ChanceBar,
@@ -15,7 +16,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useBetInput,
   useHistory,
@@ -27,7 +28,7 @@ import {
 import { formatAmount, type Volatility } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
 import Field from './Board';
-import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fitChance, fits, span, type Target, type Window } from './math';
+import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fillChance, fitChance, fits, span, type Target, type Window } from './math';
 
 type Phase = 'idle' | 'dropping' | 'checkpoint' | 'over';
 type Outcome = 'bust' | 'cashed' | 'full';
@@ -74,7 +75,8 @@ export default function Game() {
   const resolved = useRef<number>(0);
   const ticket = useTicket(() => resolved.current);
 
-  const spinMs = turbo.turbo ? 220 : 850;
+  // The spinner sweeps to the new point over a readable 600 ms (Turbo ~150 ms), docs/STYLE.md.
+  const spinMs = eventMs(turbo.turbo);
   const live = phase === 'dropping' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number, bustPoint: number | null = null) {
@@ -152,7 +154,8 @@ export default function Game() {
   const { q, arc } = danger(points, w);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const fill = fitChance(t, w);
+  // Whole-bet chance: the board still fills from the points already down.
+  const fill = fillChance(points, w, t);
   const vol = volatilityOf(win, target);
 
   let status = `Ready · ${t} points in a ${w}° window`;
@@ -164,7 +167,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Half Moon"
-      accent="#b59cff"
+      accent={ACCENTS.violet}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -186,12 +189,6 @@ export default function Game() {
             disabled={live}
             onChange={(v) => change(() => setTarget(v))}
           />
-          <dl className="og-stats">
-            <dt>Chance to fill</dt>
-            <dd>{fmtChance(fitChance(target, win))}</dd>
-            <dt>Typical full prize</dt>
-            <dd>{fmtMult(RTP / fitChance(target, win))}</dd>
-          </dl>
 
           {phase === 'checkpoint' ? (
             <>
@@ -199,7 +196,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && drop(round)}>
-                Drop next {q === 0 ? '· free' : `· ${fmtChance(1 - q)} safe`}
+                Drop next
               </ActionButton>
             </>
           ) : (
@@ -214,11 +211,19 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar
+        p={phase === 'over' && round?.outcome === 'bust' ? 0 : fill}
+        label={phase === 'idle' || (phase === 'over' && round?.outcome === 'bust') ? 'Chance to fill the board' : 'Chance to fill the board from here'}
+      />
+
       <Readouts
         items={[
-          { label: 'Next drop safe', value: live ? fmtChance(1 - q) : '—', sub: live ? (q === 0 ? 'nothing can bust' : 'outside the red arc') : `${t} points to fill`, tone: 'chance' },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'If it lands safe', value: live ? fmtMult(cash / (1 - q)) : fmtMult(RTP / fill), sub: live ? `point ${points.length + 1} of ${t}` : 'typical full prize', tone: 'prize' },
+          // A drop with no red arc can't bust, so it can't raise the cash-out either: say so, or the
+          // value looks stuck. The full prize depends on the path (it grows only on risky drops), so
+          // the idle figure is the average over full boards, as the pre-restyle label said.
+          live
+            ? { label: q === 0 ? 'Next drop is risk-free' : 'If it lands safe', value: fmtMult(cash / (1 - q)), tone: 'prize' }
+            : { label: 'Typical full prize', value: fmtMult(RTP / fitChance(t, w)), tone: 'prize' },
         ]}
       />
 
@@ -232,31 +237,23 @@ export default function Game() {
           spin={spin}
           spinMs={spinMs}
           bustPoint={round?.bustPoint ?? null}
-          q={q}
-          live={live}
         />
-        {phase === 'over' && round?.outcome && (
-          <RoundOver
-            key={history[0]?.id}
-            title={OUTCOME_TITLE[round.outcome]}
-            multiplier={round.cash}
-            stake={round.stake}
-            nextBet={bet.value}
-            blocked={bet.blocked}
-            onBetAgain={() => void start()}
-            onClear={clear}
-            placement="bottom"
-          />
-        )}
       </Board>
 
-      {live ? (
-        <ChanceBar p={1 - q} label="Next drop lands safe" note="The red arc is exactly where the next point would break your window." />
-      ) : (
-        <Caption>
-          Every point must fit inside one {w}° window. Wendel: {t} random points do so {fmtChance(fill)} of the time. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
+      {phase === 'over' && round?.outcome && (
+        <RoundOver
+          key={history[0]?.id}
+          title={OUTCOME_TITLE[round.outcome]}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
       )}
+      <Caption>Keep every point inside one {w}° window until the board is full.</Caption>
 
       {infoOpen && (
         <InfoModal title="Half Moon" onClose={() => setInfoOpen(false)}>
@@ -272,7 +269,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The <b style={{ color: 'var(--red)' }}>red arc</b> is the only place the next point can bust you, so its length is the chance of losing the
+              The <b style={{ color: 'var(--lose)' }}>red arc</b> is the only place the next point can bust you, so its length is the chance of losing the
               drop. Points that land inside your cluster, or close enough to either end of it, are safe. Sometimes no position can bust you: that drop is free.
             </p>
           </InfoSection>

@@ -15,5 +15,5 @@ export default defineManifest({
   // 19 bad teeth is a 5% shot at 19.8x.
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#46c463',
+  accent: '#5ec4e6', // ACCENTS.sky (docs/STYLE.md)
 });

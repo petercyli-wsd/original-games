@@ -9,7 +9,6 @@ import {
   isBlackjack,
   isRed,
   totalLabel,
-  type Action,
   type Card,
   type HandResult,
   type PairsKind,
@@ -32,17 +31,10 @@ export function PlayingCard({ card, faceUp, dealtUp, delay, from }: { card: Card
         {/* A face-down card carries no face at all, so the hole card can't be read from the page. */}
         <div className={'bj-face' + (red && faceUp ? ' red' : '')}>
           {faceUp && (
-            <>
-              <span className="bj-corner tl">
-                <b>{rank}</b>
-                <i>{suit}</i>
-              </span>
-              <span className="bj-pip">{suit}</span>
-              <span className="bj-corner br">
-                <b>{rank}</b>
-                <i>{suit}</i>
-              </span>
-            </>
+            <span className="bj-corner">
+              <b>{rank}</b>
+              <i>{suit}</i>
+            </span>
           )}
         </div>
         <div className="bj-back" />
@@ -79,14 +71,12 @@ const DEAL_ORDER = { p0: 0, d0: 1, p1: 2, d1: 3 } as Record<string, number>;
 export default function Table({
   view,
   preview,
-  hint,
   dealMs,
   flipMs,
   mid,
 }: {
   view: TableView | null;
   preview: { base: number; pairs: number; trips: number };
-  hint: Action | null;
   dealMs: number;
   flipMs: number;
   mid: ReactNode;
@@ -102,12 +92,6 @@ export default function Table({
 
   return (
     <div className="bj-table" style={style}>
-      <div className="bj-shoe" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </div>
-
       <div className="bj-zone dealer" aria-label="Dealer">
         <span className="bj-zone-label">Dealer</span>
         <div className="bj-hand">
@@ -139,21 +123,6 @@ export default function Table({
       </div>
 
       <div className="bj-mid">
-        <svg viewBox="0 0 600 110" className="bj-arc" aria-hidden="true">
-          <path id="bj-arc-a" d="M 60 18 Q 300 108 540 18" fill="none" />
-          <path id="bj-arc-b" d="M 40 40 Q 300 134 560 40" fill="none" />
-          <path d="M 30 6 Q 300 112 570 6" className="bj-arc-line" />
-          <text className="bj-arc-big">
-            <textPath href="#bj-arc-a" startOffset="50%">
-              BLACKJACK PAYS 3 TO 2
-            </textPath>
-          </text>
-          <text className="bj-arc-small">
-            <textPath href="#bj-arc-b" startOffset="50%">
-              DEALER STANDS ON SOFT 17 · INSURANCE PAYS 2 TO 1
-            </textPath>
-          </text>
-        </svg>
         {mid}
       </div>
 
@@ -168,7 +137,7 @@ export default function Table({
               const bj = isBlackjack(h);
               const units = h.doubled ? 2 : 1;
               return (
-                <div key={hi} className={'bj-hand' + (active ? ' active' : '') + (res ? ` r-${res.result}` : '')}>
+                <div key={hi} className={'bj-hand mine' + (active ? ' active' : '') + (res ? ` r-${res.result}` : '')}>
                   <div className="bj-cards">
                     {h.cards.map((c, ci) => (
                       <PlayingCard
@@ -191,10 +160,6 @@ export default function Table({
                       <span className={`bj-result ${res.result}`}>
                         {RESULT_LABEL[res.result]}
                         {res.mult > 0 && <b> {res.mult}×</b>}
-                      </span>
-                    ) : active && hint ? (
-                      <span className="bj-hint">
-                        Strategy: <b>{hint === 'split' ? 'Split' : hint[0].toUpperCase() + hint.slice(1)}</b>
                       </span>
                     ) : null}
                   </div>

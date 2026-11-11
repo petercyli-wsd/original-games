@@ -3,10 +3,8 @@
 // take one off. After a deal, spots light up won / push / lost.
 
 import { formatAmount } from '@originals/game-sdk';
-import { fmtChance } from '@originals/game-sdk/ui';
 import type { MouseEvent } from 'react';
-import { ChipStack } from './Cards';
-import { BET_NAME, betWinChance, paysLabel, type BetId, type Layout, type Variant } from './math';
+import { BET_NAME, paysLabel, type BetId, type Layout, type Variant } from './math';
 
 export type SpotState = 'won' | 'push' | 'lost';
 
@@ -40,10 +38,13 @@ function Spot({
     if (!disabled) onRemove(id);
   };
   const key = KEYS[id];
+  // The result stays on the felt until the next bet: your chips' spots outlined win / lose (push neutral),
+  // a winning spot you did not back outlined neutral.
+  const result: 'won' | 'lost' | 'push' | 'hit' | null = !state ? null : amount > 0 ? state : state === 'won' ? 'hit' : null;
   return (
     <button
       type="button"
-      className={`bc-spot ${id}` + (main ? ' main' : ' side') + (state ? ` ${state}` : '') + (amount > 0 ? ' has' : '')}
+      className={`bc-spot ${id}` + (main ? ' main' : ' side') + (result ? ` ${result}` : '') + (amount > 0 ? ' has' : '')}
       disabled={disabled}
       onClick={(e) => (e.shiftKey ? remove(e) : onAdd(id))}
       onContextMenu={remove}
@@ -55,13 +56,8 @@ function Spot({
         {key && <kbd>{key}</kbd>}
       </span>
       <span className="bc-spot-pays">{id === 'perfectPair' ? '25:1 / 200:1' : paysLabel(id, variant)}</span>
-      <span className="bc-spot-chance">{fmtChance(betWinChance(id, variant))}</span>
-      {amount > 0 && (
-        <span className="bc-spot-chips" key={amount}>
-          <ChipStack amount={amount} />
-          <b>{formatAmount(amount, 2)}</b>
-        </span>
-      )}
+      {/* The player's chips: the accent marks their own bet. */}
+      {amount > 0 && <span className="bc-chip">{formatAmount(amount, 2)}</span>}
       {state === 'won' && gain > 0 && <span className="bc-spot-gain">+{formatAmount(gain, 2)}</span>}
       {state === 'push' && amount > 0 && <span className="bc-spot-gain push">Push</span>}
     </button>

@@ -1,5 +1,5 @@
-import { fmtChance, fmtMult } from '@originals/game-sdk/ui';
-import { LINE, SIZES, TOTAL, blockName, prizeFor, startChance, totalOf, type Column, type Ending } from './math';
+import { fmtMult } from '@originals/game-sdk/ui';
+import { LINE, SIZES, TOTAL, blockName, prizeFor, totalOf, type Column, type Ending } from './math';
 
 // Vertical scale: one unit of block size is U px; the axis runs 0…TOTAL (22),
 // the highest any block can reach (stack 15 + the 7 block).
@@ -49,7 +49,6 @@ export default function Board({ backed, order, cols, pick, ending, picking, onPi
     : live
       ? cols.map((c) => ({ block: c.block, kind: c.ends === 'won' ? 'win' : c.p === 0 ? 'out' : 'wait' }))
       : [];
-  const red = tiles.filter((t) => t.kind === 'out').length;
   const base = picking ? 0 : s;
 
   let note = '';
@@ -61,9 +60,6 @@ export default function Board({ backed, order, cols, pick, ending, picking, onPi
 
   return (
     <svg viewBox="0 0 400 356" className="pivot" role="img" aria-label={`Stack ${s} of ${LINE}; ${you} wins if it is the block that takes the stack over the line`}>
-      <text x={8} y={16} className="head">
-        {you} must take the stack over the line
-      </text>
       <text x={TX1} y={16} className="sec end">
         stack {s}
       </text>
@@ -108,7 +104,7 @@ export default function Board({ backed, order, cols, pick, ending, picking, onPi
 
       {tiles.length > 0 && (
         <text x={TX0 + 4} y={36} className="sec">
-          {picking ? 'PICK YOUR BLOCK' : `NEXT TO JOIN · ${tiles.length - red} of ${tiles.length} safe`}
+          {picking ? 'Pick your block' : 'Next to join'}
         </text>
       )}
       {tiles.map((t) => {
@@ -126,15 +122,12 @@ export default function Board({ backed, order, cols, pick, ending, picking, onPi
             {!picking && t.kind !== 'wait' && (
               // A block whose top stops one unit under the line would have its mark struck through by the line: lift it above.
               <text x={cx} y={(base + w === LINE - 1 ? y(LINE) : top) - 6} className="mark">
-                {t.kind === 'win' ? 'WIN' : isYou ? 'short' : '✕'}
+                {t.kind === 'win' ? 'win' : isYou ? 'short' : '×'}
               </text>
             )}
             {picking ? (
               <>
-                <text x={cx} y={Y0 + 16} className="t-p">
-                  {fmtChance(startChance(t.block))}
-                </text>
-                <text x={cx} y={Y0 + 31} className="t-prize">
+                <text x={cx} y={Y0 + 16} className="t-prize">
                   {fmtMult(prizeFor(t.block))}
                 </text>
               </>
@@ -158,11 +151,6 @@ export default function Board({ backed, order, cols, pick, ending, picking, onPi
         line
       </text>
 
-      {live && (
-        <text x={(TX0 + TX1) / 2} y={Y0 + 34} className="legend">
-          <tspan className="bad">red ✕</tspan> = you're out if next
-        </text>
-      )}
       {picking && (
         <text x={(SX0 + SX1) / 2} y={Y0 + 16} className="axis mid">
           stack

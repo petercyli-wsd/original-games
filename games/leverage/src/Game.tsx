@@ -3,8 +3,10 @@ import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
   AutoBetControls,
+  ACCENTS,
   BetField,
   Board,
+  Caption,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -57,11 +59,12 @@ import {
   type Direction,
   type Expiry,
   type Odds,
+  outcomeSegments,
   type Outcome,
   type Setup,
 } from './math';
 
-const ACCENT = '#22c55e';
+const ACCENT = ACCENTS.sky;
 const START_PRICE = 5000;
 
 type Phase = 'idle' | 'live' | 'over';
@@ -94,10 +97,6 @@ const OUTCOME_TITLE: Record<Outcome, string> = {
 };
 
 const fmtSecs = (ticks: number) => (ticks * TICK_MS) / 1000;
-const heldFor = (ticks: number) => {
-  const sec = fmtSecs(ticks);
-  return sec < 1 ? sec.toFixed(2) : sec.toFixed(1);
-};
 
 /** A chance, with the tails that round away shown as bounds instead of exponents. */
 function fmtP(p: number) {
@@ -333,7 +332,7 @@ export default function Game() {
   // ----- Panel -----
   const knobs = (
     <>
-      <Label hint={<span className="lev-keyhint">↑ ↓ keys</span>}>Direction</Label>
+      <Label>Direction</Label>
       <div className="lev-dir" role="radiogroup" aria-label="Direction">
         {(['up', 'down'] as const).map((d) => (
           <button
@@ -397,12 +396,8 @@ export default function Game() {
       </div>
 
       <dl className="og-stats">
-        <dt>Bust at</dt>
-        <dd className="lev-red">{fmtSignedPct((dir === 'up' ? -1 : 1) / lev)} price</dd>
         <dt>Position size</dt>
         <dd>{formatAmount(bet.value * RTP * lev, 2)}</dd>
-        <dt>Chance to profit</dt>
-        <dd>{fmtP(startOdds(barriersOf(setup)).profit)}</dd>
       </dl>
     </>
   );
@@ -441,58 +436,36 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          phase === 'over' && p
-            ? { label: 'Held for', value: `${heldFor(p.t)}s`, sub: `of ${p.setup.expiry}s · ${fmtSignedPct(ret, 3)} price`, tone: 'neutral' }
-            : {
-                label: 'Finish in profit',
-                value: fmtP(o.profit),
-                sub: live ? 'if you hold from here' : 'if held to the end',
-                tone: 'chance',
-              },
-          {
-            label: phase === 'over' ? 'Closed at' : 'Close now',
-            value: phase === 'idle' ? fmtMult(RTP) : fmtMult(phase === 'over' && p ? p.payout : value),
-            sub: phase === 'idle' ? 'after the 1% fee' : formatAmount(stake * (phase === 'over' && p ? p.payout : value), 2),
-            tone: 'cash',
-          },
-          {
-            label: 'Take profit',
-            value: tpFill !== null ? fmtMult(tpFill) : 'Off',
-            sub: tpFill !== null ? (phase === 'over' ? (p?.outcome === 'tp' ? 'hit' : 'not hit') : `${fmtP(o.tp)} to hit`) : 'not set',
-            tone: 'prize',
-          },
-        ]}
-      />
+      {phase !== 'over' && (
+        <Readouts
+          items={[
+            { label: 'Finish in profit', value: fmtP(o.profit), tone: 'chance' },
+            ...(tpFill !== null ? [{ label: 'Take profit pays', value: fmtMult(tpFill), tone: 'prize' as const }] : []),
+          ]}
+        />
+      )}
 
       <Board className="lev-board">
         {p && phase === 'over' && p.auto && <InstantResult multiplier={p.payout} stake={p.stake} id={p.id} />}
         <Chart view={view}>
           <div className="lev-hud">
-            <div className="lev-ticker">
-              <b>SIM</b>
-              <span className="lev-sim">Simulated market · not real prices</span>
-            </div>
-            <div className={'lev-price ' + (ret > 0 ? 'up' : ret < 0 ? 'down' : '')}>
+            <span className="lev-sim">Simulated price</span>
+            <span className="lev-price">
               {fmtPrice(priceNow)} {phase !== 'idle' && <small>{fmtSignedPct(ret, 3)}</small>}
-            </div>
+            </span>
           </div>
           {phase !== 'idle' && p && (
             <div className={'lev-pnl ' + (pnl > 1e-9 ? 'up' : pnl < -1e-9 ? 'down' : '')}>
-              <b>
-                {pnl >= 0 ? '+' : '−'}
-                {formatAmount(Math.abs(pnl), 2)}
-              </b>
-              <span>
-                {fmtMult(phase === 'over' ? p.payout : value)} · {phase === 'over' ? OUTCOME_TITLE[p.outcome!] : `${secsLeft.toFixed(1)}s`}
-              </span>
+              {pnl >= 0 ? '+' : '−'}
+              {formatAmount(Math.abs(pnl), 2)}
             </div>
           )}
         </Chart>
       </Board>
 
-      {phase === 'over' && p && !p.auto ? (
+      <OutcomeBar o={o} tpOn={b.hi !== null} />
+
+      {phase === 'over' && p && !p.auto && (
         <RoundOver
           key={p.id}
           title={OUTCOME_TITLE[p.outcome!]}
@@ -504,9 +477,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : (
-        <OddsBar o={o} live={live} over={phase === 'over'} tpOn={b.hi !== null} slOn={slFill !== null} />
       )}
+      <Caption>Win if the position closes worth more than your bet.</Caption>
 
       {infoOpen && (
         <InfoModal title="Leverage" onClose={() => setInfoOpen(false)}>
@@ -521,15 +493,15 @@ export default function Game() {
               <li>Pick Up or Down (or press ↑ / ↓), a leverage and an expiry. Optionally set a take profit and a stop loss, as a multiple of your bet.</li>
               <li>Press Bet (Space). The position opens at the current price after a 1% fee, so it starts worth 0.99× your bet.</li>
               <li>Press Close (Space or C) at any moment to cash the position at its value. Take profit and stop loss close it for you.</li>
-              <li>If the price reaches the red bust line, the position is worth 0. At expiry it closes at its value.</li>
+              <li>If the price reaches the solid red bust line, the position is worth 0. At expiry it closes at its value.</li>
               <li>Auto mode opens a series of positions with your settings; each runs to take profit, stop loss, bust or expiry.</li>
               <li>After a round: Bet again (Space) or Clear board (Esc). Turbo runs the market clock four times faster.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The bar under the chart splits every way the position can end, with exact chances: take profit, expiry in profit, expiry at a loss, and stop loss or
-              bust. While a position is open it updates from where you are. The shaded cone on the chart is where the price stays 95% of the time until expiry.
+              The bar under the chart splits every way the position can end: take profit, expiry in profit, expiry at a loss, and stop loss or bust. Each
+              width is its exact chance. The chance above the chart is the profit share. While a position is open both update from where you are.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -557,33 +529,19 @@ export default function Game() {
   );
 }
 
-function OddsBar({ o, live, over, tpOn, slOn }: { o: Odds; live: boolean; over: boolean; tpOn: boolean; slOn: boolean }) {
-  const expLoss = Math.max(0, o.expire - o.expireProfit);
-  const segs = [
-    { key: 'tp', p: o.tp, label: 'Take profit', show: tpOn },
-    { key: 'ep', p: o.expireProfit, label: 'Expire in profit', show: true },
-    { key: 'el', p: expLoss, label: 'Expire at a loss', show: true },
-    { key: 'lo', p: o.lo, label: slOn ? 'Stop / bust' : 'Bust', show: true },
-  ].filter((s) => s.show);
+/** How the position can end, as one flat bar: widths are the exact chances, never printed. */
+function OutcomeBar({ o, tpOn }: { o: Odds; tpOn: boolean }) {
+  const segs = outcomeSegments(o, tpOn);
   return (
-    <div className="lev-odds" role="group" aria-label="How the position ends">
-      <div className="lev-odds-head">
-        <span>{live ? 'From here, if you hold' : over ? 'How the last position ended' : 'How a held position ends'}</span>
-        <b>{over ? (o.profit > 0 ? 'In profit' : 'Not in profit') : `${fmtP(o.profit)} in profit`}</b>
-      </div>
-      <div className="lev-odds-track">
+    <div className="lev-odds">
+      <div className="lev-odds-track" role="img" aria-label="How the position can end">
         {segs.map((s) => (
-          <i key={s.key} className={s.key} style={{ width: `${s.p * 100}%` }} />
+          <i key={s.key} className={s.key} style={{ width: `${s.p * 100}%` }}>
+            {s.p >= 0.12 ? s.label : ''}
+          </i>
         ))}
       </div>
-      <div className="lev-odds-legend">
-        {segs.map((s) => (
-          <span key={s.key} className={s.key}>
-            <i />
-            {s.label} <b>{fmtP(s.p)}</b>
-          </span>
-        ))}
-      </div>
+      <span className="lev-odds-key">{`Bar: how the position can end`}</span>
     </div>
   );
 }

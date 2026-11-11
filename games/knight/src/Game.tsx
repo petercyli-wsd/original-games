@@ -1,5 +1,6 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
@@ -15,7 +16,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useBetInput,
   useHistory,
@@ -26,7 +27,7 @@ import {
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
 import { useMemo, useRef, useState } from 'react';
-import Field, { Legend, type BoardOutcome, type Move } from './Board';
+import Field, { type BoardOutcome, type Move } from './Board';
 import {
   CORNERS,
   HOPS,
@@ -73,7 +74,7 @@ const OUTCOME_TITLE: Record<BoardOutcome, string> = {
   cashed: 'Cashed out',
 };
 
-const ACCENT = '#d4a373';
+const ACCENT = ACCENTS.sand;
 const SQUARES = Array.from({ length: 64 }, (_, i) => i);
 
 const CORNER_LABEL: Record<Corner, string> = { a8: '↖ a8', h8: 'h8 ↗', a1: '↙ a1', h1: 'h1 ↘' };
@@ -84,8 +85,6 @@ export function targetName(t: Target): string {
   if (t.region === 'corner') return `the ${t.corner} quadrant`;
   return squareName(t.square);
 }
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -116,7 +115,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const moveMs = turbo.turbo ? 200 : 750;
+  const moveMs = eventMs(turbo.turbo);
   const gapMs = turbo.turbo ? 60 : 220;
   const live = phase === 'moving' || phase === 'checkpoint';
 
@@ -235,7 +234,8 @@ export default function Game() {
 
   let status = `${HOPS} random hops · finish on green`;
   if (phase === 'moving') status = `${running ? 'Running · ' : ''}Hop ${taken + 1} of ${HOPS}`;
-  if (phase === 'checkpoint') status = `Cash out or hop on · ${left} left`;
+  // Players took a mid-round landing on green for a win; say that only the last square counts.
+  if (phase === 'checkpoint') status = `${left} hops left · last square counts`;
   if (phase === 'over' && round?.outcome) status = `${OUTCOME_TITLE[round.outcome]} · ${taken} of ${HOPS} hops`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
@@ -246,7 +246,10 @@ export default function Game() {
   const cardScore = (pl: 'top' | 'bottom') => (covered(pl, at) ? 100 : 0) + targetSquares.filter((s) => covered(pl, s)).length;
   const placement = cardScore('top') <= cardScore('bottom') ? 'top' : 'bottom';
 
-  const rule = `The knight makes ${HOPS} random knight moves; you win if it ends on a green square.`;
+  // The whole-bet picture: chance of ending on green from here (exact; 1 or 0 once decided).
+  const barP = phase === 'over' && round?.outcome !== 'cashed' ? ((round?.cash ?? 0) > 0 ? 1 : 0) : live || phase === 'over' ? pNow : p0;
+
+  const rule = `${HOPS} random knight moves: win if the knight ends on green.`;
 
   return (
     <GameLayout
@@ -278,19 +281,12 @@ export default function Game() {
           )}
           {region === 'square' && <Label hint="tap a light square">Square {squareName(square)}</Label>}
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(pSel)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(RTP / pSel)}</dd>
-          </dl>
-
           {live ? (
             <>
               <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" className="knight-next" disabled={phase !== 'checkpoint'} onClick={() => round && hop(round, false)}>
+              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => round && hop(round, false)}>
                 {phase === 'moving' ? (running ? 'Running…' : 'Hopping…') : left === 1 ? 'Last hop' : `Next hop (${taken + 1} of ${HOPS})`}
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => round && hop(round, true)}>
@@ -309,23 +305,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      <Readouts
-        items={[
-          {
-            label: 'Chance to win',
-            value: phase === 'over' ? (round?.outcome === 'cashed' ? '—' : (round?.cash ?? 0) > 0 ? '100%' : '0%') : fmtChance(live ? pNow : p0),
-            sub: live ? `${plural(left, 'hop')} left` : phase === 'over' ? `after ${taken} of ${HOPS} hops` : `${HOPS} hops from g1`,
-            tone: 'chance',
-          },
-          {
-            label: 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after the first hop',
-            tone: 'cash',
-          },
-          { label: 'Prize', value: fmtMult(prize), sub: 'if it ends on green', tone: 'prize' },
-        ]}
-      />
+      {/* The whole-bet picture carries the one chance number (docs/STYLE.md §6). */}
+      <ChanceBar p={barP} label="Chance to end on green" note="Green dots add up to this" />
+
+      <Readouts items={[{ label: 'Prize', value: fmtMult(prize), tone: 'prize' }]} />
 
       <Board className="knight-board">
         <Field
@@ -354,19 +337,8 @@ export default function Game() {
           />
         )}
       </Board>
-      <Legend next={next} now={pNow} left={left} />
 
-      {live ? (
-        <ChanceBar
-          p={pNow}
-          label="Chance to end on green"
-          note={`${rule} Your chance is the average of the dashed squares.`}
-        />
-      ) : (
-        <Caption>
-          {rule} Target: {targetName(target)}, {fmtChance(p0)} from g1 (exact), prize {fmtMult(prize)}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>{rule}</Caption>
 
       {infoOpen && (
         <InfoModal title="Knight" onClose={() => setInfoOpen(false)}>
@@ -386,11 +358,11 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The dots show where the knight can still finish: a dot's area is the chance of finishing on that square.{' '}
-              <b style={{ color: 'var(--green)' }}>Green</b> dots lie in your target, so together they are exactly your chance to win.
+              <b style={{ color: 'var(--win)' }}>Green</b> dots lie in your target, so together they are exactly your chance to win.
             </p>
             <p>
-              The dashed squares are where the next hop can land, each labelled with your chance if it lands there. Every one is equally likely, so your
-              chance now is the plain average of those numbers. A green outline means that hop would raise your chance, red means it would lower it.
+              The outlined squares are where the next hop can land. Every one is equally likely, so your chance now is the plain average of your chance
+              from each of them. A green outline means that hop would raise your chance, red means it would lower it.
             </p>
             <p>
               Every knight move changes square colour, and g1 is dark, so after {HOPS} hops the knight is always on a light square. That is why only light

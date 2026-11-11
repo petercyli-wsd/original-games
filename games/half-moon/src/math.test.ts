@@ -2,9 +2,24 @@ import { createRng, runEval, seededSource } from '@originals/game-sdk';
 import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
-import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fitChance, fits } from './math';
+import { RTP, TARGETS, WINDOWS, afterSafeDrop, danger, fillChance, fitChance, fits } from './math';
 
 const rng = createRng(seededSource(7));
+
+describe('Half Moon fill chance from here', () => {
+  it('matches the whole-bet chance before and after the free first point', () => {
+    for (const w of WINDOWS) for (const t of TARGETS) {
+      expect(fillChance([], w, t)).toBeCloseTo(fitChance(t, w), 12);
+      expect(fillChance([0.3], w, t)).toBeCloseTo(fitChance(t, w), 12);
+    }
+  });
+  it('is a probability that rises as the board fills', () => {
+    const p = fillChance([0.1, 0.2], 180, 6);
+    expect(p).toBeGreaterThan(fitChance(6, 180));
+    expect(p).toBeLessThanOrEqual(1);
+    expect(fillChance([0.1, 0.6], 90, 4)).toBe(0);
+  });
+});
 
 describe('Half Moon maths', () => {
   it('Wendel: n points fit in a half circle with chance n / 2^(n-1)', () => {

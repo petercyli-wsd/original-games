@@ -1,4 +1,4 @@
-import { defineManifest } from '@originals/game-sdk';
+﻿import { defineManifest } from '@originals/game-sdk';
 import { MODE_NAMES, RTP, maxMultiplier } from './math';
 
 export default defineManifest({
@@ -11,5 +11,5 @@ export default defineManifest({
   maxMultiplier: Math.max(...MODE_NAMES.map(maxMultiplier)),
   volatility: MODE_NAMES,
   checkpoints: true,
-  accent: '#1fc8d8',
+  accent: '#5ec4e6', // ACCENTS.sky (docs/STYLE.md)
 });

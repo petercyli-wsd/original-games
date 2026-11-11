@@ -70,8 +70,9 @@ export function RoundOver({ title, multiplier, stake, nextBet, blocked, onBetAga
 }
 
 const CSS = `
+/* Flat, per docs/STYLE.md: a solid surface with a 1px border in the outcome colour. */
 .og-round-over {
-  --c: var(--round-over-even, var(--og-gold, #f5a623));
+  --c: var(--round-over-even, var(--text, #ececf0));
   position: absolute;
   left: 50%;
   z-index: 5;
@@ -84,18 +85,16 @@ const CSS = `
   padding: 14px 16px 10px;
   box-sizing: border-box;
   font-family: var(--og-font, system-ui, sans-serif);
-  color: var(--og-text, #f6f6f6);
+  color: var(--text, #ececf0);
   text-align: center;
-  background: rgba(16, 16, 22, 0.92);
-  border: 1.5px solid var(--c);
-  border-radius: var(--og-radius-lg, 12px);
-  backdrop-filter: blur(6px);
-  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.5), 0 0 36px -14px var(--c);
+  background: var(--raised, #18181d);
+  border: 1px solid var(--c);
+  border-radius: var(--radius-lg, 8px);
   transform: translateX(-50%);
-  animation: og-ro-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1.2) both;
+  animation: og-ro-in 0.15s ease both;
 }
-.og-round-over.win { --c: var(--round-over-win, var(--og-green, #00e701)); }
-.og-round-over.lose { --c: var(--round-over-lose, var(--og-red, #e9113c)); }
+.og-round-over.win { --c: var(--round-over-win, var(--win, #3ecf74)); }
+.og-round-over.lose { --c: var(--round-over-lose, var(--lose, #ef5b5b)); }
 .og-round-over.top { top: 16px; }
 .og-round-over.bottom { bottom: 12px; }
 .og-round-over.center { top: 50%; transform: translate(-50%, -50%); animation-name: og-ro-in-center; }
@@ -133,69 +132,70 @@ const CSS = `
 .og-round-over.inline .og-ro-hint { display: none; }
 
 .og-ro-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--c);
 }
 .og-ro-mult {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: var(--fs-5, 28px);
+  font-weight: 700;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
   color: var(--c);
 }
 .og-ro-net {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: var(--og-text-muted, #aaa7b2);
+  color: var(--muted, #9a9aa5);
 }
 .og-ro-actions {
   display: flex;
   gap: 8px;
   margin-top: 10px;
 }
-.og-ro-actions button {
+/* Scoped under .og-round-over so they beat a game's own "button" rules (e.g. the kit's .og-game button). */
+.og-round-over .og-ro-actions button {
   height: 38px;
   padding: 0 14px;
   font: inherit;
-  font-size: 13px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 600;
   white-space: nowrap;
-  border-radius: var(--og-radius, 8px);
+  border-radius: var(--radius, 6px);
   cursor: pointer;
-  transition: filter 0.15s, background 0.15s;
+  transition: background 0.12s;
 }
-.og-ro-again {
-  color: var(--og-text-on-accent, #07070b);
-  background: var(--og-green, #00e701);
+.og-round-over .og-ro-again {
+  color: var(--bg, #0b0b0e);
+  background: var(--text, #ececf0);
   border: 0;
 }
-.og-ro-again span {
+.og-round-over .og-ro-again span {
   margin-left: 4px;
   font-variant-numeric: tabular-nums;
   opacity: 0.7;
 }
-.og-ro-again:hover:not(:disabled) { filter: brightness(1.1); }
-.og-ro-again:disabled { opacity: 0.4; cursor: not-allowed; }
-.og-ro-clear {
-  color: var(--og-text, #f6f6f6);
-  background: var(--og-bg-raised, #15151c);
-  border: 1px solid var(--og-border, rgba(255, 255, 255, 0.14));
+.og-round-over .og-ro-again:hover:not(:disabled) { background: #ffffff; }
+.og-round-over .og-ro-again:disabled { opacity: 0.4; cursor: not-allowed; }
+.og-round-over .og-ro-clear {
+  color: var(--text, #ececf0);
+  background: transparent;
+  border: 1px solid var(--line-strong, #3d3d47);
 }
-.og-ro-clear:hover { background: var(--og-bg-hover, #21212a); }
-.og-ro-actions button:focus-visible { outline: 2px solid var(--og-text, #f6f6f6); outline-offset: 2px; }
+.og-round-over .og-ro-clear:hover { background: var(--hover, #24242b); }
+.og-round-over .og-ro-actions button:focus-visible { outline: 2px solid var(--accent, #7b93ff); outline-offset: 2px; }
 .og-ro-hint {
   margin-top: 6px;
-  font-size: 11px;
-  color: var(--og-text-muted, #aaa7b2);
+  font-size: 12px;
+  color: var(--muted, #9a9aa5);
 }
 
-@keyframes og-ro-in { from { opacity: 0; transform: translateX(-50%) translateY(6px) scale(0.94); } }
-@keyframes og-ro-in-center { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } }
-@keyframes og-ro-in-inline { from { opacity: 0; transform: translateY(6px) scale(0.94); } }
+@keyframes og-ro-in { from { opacity: 0; } }
+@keyframes og-ro-in-center { from { opacity: 0; } }
+@keyframes og-ro-in-inline { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .og-round-over { animation: none; } }
 @media (max-width: 420px) {
   .og-ro-mult { font-size: 24px; }

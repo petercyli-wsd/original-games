@@ -15,6 +15,8 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  ACCENTS,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -69,7 +71,7 @@ interface Round {
   crash: Crash | null;
 }
 
-const ACCENT = '#00f5d4';
+const ACCENT = ACCENTS.sky;
 
 const outcomeTitle = (o: Outcome, target: number) =>
   ({
@@ -84,8 +86,6 @@ function volatilityOf(grid: Grid, target: Target): Volatility {
   const p = winChance(grid, target);
   return p >= 0.2 ? 'low' : p >= 0.05 ? 'medium' : p >= 0.012 ? 'high' : 'extreme';
 }
-
-const FACTOR: Record<number, string> = { 4: '×1', 3: '×4/3', 2: '×2', 1: '×4' };
 
 /** Turns the needle at least a turn and a quarter, landing on direction dir. */
 const spinTo = (angle: number, dir: Dir) => {
@@ -136,9 +136,9 @@ export default function Game() {
   const autoRef = useRef(auto);
   autoRef.current = auto;
 
-  const spinMs = turbo.turbo ? 140 : 540;
-  const moveMs = turbo.turbo ? 60 : 200;
-  const crashMs = turbo.turbo ? 160 : 520;
+  const spinMs = eventMs(turbo.turbo);
+  const moveMs = eventMs(turbo.turbo, 200);
+  const crashMs = eventMs(turbo.turbo, 400);
   const autoMs = turbo.turbo ? 90 : 360;
   const live = phase === 'spin' || phase === 'move' || phase === 'checkpoint';
   const busy = phase === 'spin' || phase === 'move';
@@ -257,7 +257,6 @@ export default function Game() {
   const outcome = round?.outcome ?? null;
   const len = path.length;
   const look = live ? liveOutlook(n, t, path, cash) : startOutlook(n, t);
-  const chance = winChance(grid, target);
   const vol = volatilityOf(grid, target);
   const autoNext = phase === 'checkpoint' && round !== null && autoGo(path, n, auto);
   const autoOn = AUTO_MIN[auto] !== null;
@@ -268,29 +267,16 @@ export default function Game() {
   if (phase === 'over' && outcome) status = outcome === 'target' || outcome === 'trapped' ? outcomeTitle(outcome, t) : `${outcomeTitle(outcome, t)} · ${len} of ${t}`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
+  // Whole-bet chance: reaching the target from here. A bust is 0; a finished round is priced at its final state.
+  const overLook = phase === 'over' && outcome ? (outcome === 'wall' || outcome === 'body' ? 0 : outcome === 'target' ? 1 : liveOutlook(n, t, path, cash).win) : null;
+  const chanceP = overLook ?? look.win;
+
   const readouts: ReadoutItem[] =
     phase === 'idle'
-      ? [
-          { label: 'Win chance', value: fmtChance(look.win), sub: `reach length ${t}`, tone: 'chance' },
-          { label: 'Cash out now', value: '—', sub: 'after the first step', tone: 'cash' },
-          { label: 'Avg prize', value: fmtMult(averageWin(n, t)), sub: `at least ${fmtMult(minimumWin(t))}`, tone: 'prize' },
-        ]
+      ? [{ label: 'Avg prize', value: fmtMult(averageWin(n, t)), tone: 'prize' }]
       : phase === 'over'
-        ? [
-            { label: 'Length', value: `${len} / ${t}`, sub: outcome ? outcomeTitle(outcome, t).toLowerCase() : '', tone: 'chance' },
-            { label: 'Paid', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' },
-            { label: 'Avg prize', value: fmtMult(averageWin(n, t)), sub: `${fmtChance(winChance(n, t))} to reach ${t}`, tone: 'prize' },
-          ]
-        : [
-            { label: 'Win chance', value: fmtChance(look.win), sub: `reach length ${t} from here`, tone: 'chance' },
-            { label: 'Cash out now', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' },
-            {
-              label: 'If it survives',
-              value: free ? fmtMult((cash * 4) / free) : '—',
-              sub: free ? `${FACTOR[free]} · ${free} of 4 safe` : 'boxed in',
-              tone: 'prize',
-            },
-          ];
+        ? [{ label: 'Paid', value: fmtMult(cash), tone: 'cash' }]
+        : [{ label: 'If it survives', value: free ? fmtMult((cash * 4) / free) : '—', tone: 'prize' }];
 
   const mode: BoardMode = phase === 'checkpoint' ? 'live' : phase;
 
@@ -341,13 +327,6 @@ export default function Game() {
             onChange={changeAuto}
           />
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(chance)}</dd>
-            <dt>Avg prize</dt>
-            <dd>{fmtMult(averageWin(grid, target))}</dd>
-          </dl>
-
           {phase === 'checkpoint' ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
@@ -369,6 +348,8 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar p={chanceP} label={phase === 'idle' || phase === 'over' ? `Chance to reach length ${t}` : `Chance to reach length ${t} from here`} />
+
       <Readouts items={readouts} />
 
       <Board className="snk-board">
@@ -383,7 +364,6 @@ export default function Game() {
           needle={needle}
           spinMs={spinMs}
           moveMs={moveMs}
-          win={look.win}
         />
         {/* The result card covers only the length band under the grid (in flow on narrow frames). */}
         {phase === 'over' && outcome && round && (
@@ -403,25 +383,7 @@ export default function Game() {
         )}
       </Board>
 
-      <div className="snk-foot">
-        {live ? (
-          <ChanceBar
-            p={free / 4}
-            label="Next step lands safe"
-            note={
-              len === 1
-                ? 'The first step is free: every direction from the centre is open.'
-                : 'Four directions, 1 in 4 each. Green quarters are free cells; red ones are a wall or the snake itself.'
-            }
-          />
-        ) : (
-          <Caption>
-            Each step picks one of 4 directions at random. A blind snake survives {t - 1} steps on a {n}×{n} board only along a self-avoiding path:{' '}
-            {Math.round(winChance(n, t) * 4 ** (t - 1)).toLocaleString('en-US')} of the {(4 ** (t - 1)).toLocaleString('en-US')} possible paths, {fmtChance(winChance(n, t))}. RTP{' '}
-            {(RTP * 100).toFixed(0)}%.
-          </Caption>
-        )}
-      </div>
+      <Caption>Grow the snake to your target length without hitting a wall or itself.</Caption>
 
       {infoOpen && (
         <InfoModal title="Snake" onClose={() => setInfoOpen(false)}>
@@ -446,8 +408,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The ring around the head has four quarters, one per direction, and the spinner lands on each with chance 1 in 4. A{' '}
-              <b style={{ color: 'var(--green)' }}>green quarter</b> (with a green arrow in the cell beyond) is a free cell. A{' '}
-              <b style={{ color: 'var(--red)' }}>red quarter</b> is the wall or the snake's own body. So the green share of the ring is exactly the chance the
+              <b style={{ color: 'var(--win)' }}>green quarter</b> (with a green arrow in the cell beyond) is a free cell. A{' '}
+              <b style={{ color: 'var(--lose)' }}>red quarter</b> is the wall or the snake's own body. So the green share of the ring is exactly the chance the
               next step is safe: 4, 3, 2 or 1 quarters is 100%, 75%, 50% or 25%.
             </p>
             <p>

@@ -1,5 +1,6 @@
 import { formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { eventMs } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Tower, { type DropAnim, type ToppleAnim } from './Tower';
 import {
@@ -12,11 +13,9 @@ import {
   nextOdds,
   stopReason,
   type Mode,
-  type StopReason,
 } from './math';
 
 type Phase = 'idle' | 'dropping' | 'checkpoint' | 'toppling' | 'over';
-type Tone = 'neutral' | 'win' | 'lose';
 
 interface Round {
   bet: number;
@@ -28,12 +27,6 @@ interface Round {
 }
 
 const MODE_LABEL: Record<Mode, string> = { low: 'Low', medium: 'Med', high: 'High', extreme: 'Max' };
-
-const AUTO_MESSAGES: Record<StopReason, string> = {
-  height: 'Tower complete!',
-  odds: 'Too wobbly for another block: auto cash-out.',
-  cap: 'Max win reached.',
-};
 
 export default function Game() {
   const { wallet, rng, track } = useHost();
@@ -50,13 +43,8 @@ export default function Game() {
   const [round, setRound] = useState<Round | null>(null);
   const [drop, setDrop] = useState<DropAnim | null>(null);
   const [topple, setTopple] = useState<ToppleAnim | null>(null);
-  const [landed, setLanded] = useState<{ t0: number; factor: number } | null>(null);
   const [result, setResult] = useState<{ mult: number; win: boolean; amount: number } | null>(null);
   const [history, setHistory] = useState<{ mult: number; win: boolean }[]>([]);
-  const [message, setMessage] = useState<{ text: string; tone: Tone }>({
-    text: 'The block’s centre must land in the green. Its share of the bar is your odds.',
-    tone: 'neutral',
-  });
 
   const ticket = useRef<BetTicket | null>(null);
   const placing = useRef(false);
@@ -85,16 +73,16 @@ export default function Game() {
   const spec = MODES[round?.mode ?? mode];
   const xs = round?.xs ?? [];
   const odds = nextOdds(xs, spec.s);
-  const mult = round?.mult ?? 0;
   const inRound = phase === 'dropping' || phase === 'checkpoint' || phase === 'toppling';
   const bet = parseFloat(betText) || 0;
   const autoTarget = parseFloat(autoText) || 0;
-  const swingMs = turbo ? 260 : 900;
-  const fallMs = turbo ? 140 : 320;
+  // A drop is a swing then a fall: about one event (docs/STYLE.md) in all, quicker with Turbo.
+  const swingMs = eventMs(turbo, 700);
+  const fallMs = eventMs(turbo, 300);
 
   // Settles the bet. A loss settles as the topple starts; the fall is only the show.
   const finish = useCallback(
-    (r: Round, m: number, text: string, phase: Phase = 'over') => {
+    (r: Round, m: number, phase: Phase = 'over') => {
       const t = ticket.current;
       ticket.current = null;
       banked.current = 0;
@@ -102,15 +90,13 @@ export default function Game() {
       setPhase(phase);
       setResult({ mult: m, win: m > 0, amount: r.bet * m });
       setHistory((h) => [{ mult: m, win: m > 0 }, ...h].slice(0, 8));
-      setMessage({ text, tone: m > 0 ? 'win' : 'lose' });
     },
     [],
   );
 
   const cashOut = useCallback(
-    (r: Round, reason?: StopReason) => {
-      const text = `${reason ? AUTO_MESSAGES[reason] + ' ' : ''}Cashed out at ${formatMultiplier(r.mult)}.`;
-      finish(r, r.mult, text);
+    (r: Round) => {
+      finish(r, r.mult);
     },
     [finish],
   );
@@ -126,7 +112,6 @@ export default function Game() {
       banked.current = safe ? r.mult / o.p : 0;
       setPhase('dropping');
       setDrop({ d, t0: performance.now(), swingMs, fallMs });
-      setMessage({ text: `Dropping… ${formatPercent(o.p)} to stand.`, tone: 'neutral' });
 
       later(swingMs + fallMs, () => {
         setDrop(null);
@@ -134,24 +119,22 @@ export default function Game() {
           const fail = failingLevel(nextXs) ?? { level: r.xs.length, dir: d > 0 ? 1 : -1 };
           const lost: Round = { ...r, xs: nextXs, ps: [...r.ps, o.p] };
           setRound(lost);
-          const ms = turbo ? 650 : 1300;
+          const ms = eventMs(turbo, 800);
           setTopple({ ...fail, t0: performance.now(), ms });
-          finish(lost, 0, `Block ${nextXs.length} toppled the tower.`, 'toppling');
+          finish(lost, 0, 'toppling');
           later(ms, () => setPhase('over'));
           return;
         }
         const next: Round = { ...r, xs: nextXs, ps: [...r.ps, o.p], mult: r.mult / o.p };
         setRound(next);
-        setLanded({ t0: performance.now(), factor: 1 / o.p });
         const after = nextOdds(nextXs, s);
         const reason = stopReason(r.mode, nextXs.length, next.mult, after.p);
         if (reason) {
-          cashOut(next, reason);
+          cashOut(next);
           return;
         }
         track({ type: 'checkpoint', multiplier: next.mult, winChance: after.p });
         setPhase('checkpoint');
-        setMessage({ text: `Standing. Cash out ${formatMultiplier(next.mult)} or drop again.`, tone: 'neutral' });
       });
     },
     [rng, swingMs, fallMs, turbo, finish, cashOut, track],
@@ -164,7 +147,6 @@ export default function Game() {
     try {
       placed = await wallet.placeBet(bet);
     } catch {
-      setMessage({ text: bet > balance ? 'Not enough balance.' : 'Enter a valid bet.', tone: 'lose' });
       return;
     } finally {
       placing.current = false;
@@ -179,10 +161,9 @@ export default function Game() {
     const r: Round = { bet, mode, xs: [], ps: [], mult: RTP };
     setRound(r);
     setTopple(null);
-    setLanded(null);
     setResult(null);
     dropNext(r);
-  }, [wallet, bet, balance, mode, dropNext]);
+  }, [wallet, bet, mode, dropNext]);
 
   // Auto mode: keep dropping until the cash-out reaches the target.
   useEffect(() => {
@@ -228,7 +209,7 @@ export default function Game() {
   const betInvalid = !(bet > 0) || bet > balance;
 
   return (
-    <div className={`ovh ${phase === 'toppling' ? 'shake' : ''}`}>
+    <div className="ovh">
       <aside className="panel">
         <div className="field">
           <span>Bet amount</span>
@@ -251,7 +232,7 @@ export default function Game() {
 
         <div className="field">
           <span className="field-head">
-            Volatility <em>±{spec.s.toFixed(2)} block drift</em>
+            Volatility
           </span>
           <div className="segmented">
             {MODE_NAMES.map((m) => (
@@ -285,7 +266,7 @@ export default function Game() {
               Cash out <b>{formatAmount(round.bet * round.mult, 2)}</b>
             </button>
             <button className="secondary" onClick={() => dropNext(round)}>
-              Drop next <span>→ {formatMultiplier(nextMult)}</span>
+              Drop next
             </button>
           </>
         ) : (
@@ -297,25 +278,12 @@ export default function Game() {
         <label className="toggle">
           <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
           <span>Turbo</span>
-          <kbd>Space</kbd> drop · <kbd>C</kbd> cash
         </label>
 
         <dl className="stats">
           <div>
-            <dt>Height cap</dt>
-            <dd>{spec.maxHeight} blocks</dd>
-          </div>
-          <div>
             <dt>Max win</dt>
             <dd>{formatMultiplier(spec.cap)}</dd>
-          </div>
-          <div>
-            <dt>RTP</dt>
-            <dd>{formatPercent(RTP, 0)}</dd>
-          </div>
-          <div>
-            <dt>Balance</dt>
-            <dd>{formatAmount(balance, 2)}</dd>
           </div>
         </dl>
       </aside>
@@ -329,10 +297,6 @@ export default function Game() {
               <small>/{spec.maxHeight}</small>
             </b>
           </div>
-          <div className={`hud-mult ${over ? (result.win ? 'win' : 'lose') : ''}`}>
-            <span>{over ? (result.win ? 'Paid' : 'Lost') : height > 0 ? 'Cash-out' : 'First block pays'}</span>
-            <b>{formatMultiplier(over ? result.mult : height > 0 ? mult : nextMult)}</b>
-          </div>
           <div className="history" aria-label="Recent results">
             {history.map((h, i) => (
               <span key={history.length - i} className={h.win ? 'w' : 'l'}>
@@ -342,18 +306,26 @@ export default function Game() {
           </div>
         </header>
 
+        <div className="readout">
+          <div>
+            <span>Next drop stands</span>
+            <b className="win">{showRail ? formatPercent(odds.p) : '–'}</b>
+          </div>
+          <div>
+            <span>Next multiplier</span>
+            <b>{showRail ? formatMultiplier(nextMult) : '–'}</b>
+          </div>
+        </div>
+
         <div className="tower-wrap">
           <Tower
             xs={xs}
-            ps={round?.ps ?? []}
             s={spec.s}
             rail={showRail ? odds : null}
             drop={drop}
             topple={topple}
-            landed={landed}
             glow={over ? (result.win ? 'win' : 'lose') : null}
           />
-          {phase === 'toppling' && <div className="flash" />}
           {phase === 'over' && result && round && (
             <RoundOver
               key={history.length}
@@ -369,21 +341,7 @@ export default function Game() {
           )}
         </div>
 
-        <div className="readout">
-          <div>
-            <span>Next drop stands</span>
-            <b className="green">{showRail ? formatPercent(odds.p) : '–'}</b>
-          </div>
-          <div>
-            <span>Next multiplier</span>
-            <b>{showRail ? formatMultiplier(nextMult) : '–'}</b>
-          </div>
-          <div className="readout-msg">
-            <p className={`message ${message.tone}`} aria-live="polite">
-              {message.text}
-            </p>
-          </div>
-        </div>
+        <p className="og-caption">Win if the dropped block’s centre lands in the green.</p>
       </section>
     </div>
   );

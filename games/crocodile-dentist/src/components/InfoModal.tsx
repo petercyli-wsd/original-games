@@ -5,9 +5,10 @@ interface Props {
   onClose: () => void;
   rtp: number;
   teeth: number;
+  rounds: string[]; // cash-out multiplier after each round that both survive
 }
 
-export default function InfoModal({ onClose, rtp, teeth }: Props) {
+export default function InfoModal({ onClose, rtp, teeth, rounds }: Props) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
     window.addEventListener('keydown', onKey);
@@ -20,7 +21,7 @@ export default function InfoModal({ onClose, rtp, teeth }: Props) {
         <div className="modal-head">
           <h2 id="info-title">How to play</h2>
           <button className="ghost" onClick={onClose} aria-label="Close">
-            ✕
+            Close
           </button>
         </div>
 
@@ -32,7 +33,7 @@ export default function InfoModal({ onClose, rtp, teeth }: Props) {
 
           <h3>Goal</h3>
           <p>
-            Don't be the one who gets bitten. The croc has {teeth} teeth and some of them are bad. Each round you press one tooth, then the House
+            Don't be the one who gets bitten. The jaw has {teeth} teeth and some of them are bad. Each round you press one tooth, then the House
             presses one.
           </p>
 
@@ -53,13 +54,13 @@ export default function InfoModal({ onClose, rtp, teeth }: Props) {
             <li>
               <span className="dot house" />
               <div>
-                <b>The House presses a tooth.</b> If it's bad, you win the <span className="t-house">House bitten</span> payout shown at the top.
+                <b>The House presses a tooth.</b> If it's bad, you win the <b>House bitten</b> payout shown above the teeth.
               </div>
             </li>
             <li>
               <span className="dot win" />
               <div>
-                <b>Both safe? Checkpoint.</b> Your cash-out moves to the next round card. <b>Cash Out</b> to bank it, or press another tooth.
+                <b>Both safe? Checkpoint.</b> Your cash-out moves to the next round's value. <b>Cash Out</b> to bank it, or press another tooth.
               </div>
             </li>
           </ol>
@@ -67,29 +68,23 @@ export default function InfoModal({ onClose, rtp, teeth }: Props) {
 
           <h3>Reading the odds</h3>
           <dl className="defs">
-            <dt>Bite bar</dt>
+            <dt>Win chance</dt>
+            <dd>Your chance of winning this game if you play to the end. It moves after every press, yours and the House's.</dd>
+            <dt>Cash-out by round</dt>
             <dd>
-              One block per tooth still in play; <span className="t-lose">red</span> blocks are the bad teeth. It is the chance that the next press
-              bites.
+              Your cash-out after each round that both of you survive: {rounds.join(', ')}.
             </dd>
-            <dt>Win bar</dt>
+            <dt>Teeth</dt>
             <dd>
-              The <span className="t-win">green</span> share is your chance of winning this game if you play to the end. It moves after every press,
-              yours and the House's.
-            </dd>
-            <dt>Round cards</dt>
-            <dd>Your cash-out after each round that both of you survive.</dd>
-            <dt>Tooth colours</dt>
-            <dd>
-              <span className="swatch you" /> you pressed it · <span className="swatch house" /> the House pressed it · <span className="swatch bite" /> a
-              bad tooth, shown when the game ends.
+              A <b>filled dot</b> marks a tooth you pressed, a <b>ring</b> one the House pressed, and <span className="t-lose">red</span> the bad
+              teeth, shown when the game ends. The tooth outlined in the accent colour is the one you are about to press.
             </dd>
           </dl>
 
           <h3>The maths</h3>
           <p>
             Drawing without replacement. With n teeth left and k bad, your press bites with chance k/n; if it doesn't, the House's bites with chance
-            k/(n−1). A House bite pays {BITE}× the round card. Each card is set so that cash = P(House bitten)·{BITE}·card + P(both safe)·card, which
+            k/(n−1). A House bite pays {BITE}× the round's value. Each value is set so that cash = P(House bitten)·{BITE}·value + P(both safe)·value, which
             makes the cash-out a fair martingale.
           </p>
 

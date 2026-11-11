@@ -1,170 +1,135 @@
 /* Rock Paper Scissors: the duel board, the panel's hand picker and the streak ladder. Layout and panel come from the kit. */
 
 .rps-blurb {
-  margin: -2px 0 0;
-  font-size: 12px;
+  margin: 0;
+  font-size: var(--fs-1);
   color: var(--muted);
 }
 .rps-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--red);
+  color: var(--lose);
 }
 
-/* ---------- Duel ---------- */
+/* ---------- Duel: two plain faces, the player's in the accent, the house's neutral ---------- */
 .rps-board {
   min-height: 250px;
 }
-.rps-board > svg.rps-duel {
-  max-height: 56vh;
+.rps-duel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--sp-4);
+  width: 100%;
+  max-width: 720px;
 }
-.rps-duel text {
-  text-anchor: middle;
-  font-family: inherit;
-  fill: var(--text);
+.rps-duel .side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
 }
-.rps-duel .disc {
-  fill: url(#rps-disc);
+.rps-duel .face {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1;
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  transition: border-color var(--dur-ui) ease;
 }
-.rps-duel .ring {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 4;
-  transition: stroke 0.2s ease;
+.rps-duel .glyph {
+  width: 36%;
+  height: 36%;
 }
-.rps-duel .you .ring {
-  stroke: color-mix(in srgb, var(--accent) 70%, transparent);
+.rps-duel .you .glyph { color: var(--accent); }
+.rps-duel .house .glyph { color: var(--muted); }
+.rps-duel .hand-name {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--text);
 }
-.rps-duel .halo {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 10;
-  opacity: 0;
-  transition: opacity 0.25s ease, stroke 0.25s ease;
-}
-.rps-duel .side.win .ring { stroke: var(--green); }
-.rps-duel .side.win .halo { stroke: color-mix(in srgb, var(--green) 35%, transparent); opacity: 1; }
-.rps-duel .side.lose .ring { stroke: var(--red); }
-.rps-duel .side.lose .halo { stroke: color-mix(in srgb, var(--red) 25%, transparent); opacity: 1; }
-.rps-duel .side.lose .hs { opacity: 0.55; }
-.rps-duel .side.draw .ring { stroke: var(--gold); }
-
-/* Hand shapes */
-.hs .body {
-  stroke-linejoin: round;
-  stroke-width: 3;
-}
-.hs.rock .body { fill: #8f8a9c; stroke: #d6d1e2; }
-.hs.rock .facet { fill: none; stroke: #5d586a; stroke-width: 2.5; stroke-linejoin: round; }
-.hs.rock .shine { fill: none; stroke: #f3f0fa; stroke-width: 3; stroke-linecap: round; opacity: 0.7; }
-.hs.paper .body { fill: #f3f0fa; stroke: #c9c3d6; }
-.hs.paper .facet { fill: #c9c3d6; stroke: #c9c3d6; stroke-width: 2; stroke-linejoin: round; }
-.hs.paper .lines { fill: none; stroke: #b0a9bf; stroke-width: 3; stroke-linecap: round; }
-.hs.scissors .blade { fill: none; stroke: #e8e4f2; stroke-width: 8; stroke-linecap: round; }
-.hs.scissors .ring { fill: none; stroke: var(--accent); stroke-width: 6; }
-.hs.scissors .pivot { fill: #2a2433; stroke: #e8e4f2; stroke-width: 2; }
-.rps-duel .house .hs.scissors .ring,
-.rps-icon .hs.scissors .ring { stroke: var(--accent); }
-.rps-duel .house .hs.scissors .ring { stroke: #7dd3fc; }
-
 .rps-duel .hidden-face {
-  font-size: 84px;
-  font-weight: 800;
-  fill: color-mix(in srgb, var(--text) 30%, transparent);
+  font-size: var(--fs-6);
+  font-weight: 600;
+  color: var(--faint);
 }
-
-.rps-duel .shake {
-  animation-name: rps-shake;
-  animation-timing-function: ease-in-out;
-  animation-fill-mode: both;
-}
-.rps-duel .house .shake { animation-name: rps-shake-h; }
-.rps-duel .pop {
-  animation: rps-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
-}
-@keyframes rps-shake {
-  0%, 100% { transform: translate(0, 0) rotate(0); }
-  16%, 50% { transform: translate(-4px, -22px) rotate(-9deg); }
-  33%, 66% { transform: translate(0, 8px) rotate(4deg); }
-  83% { transform: translate(-3px, -16px) rotate(-6deg); }
-}
-@keyframes rps-shake-h {
-  0%, 100% { transform: translate(0, 0) rotate(0); }
-  16%, 50% { transform: translate(4px, -22px) rotate(9deg); }
-  33%, 66% { transform: translate(0, 8px) rotate(-4deg); }
-  83% { transform: translate(3px, -16px) rotate(6deg); }
-}
-@keyframes rps-pop {
-  from { transform: scale(0.6); opacity: 0.2; }
-}
-
-.rps-duel .clash-line {
-  stroke: var(--line);
-  stroke-width: 2;
-  stroke-dasharray: 4 6;
-}
-.rps-duel .clash-line.win { stroke: color-mix(in srgb, var(--green) 50%, transparent); }
-.rps-duel .clash-line.lose { stroke: color-mix(in srgb, var(--red) 50%, transparent); }
-.rps-duel .clash-line.draw { stroke: color-mix(in srgb, var(--gold) 50%, transparent); }
-
-.rps-duel .vs {
-  font-size: 30px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  fill: var(--muted);
-  paint-order: stroke;
-  stroke: var(--card);
-  stroke-width: 10px;
-}
-.rps-duel .verdict {
-  animation: rps-pop 0.35s cubic-bezier(0.2, 0.8, 0.3, 1.4) both;
-}
-.rps-duel .verdict text { paint-order: stroke; stroke: var(--card); stroke-width: 10px; }
-.rps-duel .verdict .word { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
-.rps-duel .verdict .sub { font-size: 14px; font-weight: 700; fill: var(--muted); font-variant-numeric: tabular-nums; }
-.rps-duel .verdict.win .word { fill: var(--green); }
-.rps-duel .verdict.lose .word { fill: var(--red); }
-.rps-duel .verdict.draw .word { fill: var(--gold); }
 .rps-duel .tag {
-  font-size: 15px;
-  font-weight: 800;
-  letter-spacing: 3px;
-  fill: var(--muted);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
-.rps-duel .tag.you { fill: var(--accent); }
+.rps-duel .you .tag { color: var(--accent); }
+.rps-duel .side.win .face { border-color: var(--win); border-width: 2px; }
+.rps-duel .side.lose .face { border-color: var(--lose); border-width: 2px; }
+.rps-duel .side.draw .face { border-color: var(--text); border-width: 2px; }
+
+.rps-duel .centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  text-align: center;
+}
+.rps-duel .vs {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--faint);
+}
+.rps-duel .word {
+  font-size: var(--fs-5);
+  font-weight: 700;
+  color: var(--text);
+}
+.rps-duel .sub {
+  font-size: var(--fs-1);
+  font-weight: 500;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rps-duel .centre.win .word { color: var(--win); }
+.rps-duel .centre.lose .word { color: var(--lose); }
+.rps-duel .centre.draw .word { color: var(--text); }
 
 /* ---------- Hand picker (in the panel, right above the main action) ---------- */
 .rps-pick {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .rps-hands {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 4px;
+  gap: var(--sp-1);
+  padding: var(--sp-1);
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 .rps button.rps-hand {
-  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: var(--sp-1);
   min-width: 0;
   height: 62px;
-  padding: 6px 4px 5px;
+  padding: var(--sp-1);
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--fs-1);
+  font-weight: 600;
   background: transparent;
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
 }
 .rps button.rps-hand:not(:disabled):hover {
   color: var(--text);
@@ -172,44 +137,29 @@
 }
 .rps button.rps-hand.on {
   color: var(--text);
-  background: color-mix(in srgb, var(--accent) 14%, var(--hover));
-  box-shadow: inset 0 0 0 1px var(--accent), 0 0 18px -10px var(--accent);
+  background: var(--hover);
+  border-color: var(--accent);
 }
-.rps button.rps-hand.throw:not(:disabled):not(.on) {
-  background: color-mix(in srgb, var(--accent) 6%, var(--raised));
-}
+.rps button.rps-hand.on .rps-icon { color: var(--accent); }
 .rps-hand .rps-icon {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   flex-shrink: 0;
-}
-.rps-hand kbd {
-  position: absolute;
-  top: 4px;
-  right: 5px;
-  padding: 0 4px;
-  font: inherit;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 14px;
-  color: var(--muted);
-  border: 1px solid var(--line);
-  border-radius: 4px;
 }
 
 /* ---------- Streak ladder ---------- */
 .rps-streak {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--sp-3);
   min-width: 0;
 }
 .rps-strip {
   display: flex;
   flex-shrink: 0;
   gap: 3px;
-  padding: 4px;
-  border-radius: 8px;
+  padding: var(--sp-1);
+  border-radius: var(--radius-lg);
   background: var(--bg);
   border: 1px solid var(--line);
 }
@@ -218,17 +168,16 @@
   height: 28px;
   border-radius: 3px;
 }
-.rps-strip i.advance { background: var(--green); }
-.rps-strip i.replay { background: var(--gold); }
-.rps-strip i.bust { background: var(--red); }
+.rps-strip i.advance { background: var(--win); }
+.rps-strip i.replay { background: var(--muted); }
+.rps-strip i.bust { background: var(--lose); }
 .rps-rungs {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-2);
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
   padding: 2px;
-  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 28px), transparent);
 }
 .rps-rungs::-webkit-scrollbar { display: none; }
 .rps-rung {
@@ -237,73 +186,45 @@
   align-items: center;
   flex-shrink: 0;
   min-width: 64px;
-  padding: 5px 8px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 800;
+  padding: 5px var(--sp-2);
+  border-radius: var(--radius-lg);
+  font-size: var(--fs-1);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   background: var(--bg);
   border: 1px solid var(--line);
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
 }
 .rps-rung small {
-  font-size: 10px;
-  font-weight: 700;
-  opacity: 0.75;
+  font-size: var(--fs-1);
+  font-weight: 500;
 }
 .rps-rung.done {
-  color: var(--og-text-on-accent, #07070b);
-  background: var(--green);
-  border-color: var(--green);
+  color: var(--bg);
+  background: var(--win);
+  border-color: var(--win);
 }
 .rps-rung.next {
   color: var(--text);
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  border-color: var(--line-strong);
+  background: var(--hover);
 }
 .rps-rung.target {
-  border-color: var(--gold);
-  color: var(--gold);
+  border-color: var(--accent);
 }
-.rps-rung.done.target { color: var(--og-text-on-accent, #07070b); }
 .rps-rung.bust {
-  color: var(--red);
-  border-color: var(--red);
+  color: var(--lose);
+  border-color: var(--lose);
 }
 
 @container (max-width: 760px) {
   .rps-board { min-height: 200px; }
   /* Phones: the picks stay directly above the main action, which the kit lifts to just under the board. */
   .rps .og-panel > .rps-pick { order: -2; }
-  .rps-hand kbd { display: none; }
-  .rps-rung { min-width: 56px; font-size: 12px; }
-}
-
-/* ---------- Round over: the hands step apart and the card sits between them ---------- */
-.rps-duel .step {
-  transform-box: fill-box;
-  transform-origin: center;
-  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
-}
-.rps-duel.away .you .step { transform: translateX(-46px) scale(0.8); }
-.rps-duel.away .house .step { transform: translateX(46px) scale(0.8); }
-.rps-duel .centre,
-.rps-duel .tags { transition: opacity 0.2s ease; }
-.rps-duel.away .centre { opacity: 0; }
-
-@container (max-width: 760px) {
-  /* Narrow frames: no room between the hands, so the card gets its own band under the duel. */
-  .rps-board.over { padding-bottom: 168px; }
-  .rps-duel.away .you .step,
-  .rps-duel.away .house .step { transform: none; }
-  .rps-duel.away .centre { opacity: 1; }
-  .rps-board.over .og-round-over.center {
-    top: auto;
-    bottom: 6px;
-    transform: translateX(-50%);
-    animation-name: og-ro-in;
-  }
+  .rps-rung { min-width: 56px; }
+  .rps-duel { gap: var(--sp-2); }
+  .rps-duel .face { max-width: 150px; }
 }
 
 /* The Auto panel is tall: let it scroll instead of squashing the bet row. */
@@ -315,8 +236,7 @@
 }
 
 @container (max-width: 560px) {
-  /* Phone widths: the duel scales down, so the verdict word grows and its small line (also in the status pill) drops out. */
-  .rps-duel .verdict .word { font-size: 32px; }
-  .rps-duel .verdict .sub { display: none; }
-  .rps-duel .verdict .word { transform: translateY(8px); }
+  /* Phone widths: the verdict's small line (also in the status pill) drops out. */
+  .rps-duel .sub { display: none; }
+  .rps-duel .word { font-size: var(--fs-4); }
 }

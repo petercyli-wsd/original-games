@@ -1,77 +1,29 @@
 import { useState } from 'react';
-import { DEFAULT_CONFIG, type CrocColors, type CrocConfig } from '../config';
+import type { CrocConfig } from '../config';
 
 interface Props {
   config: CrocConfig;
-  onChange: (cfg: CrocConfig) => void;
   onClose: () => void;
 }
 
-const COLOR_LABELS: Record<keyof CrocColors, string> = {
-  bg: 'Page background',
-  panel: 'Panel',
-  accent: 'Primary button',
-  croc: 'Croc skin',
-  crocShade: 'Croc shading',
-  belly: 'Croc belly',
-  mouth: 'Mouth',
-  tongue: 'Tongue',
-  tooth: 'Teeth',
-  you: 'You',
-  house: 'House',
-  bite: 'Bite / loss',
-  win: 'Win',
-};
-
-function NumberRow({ label, value, step, onChange }: { label: string; value: number; step: number; onChange: (v: number) => void }) {
-  return (
-    <label className="cfg-row">
-      <span>{label}</span>
-      <input
-        type="number"
-        step={step}
-        value={value}
-        onChange={(e) => {
-          const v = parseFloat(e.target.value);
-          if (Number.isFinite(v)) onChange(v);
-        }}
-      />
-    </label>
-  );
-}
-
-export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
+// The maths is fixed in src/config.ts (see withFixedMaths): the drawer shows it but can't change it.
+export default function CustomiseDrawer({ config, onClose }: Props) {
   const [copied, setCopied] = useState(false);
-  // Bumped on restore so the text inputs re-read their values.
-  const [version, setVersion] = useState(0);
-  const set = (patch: Partial<CrocConfig>) => onChange({ ...config, ...patch });
 
   return (
     <div className="drawer">
       <div className="drawer-head">
         <h2>Customise</h2>
         <button className="ghost" onClick={onClose} aria-label="Close">
-          ✕
+          Close
         </button>
       </div>
-      <div className="drawer-body" key={version}>
+      <div className="drawer-body">
         <h3>Maths</h3>
         <p className="cfg-note">
           Fixed: RTP {(config.rtp * 100).toFixed(0)}%, {config.teeth} teeth, bad-teeth options {config.badTeethOptions.join(', ')}. Change them in
           src/config.ts.
         </p>
-
-        <h3>Pace (ms)</h3>
-        <NumberRow label="House thinking time" step={50} value={config.houseDelay} onChange={(houseDelay) => set({ houseDelay: Math.max(0, houseDelay) })} />
-        <NumberRow label="Turbo thinking time" step={50} value={config.turboHouseDelay} onChange={(turboHouseDelay) => set({ turboHouseDelay: Math.max(0, turboHouseDelay) })} />
-
-        <h3>Colours</h3>
-        {(Object.keys(COLOR_LABELS) as (keyof CrocColors)[]).map((key) => (
-          <label className="cfg-row" key={key}>
-            <span>{COLOR_LABELS[key]}</span>
-            <input type="color" value={config.colors[key]} onChange={(e) => set({ colors: { ...config.colors, [key]: e.target.value } })} />
-          </label>
-        ))}
       </div>
       <div className="drawer-foot">
         <button
@@ -87,15 +39,6 @@ export default function CustomiseDrawer({ config, onChange, onClose }: Props) {
           }}
         >
           {copied ? 'Copied!' : 'Copy config JSON'}
-        </button>
-        <button
-          className="ghost"
-          onClick={() => {
-            onChange(DEFAULT_CONFIG);
-            setVersion((v) => v + 1);
-          }}
-        >
-          Restore defaults
         </button>
       </div>
     </div>

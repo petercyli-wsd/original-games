@@ -140,27 +140,10 @@ export interface FloorProps {
 export function Floor({ drop, needles, roundKey, landed, win, lose, dropMs, spinMs, spinning, idle }: FloorProps) {
   const { floor, side, length } = drop;
   const h = length / 2;
-  const reachColour = side === 'cross' ? 'var(--green)' : 'var(--red)';
   const current = needles[needles.length - 1];
   const previous = needles.slice(0, -1);
   const r = h * S;
   const rimWidth = Math.max(3, Math.min(9, r * 0.2));
-
-  // Reach shading in iso-odds steps: a centre at distance t·h from a line
-  // touches it with chance (2/π)·arccos(t), so each step is shaded by the
-  // chance at its middle. Darker means likelier to reach the line.
-  const STEPS = 5;
-  const grad = (id: string, x2: number, y2: number) => (
-    <linearGradient id={id} x1={0} y1={0} x2={x2} y2={y2}>
-      {Array.from({ length: STEPS }, (_, k) => {
-        const o = 0.5 * (2 / Math.PI) * Math.acos((k + 0.5) / STEPS);
-        return [
-          <stop key={`a${k}`} offset={k / STEPS} style={{ stopColor: reachColour, stopOpacity: o }} />,
-          <stop key={`b${k}`} offset={(k + 1) / STEPS} style={{ stopColor: reachColour, stopOpacity: o }} />,
-        ];
-      })}
-    </linearGradient>
-  );
 
   const zone = { x: px(0), y: px(0), s: S };
   const sideWord = side === 'cross' ? 'cross' : 'miss';
@@ -169,10 +152,8 @@ export function Floor({ drop, needles, roundKey, landed, win, lose, dropMs, spin
     <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className={'nd-floor ' + floor} role="img" aria-label={`Floor of ${floor}, needle length ${length.toFixed(2)}`}>
       <defs>
         <clipPath id="nd-clip">
-          <rect x={0} y={0} width={SIZE} height={SIZE} rx={16} />
+          <rect x={0} y={0} width={SIZE} height={SIZE} rx={8} />
         </clipPath>
-        {grad('nd-reach-down', 0, 1)}
-        {grad('nd-reach-right', 1, 0)}
       </defs>
 
       <g clipPath="url(#nd-clip)">
@@ -181,13 +162,13 @@ export function Floor({ drop, needles, roundKey, landed, win, lose, dropMs, spin
         <rect x={zone.x} y={zone.y} width={zone.s} height={zone.s} className="nd-zone" />
 
         {/* Reach bands: only a centre this close to a line can touch it. */}
-        <g className={'nd-reach' + (idle ? '' : ' dim')}>
-          <rect x={zone.x} y={zone.y} width={zone.s} height={r} fill="url(#nd-reach-down)" />
-          <rect x={zone.x} y={zone.y + zone.s - r} width={zone.s} height={r} fill="url(#nd-reach-down)" transform={`rotate(180 ${zone.x + zone.s / 2} ${zone.y + zone.s - r / 2})`} />
+        <g className={'nd-reach ' + side}>
+          <rect x={zone.x} y={zone.y} width={zone.s} height={r} />
+          <rect x={zone.x} y={zone.y + zone.s - r} width={zone.s} height={r} />
           {floor === 'grid' && (
             <>
-              <rect x={zone.x} y={zone.y} width={r} height={zone.s} fill="url(#nd-reach-right)" />
-              <rect x={zone.x + zone.s - r} y={zone.y} width={r} height={zone.s} fill="url(#nd-reach-right)" transform={`rotate(180 ${zone.x + zone.s - r / 2} ${zone.y + zone.s / 2})`} />
+              <rect x={zone.x} y={zone.y} width={r} height={zone.s} />
+              <rect x={zone.x + zone.s - r} y={zone.y} width={r} height={zone.s} />
             </>
           )}
         </g>
@@ -207,17 +188,6 @@ export function Floor({ drop, needles, roundKey, landed, win, lose, dropMs, spin
           1
         </text>
       </g>
-      {idle && (
-        <>
-          <text x={SIZE / 2} y={zone.y - 14} className="nd-label mid">
-            centre lands in this cell
-          </text>
-          <text x={SIZE / 2} y={zone.y + zone.s + 26} className="nd-label mid reach">
-            shading = chance to reach a line from there
-          </text>
-        </>
-      )}
-
       {/* Idle: a sample needle to scale, and its reach. */}
       {idle && (
         <g className="nd-ghost">
@@ -259,7 +229,6 @@ export function Floor({ drop, needles, roundKey, landed, win, lose, dropMs, spin
           ) : (
             <Needle rec={current} length={length} floor={floor} spinMs={spinMs} animate={spinning} />
           )}
-          <circle cx={px(current.centre.u)} cy={px(current.centre.v)} r={4} className="nd-ripple" style={{ animationDelay: `${dropMs * 0.8}ms`, animationDuration: `${Math.max(250, dropMs)}ms` }} />
         </g>
       )}
       <title>{`Back ${sideWord}`}</title>
@@ -289,7 +258,6 @@ export interface DialProps {
   needleKey: string;
   spinMs: number;
   spinning: boolean;
-  floor: Drop['floor'];
   waiting: boolean;
 }
 
@@ -302,14 +270,12 @@ function Pointer({ spinDeg, spinMs, spinning, tone }: { spinDeg: number; spinMs:
   );
 }
 
-export function Dial({ side, win, lose, average, share, needle, needleKey, spinMs, spinning, floor, waiting }: DialProps) {
+export function Dial({ side, win, lose, average, share, needle, needleKey, spinMs, spinning, waiting }: DialProps) {
   const sideText = side === 'cross' ? 'cross a line' : 'miss every line';
-  const ticks = Array.from({ length: 13 }, (_, i) => (i * Math.PI) / 12);
-  const formula = floor === 'lines' ? '2ℓ/π' : '(4ℓ − ℓ²)/π';
   const tone = needle?.win == null ? '' : needle.win ? ' win' : ' lose';
 
   return (
-    <svg viewBox={`0 0 ${DW} 262`} className={'nd-dial' + (average ? ' average' : '')} role="img" aria-label={`${fmtChance(share)} of directions ${sideText}`}>
+    <svg viewBox={`0 0 ${DW} 206`} className={'nd-dial' + (average ? ' average' : '')} role="img" aria-label={`${fmtChance(share)} of directions ${sideText}`}>
       <defs>
         <clipPath id="nd-dial-clip">
           <rect x={0} y={0} width={DW} height={HY + 1} />
@@ -332,20 +298,12 @@ export function Dial({ side, win, lose, average, share, needle, needleKey, spinM
           ))}
         </g>
       )}
-      {ticks.map((t, i) => {
-        const p = at(HX, HY, R - BAND / 2 - 2, t);
-        const q = at(HX, HY, R - BAND / 2 - (i % 3 === 0 ? 12 : 7), t);
-        return <line key={i} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className="nd-tick" />;
-      })}
       <line x1={HX - R - BAND / 2} x2={HX + R + BAND / 2} y1={HY} y2={HY} className="nd-dial-base" />
       <text x={HX + R} y={HY + 18} className="nd-label mid">
         0°
       </text>
       <text x={HX - R} y={HY + 18} className="nd-label mid">
         180°
-      </text>
-      <text x={HX} y={HY - R + BAND / 2 + 28} className="nd-label mid">
-        90°
       </text>
 
       {needle && needle.theta !== null && (
@@ -354,35 +312,13 @@ export function Dial({ side, win, lose, average, share, needle, needleKey, spinM
         </g>
       )}
       <circle cx={HX} cy={HY} r={7} className="nd-hub" />
-
-      {waiting ? (
-        <>
-          <text x={HX} y={HY + 46} className="nd-big muted">
-            …
-          </text>
-          <text x={HX} y={HY + 70} className="nd-label mid">
-            the centre is landing
-          </text>
-        </>
-      ) : (
-        <>
-          <text x={HX} y={HY + 48} className={'nd-big ' + (share > 0 ? 'win' : 'lose')}>
-            {fmtChance(share)}
-          </text>
-          <text x={HX} y={HY + 72} className="nd-label mid">
-            {average
-              ? `of directions ${side === 'cross' ? 'cross' : 'miss'} on average · ${side === 'cross' ? formula : `1 − ${formula}`}`
-              : `of directions ${sideText}`}
-          </text>
-        </>
-      )}
     </svg>
   );
 }
 
 // ---------- Needle tally ----------
 
-export function Tally({ needles, count, side }: { needles: NeedleRec[]; count: number; side: Side }) {
+export function Tally({ needles, count }: { needles: NeedleRec[]; count: number }) {
   return (
     <div className="nd-tally">
       <div className="nd-tally-row" aria-label="Needles">
@@ -391,21 +327,10 @@ export function Tally({ needles, count, side }: { needles: NeedleRec[]; count: n
           const state = !n ? 'pending' : n.win === null ? 'current' : n.win ? 'won' : 'lost';
           return (
             <span key={i} className={'nd-pip ' + state} title={`Needle ${i + 1}: ${state}`}>
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <line x1={5} y1={19} x2={19} y2={5} />
-              </svg>
-              {state === 'won' ? '✓' : state === 'lost' ? '✕' : i + 1}
+              {i + 1}
             </span>
           );
         })}
-      </div>
-      <div className="nd-legend">
-        <span>
-          <i className="win" /> directions that win ({side === 'cross' ? 'touch a line' : 'touch none'})
-        </span>
-        <span>
-          <i className="lose" /> directions that lose
-        </span>
       </div>
     </div>
   );

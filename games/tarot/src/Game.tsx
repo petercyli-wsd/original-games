@@ -1,9 +1,11 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -12,8 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -25,7 +29,6 @@ import {
   useTurbo,
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import { CardBack, Glyph } from './Glyph';
 import {
   ARCANA_NAMES,
   ARCANA_NUMERALS,
@@ -36,7 +39,6 @@ import {
   RISK_NAMES,
   RISK_VOL,
   RTP,
-  chanceAtLeast,
   playRound,
   productOf,
   profitChance,
@@ -48,9 +50,7 @@ import {
   type Risk,
 } from './math';
 
-const ACCENT = '#c084fc';
 const POSITIONS = ['Past', 'Present', 'Future'];
-const NUMERALS = ['I', 'II', 'III'];
 
 interface Round extends Reading {
   id: number;
@@ -58,8 +58,6 @@ interface Round extends Reading {
   risk: Risk;
 }
 
-type Tone = 'ruin' | 'low' | 'even' | 'up' | 'gold';
-const toneOf = (v: number): Tone => (v === 0 ? 'ruin' : v < 1 ? 'low' : v === 1 ? 'even' : v < 5 ? 'up' : 'gold');
 const resultTone = (m: number) => (m > 1 ? 'win' : m === 1 ? 'even' : m > 0 ? 'part' : 'lose');
 
 /** Card face values print without trailing zeros: 0.4×, 1.25×, 30×. */
@@ -77,8 +75,6 @@ export default function Game() {
   /** Cards turned face up in the current round (0–3). */
   const [shown, setShown] = useState(0);
   const [revealing, setRevealing] = useState(false);
-  /** The card about to turn is "charged" when the reading so far is in profit. */
-  const [charged, setCharged] = useState(-1);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -90,10 +86,10 @@ export default function Game() {
   const ticket = useTicket(() => resolved.current);
 
   const t = turbo.turbo;
-  const flipMs = t ? 150 : 520;
-  const dealMs = t ? 90 : 300;
-  const gapMs = t ? 170 : 540;
-  const suspenseMs = t ? 90 : 480;
+  const flipMs = eventMs(t);
+  const dealMs = eventMs(t, 300);
+  const gapMs = eventMs(t, 540);
+  const suspenseMs = eventMs(t, 480);
 
   async function playOnce(stake: number): Promise<number | null> {
     resolved.current = RTP;
@@ -102,7 +98,6 @@ export default function Game() {
     resolved.current = r.multiplier;
     setRevealing(true);
     setShown(0);
-    setCharged(-1);
     setRound({ ...r, id: ++seq.current, stake, risk });
 
     let ok = await timers.wait(dealMs);
@@ -110,21 +105,19 @@ export default function Game() {
       const sofar = productOf(r.values.slice(0, i));
       // The last card builds suspense when the reading is already paying.
       if (i === CARDS_PER_ROUND - 1 && sofar >= 1) {
-        setCharged(i);
         ok = await timers.wait(suspenseMs);
         if (!ok) break;
       }
-      setCharged(-1);
       setShown(i + 1);
       if (r.values[i] === 0) {
         // The Tower ends the reading: the rest turn together, already dimmed.
-        ok = await timers.wait(flipMs + (t ? 60 : 280));
+        ok = await timers.wait(flipMs + eventMs(t, 280));
         if (ok) setShown(CARDS_PER_ROUND);
         break;
       }
       ok = await timers.wait(i === CARDS_PER_ROUND - 1 ? flipMs : gapMs);
     }
-    if (ok) await timers.wait(t ? 40 : 160);
+    if (ok) await timers.wait(eventMs(t, 160));
     ticket.settle(r.multiplier);
     pushHistory(r.multiplier);
     setRevealing(false);
@@ -161,7 +154,6 @@ export default function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, [infoOpen]);
 
-  const deck = DECKS[round?.risk ?? risk];
   const done = !!round && !revealing;
   const ruinAt = round ? round.values.findIndex((v, i) => v === 0 && i < shown) : -1;
   const running = round && shown > 0 ? productOf(round.values.slice(0, shown)) : null;
@@ -176,16 +168,27 @@ export default function Game() {
     status = ruinAt >= 0 ? 'The Tower · 0.00×' : `Reading pays ${fmtMult(round.multiplier)}`;
   } else status = 'Draw three cards';
 
-  // How many of each card the reading turned (for the deck strip).
-  const drawnCount = new Map<number, number>();
-  if (round) for (let i = 0; i < shown; i++) drawnCount.set(round.cards[i], (drawnCount.get(round.cards[i]) ?? 0) + 1);
-
   const top = topPrize(risk);
+
+  // Deck strip: every card value in the deck with a bar sized by its chance per draw.
+  const stripRisk = round?.risk ?? risk;
+  const deck = DECKS[stripRisk];
+  const maxP = Math.max(...deck.map((c) => c.p));
+  const drawn = new Set<number>();
+  if (round) for (let i = 0; i < shown; i++) drawn.add(round.cards[i]);
+
+  // Chance to profit given the cards already turned (display only, from the deck's own probabilities).
+  const profitGiven = (start: number, left: number): number => {
+    if (left === 0) return start > 1 + 1e-9 ? 1 : 0;
+    return deck.reduce((a, c) => a + c.p * profitGiven(start * c.value, left - 1), 0);
+  };
+  const liveChance =
+    revealing && round && shown > 0 ? profitGiven(running ?? 1, CARDS_PER_ROUND - Math.min(shown, CARDS_PER_ROUND)) : profitChance(risk);
 
   return (
     <GameLayout
       name="Tarot"
-      accent={ACCENT}
+      accent={ACCENTS.violet}
       panel={
         <>
           <ModeTabs auto={auto} disabled={revealing} />
@@ -200,19 +203,6 @@ export default function Game() {
             onChange={setRisk}
             disabled={busy}
           />
-
-          <dl className="og-stats">
-            <dt>Chance to profit</dt>
-            <dd>{fmtChance(profitChance(risk))}</dd>
-            <dt>Pays something</dt>
-            <dd>{fmtChance(returnChance(risk))}</dd>
-            <dt>10× or more</dt>
-            <dd>{fmtChance(chanceAtLeast(risk, 10))}</dd>
-            <dt>Top prize</dt>
-            <dd>{fmtMult(top)}</dd>
-            <dt>Max win</dt>
-            <dd>{(bet.value * top).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={() => void playOnce(bet.value)}>
@@ -233,38 +223,32 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Chance to profit', value: fmtChance(liveChance), tone: 'chance' },
+          { label: 'Top prize', value: fmtMult(top), tone: 'prize' },
+        ]}
+      />
+
       <Board className="tr-board">
         <InstantResult multiplier={done && round ? round.multiplier : null} stake={round?.stake ?? 0} id={round?.id ?? 0} />
 
-        <div className="tr-spread" style={{ '--flip': `${flipMs}ms`, '--deal': `${dealMs}ms` } as CSSProperties}>
+        <div className="tr-spread" style={{ '--flip': `${flipMs}ms` } as CSSProperties}>
           {POSITIONS.map((pos, i) => {
             const card: Card | null = round ? DECKS[round.risk][round.cards[i]] : null;
             const up = !!round && shown > i;
             const dimmed = up && ruinAt >= 0 && i !== ruinAt;
-            const next = revealing && shown === i && ruinAt < 0;
-            const cls =
-              'tr-card' +
-              (up ? ' up' : '') +
-              (card && up ? ` t-${toneOf(card.value)}` : '') +
-              (dimmed ? ' dim' : '') +
-              (next ? ' next' : '') +
-              (charged === i ? ' charged' : '') +
-              (done && round && round.multiplier > 1 && !dimmed ? ' glow' : '');
+            const cls = 'tr-card' + (up ? ' up' : '') + (card && up && card.value === 0 ? ' ruin' : '') + (dimmed ? ' dim' : '');
             return (
-              <div key={`${round?.id ?? 'idle'}-${i}`} className="tr-slot" style={{ '--i': i } as CSSProperties}>
-                <div className="tr-pos">
-                  <b>{NUMERALS[i]}</b> {pos}
-                </div>
-                <div className={cls + (round ? ' dealt' : '')} aria-label={up && card ? `${ARCANA_NAMES[card.arcana]}, ${faceMult(card.value)}` : 'Face-down card'}>
+              <div key={`${round?.id ?? 'idle'}-${i}`} className="tr-slot">
+                <div className="tr-pos">{pos}</div>
+                <div className={cls} aria-label={up && card ? `${ARCANA_NAMES[card.arcana]}, ${faceMult(card.value)}` : 'Face-down card'}>
                   <div className="tr-inner">
-                    <div className="tr-face tr-back">
-                      <CardBack />
-                    </div>
+                    <div className="tr-face tr-back" />
                     <div className="tr-face tr-front">
                       {card && (
                         <>
                           <span className="tr-num">{ARCANA_NUMERALS[card.arcana]}</span>
-                          <Glyph arcana={card.arcana} />
                           <span className="tr-name">{ARCANA_NAMES[card.arcana]}</span>
                           <span className="tr-mult">{faceMult(card.value)}</span>
                         </>
@@ -283,7 +267,7 @@ export default function Game() {
             return (
               <span key={i} className="tr-eq-group">
                 {i > 0 && <i className="tr-op">×</i>}
-                <span className={'tr-term' + (v !== null ? ` t-${toneOf(v)}` : '')}>{v !== null ? faceMult(v) : '?'}</span>
+                <span className={'tr-term' + (v === 0 ? ' ruin' : '')}>{v !== null ? faceMult(v) : '?'}</span>
               </span>
             );
           })}
@@ -294,30 +278,16 @@ export default function Game() {
         </div>
       </Board>
 
-      <div className="tr-deck" aria-label={`${RISK_NAMES[round?.risk ?? risk]} deck`}>
-        <div className="tr-deck-head">
-          <span>
-            {RISK_NAMES[round?.risk ?? risk]} deck · {deck.length} cards
-          </span>
-          <span className="tr-deck-mean">
-            mean card {CARD_MEAN.toFixed(4)}× · cubed = {(RTP * 100).toFixed(0)}%
-          </span>
-        </div>
-        <div className="tr-deck-grid">
-          {deck.map((c, idx) => {
-            const n = drawnCount.get(idx) ?? 0;
-            return (
-              <div key={c.arcana} className={`tr-pip t-${toneOf(c.value)}` + (n ? ' hit' : '')} title={`${ARCANA_NAMES[c.arcana]}: ${faceMult(c.value)}, ${fmtChance(c.p)} per card`}>
-                {n > 1 && <em className="tr-pip-count">×{n}</em>}
-                <Glyph arcana={c.arcana} />
-                <b>{faceMult(c.value)}</b>
-                <small>{fmtChance(c.p)}</small>
-                <i className="tr-pip-bar" style={{ width: `${Math.max(3, Math.sqrt(c.p) * 100)}%` }} />
-              </div>
-            );
-          })}
-        </div>
+      <div className="tr-deck" role="img" aria-label={`${RISK_NAMES[stripRisk]} deck: card multipliers, bar length is the chance per draw`}>
+        {deck.map((c, idx) => (
+          <div key={c.arcana} className={'tr-pip' + (c.value >= 1 ? ' win' : ' lose') + (drawn.has(idx) ? ' hit' : '')} title={ARCANA_NAMES[c.arcana]}>
+            <b>{faceMult(c.value)}</b>
+            <i className="tr-pip-bar" style={{ width: `${Math.max(4, (c.p / maxP) * 100)}%` }} />
+          </div>
+        ))}
       </div>
+
+      <Caption>Win when the three card multipliers multiply to more than 1×.</Caption>
 
       {infoOpen && (
         <InfoModal title="Tarot" onClose={() => setInfoOpen(false)}>
@@ -336,8 +306,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The strip under the board lists every card in the selected deck with its exact chance per draw; the bar under each card grows with that
-              chance. Each of the three cards is an independent draw from the same deck, so a card can come up more than once.
+              Each of the three cards is an independent draw from the same deck, so a card can come up more than once.
             </p>
             <table className="tr-info-table">
               <thead>

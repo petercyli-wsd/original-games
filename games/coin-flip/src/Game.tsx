@@ -1,12 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,6 +20,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -37,7 +38,6 @@ import {
   MAX_FLIPS,
   MAX_MULTIPLIER,
   RTP,
-  SIDE_KEYS,
   SIDE_NAMES,
   autoCallAt,
   cashAfter,
@@ -77,13 +77,11 @@ const AUTO_CALLS: { value: AutoCall; label: string }[] = [
   { value: 'alternate', label: 'Alternate' },
 ];
 
-const CALL_KEY: Record<string, string> = { 0: SIDE_KEYS[0], 1: SIDE_KEYS[1], random: 'R', alternate: 'A' };
-
 /** The icon on a call button: one face, both faces stacked (random) or side by side (alternate). */
 function CallIcon({ c }: { c: AutoCall }) {
-  if (c === 0 || c === 1) return <CoinIcon side={c} />;
+  if (c === 0 || c === 1 || c === 'random') return <CoinIcon side={c} />;
   return (
-    <span className={c === 'random' ? 'cf-rand' : 'cf-alt'} aria-hidden="true">
+    <span className="cf-alt" aria-hidden="true">
       <CoinIcon side={0} />
       <CoinIcon side={1} />
     </span>
@@ -123,7 +121,8 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const flipMs = turbo.turbo ? 260 : 1000;
+  // A flip takes the standard 600 ms event (about 150 ms with Turbo); docs/STYLE.md.
+  const flipMs = eventMs(turbo.turbo);
   const live = phase === 'flipping' || phase === 'live';
 
   function finish(r: Round, end: End, cash: number) {
@@ -188,6 +187,9 @@ export default function Game() {
     setRound(null);
     setPending(null);
     setPhase('idle');
+    // The cleared coins show the call again.
+    const shown = auto.mode === 'manual' ? call : autoCall;
+    if (shown === 0 || shown === 1) setRots((prev) => prev.map((x) => turnTo(x, shown, 0)));
   }
 
   /** Changing a setting after a round clears the board to a preview. */
@@ -246,6 +248,11 @@ export default function Game() {
   const mode = auto.mode;
   useEffect(() => {
     if (phase === 'over') clear();
+    else if (phase === 'idle') {
+      // The preview coins follow the other mode's call.
+      const shown = mode === 'manual' ? call : autoCall;
+      if (shown === 0 || shown === 1) setRots((prev) => prev.map((x) => turnTo(x, shown, 0)));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
@@ -314,13 +321,16 @@ export default function Game() {
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   // The line under the coins.
-  let verdict: { tone: string; word: string; sub: string };
-  if (pending) verdict = { tone: 'air', word: pending.random ? `Random · ${SIDE_NAMES[pending.call]}` : `Calling ${SIDE_NAMES[pending.call]}`, sub: bn === 1 ? 'in the air…' : `need ${needText(bn, bk)}` };
+  let verdict: { tone: string; word: string };
+  if (pending) verdict = { tone: 'air', word: pending.random ? `Random · ${SIDE_NAMES[pending.call]}` : `Calling ${SIDE_NAMES[pending.call]}` };
   else if (landed)
     verdict = landed.win
-      ? { tone: 'win', word: bn === 1 ? `${SIDE_NAMES[landed.call]} · Win` : `${landed.matches} of ${bn} ${SIDE_NAMES[landed.call]} · Win`, sub: `streak ${s} · ${fmtMult(cashAfter(bn, bk, s))}` }
-      : { tone: 'lose', word: bn === 1 ? `${SIDE_NAMES[1 - landed.call]} · Loss` : `${landed.matches} of ${bn} ${SIDE_NAMES[landed.call]} · Loss`, sub: `you called ${SIDE_NAMES[landed.call]}` };
-  else verdict = { tone: 'idle', word: manual ? `Your call: ${callName(call)}` : `Auto call: ${AUTO_CALLS.find((a) => a.value === autoCall)?.label}`, sub: bn === 1 ? 'call it right to double up' : `win when ${needText(bn, bk)} match` };
+      ? { tone: 'win', word: bn === 1 ? `${SIDE_NAMES[landed.call]} · Win` : `${landed.matches} of ${bn} ${SIDE_NAMES[landed.call]} · Win` }
+      : { tone: 'lose', word: bn === 1 ? `${SIDE_NAMES[1 - landed.call]} · Loss` : `${landed.matches} of ${bn} ${SIDE_NAMES[landed.call]} · Loss` };
+  else verdict = { tone: 'idle', word: manual ? `Your call: ${callName(call)}` : `Auto call: ${AUTO_CALLS.find((a) => a.value === autoCall)?.label}` };
+  // The coins carry the accent while the player's call is a fixed side and no result is showing.
+  const shownCall = pending ? (pending.random ? 'random' : pending.call) : manual ? call : autoCall;
+  const called = !landed && (shownCall === 0 || shownCall === 1);
 
   // Keep the current rung of the streak row in view.
   const rowRef = useRef<HTMLDivElement>(null);
@@ -333,7 +343,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Coin Flip"
-      accent="#fbbf24"
+      accent={ACCENTS.amber}
       className="cf"
       panel={
         <>
@@ -357,16 +367,6 @@ export default function Game() {
 
           {manual ? (
             <>
-              <dl className="og-stats">
-                <dt>Flip wins</dt>
-                <dd>{fmtChance(flipChance(coins, need))}</dd>
-                <dt>First win pays</dt>
-                <dd>{fmtMult(cashAfter(coins, need, 1))}</dd>
-                <dt>Top rung</dt>
-                <dd>
-                  {maxFlips(coins, need)} · {fmtMult(cashAfter(coins, need, maxFlips(coins, need)))}
-                </dd>
-              </dl>
               <div className="cf-pick">
                 <Label hint={phase === 'live' ? 'pick one to flip' : undefined}>{live ? 'Flip again' : 'Your call'}</Label>
                 <div className="cf-calls" role="group" aria-label={phase === 'live' ? 'Flip with a call' : 'Choose your call'}>
@@ -382,7 +382,6 @@ export default function Game() {
                     >
                       <CallIcon c={c} />
                       <span>{callName(c)}</span>
-                      <kbd>{CALL_KEY[String(c)]}</kbd>
                     </button>
                   ))}
                 </div>
@@ -405,7 +404,7 @@ export default function Game() {
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || live}>
               <div className="cf-pick">
-                <Label hint="keys H · T · R · A">Call each flip</Label>
+                <Label>Call each flip</Label>
                 <div className="cf-calls four" role="group" aria-label="Auto call each flip">
                   {AUTO_CALLS.map(({ value: c, label }) => (
                     <button
@@ -418,17 +417,12 @@ export default function Game() {
                     >
                       <CallIcon c={c} />
                       <span>{label}</span>
-                      <kbd>{CALL_KEY[String(c)]}</kbd>
                     </button>
                   ))}
                 </div>
               </div>
               <Label
-                hint={
-                  <>
-                    <b className="cf-gold">{fmtMult(cashAfter(coins, need, autoTarget))}</b> · {fmtChance(reachChance(coins, need, autoTarget))}
-                  </>
-                }
+                hint={`${fmtMult(cashAfter(coins, need, autoTarget))} · ${fmtChance(reachChance(coins, need, autoTarget))}`}
               >
                 Cash out at {autoTarget} {autoTarget === 1 ? 'win' : 'wins'}
               </Label>
@@ -452,79 +446,70 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Flip wins', value: fmtChance(p), sub: `${ways} of ${total} outcomes`, tone: 'chance' },
-          { label: 'Cash out now', value: s > 0 || (phase === 'over' && round) ? fmtMult(cash) : '—', sub: formatAmount(stake * (s > 0 || phase === 'over' ? cash : 0), 2), tone: 'cash' },
-          {
-            label: phase === 'over' ? 'Streak reached' : 'Next win',
-            value: phase === 'over' ? (s > 0 ? fmtMult(cashAfter(bn, bk, s)) : '—') : fmtMult(cashAfter(bn, bk, nextStep)),
-            sub: phase === 'over' ? `${s} of ${top}` : `win ${nextStep} of ${top}`,
-            tone: 'prize',
-          },
+          { label: 'Flip wins', value: fmtChance(p), tone: 'chance' },
+          { label: 'Next win pays', value: phase === 'over' ? '—' : fmtMult(cashAfter(bn, bk, nextStep)), tone: 'prize' },
         ]}
       />
 
-      <Board className={'cf-board' + (showRoundOver ? ' over' : '') + (!manual ? ' auto' : '')}>
+      <Board className={'cf-board' + (!manual ? ' auto' : '')}>
         {!manual && phase === 'over' && round && <InstantResult multiplier={round.cash} stake={round.stake} id={history[0]?.id ?? 0} />}
-        <div className="cf-arena">
-          <Coins rots={fitRots(rots, bn)} tossKey={tossKey} tossing={!!pending} ms={flipMs} result={landed ? { call: landed.call, coins: landed.coins, win: landed.win } : null} />
-          <div key={`${tossKey}-${pending ? 'a' : 'l'}`} className={`cf-verdict ${verdict.tone}`} aria-live="polite">
-            <b>{verdict.word}</b>
-            <span>{verdict.sub}</span>
+        <div className="cf-stage">
+          <div className="cf-arena">
+            <Coins
+              rots={fitRots(rots, bn)}
+              tossKey={tossKey}
+              tossing={!!pending}
+              ms={flipMs}
+              called={called}
+              result={landed ? { call: landed.call, coins: landed.coins, win: landed.win } : null}
+            />
+            <div className={`cf-verdict ${verdict.tone}`} aria-live="polite">
+              {verdict.word}
+            </div>
+          </div>
+
+          <div className="cf-streak" aria-label="Streak ladder">
+            <div className={'cf-strip' + (total > 8 ? ' dense' : '')} title={`${ways} of the ${total} equally likely outcomes win`}>
+              {Array.from({ length: total }, (_, i) => (
+                <i key={i} className={i < ways ? 'w' : 'l'} />
+              ))}
+            </div>
+            <div className="cf-rungs" ref={rowRef}>
+              {steps.map((m, i) => {
+                const n = i + 1;
+                const f = round?.flips[i];
+                const state = n <= s ? 'done' : n === s + 1 && live ? 'next' : '';
+                const bust = phase === 'over' && round?.end === 'bust' && n === s + 1;
+                const target = !manual && n === Math.min(autoTarget, top) ? ' target' : '';
+                return (
+                  <span key={n} className={'cf-rung ' + state + target + (bust ? ' bust' : '')}>
+                    <small>
+                      {f && (n <= s || bust) ? `${SIDE_NAMES[f.call][0]} · ` : ''}
+                      {n}
+                    </small>
+                    {fmtMult(m)}
+                  </span>
+                );
+              })}
+            </div>
           </div>
         </div>
-        {showRoundOver && round?.end && (
-          <RoundOver
-            key={history[0]?.id}
-            title={END_TITLE[round.end]}
-            multiplier={round.cash}
-            stake={round.stake}
-            nextBet={bet.value}
-            blocked={bet.blocked}
-            onBetAgain={() => void start()}
-            onClear={clear}
-            placement="bottom"
-          />
-        )}
       </Board>
 
-      <div className="cf-streak" aria-label="Streak ladder">
-        <div className={'cf-strip' + (total > 8 ? ' dense' : '')} title={`${ways} of the ${total} equally likely outcomes win`}>
-          {Array.from({ length: total }, (_, i) => (
-            <i key={i} className={i < ways ? 'w' : 'l'} />
-          ))}
-        </div>
-        <div className="cf-rungs" ref={rowRef}>
-          {steps.map((m, i) => {
-            const n = i + 1;
-            const f = round?.flips[i];
-            const state = n <= s ? 'done' : n === s + 1 && live ? 'next' : '';
-            const bust = phase === 'over' && round?.end === 'bust' && n === s + 1;
-            const target = !manual && n === Math.min(autoTarget, top) ? ' target' : '';
-            return (
-              <span key={n} className={'cf-rung ' + state + target + (bust ? ' bust' : '')}>
-                <small>
-                  {f && (n <= s || bust) ? <CoinIcon side={f.call} /> : null}
-                  {n}
-                </small>
-                {fmtMult(m)}
-              </span>
-            );
-          })}
-        </div>
-      </div>
-
-      {live ? (
-        <ChanceBar
-          p={p}
-          label="Next flip wins"
-          note={bn === 1 ? 'One fair coin: your call lands exactly half the time.' : `${ways} of the ${total} equally likely ways ${bn} coins can land give ${needText(bn, bk)} on your call.`}
+      {showRoundOver && round?.end && (
+        <RoundOver
+          key={history[0]?.id}
+          title={END_TITLE[round.end]}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
         />
-      ) : (
-        <Caption>
-          Every coin is a fair 50/50 toss. {bn === 1 ? 'Call it right and your cash-out doubles' : `Win a flip when ${needText(bn, bk)} land on your call (${fmtChance(p)})`}; one wrong flip loses the stake. RTP{' '}
-          {(RTP * 100).toFixed(0)}%.
-        </Caption>
       )}
+      <Caption>Call the toss right to climb a rung; one wrong call loses the stake.</Caption>
 
       {infoOpen && (
         <InfoModal title="Coin Flip" onClose={() => setInfoOpen(false)}>
@@ -538,13 +523,13 @@ export default function Game() {
               <li>
                 Reaching the top rung ({MAX_FLIPS} wins with one coin) cashes out for you. With more coins the ladder is shorter, because each win pays more.
               </li>
-              <li>Auto plays whole rounds: it calls the side you choose (fixed, random or alternating) and cashes out at your target streak, with the usual stop rules.</li>
+              <li>Auto plays whole rounds: it calls the side you choose (fixed, random or alternating; keys H, T, R, A) and cashes out at your target streak, with the usual stop rules.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The strip beside the ladder has one cell for each equally likely way the coins can land: <b style={{ color: 'var(--green)' }}>green</b> cells
-              win the flip, <b style={{ color: 'var(--red)' }}>red</b> cells lose it. With one coin that is one of two; with five coins needing three it is 16
+              The strip beside the ladder has one cell for each equally likely way the coins can land: <b style={{ color: 'var(--win)' }}>green</b> cells
+              win the flip, <b style={{ color: 'var(--lose)' }}>red</b> cells lose it. With one coin that is one of two; with five coins needing three it is 16
               of 32.
             </p>
             <ul>

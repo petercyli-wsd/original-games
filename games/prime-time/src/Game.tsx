@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -15,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -58,7 +59,6 @@ import {
   wins,
   type Bet,
   type Digits,
-  type FanStat,
   type Revealed,
 } from './math';
 
@@ -92,9 +92,6 @@ function volatilityOf(bet: Bet, digits: Digits): Volatility {
   return p > 0.3 ? 'low' : p > 0.08 ? 'medium' : p > 0.01 ? 'high' : 'extreme';
 }
 
-const pct = (x: number) => `${Math.round(x * 100)}%`;
-const riskNote = (f: FanStat | undefined) => (!f ? '' : f.bust > 0 ? `${pct(f.bust)} bust` : f.sure > 0 ? `${pct(f.sure)} instant win` : 'no bust');
-
 export default function Game() {
   const { rng, track } = useHost();
   const bet = useBetInput();
@@ -123,9 +120,10 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const rollMs = turbo.turbo ? 160 : 560;
-  const focusMs = turbo.turbo ? 110 : 380;
-  const moveMs = turbo.turbo ? 110 : 420;
+  // One reveal is a roll then a focus: about eventMs in total.
+  const rollMs = eventMs(turbo.turbo, 400);
+  const focusMs = eventMs(turbo.turbo, 300);
+  const moveMs = eventMs(turbo.turbo, 300);
   const live = phase === 'revealing' || phase === 'checkpoint';
 
   const firstPos = (d: number) => Math.max(0, d - 1 - Math.min(firstPlace, d - 1));
@@ -216,7 +214,6 @@ export default function Game() {
   const fans = useMemo(() => (phase === 'over' ? [] : hiddenPositions(shown).map((p) => fanStat(b, shown, p))), [b, shown, phase]);
   const visibleFans = anim ? fans.filter((f) => f.pos !== anim.pos) : fans;
   const pointerPos = phase === 'checkpoint' ? pointer : phase === 'idle' ? firstPos(d) : null;
-  const pointerFan = fans.find((f) => f.pos === pointerPos);
 
   const tiles: TileView[] = shown.map((v, pos) => {
     if (anim && anim.pos === pos) return { pos, value: anim.value, state: anim.stage === 'roll' ? 'rolling' : 'shown' };
@@ -277,7 +274,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Prime Time"
-      accent="#ffb4a2"
+      accent={ACCENTS.sand}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -299,12 +296,6 @@ export default function Game() {
             disabled={live}
             onChange={(v) => change(() => setDigits(v))}
           />
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(startChance(backing, digits))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prize(backing, digits))}</dd>
-          </dl>
 
           {phase === 'checkpoint' ? (
             <>
@@ -312,7 +303,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={() => round && open(round, pointer)}>
-                Reveal {placeName(d, pointer)} · {riskNote(pointerFan)}
+                Reveal {placeName(d, pointer)}
               </ActionButton>
             </>
           ) : (
@@ -329,14 +320,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(chance),
-            sub: `${winners.toLocaleString('en-US')} of ${cands.toLocaleString('en-US')} lit`,
-            tone: 'chance',
-          },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(fullPrize), sub: `if N is ${BET_PHRASE[b]}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(chance), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(fullPrize), tone: 'prize' },
         ]}
       />
 
@@ -380,17 +365,7 @@ export default function Game() {
         />
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={chance}
-          label={`Chance N is ${BET_PHRASE[b]}`}
-          note="Exactly the lit share of the candidate dots. The bars under each ? show where its reveal could move it."
-        />
-      ) : (
-        <Caption>
-          N is a random {d}-digit number. {startChanceText(b, d)} Tap a ? to choose which digit opens first. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Win if the hidden number is {BET_PHRASE[b]}.</Caption>
 
       {infoOpen && (
         <InfoModal title="Prime Time" onClose={() => setInfoOpen(false)}>
@@ -410,13 +385,14 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The dots are every number still consistent with the digits shown, laid out like a hundred chart (blocks, rows and columns are the hidden digits).
-              Winning numbers are <b style={{ color: 'var(--accent)' }}>lit</b>, so the lit share of the dots is exactly your chance. When there are too many
-              candidates, each dot holds 10 or 100 numbers and its lit area is the share of them that win; a thin ring marks a dot whose few winners are too
+              Winning numbers are <b style={{ color: 'var(--win)' }}>green</b>, so the green share of the dots is exactly your chance. When there are too many
+              candidates, each dot holds 10 or 100 numbers and its green area is the share of them that win; a thin ring marks a dot whose few winners are too
               small to see.
             </p>
             <p>
-              Under each hidden digit, one bar per value it could show gives your chance after that reveal. <b style={{ color: 'var(--red)' }}>Red</b> ticks end
-              the round, <b style={{ color: 'var(--green)' }}>green</b> bars win it outright, and the dashed line is your chance now.
+              Under each hidden digit, one bar per value it could show gives your chance after that reveal. <b style={{ color: 'var(--lose)' }}>Red</b> ticks end
+              the round, <b style={{ color: 'var(--win)' }}>green</b> bars win it outright, and the dashed line is your chance now. Tap a ? before you bet to
+              choose which digit opens first.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
@@ -441,9 +417,4 @@ export default function Game() {
       )}
     </GameLayout>
   );
-}
-
-function startChanceText(bet: Bet, d: Digits) {
-  const all = allHidden(d);
-  return `${hits(bet, all).toLocaleString('en-US')} of the ${candidates(all).toLocaleString('en-US')} are ${BET_PLURAL[bet]}, so you win ${fmtChance(startChance(bet, d))} of the time.`;
 }

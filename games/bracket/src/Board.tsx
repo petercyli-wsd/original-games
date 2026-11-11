@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { fmtChance } from '@originals/game-sdk/ui';
-import { beats, players, type Bracket, type MatchRef, type Results } from './math';
+import { players, type Bracket, type MatchRef, type Results } from './math';
 
 export type Orient = 'wide' | 'tall';
 
@@ -16,21 +16,17 @@ interface Geom {
   pad: number;
   leafR: number;
   nodeR: number;
-  donutR: number;
-  donutW: number;
-  label: number;
-  font: number;
 }
 
 function geom(n: number, orient: Orient): Geom {
   if (orient === 'wide') {
     return n === 16
-      ? { along: 1000, across: 520, cols: [112, 214, 300, 374], centre: 500, gap: 64, pad: 4, leafR: 19, nodeR: 13, donutR: 74, donutW: 16, label: 54, font: 16 }
-      : { along: 1000, across: 460, cols: [140, 262, 372], centre: 500, gap: 112, pad: 6, leafR: 24, nodeR: 16, donutR: 84, donutW: 18, label: 62, font: 18 };
+      ? { along: 1000, across: 520, cols: [112, 214, 300, 374], centre: 500, gap: 64, pad: 4, leafR: 19, nodeR: 13 }
+      : { along: 1000, across: 460, cols: [140, 262, 372], centre: 500, gap: 112, pad: 6, leafR: 24, nodeR: 16 };
   }
   return n === 16
-    ? { along: 640, across: 420, cols: [56, 130, 190, 240], centre: 320, gap: 52.5, pad: 0, leafR: 17, nodeR: 12, donutR: 50, donutW: 12, label: 35, font: 13 }
-    : { along: 580, across: 420, cols: [58, 138, 196], centre: 290, gap: 105, pad: 0, leafR: 22, nodeR: 15, donutR: 56, donutW: 14, label: 40, font: 15 };
+    ? { along: 640, across: 420, cols: [56, 130, 190, 240], centre: 320, gap: 52.5, pad: 0, leafR: 17, nodeR: 12 }
+    : { along: 580, across: 420, cols: [58, 138, 196], centre: 290, gap: 105, pad: 0, leafR: 22, nodeR: 15 };
 }
 
 export interface BoardProps {
@@ -48,15 +44,9 @@ export interface BoardProps {
   canPick(seed: number): boolean;
   pickTitle(seed: number): string;
   onPick(seed: number): void;
-  /** Show live odds labels (false greys them as a preview). */
-  live: boolean;
-  /** The held seed's own match is being played: its token pulses. */
-  playingMine?: boolean;
 }
 
-const TAU = Math.PI * 2;
-
-export default function BracketBoard({ b, res, held, odds, orient, next, playing, champion, canPick, pickTitle, onPick, live, playingMine }: BoardProps) {
+export default function BracketBoard({ b, res, held, odds, orient, next, playing, champion, canPick, pickTitle, onPick }: BoardProps) {
   const g = geom(b.n, orient);
   const half = b.n / 2;
   const final = b.rounds - 1;
@@ -79,7 +69,6 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
     const side = slot < half ? 0 : 1;
     return pt(sideAlong(side, g.cols[0]), g.pad + (slot - side * half + 0.5) * g.gap);
   };
-  const leafSide = (slot: number) => (slot < half ? 0 : 1);
 
   /** Seed at a feeder: a first-round slot's seed or a played match's winner. */
   const feederSeed = (k: number, m: number) => (k < 0 ? b.order[m] : res[k][m]);
@@ -128,11 +117,9 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
           </g>,
         );
       } else if (x >= 0 && y >= 0) {
-        const px = beats(b, x, y);
         nodes.push(
           <g key={`n${k}-${m}`} className={'node ready' + (isNext ? ' next' : '') + (isNext && playing ? ' playing' : '')} transform={`translate(${at.x} ${at.y})`}>
-            <circle r={r} className="bg" />
-            <SplitRing r={r} p={px} a={x === held ? 'mine' : 'a'} c={y === held ? 'mine' : 'b'} />
+            <circle r={r} />
           </g>,
         );
       } else {
@@ -141,85 +128,43 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
     }
   }
 
-  // Centre: the title ring. Every live seed's slice is its title chance.
+  // Centre: the final's slot. It shows the champion's seed number once there is one.
   const c = pt(g.centre, g.across / 2);
-  const slices: JSX.Element[] = [];
-  const liveSeeds = b.order.filter((s) => odds[s] > 0);
-  let a0 = 0;
-  const gapTurn = liveSeeds.length > 1 ? 0.004 : 0;
-  liveSeeds.forEach((s, i) => {
-    const len = odds[s];
-    const start = a0 + gapTurn / 2;
-    const end = a0 + Math.max(len - gapTurn / 2, start - a0 + 0.0005);
-    a0 += len;
-    slices.push(<path key={s} d={annulus(c.x, c.y, g.donutR, g.donutW, start, Math.max(start + 0.0005, end))} className={'slice' + (s === held ? ' mine' : i % 2 ? ' alt' : '')} />);
-  });
-
-  const centreText =
-    champion !== null ? (
-      <>
-        <text x={c.x} y={c.y - g.donutR * 0.2} className={'c-big' + (champion === held ? ' mine' : '')} style={{ fontSize: g.donutR * 0.62 }}>
+  const centre = (
+    <g className={'node ' + (champion === null ? 'ready' : 'done') + (champion === held ? ' mine' : '')} transform={`translate(${c.x} ${c.y})`}>
+      <circle r={g.nodeR * 1.25} />
+      {champion !== null && (
+        <text y={0.5} style={{ fontSize: g.nodeR * 1.3 }}>
           {champion + 1}
         </text>
-        <text x={c.x} y={c.y + g.donutR * 0.36} className="c-small" style={{ fontSize: g.font * 0.8 }}>
-          champion
-        </text>
-      </>
-    ) : odds[held] === 0 ? (
-      <>
-        <text x={c.x} y={c.y - g.donutR * 0.12} className="c-big out" style={{ fontSize: g.donutR * 0.42 }}>
-          OUT
-        </text>
-        <text x={c.x} y={c.y + g.donutR * 0.3} className="c-small" style={{ fontSize: g.font * 0.78 }}>
-          seed {held + 1}
-        </text>
-      </>
-    ) : (
-      <>
-        <text x={c.x} y={c.y - g.donutR * 0.12} className={'c-big mine' + (live ? '' : ' idle')} style={{ fontSize: g.donutR * 0.36 }}>
-          {fmtChance(odds[held])}
-        </text>
-        <text x={c.x} y={c.y + g.donutR * 0.3} className="c-small" style={{ fontSize: g.font * 0.78 }}>
-          seed {held + 1} title
-        </text>
-      </>
-    );
+      )}
+    </g>
+  );
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className={`bk-svg ${orient}`} role="img" aria-label={`Knockout bracket of ${b.n} seeds. Seed ${held + 1} has a ${fmtChance(odds[held])} title chance.`}>
       <g className="lines">{lines}</g>
-      <circle cx={c.x} cy={c.y} r={g.donutR + g.donutW / 2} className="donut-hole" />
-      <circle cx={c.x} cy={c.y} r={g.donutR} className="donut-track" style={{ strokeWidth: g.donutW }} />
-      {slices}
-      {centreText}
       {nodes}
+      {centre}
       {b.order.map((s, slot) => {
         const p = leafPos(slot);
         const out = odds[s] === 0;
         const mine = s === held;
         const r = g.leafR;
         const pick = canPick(s);
-        const side = leafSide(slot);
-        const lbl = orient === 'wide' ? { x: p.x + (side ? g.label : -g.label), y: p.y } : { x: p.x, y: p.y + (side ? g.label : -g.label) };
-        const len = odds[s];
         return (
           <g
             key={s}
-            className={'leaf' + (mine ? ' mine' : '') + (mine && playingMine ? ' tense' : '') + (out ? ' out' : '') + (pick ? ' pick' : '') + (champion === s ? ' champ' : '')}
+            className={'leaf' + (mine ? ' mine' : '') + (out ? ' out' : '') + (pick ? ' pick' : '') + (champion === s ? ' champ' : '')}
             onClick={pick ? () => onPick(s) : undefined}
             role={pick ? 'button' : undefined}
             aria-label={pick ? pickTitle(s) : undefined}
           >
             <title>{pickTitle(s)}</title>
             <circle cx={p.x} cy={p.y} r={r + 5} className="hit" />
-            <circle cx={p.x} cy={p.y} r={r + 4.5} className="ring-track" />
-            {!out && len > 0 && <path d={arcPath(p.x, p.y, r + 4.5, 0, len)} className="ring" />}
             <circle cx={p.x} cy={p.y} r={r} className="tok" />
             <text x={p.x} y={p.y + 0.5} className="seed" style={{ fontSize: r * 0.95 }}>
               {s + 1}
-            </text>
-            <text x={lbl.x} y={lbl.y + 0.5} className={'pct' + (live ? '' : ' idle')} style={{ fontSize: g.font }}>
-              {out ? 'out' : fmtChance(odds[s])}
             </text>
           </g>
         );
@@ -228,105 +173,42 @@ export default function BracketBoard({ b, res, held, odds, orient, next, playing
   );
 }
 
-/** A small ring split by a match's odds: the first seed's share clockwise from the top. */
-function SplitRing({ r, p, a, c }: { r: number; p: number; a: string; c: string }) {
-  const R = r + 3;
-  return (
-    <>
-      <path d={arcPath(0, 0, R, 0, p)} className={'split ' + a} />
-      <path d={arcPath(0, 0, R, p, 1)} className={'split ' + c} />
-    </>
-  );
-}
-
-const polar = (cx: number, cy: number, r: number, turn: number) => ({ x: cx + r * Math.sin(turn * TAU), y: cy - r * Math.cos(turn * TAU) });
-
-function arcPath(cx: number, cy: number, r: number, from: number, to: number): string {
-  // Long arcs go in two halves, so a full circle never collapses to one point.
-  if (to - from > 0.5) return `${arcPath(cx, cy, r, from, from + 0.5)} ${arcPath(cx, cy, r, from + 0.5, to).replace(/^M[^A]*/, '')}`;
-  const len = to - from;
-  const a = polar(cx, cy, r, from);
-  const z = polar(cx, cy, r, from + len);
-  return `M${a.x.toFixed(2)} ${a.y.toFixed(2)} A${r} ${r} 0 ${len > 0.5 ? 1 : 0} 1 ${z.x.toFixed(2)} ${z.y.toFixed(2)}`;
-}
-
-function annulus(cx: number, cy: number, r: number, w: number, from: number, to: number): string {
-  if (to - from > 0.5) return `${annulus(cx, cy, r, w, from, from + 0.5)} ${annulus(cx, cy, r, w, from + 0.5, to)}`;
-  const len = to - from;
-  const ro = r + w / 2;
-  const ri = r - w / 2;
-  const large = len > 0.5 ? 1 : 0;
-  const a = polar(cx, cy, ro, from);
-  const z = polar(cx, cy, ro, from + len);
-  const zi = polar(cx, cy, ri, from + len);
-  const ai = polar(cx, cy, ri, from);
-  const f = (v: number) => v.toFixed(2);
-  return `M${f(a.x)} ${f(a.y)} A${ro} ${ro} 0 ${large} 1 ${f(z.x)} ${f(z.y)} L${f(zi.x)} ${f(zi.y)} A${ri} ${ri} 0 ${large} 0 ${f(ai.x)} ${f(ai.y)} Z`;
-}
-
 export interface DuelProps {
-  b: Bracket;
   x: number;
   y: number;
+  /** x's chance to win this match: the bar's split. */
   px: number;
-  /** The held seed's title chance if x wins / if y wins. */
-  ax: number;
-  ay: number;
-  now: number;
   held: number;
   title: string;
-  /** Where the draw landed (0..1) while the match plays, else null. */
-  landing: number | null;
+  /** Where the draw landed (0..1): the marker sweeps there. Left of the split is x, right is y. */
+  u: number;
   ms: number;
   /** Bumped per match so the sweep restarts. */
   seq: number;
-  /** The held seed plays in this match. */
-  mine?: boolean;
+  /** The next match's seeds, shown once this one has landed. */
+  upNext?: [number, number] | null;
 }
 
-/** The next match as a bar split by its odds, and the title chance each result would leave you with. */
-export function Duel({ b, x, y, px, ax, ay, now, held, title, landing, ms, seq, mine }: DuelProps) {
-  // When the two results (or now) would print the same, show more digits so the move is visible.
-  const close = new Set([fmtChance(ax), fmtChance(ay), fmtChance(now)]).size < 3;
-  const fmt = (v: number) => (close && v > 0 && v < 1 ? `${(v * 100).toPrecision(4)}%` : fmtChance(v));
-  const after = (v: number) => {
-    if (v === 0) return <b className="down">you're out</b>;
-    if (v === 1) return <b className="up">you win</b>;
-    const cls = v > now + 1e-12 ? 'up' : v < now - 1e-12 ? 'down' : '';
-    return (
-      <>
-        you <b className={cls}>{fmt(v)}</b>
-      </>
-    );
-  };
+/** A match as a flat bar split by its odds; a marker sweeps to the draw and stays there. */
+export function Duel({ x, y, px, held, title, u, ms, seq, upNext }: DuelProps) {
   const tag = (s: number) => (s === held ? 'mine' : '');
   return (
-    <div className={'bk-duel' + (mine ? ' mine' : '') + (mine && landing !== null ? ' live' : '')} aria-live="polite">
-      <div className="bk-duel-head">
-        <span>{title}</span>
-        <span className="muted">if it goes this way</span>
+    <div className="bk-duel" aria-live="polite">
+      <span className="bk-duel-head">{title}</span>
+      <div className="bk-duel-row">
+        <span className={'bk-duel-name ' + tag(x)}>Seed {x + 1}</span>
+        <div className="bk-duel-bar">
+          <i className={'a ' + tag(x)} style={{ width: `${px * 100}%` }} />
+          <i className={'c ' + tag(y)} style={{ width: `${(1 - px) * 100}%` }} />
+          <em key={seq} className="needle" style={{ '--u': u, animationDuration: `${ms}ms` } as CSSProperties} />
+        </div>
+        <span className={'bk-duel-name ' + tag(y)}>Seed {y + 1}</span>
       </div>
-      <div className="bk-duel-names">
-        <span className={tag(x)}>
-          Seed {x + 1} <small>{b.ratings[x]}</small>
+      {upNext && (
+        <span className="bk-duel-next">
+          Next · Seed {upNext[0] + 1} vs Seed {upNext[1] + 1}
         </span>
-        <span className={tag(y)}>
-          <small>{b.ratings[y]}</small> Seed {y + 1}
-        </span>
-      </div>
-      <div className="bk-duel-bar">
-        <i className={'a ' + tag(x)} style={{ width: `${px * 100}%` }} />
-        <i className={'c ' + tag(y)} style={{ width: `${(1 - px) * 100}%` }} />
-        {landing !== null && <em key={seq} className="needle" style={{ '--u': landing, animationDuration: `${ms}ms` } as CSSProperties} />}
-      </div>
-      <div className="bk-duel-after">
-        <span>
-          <b>{fmtChance(px)}</b> → {after(ax)}
-        </span>
-        <span>
-          {after(ay)} ← <b>{fmtChance(1 - px)}</b>
-        </span>
-      </div>
+      )}
     </div>
   );
 }

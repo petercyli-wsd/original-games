@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import { fmtChance } from '@originals/game-sdk/ui';
 import { DX, DY, blockers, type Blocker, type Dir } from './math';
 
 const GAIN: Record<number, string> = { 4: 'free', 3: '×4/3', 2: '×2', 1: '×4' };
@@ -33,8 +32,6 @@ export interface BoardProps {
   needle: number;
   spinMs: number;
   moveMs: number;
-  /** Chance to reach the target from here (or at the start, in idle). */
-  win: number;
 }
 
 /** A point at angle a (degrees clockwise from up), radius r, around the origin. */
@@ -46,7 +43,7 @@ const at = (a: number, r: number) => {
 /** The ring quarter facing direction d. */
 const quarter = (d: number, r: number, gap: number) => `M ${at(d * 90 - 45 + gap, r)} A ${r} ${r} 0 0 1 ${at(d * 90 + 45 - gap, r)}`;
 
-export default function Board({ n, target, path, blocked, mode, outcome, crash, needle, spinMs, moveMs, win }: BoardProps) {
+export default function Board({ n, target, path, blocked, mode, outcome, crash, needle, spinMs, moveMs }: BoardProps) {
   const c = S / n;
   const cx = (cell: number) => X0 + ((cell % n) + 0.5) * c;
   const cy = (cell: number) => Y0 + (Math.floor(cell / n) + 0.5) * c;
@@ -74,7 +71,7 @@ export default function Board({ n, target, path, blocked, mode, outcome, crash, 
   const slotX = X0 + (S - slotsW) / 2;
   const mark = c * 0.15;
 
-  // The factor the newest step paid, floated over the head for a moment.
+  // The factor the newest step paid, shown beside the head.
   const lastFree = path.length > 1 ? blockers(n, path.slice(0, -1)).filter((b) => b === null).length : 0;
   const gain = (mode === 'move' || mode === 'live') && !crash && lastFree > 0 ? GAIN[lastFree] : null;
 
@@ -127,7 +124,6 @@ export default function Board({ n, target, path, blocked, mode, outcome, crash, 
 
       {/* The snake. */}
       <g className="snake">
-        {path.length > 1 && <polyline points={pts.join(' ')} className="body-glow" style={{ strokeWidth: c * 0.7 }} />}
         {path.length > 2 && <polyline points={pts.slice(0, -1).join(' ')} className="body-line" style={{ strokeWidth: bodyW }} />}
         {prev !== null && (
           <line
@@ -212,17 +208,11 @@ export default function Board({ n, target, path, blocked, mode, outcome, crash, 
       {/* The win condition: a length meter with one slot per cell of the target. */}
       <g className="band">
         <text x={X0} y={BAND + 8} className="band-label">
-          LENGTH
+          Length
         </text>
         <text x={X0 + 60} y={BAND + 8} className="band-value">
           {path.length} / {target}
         </text>
-        {!over && (
-          <text x={X0 + S} y={BAND + 8} className="band-label end">
-            {mode === 'idle' ? 'WIN CHANCE ' : 'WIN FROM HERE '}
-            <tspan className="band-win">{fmtChance(win)}</tspan>
-          </text>
-        )}
         {Array.from({ length: target }, (_, i) => (
           <rect
             key={i}

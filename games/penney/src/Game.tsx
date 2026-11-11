@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -23,6 +23,7 @@ import {
   useTicket,
   useTimers,
   useTurbo,
+  eventMs,
   type ReadoutItem,
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
@@ -47,7 +48,7 @@ import {
   type Race,
 } from './math';
 
-const ACCENT = '#f9c74f';
+const ACCENT = ACCENTS.amber;
 
 type Phase = 'idle' | 'flipping' | 'checkpoint' | 'over';
 type Outcome = 'landed' | 'beaten' | 'sealed' | 'doomed' | 'cashed';
@@ -118,7 +119,7 @@ export default function Game() {
   const autoRef = useRef(auto);
   autoRef.current = auto;
 
-  const spinMs = turbo.turbo ? 160 : 620;
+  const spinMs = eventMs(turbo.turbo);
   const gapMs = turbo.turbo ? 90 : 320;
   const live = phase === 'flipping' || phase === 'checkpoint';
   const problem = pairProblem(you, house);
@@ -251,29 +252,10 @@ export default function Game() {
   }
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  const readouts: ReadoutItem[] =
-    phase === 'idle'
-      ? [
-          { label: 'Yours lands first', value: rc ? fmtChance(p0) : '—', sub: "Conway's exact odds", tone: 'chance' },
-          { label: 'Cash out now', value: '—', sub: 'after every flip', tone: 'cash' },
-          { label: 'Prize', value: rc ? fmtMult(prize) : '—', sub: `if ${A} lands first`, tone: 'prize' },
-        ]
-      : [
-          {
-            label: 'Yours lands first',
-            value: p === null ? '—' : fmtChance(p),
-            sub: phase === 'over' && outcome !== 'cashed' ? 'race decided' : `started at ${fmtChance(p0)}`,
-            tone: 'chance',
-          },
-          { label: phase === 'over' ? 'Paid' : 'Cash out now', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: `if ${A} lands first`, tone: 'prize' },
-        ];
-
-  const forkNote = !fork
-    ? 'Coin in the air…'
-    : Math.abs(fork.h - fork.t) < 1e-12
-      ? `Next flip: heads or tails, your chance stays at ${fmtChance(fork.h)}. Only the patterns move.`
-      : `Next flip: heads takes it to ${fmtChance(fork.h)}, tails to ${fmtChance(fork.t)}. Your chance now is exactly their average.`;
+  const readouts: ReadoutItem[] = [
+    { label: 'Yours lands first', value: phase === 'idle' ? (rc ? fmtChance(p0) : '—') : p === null ? '—' : fmtChance(p), tone: 'chance' },
+    { label: 'Prize', value: phase === 'idle' && !rc ? '—' : fmtMult(prize), tone: 'prize' },
+  ];
 
   return (
     <GameLayout
@@ -292,7 +274,7 @@ export default function Game() {
                 value: x.id as PresetId | 'custom',
                 label: (
                   <span className="pn-preset">
-                    {x.label} <small>{fmtChance(race(x.you, x.house).p0)}</small>
+                    {x.label} <small>{fmtMult(race(x.you, x.house).prize)}</small>
                   </span>
                 ),
                 title: `${x.you} vs ${x.house}`,
@@ -334,10 +316,6 @@ export default function Game() {
 
           {chosen ? (
             <dl className="og-stats">
-              <dt>Chance to win</dt>
-              <dd>{fmtChance(chosen.p0)}</dd>
-              <dt>Prize</dt>
-              <dd>{fmtMult(chosen.prize)}</dd>
               <dt>Average round</dt>
               <dd>{chosen.flipsLeft('').toFixed(1)} flips</dd>
             </dl>
@@ -378,7 +356,7 @@ export default function Game() {
           flips={flips}
           pending={pending}
           spinMs={spinMs}
-          moveMs={turbo.turbo ? 90 : 340}
+          moveMs={eventMs(turbo.turbo, 340)}
           youMatch={m.you}
           houseMatch={m.house}
           p={p}
@@ -394,40 +372,23 @@ export default function Game() {
           roundKey={round?.id ?? 0}
           mode={phase === 'idle' ? 'idle' : phase === 'over' ? 'over' : 'live'}
         />
-        {/* The result card sits over the odds bar (in flow on narrow frames). */}
-        {phase === 'over' && round?.outcome && (
-          <div className="pn-result">
-            <RoundOver
-              key={history[0]?.id}
-              title={OUTCOME_TITLE[round.outcome]}
-              multiplier={round.cash}
-              stake={round.stake}
-              nextBet={bet.value}
-              blocked={bet.blocked ?? problem ?? undefined}
-              onBetAgain={() => void start()}
-              onClear={clear}
-              placement="inline"
-            />
-          </div>
-        )}
       </Board>
 
-      <div className="pn-foot">
-        {live && p !== null ? (
-          <ChanceBar p={p} label="Your pattern lands first" note={forkNote} />
-        ) : (
-          <Caption>
-            {rc ? (
-              <>
-                {A} against {B}: by Conway's leading numbers yours lands first {fmtChance(p0)} of the time, so a win pays {fmtMult(prize)}. Cash out after
-                any flip at its exact value. RTP {(RTP * 100).toFixed(0)}%.
-              </>
-            ) : (
-              <>{problem}</>
-            )}
-          </Caption>
-        )}
-      </div>
+      {phase === 'over' && round?.outcome && (
+        <RoundOver
+          key={history[0]?.id}
+          title={OUTCOME_TITLE[round.outcome]}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked ?? problem ?? undefined}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
+      )}
+
+      <Caption>Win if your pattern shows up in the flips before the house's.</Caption>
 
       {infoOpen && (
         <InfoModal title="Penney" onClose={() => setInfoOpen(false)}>
@@ -447,12 +408,12 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each pattern sits under the flips it already matches: the lit coins (and the bar beneath them) are matched, the dashed ones are still needed,
-              and the pulsing coin is the one each side needs next.
+              Each pattern sits under the flips it already matches: the ringed coins (and the bar beneath them) are matched, the dashed ones are still needed,
+              and the solid-outlined coin is the one each side needs next.
             </p>
             <p>
-              The <b style={{ color: 'var(--green)' }}>green</b> share of the bar at the bottom is your exact chance of landing first; the{' '}
-              <b style={{ color: 'var(--red)' }}>red</b> share is the house's. The small H and T coins above it show where the split moves after heads or
+              The <b style={{ color: 'var(--win)' }}>green</b> share of the bar at the bottom is your exact chance of landing first; the{' '}
+              <b style={{ color: 'var(--lose)' }}>red</b> share is the house's. The small H and T coins above it show where the split moves after heads or
               tails. Your chance now sits exactly halfway between them.
             </p>
           </InfoSection>
