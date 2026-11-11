@@ -1,0 +1,30 @@
+/* Banker board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.banker { width: 100%; max-width: 640px; }
+.banker text { font-family: inherit; fill: var(--text); font-variant-numeric: tabular-nums; }
+.banker .lab { font-size: 18px; font-weight: 500; fill: var(--muted); }
+.banker .lab.note, .banker .lab.deal { fill: var(--text); font-weight: 600; }
+.banker .lab.tag { fill: var(--text); font-weight: 600; }
+.banker .lab.mine-tag { fill: var(--accent); font-weight: 600; }
+
+.banker .case rect { fill: var(--hover); stroke: var(--line-strong); stroke-width: 1; }
+.banker .case text { text-anchor: middle; font-size: 16px; font-weight: 600; }
+.banker .case.mine rect { fill: none; stroke: var(--accent); stroke-width: 3; }
+.banker .case.mine text { fill: var(--accent); }
+.banker .case.open rect { fill: var(--bg); stroke: var(--line); }
+.banker .case.open text { fill: var(--faint); }
+.banker .case.last rect { stroke: var(--text); stroke-width: 3; }
+.banker .case.scan rect { stroke: var(--text); stroke-width: 3; }
+
+.banker .bar.up rect { fill: var(--win); }
+.banker .bar.down rect { fill: var(--line-strong); }
+.banker .bar.struck rect { fill: none; stroke: var(--faint); stroke-width: 1.5; }
+.banker .bar.struck line { stroke: var(--faint); stroke-width: 2; }
+.banker .bar.last rect { stroke: var(--text); stroke-width: 3; }
+.banker .bar.mine rect { fill: var(--accent); stroke: var(--accent); stroke-width: 2; }
+.banker .bar.mine line { stroke: var(--bg); }
+
+.banker .base { stroke: var(--line-strong); stroke-width: 1; }
+.banker .betline { stroke: var(--muted); stroke-width: 2; stroke-dasharray: 6 5; }
+.banker .dealline { stroke: var(--text); stroke-width: 3; }
+.banker .dealgroup { transition-property: transform; transition-timing-function: ease-out; }
