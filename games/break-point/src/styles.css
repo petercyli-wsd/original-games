@@ -1,0 +1,171 @@
+/* Break Point board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.bp-game .og-chips .og-chip {
+  font-size: var(--fs-1);
+  padding-inline: 0;
+}
+.bp-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+.bp-board > svg {
+  max-height: 70vh;
+}
+
+.bp text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.bp .head {
+  font-size: var(--fs-1);
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.bp .head.start {
+  text-anchor: start;
+}
+.bp .head.end {
+  text-anchor: end;
+}
+.bp .row-bg {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.bp .row.mark-win .row-bg {
+  stroke: var(--win);
+  stroke-width: 3;
+}
+.bp .row.mark-lose .row-bg {
+  stroke: var(--lose);
+  stroke-width: 3;
+}
+.bp .name {
+  font-size: var(--fs-4);
+  font-weight: 600;
+}
+.bp .score {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  text-anchor: middle;
+}
+.bp .row.mine .name,
+.bp .row.mine .score {
+  fill: var(--accent);
+}
+.bp .slot {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.bp .row.mine .slot {
+  stroke: var(--accent);
+}
+.bp .need {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  fill: var(--muted);
+  text-anchor: end;
+}
+
+.bp .arc {
+  fill: none;
+  stroke-width: 22;
+}
+.bp .arc.you {
+  stroke: var(--win);
+}
+.bp .arc.server {
+  stroke: var(--lose);
+}
+.bp .hub {
+  fill: var(--card);
+}
+.bp .hub-t {
+  font-size: var(--fs-3);
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.bp .hub-n {
+  font-size: var(--fs-5);
+  font-weight: 600;
+  text-anchor: middle;
+}
+.bp .pointer {
+  transform-box: view-box;
+  transform-origin: 170px 262px;
+  animation: bp-spin cubic-bezier(0.15, 0.6, 0.2, 1) both;
+}
+.bp .needle {
+  stroke: var(--text);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.bp .tip {
+  fill: var(--text);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.bp .tip.you {
+  stroke: var(--win);
+  stroke-width: 4;
+}
+.bp .tip.server {
+  stroke: var(--lose);
+  stroke-width: 4;
+}
+@keyframes bp-spin {
+  from {
+    transform: rotate(var(--from));
+  }
+  to {
+    transform: rotate(var(--to));
+  }
+}
+
+.bp .key {
+  font-size: var(--fs-3);
+  fill: var(--muted);
+}
+.bp .verdict {
+  font-size: var(--fs-4);
+  font-weight: 600;
+}
+.bp .verdict.you {
+  fill: var(--win);
+}
+.bp .verdict.server {
+  fill: var(--lose);
+}
+
+.bp .bar-bg {
+  fill: var(--lose);
+}
+.bp .bar-win {
+  fill: var(--win);
+}
+.bp .bar-label {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.bp .bar-label.end {
+  text-anchor: end;
+}
+.bp-board .og-instant {
+  top: 55%;
+}
+
+@container (max-width: 760px) {
+  .bp .key,
+  .bp .bar-label,
+  .bp .need {
+    font-size: var(--fs-4);
+  }
+  .bp .head {
+    font-size: var(--fs-3);
+  }
+}
