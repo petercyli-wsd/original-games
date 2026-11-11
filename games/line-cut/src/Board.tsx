@@ -1,6 +1,6 @@
 import { useId } from 'react';
 import { fmtChance } from '@originals/game-sdk/ui';
-import { SHAPES, cutChance, shadow, shadowRange, type Pt, type Shape, type ShapeId } from './math';
+import { SHAPES, cutChance, shadow, type Pt, type Shape, type ShapeId } from './math';
 
 /** Arena centre and radius in SVG units; arena coordinates have radius 1. */
 const C = { x: 200, y: 194 };
@@ -44,37 +44,23 @@ export default function Board({ shape, mode, angle, p, settled, result }: BoardP
   const rot = angle === null ? '' : `translate(${C.x} ${C.y}) rotate(${deg(angle).toFixed(3)})`;
 
   return (
-    <svg viewBox="0 0 400 440" className={'lc-board ' + mode} role="img" aria-label={`${s.name}: ${fmtChance(share)} chance the line cuts it`}>
+    <svg viewBox="0 0 400 420" className={'lc-board ' + mode} role="img" aria-label={`${s.name}: ${fmtChance(share)} chance the line cuts it`}>
       <defs>
         <clipPath id={clipId}>
           <circle cx={0} cy={0} r={R} />
         </clipPath>
-        <radialGradient id={clipId + 'g'} cx="50%" cy="45%" r="60%">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.07" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </radialGradient>
       </defs>
-
-      {/* The rule, in the corner. */}
-      <text x={390} y={20} className="legend end">
-        WIN IF
-      </text>
-      <text x={390} y={36} className="win-if end">
-        the line cuts it
-      </text>
 
       {/* The arena. */}
       <circle cx={C.x} cy={C.y} r={R} className="arena" />
-      <circle cx={C.x} cy={C.y} r={R} fill={`url(#${clipId}g)`} />
 
-      {/* The slab: every line in this direction that cuts the shape. */}
+      {/* The slab: every line in this direction that cuts the shape, drawn by its two edges. */}
       {sh && (
         <g transform={rot}>
           <g clipPath={`url(#${clipId})`}>
-            <rect x={sh.lo * R} y={-R} width={(sh.hi - sh.lo) * R} height={2 * R} className="slab" />
+            <line x1={sh.lo * R} y1={-R} x2={sh.lo * R} y2={R} className="slab-edge" />
+            <line x1={sh.hi * R} y1={-R} x2={sh.hi * R} y2={R} className="slab-edge" />
           </g>
-          <line x1={sh.lo * R} y1={-halfChord(sh.lo)} x2={sh.lo * R} y2={halfChord(sh.lo)} className="slab-edge" />
-          <line x1={sh.hi * R} y1={-halfChord(sh.hi)} x2={sh.hi * R} y2={halfChord(sh.hi)} className="slab-edge" />
         </g>
       )}
 
@@ -83,8 +69,6 @@ export default function Board({ shape, mode, angle, p, settled, result }: BoardP
         <g transform={rot}>
           <line x1={-R} y1={0} x2={R} y2={0} className="ruler" />
           <line x1={sh.lo * R} y1={0} x2={sh.hi * R} y2={0} className="shadow" />
-          <circle cx={-R} cy={0} r={4.5} className="cap" />
-          <path d={`M ${R - 2} -6 L ${R + 9} 0 L ${R - 2} 6 Z`} className="cap" />
         </g>
       )}
 
@@ -124,47 +108,19 @@ function FlatRuler({
   const { x0, x1, y, h } = FB;
   const avg = cutChance(s);
   const aimed = lo !== null && hi !== null;
-  const share = aimed ? (hi - lo) / 2 : avg;
   // Before aiming, the average shadow sits in the middle of the ruler.
   const a = flatX(aimed ? Math.max(-1, lo) : -avg);
   const b = flatX(aimed ? Math.min(1, hi) : avg);
-  const mid = (a + b) / 2;
-  const avgW = avg * (x1 - x0);
-  const name = s.name.toLowerCase();
-  const range = shadowRange(s);
-  const diff = share - avg;
-  const compare = Math.abs(diff) < 0.005 ? `about its ${fmtChance(avg)} average (dashed)` : `${diff > 0 ? 'wider' : 'narrower'} than its ${fmtChance(avg)} average (dashed)`;
 
   return (
     <g className="flat">
-      <text x={x0} y={y - 12} className="flat-label">
-        {aimed ? 'Shadow:' : 'Average shadow:'}
-      </text>
-      <text x={x1} y={y - 11} className="flat-pct">
-        {fmtChance(share)}
-        <tspan className="flat-unit"> of the ruler</tspan>
-      </text>
       <rect x={x0} y={y} width={x1 - x0} height={h} rx={h / 2} className="bar" />
       <rect x={a} y={y} width={Math.max(1.5, b - a)} rx={2} height={h} className="bar-in" />
-      {aimed ? (
-        <>
-          <rect x={mid - avgW / 2} y={y - 3} width={avgW} height={h + 6} rx={3} className="avg-mark" />
-          <circle cx={x0 - 9} cy={y + h / 2} r={4} className="cap" />
-          <path d={`M ${x1 + 5} ${y + h / 2 - 5} L ${x1 + 14} ${y + h / 2} L ${x1 + 5} ${y + h / 2 + 5} Z`} className="cap" />
-          <text x={(x0 + x1) / 2} y={y + h + 18} className="flat-end">
-            {compare}
-          </text>
-          {p !== null && (
-            <g className={'needle ' + chordTone + (settled ? ' settled' : '')}>
-              <line x1={flatX(p)} y1={y - 6} x2={flatX(p)} y2={y + h + 6} />
-              <circle cx={flatX(p)} cy={y - 6} r={3.5} />
-            </g>
-          )}
-        </>
-      ) : (
-        <text x={(x0 + x1) / 2} y={y + h + 18} className="flat-end">
-          {name}: {fmtChance(range.lo)} to {fmtChance(range.hi)}, by direction
-        </text>
+      {aimed && p !== null && (
+        <g className={'needle ' + chordTone + (settled ? ' settled' : '')}>
+          <line x1={flatX(p)} y1={y - 6} x2={flatX(p)} y2={y + h + 6} />
+          <circle cx={flatX(p)} cy={y - 6} r={3.5} />
+        </g>
       )}
     </g>
   );

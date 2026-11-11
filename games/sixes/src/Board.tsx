@@ -1,5 +1,5 @@
 import { fmtChance } from '@originals/game-sdk/ui';
-import { ROLLS, dieChance, sixOnRoll, winChance } from './math';
+import { ROLLS, sixOnRoll, winChance } from './math';
 
 const W = 560;
 const D = 84;
@@ -35,16 +35,14 @@ function Die({ x, y, value, kind }: { x: number; y: number; value: number | null
   const s = D / 4;
   return (
     <g className={`die ${kind}`} transform={`translate(${x} ${y})`}>
-      <g className="die-body" style={{ transformOrigin: `${D / 2}px ${D / 2}px` }}>
-        <rect width={D} height={D} rx={16} className="face" />
-        {value === null ? (
-          <text x={D / 2} y={D / 2 + 11} className="q">
-            ?
-          </text>
-        ) : (
-          PIPS[value].map(([c, r], i) => <circle key={i} cx={s + c * s} cy={s + r * s} r={7.5} className="pip" />)
-        )}
-      </g>
+      <rect width={D} height={D} rx={8} className="face" />
+      {value === null ? (
+        <text x={D / 2} y={D / 2 + 11} className="q">
+          ?
+        </text>
+      ) : (
+        PIPS[value].map(([c, r], i) => <circle key={i} cx={s + c * s} cy={s + r * s} r={7.5} className="pip" />)
+      )}
     </g>
   );
 }
@@ -56,14 +54,11 @@ function Bar({ x, locked, rollsLeft, dead }: { x: number; locked: boolean; rolls
   let y = COL_Y + COL_H;
   return (
     <g className="bar">
-      <rect x={x} y={COL_Y} width={COL_W} height={COL_H} rx={6} className={'track' + (locked ? ' full' : '')} />
+      <rect x={x} y={COL_Y} width={COL_W} height={COL_H} rx={6} className={'track' + (locked ? ' full' : dead ? ' dead' : '')} />
       {pieces.map((p, i) => {
         y -= p.h;
         return <rect key={i} x={x} y={y} width={COL_W} height={p.h} className={p.next ? 'piece next' : 'piece later'} />;
       })}
-      {!locked && !dead && rollsLeft > 0 && (
-        <line x1={x} x2={x + COL_W} y1={COL_Y + COL_H - pieces[0].h} y2={COL_Y + COL_H - pieces[0].h} className="next-edge" />
-      )}
     </g>
   );
 }
@@ -74,27 +69,9 @@ export default function Board({ faces, tumble, rollsLeft, outcome }: BoardProps)
   const free = faces.filter((f) => f !== 6).length;
   const rolling = tumble !== null;
   const p = outcome === 'won' ? 1 : outcome === 'lost' ? 0 : winChance(free, rollsLeft);
-  const each = dieChance(rollsLeft);
-  const labelY = COL_Y + COL_H + 26;
-
-  let need: string;
-  if (free === 0) need = n === 1 ? 'Six!' : 'All sixes!';
-  else if (outcome === 'lost') need = `${free} ${free === 1 ? 'die' : 'dice'} short`;
-  else need = `${free === n && n > 1 ? `All ${n}` : free} ${free === 1 ? 'die needs' : 'dice need'} a six`;
-
-  const legend =
-    free === 0
-      ? ['Sixes stay put: gold dice are done']
-      : outcome === 'lost'
-        ? ['Grey dice missed their six, and no rolls are left']
-        : outcome === 'cashed'
-          ? ['You cashed out at this chance']
-          : rollsLeft === 1
-            ? ["Each bar: that die's chance of a six", 'on the last roll (1 in 6)']
-            : [`Each bar: that die's chance of a six in ${rollsLeft} rolls`, 'bright piece = the next roll (1 in 6)'];
 
   return (
-    <svg viewBox={`0 0 ${W} 404`} className="sixes" role="img" aria-label={`${free} of ${n} dice need a six, ${rollsLeft} rolls left, win chance ${fmtChance(p)}`}>
+    <svg viewBox={`0 0 ${W} ${COL_Y + COL_H + 8}`} className="sixes" role="img" aria-label={`${free} of ${n} dice need a six, ${rollsLeft} rolls left, win chance ${fmtChance(p)}`}>
       {/* Roll budget */}
       <text x={0} y={26} className="lbl start">
         Rolls left
@@ -102,9 +79,6 @@ export default function Board({ faces, tumble, rollsLeft, outcome }: BoardProps)
       {Array.from({ length: ROLLS }, (_, i) => (
         <circle key={i} cx={104 + i * 26} cy={20} r={9} className={'token' + (i < rollsLeft ? ' on' : '')} />
       ))}
-      <text x={W} y={26} className={'need end' + (free === 0 ? ' won' : outcome === 'lost' ? ' lost' : '')}>
-        {need}
-      </text>
 
       {/* Dice and their bars */}
       {faces.map((f, i) => {
@@ -114,33 +88,13 @@ export default function Board({ faces, tumble, rollsLeft, outcome }: BoardProps)
         const kind = locked ? 'six' : rolling ? 'tumble' : dead ? 'dead' : f === null ? 'blank' : 'free';
         const shown = rolling && !locked ? tumble[i] : f;
         const bx = x + (D - COL_W) / 2;
-        const v = locked ? 1 : dead ? 0 : each;
         return (
           <g key={i}>
             <Die x={x} y={DIE_Y} value={shown} kind={kind} />
             <Bar x={bx} locked={locked} rollsLeft={rollsLeft} dead={dead} />
-            <text x={x + D / 2} y={labelY} className={'pct' + (locked ? ' six' : dead ? ' dead' : '')}>
-              {locked ? '100%' : fmtChance(v)}
-            </text>
-            {i < n - 1 && (
-              <text x={x + D + GAP / 2} y={labelY} className="op">
-                ×
-              </text>
-            )}
           </g>
         );
       })}
-
-      <text x={W / 2} y={labelY + 36} className={'total' + (p === 1 ? ' won' : p === 0 ? ' lost' : '')}>
-        {n > 1 ? '= ' : ''}
-        {fmtChance(p)}
-        {p === 1 ? `: ${n === 1 ? 'the die shows' : 'every die shows'} six` : p === 0 ? ': out of rolls' : ` chance ${n === 1 ? 'the die shows' : 'every die shows'} six`}
-      </text>
-      {legend.map((line, i) => (
-        <text key={i} x={W / 2} y={labelY + 66 + i * 22} className="legend">
-          {line}
-        </text>
-      ))}
     </svg>
   );
 }

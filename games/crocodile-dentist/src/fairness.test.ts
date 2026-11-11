@@ -171,7 +171,7 @@ describe('Croc Dentist (vs House) fairness', () => {
     expect(cfg.rtp).toBe(RTP);
     expect(cfg.teeth).toBe(N);
     expect(cfg.badTeethOptions).toEqual(KS);
-    expect(cfg.houseDelay).toBe(0); // pace is still the player's
+    expect(cfg.defaultBadTeeth).toBe(DEFAULT_CONFIG.defaultBadTeeth); // the restyle dropped pace and colours as settings
     expect(withFixedMaths({ ...DEFAULT_CONFIG, rtp: 1, teeth: 4 })).toEqual(DEFAULT_CONFIG);
     // What the hole was worth: every strategy returns the configured RTP, so 100% at rtp = 1, and a
     // custom jaw paid far above the manifest's max.

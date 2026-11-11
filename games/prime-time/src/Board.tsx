@@ -16,10 +16,6 @@ interface Geo {
   fanH: number;
   fanBase: number;
   grid: { x: number; y: number; w: number; h: number };
-  /** The labelled fan for the marked digit (wide only). */
-  detail: { x: number; y: number; w: number; h: number } | null;
-  legendY: number;
-  legendX: number;
   /** Where the round-over card sits (wide only; tall boards use the kit's bottom placement). */
   overlay: { x: number; y: number; w: number; h: number } | null;
 }
@@ -27,7 +23,7 @@ interface Geo {
 const TALL: Geo = {
   wide: false,
   W: 440,
-  H: 548,
+  H: 526,
   cx: 220,
   tw: 62,
   th: 72,
@@ -36,9 +32,6 @@ const TALL: Geo = {
   fanH: 22,
   fanBase: 26 + 72 + 12 + 22,
   grid: { x: 8, y: 182, w: 424, h: 336 },
-  detail: null,
-  legendY: 540,
-  legendX: 8,
   overlay: null,
 };
 
@@ -50,14 +43,11 @@ const WIDE: Geo = {
   tw: 52,
   th: 64,
   tg: 10,
-  tileY: 26,
-  fanH: 24,
-  fanBase: 26 + 64 + 12 + 24,
+  tileY: 60,
+  fanH: 28,
+  fanBase: 60 + 64 + 12 + 28,
   grid: { x: 330, y: 4, w: 470, h: 472 },
-  detail: { x: 8, y: 196, w: 284, h: 120 },
-  legendY: 456,
-  legendX: 8,
-  overlay: { x: 0, y: 136, w: 316, h: 214 },
+  overlay: { x: 0, y: 200, w: 316, h: 214 },
 };
 
 const BLOCK_GAP = 12;
@@ -107,19 +97,6 @@ const TILE_PLACE = ['units', 'tens', 'hundreds', 'thousands', '10 000s'];
 const tilePlace = (digits: number, pos: number) => TILE_PLACE[digits - 1 - pos];
 
 const tileX = (g: Geo, digits: number, pos: number) => g.cx - (digits * g.tw + (digits - 1) * g.tg) / 2 + pos * (g.tw + g.tg);
-const pct = (x: number) => `${Math.round(x * 100)}%`;
-const fmtPct = (p: number) => {
-  if (p <= 0) return '0%';
-  if (p >= 1) return '100%';
-  const v = p * 100;
-  return (v < 1 ? v.toPrecision(2) : v < 10 ? v.toFixed(2) : v.toFixed(1)) + '%';
-};
-const fmtN = (n: number) => n.toLocaleString('en-US');
-/** Compact percentages for the detail bars: 40%, 4.4%, 0.44%. */
-const shortPct = (c: number) => {
-  const v = c * 100;
-  return (v >= 9.95 ? Math.round(v).toString() : v >= 0.995 ? v.toFixed(1) : v.toFixed(2)) + '%';
-};
 
 interface Placed {
   cell: Cell;
@@ -188,7 +165,7 @@ function Reel({ g, pos, value, x, ms }: { g: Geo; pos: number; value: number; x:
   );
 }
 
-/** One bar per value the digit could show: the win chance after it (red tick = bust, green = sure win). */
+/** One bar per value the digit could show: the win chance after it (red tick = bust, green = sure win). Bars are the picture; no labels. */
 function Bars({ f, x, w, base, h, pmax, gap }: { f: FanStat; x: number; w: number; base: number; h: number; pmax: number; gap: number }) {
   const bw = w / f.values.length;
   return (
@@ -207,64 +184,11 @@ function Bars({ f, x, w, base, h, pmax, gap }: { f: FanStat; x: number; w: numbe
 function Fan({ g, f, digits, pmax, chance }: { g: Geo; f: FanStat; digits: number; pmax: number; chance: number }) {
   const x = tileX(g, digits, f.pos);
   const nowY = g.fanBase - (g.fanH * chance) / pmax;
-  const ly = g.fanBase + 13;
   return (
     <g className="fan">
       <rect x={x} y={g.fanBase - g.fanH} width={g.tw} height={g.fanH} className="fan-bg" rx={2} />
       <Bars f={f} x={x} w={g.tw} base={g.fanBase} h={g.fanH} pmax={pmax} gap={1.2} />
       <line x1={x - 2} x2={x + g.tw + 2} y1={nowY} y2={nowY} className="now" />
-      {f.bust > 0 && f.sure > 0 ? (
-        <>
-          <text x={x + g.tw / 2} y={ly} className="fan-label bust">
-            {pct(f.bust)} bust
-          </text>
-          <text x={x + g.tw / 2} y={ly + 12} className="fan-label sure">
-            {pct(f.sure)} win
-          </text>
-        </>
-      ) : (
-        <text x={x + g.tw / 2} y={ly} className={'fan-label' + (f.bust > 0 ? ' bust' : f.sure > 0 ? ' sure' : '')}>
-          {f.bust > 0 ? `${pct(f.bust)} bust` : f.sure > 0 ? `${pct(f.sure)} win` : 'no bust'}
-        </text>
-      )}
-    </g>
-  );
-}
-
-/** The marked digit's fan, large and labelled value by value. */
-function Detail({ g, f, digits, pmax, chance }: { g: Geo; f: FanStat; digits: number; pmax: number; chance: number }) {
-  const box = g.detail!;
-  const top = box.y + 30;
-  const base = box.y + box.h - 18;
-  // Bars stop short of the top so every value label sits above its bar.
-  const h = base - top - 14;
-  const bw = box.w / f.values.length;
-  const nowY = base - (h * chance) / pmax;
-  return (
-    <g className="detail">
-      <text x={box.x} y={box.y + 8} className="detail-title start">
-        If the {placeName(digits, f.pos)} digit opens next
-      </text>
-      <rect x={box.x} y={top} width={box.w} height={base - top} className="fan-bg" rx={3} />
-      <Bars f={f} x={box.x} w={box.w} base={base} h={h} pmax={pmax} gap={6} />
-      {f.chances.map((c, i) => (
-        <g key={i}>
-          <text x={box.x + (i + 0.5) * bw} y={base + 13} className="detail-digit">
-            {f.values[i]}
-          </text>
-          <text
-            x={box.x + (i + 0.5) * bw}
-            y={c === 0 ? base - 7 : base - Math.max(1.5, (h * c) / pmax) - 4}
-            className={'detail-val' + (c === 0 ? ' bust' : c === 1 ? ' sure' : '')}
-          >
-            {c === 0 ? '✕' : c === 1 ? '✓' : shortPct(c)}
-          </text>
-        </g>
-      ))}
-      <line x1={box.x - 3} x2={box.x + box.w + 3} y1={nowY} y2={nowY} className="now" />
-      <text x={box.x + box.w} y={box.y + 22} className="detail-note end">
-        bars average to the dashed line: {fmtPct(chance)} now
-      </text>
     </g>
   );
 }
@@ -330,8 +254,6 @@ export default function Board(props: BoardProps) {
   const pmax = Math.max(chance, ...fans.flatMap((f) => f.chances)) || 1;
   const ringed = target !== null ? placed.find((p) => matches(p.cell.pattern, target)) : undefined;
   const plural = BET_PLURAL[bet];
-  const singular = plural.replace(/s$/, '');
-  const marked = fans.find((f) => f.pos === pointer);
 
   const key = (pos: number) => (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -342,10 +264,6 @@ export default function Board(props: BoardProps) {
 
   // A ring marks a dot whose winners are too few for its lit core to show.
   const ringedDot = (c: Cell) => folded && c.hits > 0 && coreScale(c) < FAINT;
-  const anyRing = placed.some((p) => ringedDot(p.cell));
-  const legend = folded
-    ? [`each dot = ${fmtN(view.size)} numbers`, `lit area = their share of ${plural}` + (anyRing ? ' · ring = a few' : '')]
-    : [`each dot = one number · lit = ${singular}`];
 
   return (
     <>
@@ -381,7 +299,7 @@ export default function Board(props: BoardProps) {
               onClick={clickable ? () => onTile(t.pos) : undefined}
               onKeyDown={clickable ? key(t.pos) : undefined}
             >
-              <rect x={x} y={g.tileY} width={g.tw} height={g.th} rx={10} className="face" />
+              <rect x={x} y={g.tileY} width={g.tw} height={g.th} className="face" rx={8} />
               {t.state === 'hidden' && (
                 <text x={mid} y={g.tileY + g.th / 2 - 4} className="q">
                   ?
@@ -412,36 +330,10 @@ export default function Board(props: BoardProps) {
         {fans.map((f) => (
           <Fan key={f.pos} g={g} f={f} digits={digits} pmax={pmax} chance={chance} />
         ))}
-        {g.detail && marked && <Detail g={g} f={marked} digits={digits} pmax={pmax} chance={chance} />}
         {verdict && (
           <text x={g.cx} y={g.fanBase - 4} className={'verdict' + (targetWins ? ' win' : ' lose')}>
             N = {verdict}
           </text>
-        )}
-
-        {/* The count behind the odds. */}
-        {g.wide ? (
-          <g className="tally">
-            <text x={8} y={372} className="tally-big start">
-              <tspan className="lit">{fmtN(winners)}</tspan>
-              <tspan className="of"> / {fmtN(candidates)}</tspan>
-            </text>
-            <text x={8} y={394} className="tally-sub start">
-              {winners === 1 ? singular : plural} lit among the candidates
-            </text>
-            <text x={8} y={414} className="tally-sub start">
-              chance N is {bet === 'composite' ? 'not prime' : bet === 'prime' ? 'prime' : 'a square'}: <tspan className="lit">{fmtPct(chance)}</tspan>
-            </text>
-          </g>
-        ) : (
-          <>
-            <text x={g.grid.x} y={g.grid.y - 10} className="head start">
-              {fmtN(candidates)} candidate{candidates === 1 ? '' : 's'}
-            </text>
-            <text x={g.grid.x + g.grid.w} y={g.grid.y - 10} className="head end">
-              <tspan className="lit">{fmtN(winners)}</tspan> {winners === 1 ? singular : plural} lit · <tspan className="lit">{fmtPct(chance)}</tspan>
-            </text>
-          </>
         )}
 
         {blocks.map((b) => (
@@ -472,23 +364,6 @@ export default function Board(props: BoardProps) {
           })}
         </g>
         {ringed && <circle cx={ringed.x} cy={ringed.y} r={r + Math.max(3, pitch * 0.12)} className={'target' + (targetWins ? ' win' : ' lose')} />}
-
-        <g className="legend">
-          <circle cx={g.legendX + 6} cy={g.legendY - 4} r={5} className="dot" />
-          <circle cx={g.legendX + 6} cy={g.legendY - 4} r={5 * (folded ? 0.6 : 1)} className="core" />
-          {anyRing && <circle cx={g.legendX + 6} cy={g.legendY - 4} r={5} className="ring" />}
-          {g.wide || legend.length === 1 ? (
-            legend.map((line, i) => (
-              <text key={i} x={g.legendX + 16} y={g.legendY + i * 15} className="start">
-                {line}
-              </text>
-            ))
-          ) : (
-            <text x={g.legendX + 16} y={g.legendY} className="start">
-              {legend.join(' · ')}
-            </text>
-          )}
-        </g>
       </svg>
       {overlay && (
         <div className={'pt-overlay' + (box && wide ? '' : ' fill')} style={box && wide ? box : undefined}>

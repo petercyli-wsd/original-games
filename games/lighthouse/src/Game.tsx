@@ -4,7 +4,6 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -16,6 +15,8 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  ACCENTS,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -43,8 +44,6 @@ import {
   chanceAt,
   fireAngle,
   headlineChance,
-  heightEffect,
-  heightEffectLabel,
   lands,
   presetOf,
   prizeFor,
@@ -139,7 +138,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const ms = turbo.turbo ? { rise: 380, fire: 400 } : { rise: 1500, fire: 1500 };
+  const ms = { rise: eventMs(turbo.turbo), fire: eventMs(turbo.turbo, 1000) };
   const live = phase !== 'idle' && phase !== 'over';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -220,8 +219,6 @@ export default function Game() {
   const w = round?.win ?? win;
   const headline = useMemo(() => headlineChance(w), [w]);
   const typicalH = useMemo(() => typicalHeight(w), [w]);
-  const effect = useMemo(() => heightEffectLabel(heightEffect(w)), [w]);
-  const settingsP = useMemo(() => headlineChance(win), [win]);
   const vol = volatilityOf(win);
   const preset = presetOf(dist);
 
@@ -236,12 +233,6 @@ export default function Game() {
   if (phase === 'firing') status = 'Beam sweeping…';
   if (phase === 'over' && round?.outcome) status = OUTCOME_TITLE[round.outcome];
   const tone = phase === 'over' ? (round && cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  let next = '';
-  if (phase === 'rising') next = `The tower is rising: ${effect}. Watch the green cone.`;
-  else if (phase === 'checkpoint' && round)
-    next = `Your slice ${round.p >= round.p0 ? 'widened' : 'narrowed'} from ${fmtChance(round.p0)} to ${fmtChance(round.p)}. Cash out, or fire: ${RULE.charAt(0).toLowerCase()}${RULE.slice(1)}`;
-  else if (phase === 'firing') next = 'Every direction in the fan is equally likely.';
 
   // Over the sky in wide frames; below the board in narrow ones, where a card would cover the picture.
   const roundOver = (placement: 'top' | 'inline') =>
@@ -263,7 +254,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Lighthouse"
-      accent="#ffe066"
+      accent={ACCENTS.amber}
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -287,20 +278,13 @@ export default function Game() {
           </Label>
           <Slider label="Window distance" value={dist} min={DIST_MIN} max={DIST_MAX} step={DIST_STEP} disabled={live} onChange={(d) => changeDist(snapDist(d))} />
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(settingsP)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(RTP / settingsP)}</dd>
-          </dl>
-
           {phase === 'checkpoint' && round ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={fire}>
-                Fire beam · {fmtChance(round.p)} hit
+                Fire beam
               </ActionButton>
             </>
           ) : (
@@ -317,26 +301,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(p),
-            sub:
-              phase === 'idle' || phase === 'rising'
-                ? 'before the tower stops'
-                : phase === 'over'
-                  ? round?.outcome === 'cashed'
-                    ? 'when you cashed out'
-                    : 'round over'
-                  : 'green share of the fan',
-            tone: 'chance',
-          },
-          {
-            label: phase === 'over' ? 'Paid' : 'Cash out now',
-            value: phase === 'idle' || phase === 'rising' ? '—' : fmtMult(cash),
-            sub: phase === 'idle' || phase === 'rising' ? 'once the tower stops' : formatAmount(stake * cash, 2),
-            tone: 'cash',
-          },
-          { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(p), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -350,7 +316,6 @@ export default function Game() {
           result={phase === 'over' && (round?.outcome === 'lit' || round?.outcome === 'miss') ? round.outcome : null}
           editable={!live}
           rising={phase === 'rising'}
-          effect={effect}
           onDist={changeDist}
           onCompact={setCompact}
         />
@@ -358,14 +323,7 @@ export default function Game() {
       </Board>
       {compact && roundOver('inline')}
 
-      {live ? (
-        <ChanceBar p={p} label="Beam lights your window" note={next} />
-      ) : (
-        <Caption>
-          {RULE} First the tower stops at a random height between {H_MIN} and {H_MAX} ({effect}). Farther windows are rarer and pay more. Drag the window or
-          tap the shore to move it.
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Lighthouse" onClose={() => setInfoOpen(false)}>
@@ -386,13 +344,13 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Every direction of the beam is equally likely, so what matters is angle, not distance along the shore. The{' '}
-              <b style={{ color: 'var(--green)' }}>green cone</b> runs from the lamp to the two ends of your window. On the{' '}
-              <b>share of the fan</b> dial (and the small ring round the lamp) it is the green part of the half circle; the{' '}
-              <b style={{ color: 'var(--red)' }}>red</b> part is every direction that misses. Ticks mark every 10%. Your chance is the green share.
+              <b style={{ color: 'var(--win)' }}>green cone</b> runs from the lamp to the two ends of your window. On the{' '}
+              <b>fan</b> dial it is the green part of the half circle; the{' '}
+              <b style={{ color: 'var(--lose)' }}>red</b> part is every direction that misses. Ticks mark every 10%. Your chance is the green share.
             </p>
             <p>
-              A taller tower looks down on near windows more steeply, so their slice narrows; far windows face it more squarely, so theirs widens. The
-              label by the tower says which way it goes for your window. Before the tower stops, the chance is the average over all heights.
+              A taller tower looks down on near windows more steeply, so their slice narrows; far windows face it more squarely, so theirs widens. Before
+              the tower stops, the chance is the average over all heights.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

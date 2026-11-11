@@ -3,6 +3,7 @@ import {
   ActionButton,
   BetField,
   Board,
+  ACCENTS,
   Caption,
   ChanceBar,
   GameLayout,
@@ -15,7 +16,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useBetInput,
   useHistory,
@@ -27,9 +28,9 @@ import {
 import { formatAmount } from '@originals/game-sdk';
 import { useEffect, useRef, useState } from 'react';
 import Field, { type Outcome, type Phase } from './Board';
-import { MAX_MULTIPLIER, N, RTP, TARGETS, clampTarget, countRecords, drawRank, headline, outOfReach, prizeFor, volatilityOf, winChance } from './math';
+import { MAX_MULTIPLIER, N, RTP, TARGETS, clampTarget, countRecords, drawRank, outOfReach, prizeFor, volatilityOf, winChance } from './math';
 
-const ACCENT = '#ff8fab';
+const ACCENT = ACCENTS.pink;
 
 interface Round {
   id: number;
@@ -43,8 +44,6 @@ interface Round {
   cash: number;
   outcome: Outcome | null;
 }
-
-const plural = (x: number, w: string) => `${x} ${w}${x === 1 ? '' : 's'}`;
 
 function outcomeTitle(r: Round) {
   if (r.outcome === 'target') return `${r.k} records!`;
@@ -92,7 +91,7 @@ export default function Game() {
   const ticket = useTicket(() => resolved.current);
 
   const speed = turbo.turbo ? 0.25 : 1;
-  const itemMs = Math.round(560 * speed);
+  const itemMs = eventMs(turbo.turbo);
   const live = phase === 'running' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -185,18 +184,12 @@ export default function Game() {
   const stake = round?.stake ?? bet.value;
   const pNow = round?.outcome === 'target' ? 1 : round?.outcome === 'short' ? 0 : winChance(k, j, r);
   const cash = phase === 'over' && round ? round.cash : round ? prize * pNow : RTP;
-  const need = Math.max(0, k - r);
-  const nextT = Math.min(j + 1, N);
 
   let status = `Ready · ${k}+ records in ${N} items`;
   if (phase === 'running') status = `Item ${ranks.length} of ${N}`;
   if (phase === 'checkpoint') status = `Checkpoint · ${r} of ${k} records`;
   if (phase === 'over' && round) status = `${outcomeTitle(round)} · ${Math.min(r, k)} of ${k}`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  let chanceSub = `${k}+ records in ${N} items`;
-  if (live) chanceSub = need > 0 ? `need ${need} more · ${plural(N - j, 'item')} left` : 'target reached';
-  if (phase === 'over') chanceSub = round?.outcome === 'cashed' ? `when you cashed out` : `${plural(r, 'record')} in ${j} items`;
 
   return (
     <GameLayout
@@ -222,25 +215,13 @@ export default function Game() {
             <span>bigger prize · {TARGETS[TARGETS.length - 1]}</span>
           </div>
 
-          {/* The settings' numbers; while live the stage shows the live chance instead. */}
-          <dl className="og-stats">
-            {!live && (
-              <>
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(headline(target))}</dd>
-              </>
-            )}
-            <dt>Prize</dt>
-            <dd>{fmtMult(live && round ? round.prize : prizeFor(target))}</dd>
-          </dl>
-
           {live && round ? (
             <>
               <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => next(round)}>
-                Next item · 1 in {nextT} is a record
+                Next item
               </ActionButton>
             </>
           ) : (
@@ -255,16 +236,11 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar p={pNow} label={live || phase === 'over' ? `Chance to get ${k} records from here` : `Chance to get ${k} records`} />
+
       <Readouts
         items={[
-          { label: 'Win chance', value: fmtChance(pNow), sub: chanceSub, tone: 'chance' },
-          {
-            label: 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'at every checkpoint',
-            tone: 'cash',
-          },
-          { label: `Prize at ${k} records`, value: fmtMult(prize), sub: formatAmount(stake * prize, 2), tone: 'prize' },
+          { label: `Prize at ${k} records`, value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -295,19 +271,13 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar p={pNow} label={`Chance to get ${k} records`} />
-      ) : (
-        <Caption>
-          Item 1 is always a record; item {N} is one only 1 time in {N}, so records get rare as the queue goes on. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Win by getting enough records: items that beat every item before them.</Caption>
 
       {infoOpen && (
         <InfoModal title="Records" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              {N} items arrive one at a time in random order. An item is a <b style={{ color: 'var(--green)' }}>record</b> if it beats every item before it.
+              {N} items arrive one at a time in random order. An item is a <b style={{ color: 'var(--win)' }}>record</b> if it beats every item before it.
               Get at least as many records as you chose before the {N} items run out.
             </p>
           </InfoSection>
@@ -316,7 +286,7 @@ export default function Game() {
               <li>Choose how many records you need, then bet. The first item is always a record.</li>
               <li>
                 Item t drops into one of t equal slots: its place among the t items so far. Only the{' '}
-                <b style={{ color: 'var(--green)' }}>green top slot</b> beats them all, so it is a new record. Every other slot is a miss.
+                <b style={{ color: 'var(--win)' }}>green top slot</b> beats them all, so it is a new record. Every other slot is a miss.
               </li>
               <li>At every checkpoint, cash out (C) or drop the next item (Space).</li>
               <li>The moment you have enough records, the prize pays out. If too few items are left to get there, the round is lost.</li>
@@ -328,8 +298,9 @@ export default function Game() {
               item 20. That is why records get rare late in the queue.
             </p>
             <p>
-              <b>The whole bet</b>: the bar under the board is your chance to finish with enough records from here. It jumps up on a record and slips down a
-              little on every miss. The row of items shows your records (green ticks), misses (grey dots) and the items still to come.
+              <b>The whole bet</b>: the bar above the board is your chance to finish with enough records from here. It jumps up on a record and slips
+              down a little on every miss. The row of items shows your records (green ticks), misses (grey dots) and the items still to come. Item 1 is always
+              a record, and the average payout is {(RTP * 100).toFixed(0)}% of the stake.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

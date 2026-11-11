@@ -115,6 +115,7 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
   - each event can be followed, and the last result stays marked;
   - nothing on the board is removable;
   - one decision type, with no mid-round switching unless switching *is* the game.
+- **The blind sandbox hides any element whose own text is 9+ space-separated tokens, and never shows it again** once hidden (a MutationObserver only hides). A status line that starts long stays invisible for the whole session; `=` and `·` count as words, and JSX splitting `{a}, {b}` into several text nodes adds tokens. Keep on-board text and status lines under 9 tokens, or render them as one template string.
 - **Reviews go stale when code changes,** including a manifest `status` edit. If only metadata changed, point `evidence.json` at the current files and hash and resubmit. Local `review.json` can be from a rejected iteration round: check its hash before submitting.
 
 ## Lobby
@@ -123,16 +124,15 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 - **Badges:** New and Improved, from `revision`.
 - **Forking:** team-reviewed games are forked rather than edited, so their reviews stay attached to the version reviewed.
 
-## Current state (2026-11-09; update this section as it changes)
+## Current state (2026-11-11; update this section as it changes)
 
 | Branch / checkout | State |
 |---|---|
-| `main` | The November revamp: v7, gate, Archive, 5 new games, 14 improved, 16 archived |
-| `fairness` (pushed) | The audit fixes and tests for all 114 games, plus this file. **Needs a PR merged into `main` first.** |
-| `restyle` (worktree `../original-games-restyle`) | 67 games flattened to `docs/STYLE.md`. The re-review found 29 regressions (odds legibility mostly; ~13 under the gate). §6 was fixed and 11 games restored but not re-reviewed; 18 untouched. Merging `fairness` conflicts in 6 files (crocodile-dentist ×3, drift, maze, snowball). Not ready to merge. |
+| `main` | The November revamp (v7, gate, Archive), plus the fairness audit (PR #2, all 114 games) and the restyle (PR #3: 67 games flattened to `docs/STYLE.md`), both merged 2026-11-11, plus the search loop's games. |
+| `restyle` (worktree `../original-games-restyle`, merged) | Restyle result: every game that passed the gate before still passes (drift and cross fail only on their team ratings, as before). Mean clarity over the 29 regressed games is 3.977 vs 3.954 before; over all 67 it is 4.060 vs 3.970 live. STYLE.md §6 gained the unit-key rule (≤ 2 lines, < 9 tokens) and the numbered next-step cells exception (Tumble). All 67 local reviews match the merged code and sit in that worktree's `.evaluator/_pending.json`, **not submitted**: `submit --pending` from there only when Peter says so. |
 | `search` (main checkout) | The `/search-games` loop. 2 cycles kept Derby v2, Back to Back and Stepladder (all unrated by the team). Ledger in `.evaluator/_search/ledger.md`. |
 
 Open items:
 - The team should rate the `docs/SEARCH.md` games; the loop stops at 12 unrated.
-- About 80 live AI reviews are stale after the fairness fixes; the restyle's re-review replaces them.
+- About 80 live AI reviews are stale after the fairness and restyle merges; the restyle worktree's queued reviews replace them once submitted.
 - Retired games mostly have no v7 review.

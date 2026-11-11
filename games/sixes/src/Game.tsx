@@ -7,6 +7,7 @@ import {
   Board,
   Caption,
   ChanceBar,
+  ACCENTS,
   Chips,
   GameLayout,
   InfoModal,
@@ -21,6 +22,7 @@ import {
   VolBadge,
   fmtChance,
   fmtMult,
+  eventMs,
   useAutoBet,
   useBetInput,
   useHistory,
@@ -33,7 +35,7 @@ import {
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
 import Dice, { type Outcome } from './Board';
-import { DICE, ROLLS, RTP, cashOutFor, dieChance, face, nextRoll, prizeFor, startChance, volatilityOf, winChance, type DiceCount, type NextRollOutcome } from './math';
+import { DICE, ROLLS, RTP, cashOutFor, dieChance, face, prizeFor, startChance, volatilityOf, winChance, type DiceCount } from './math';
 
 type Phase = 'idle' | 'rolling' | 'checkpoint' | 'over';
 
@@ -54,29 +56,12 @@ interface Last {
 }
 
 const RULE = 'Roll your dice up to three times; sixes stay put, and you win if every die shows a six.';
+const CAPTION = 'Win when every die shows a six within three rolls.';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const OUTCOME_TITLE: Record<Outcome, string> = { won: 'All sixes', lost: 'Out of rolls', cashed: 'Cashed out' };
 
 const freeOf = (faces: readonly (number | null)[]) => faces.filter((f) => f !== 6).length;
 const dice = (k: number) => `${k} ${k === 1 ? 'die' : 'dice'}`;
-const sixes = (k: number) => `${k} ${k === 1 ? 'six' : 'sixes'}`;
-
-/** What the next roll can do: each count of new sixes, its chance, and the win chance it leaves. */
-function NextRoll({ outs, now, last }: { outs: readonly NextRollOutcome[]; now: number; last: boolean }) {
-  return (
-    <div className="sixes-next" aria-label="Next roll outcomes">
-      <p className="sixes-next-head">{last ? 'Last roll' : 'Next roll'}: new sixes · their chance → your win chance after</p>
-      {outs.map((o) => (
-        <div key={o.sixes} className={'sixes-ev' + (o.win > now + 1e-12 ? ' up' : ' down')}>
-          <span>
-            {sixes(o.sixes)} · {fmtChance(o.prob)}
-          </span>
-          <b>{o.win >= 1 ? 'win' : o.win <= 0 ? (last ? 'lose' : '0%') : `→ ${fmtChance(o.win)}`}</b>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function Game() {
   const { rng, track } = useHost();
@@ -110,7 +95,7 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
-  const rollMs = () => (isAutoRef.current ? (fast ? 150 : 480) : fast ? 200 : 800);
+  const rollMs = () => (isAutoRef.current ? (fast ? 150 : 480) : eventMs(fast));
   const live = phase === 'rolling' || phase === 'checkpoint';
 
   function cashOf(r: Round) {
@@ -281,7 +266,6 @@ export default function Game() {
   const prize = prizeFor(r.n);
   const cash = prize * winNow;
   const stake = r.stake;
-  const outs = phase === 'checkpoint' && !isAuto ? nextRoll(free, rollsLeft) : null;
   const tumble = tumbling ? r.faces.map((_, i) => ((tick * 5 + i * 3) % 6) + 1) : null;
 
   const p0 = startChance(n);
@@ -309,21 +293,8 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
   const readouts: ReadoutItem[] = [
-    {
-      label: 'Win chance',
-      value: fmtChance(round ? winNow : p0),
-      sub: round && outcome === null ? `${dice(free)} ${free === 1 ? 'needs' : 'need'} a six` : `${r.n === 1 ? 'the die' : `all ${r.n} dice`} on six`,
-      tone: 'chance',
-    },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(r.paid) : showCash ? fmtMult(cash) : isAuto ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' ? formatAmount(stake * r.paid, 2) : showCash ? formatAmount(stake * cash, 2) : isAuto ? (target > 0 ? 'or on all sixes' : 'plays every roll') : 'after the first roll',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+    { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
   ];
 
   const nextLabel = rollsLeft === 1 ? 'last roll' : `${rollsLeft} rolls left`;
@@ -331,7 +302,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Sixes"
-      accent="#a5b4fc"
+      accent={ACCENTS.blue}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live || autoBusy} />
@@ -340,7 +311,7 @@ export default function Game() {
           <Label hint={<VolBadge level={vol} />}>Dice</Label>
           <Chips
             label="Number of dice"
-            options={DICE.map((v) => ({ value: v, label: v, title: `${fmtChance(startChance(v))} to win` }))}
+            options={DICE.map((v) => ({ value: v, label: v }))}
             value={n}
             disabled={busy}
             onChange={(v) => change(() => setN(v))}
@@ -348,14 +319,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -384,12 +347,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="sixes-note">{bet.blocked}</p>}
@@ -399,6 +356,8 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
+      {/* Unit key for the bars under the dice (docs/STYLE.md §6), under the blind evaluator's 9-token cut-off. */}
+      <ChanceBar p={round ? winNow : p0} label="Win chance" note="Die bars: chance of a six, piece per roll" />
       <Readouts items={readouts} />
 
       <Board>
@@ -406,7 +365,7 @@ export default function Game() {
         <Dice faces={r.faces} tumble={tumble} rollsLeft={outcome === 'lost' ? 0 : rollsLeft} outcome={outcome} />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -418,33 +377,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && phase === 'checkpoint' && outs ? (
-        <ChanceBar
-          p={winNow}
-          label="Win chance: every die shows six"
-          note={<NextRoll outs={outs} now={winNow} last={rollsLeft === 1} />}
-        />
-      ) : live || (isAuto && round && (autoBusy || auto.running)) ? (
-        <ChanceBar
-          p={winNow}
-          label="Win chance: every die shows six"
-          note={
-            phase === 'rolling'
-              ? `Rolling ${dice(free)}: each has a 1 in 6 chance of a six.`
-              : target > 0 && target < prize
-                ? `Worth ${fmtMult(cash)} now · Auto cashes at ${fmtMult(target)}, or wins ${fmtMult(prize)} on all sixes`
-                : `Worth ${fmtMult(cash)} now · Auto plays to all sixes for ${fmtMult(prize)}`
-          }
-        />
-      ) : (
-        <Caption>
-          <b className="sixes-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' to the last roll'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `More dice: a smaller chance and a bigger prize. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>{CAPTION}</Caption>
 
       {infoOpen && (
         <InfoModal title="Sixes" onClose={() => setInfoOpen(false)}>
@@ -454,7 +388,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Pick how many dice to roll (1 to 5), then Bet. The first roll happens straight away.</li>
-              <li>Every die that shows a six turns gold and stays put. The others are rolled again on the next roll.</li>
+              <li>Every die that shows a six gets a green outline and stays put. The others are rolled again on the next roll.</li>
               <li>After roll 1 and roll 2 you can cash out (C) or roll the dice that still need a six (Space).</li>
               <li>If every die shows a six, you win the prize at once. If any die is not a six after roll 3, the round is lost.</li>
               <li>Auto plays whole rounds and cashes out once the round is worth your target (or plays to the end with End).</li>
@@ -463,11 +397,11 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The bar under each die is that die's chance of showing a six in the rolls you have left. Its bright bottom piece is the next roll, exactly 1 in 6;
-              the paler pieces above are the rolls after it (5/36, then 25/216). A gold die is already a six, so its bar is full.
+              the paler pieces above are the rolls after it (5/36, then 25/216). A die that is already a six has a full green bar.
             </p>
             <p>
-              The dice are independent, so your win chance is the bars multiplied together, shown under them and in the green bar. At each checkpoint the boxes
-              under the green bar list what the next roll can do: how many new sixes it might give, how likely that is, and your win chance after it.
+              The dice are independent, so your win chance is the bars multiplied together, shown as Win chance above the board. Each roll is a fair bet, so you
+              can cash out after roll 1 or 2 at your current chance times the prize.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

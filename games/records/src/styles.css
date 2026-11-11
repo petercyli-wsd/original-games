@@ -2,113 +2,85 @@
 
 .rec text {
   font-family: inherit;
+  font-weight: 500;
   fill: var(--text);
 }
 .rec .cap {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.1px;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
 .rec .end {
   text-anchor: end;
 }
 .rec .g {
-  fill: var(--green);
+  fill: var(--win);
 }
 .rec .tally {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-2);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
-/* Record tally pips. */
+/* Record tally pips: the player's target, filled as records arrive. */
 .rec .pip {
   fill: transparent;
-  stroke: color-mix(in srgb, var(--green) 45%, var(--line));
+  stroke: var(--accent);
   stroke-width: 1.6;
-  transition: fill 0.2s ease;
 }
 .rec .pip.on {
-  fill: var(--green);
-  stroke: var(--green);
-}
-.rec .pip.pop {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: rec-pop 0.45s ease;
-}
-.rec.won .pip.on {
-  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--green) 60%, transparent));
+  fill: var(--win);
+  stroke: var(--win);
 }
 
 /* The draw: t equal slots, the top one green. */
 .rec .verdict {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.8px;
-}
-.rec .verdict.miss {
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
 .rec .slot {
-  fill: color-mix(in srgb, var(--text) 14%, var(--card));
-  transition: fill 0.2s ease;
+  fill: var(--hover);
 }
 .rec .slot.landed {
-  fill: color-mix(in srgb, var(--text) 34%, var(--card));
+  fill: var(--faint);
 }
 .rec .slot.top {
-  fill: color-mix(in srgb, var(--green) 70%, var(--card));
+  fill: var(--win);
 }
-.rec .slot.top.landed {
-  fill: var(--green);
-}
-.rec .slot-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
-  fill: var(--muted);
-}
-.rec .slot-label.g {
-  fill: var(--green);
+.rec .slot.landed {
+  stroke: var(--text);
+  stroke-width: 2;
 }
 .rec .ball {
-  fill: #fff;
+  fill: var(--text);
   stroke: var(--bg);
   stroke-width: 2;
 }
 .rec .ball.waiting {
   fill: transparent;
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 2;
-  stroke-dasharray: 4 3;
 }
 .rec .ball.hit {
-  stroke: var(--green);
+  stroke: var(--win);
   stroke-width: 2.5;
-  filter: drop-shadow(0 0 7px var(--green));
 }
 .rec .ball.drop {
-  animation: rec-drop var(--ms, 400ms) cubic-bezier(0.45, 0, 0.7, 1) both;
+  animation: rec-drop var(--ms, 600ms) ease-in both;
 }
 
 /* The queue of items. */
 .rec .mk.record {
-  fill: var(--green);
+  fill: var(--win);
 }
 .rec .mk.miss {
-  fill: color-mix(in srgb, var(--text) 42%, var(--card));
+  fill: var(--faint);
 }
 .rec .mk.future {
   fill: none;
-  stroke: color-mix(in srgb, var(--text) 28%, var(--card));
+  stroke: var(--line-strong);
   stroke-width: 1.5;
-}
-.rec .mk.future.next {
-  stroke: var(--accent);
-  stroke-width: 2;
-  stroke-dasharray: 3 2;
 }
 .rec .tick {
   fill: none;
@@ -116,17 +88,6 @@
   stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-.rec .under-card {
-  visibility: hidden;
-}
-.rec .faded {
-  opacity: 0.35;
-}
-.rec .appear {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: rec-pop 0.4s ease;
 }
 .rec .num {
   font-size: 10px;
@@ -136,74 +97,38 @@
 }
 .rec .num.now {
   fill: var(--text);
-  font-weight: 800;
-}
-.rec .legend {
-  font-size: 11px;
-  fill: var(--muted);
-}
-
-/* The rule. */
-.rec .rule {
-  font-size: 12.5px;
-  fill: var(--muted);
-}
-.rec .rule .g {
-  font-weight: 800;
-}
-.rec .rule .strong {
-  fill: var(--text);
-  font-weight: 800;
-}
-.rec .rule.warn {
-  fill: var(--red);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 /* Small frames: the board scales down, so the type scales up. */
 .rec.narrow .cap,
 .rec.narrow .verdict {
-  font-size: 13.5px;
-}
-.rec.narrow .slot-label {
-  font-size: 12.5px;
+  font-size: var(--fs-2);
 }
 .rec.narrow .num {
   font-size: 13px;
 }
-.rec.narrow .legend {
-  font-size: 13.5px;
-}
-.rec.narrow .rule {
-  font-size: 15.5px;
-}
 .rec.narrow .tally {
-  font-size: 16px;
+  font-size: var(--fs-3);
 }
 
 /* Narrow boards put the result card inline below the board; keep it inside the frame. */
 .rec-board.narrow {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto;
-  gap: 10px;
+  gap: var(--sp-3);
 }
 
 /* Panel: the ends of the records slider. */
 .rec-hint {
   display: flex;
   justify-content: space-between;
-  margin-top: -2px;
-  font-size: 11px;
+  font-size: var(--fs-1);
   color: var(--muted);
 }
 
 @keyframes rec-drop {
   from {
     transform: translate(var(--fx, 0px), var(--fy, -30px));
-  }
-}
-@keyframes rec-pop {
-  50% {
-    transform: scale(1.5);
   }
 }

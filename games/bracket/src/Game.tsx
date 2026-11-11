@@ -6,8 +6,8 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
+  ACCENTS,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -42,9 +43,9 @@ import {
   ROUND_NAMES,
   RTP,
   emptyResults,
+  beats,
   makeBracket,
   nextMatch,
-  outcomes,
   playMatch,
   playedCount,
   players,
@@ -86,6 +87,17 @@ interface Play {
   skip: boolean;
 }
 
+/** The match on the duel bar: its seeds, x's win chance and where the draw landed. */
+interface Shown {
+  x: number;
+  y: number;
+  px: number;
+  u: number;
+  k: number;
+  seq: number;
+  ms: number;
+}
+
 interface AutoView {
   n: Field;
   preset: Preset;
@@ -119,6 +131,7 @@ export default function Game() {
   const [round, setRound] = useState<Round | null>(null);
   const [play, setPlay] = useState<Play | null>(null);
   const [autoView, setAutoView] = useState<AutoView | null>(null);
+  const [shown, setShown] = useState<Shown | null>(null);
   const [autoBusy, setAutoBusy] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -130,9 +143,9 @@ export default function Game() {
   const ticket = useTicket(() => (phase === 'playing' || autoBusy ? resolved.current : phase === 'checkpoint' && round ? round.cash : 0));
 
   // Other seeds' matches are quick; your own match gets a longer, tenser sweep.
-  const playMs = turbo.turbo ? 220 : 650;
-  const mineMs = turbo.turbo ? 420 : 1400;
-  const skipMs = turbo.turbo ? 110 : 380;
+  const playMs = eventMs(turbo.turbo);
+  const mineMs = eventMs(turbo.turbo, 1000);
+  const skipMs = eventMs(turbo.turbo, 300);
   const autoMs = turbo.turbo ? 45 : 170;
   const live = phase === 'playing' || phase === 'checkpoint';
 
@@ -158,6 +171,8 @@ export default function Game() {
     resolved.current = cash;
     const mine = players(b, r.res, ref.k, ref.m).includes(r.held);
     setPlay({ ref, u, seq: ++seq.current, mine, skip: toMine });
+    const [px0, py0] = players(b, r.res, ref.k, ref.m);
+    setShown({ x: px0, y: py0, px: beats(b, px0, py0), u, k: ref.k, seq: seq.current, ms: mine ? mineMs : toMine ? skipMs : playMs });
     setPhase('playing');
     timers.after(mine ? mineMs : toMine ? skipMs : playMs, () => {
       const next: Round = { ...r, res, cash };
@@ -193,6 +208,7 @@ export default function Game() {
   function clear() {
     if (live || autoBusy) return;
     timers.clearAll();
+    setShown(null);
     setRound(null);
     setPlay(null);
     setAutoView(null);
@@ -318,26 +334,21 @@ export default function Game() {
   const nextRef = !isAuto && live ? (play?.ref ?? nextMatch(b, view.res, held)) : null;
   const roundName = (k: number) => ROUND_NAMES[b.rounds][k];
 
+  // The last match played stays on its bar (marker landed) until the next one starts; at a checkpoint the next seeds are named below it.
   let duel = null;
-  if (nextRef) {
-    const [x, y] = players(b, view.res, nextRef.k, nextRef.m);
-    const [ox, oy] = outcomes(b, view.res, nextRef, held);
-    const mine = x === held || y === held;
+  if (shown && !isAuto && (live || phase === 'over')) {
+    const upNext = phase === 'checkpoint' && nextRef ? players(b, view.res, nextRef.k, nextRef.m) : null;
     duel = (
       <Duel
-        b={b}
-        x={x}
-        y={y}
-        px={ox.p}
-        ax={ox.after}
-        ay={oy.after}
-        now={pNow}
+        x={shown.x}
+        y={shown.y}
+        px={shown.px}
         held={held}
-        title={`${phase === 'playing' ? 'Playing' : 'Next'} · ${roundName(nextRef.k)}${mine ? ' · your seed' : ''}`}
-        landing={phase === 'playing' && play ? play.u : null}
-        ms={play ? (play.mine ? mineMs : play.skip ? skipMs : playMs) : 0}
-        mine={mine}
-        seq={play?.seq ?? 0}
+        title={`${phase === 'playing' ? 'Playing' : 'Played'} · ${roundName(shown.k)}`}
+        u={shown.u}
+        ms={shown.ms}
+        seq={shown.seq}
+        upNext={upNext}
       />
     );
   }
@@ -386,30 +397,9 @@ export default function Game() {
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
-  const showLive = live || phase === 'over';
   const readouts: ReadoutItem[] = [
-    {
-      label: 'Title chance',
-      value: fmtChance(pNow),
-      sub: `seed ${held + 1} · rating ${b.ratings[held]}`,
-      tone: 'chance',
-    },
-    phase === 'over' && round?.outcome === 'out'
-      ? { label: 'Cash out now', value: 'Out', sub: `beaten by seed ${(round.by ?? 0) + 1}`, tone: 'lose' }
-      : isAuto
-      ? { label: 'Cash out at', value: target ? fmtMult(target) : 'End', sub: target ? 'or the title' : 'play every match', tone: 'cash' }
-      : {
-          label: 'Cash out now',
-          value: showLive ? fmtMult(phase === 'over' && round ? round.cash : cash) : '—',
-          sub: showLive ? formatAmount(stake * (phase === 'over' && round ? round.cash : cash), 2) : 'after every match',
-          tone: 'cash',
-        },
-    {
-      label: 'Prize',
-      value: fmtMult(view.prize),
-      sub: `if seed ${held + 1} wins`,
-      tone: 'prize',
-    },
+    { label: `Seed ${held + 1} title chance`, value: fmtChance(pNow), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(view.prize), tone: 'prize' },
   ];
 
   const nextIsMine = nextRef ? players(b, view.res, nextRef.k, nextRef.m).includes(held) : false;
@@ -417,7 +407,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Bracket"
-      accent="#8338ec"
+      accent={ACCENTS.violet}
       className="bk-game"
       panel={
         <>
@@ -459,12 +449,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Title chance</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(RTP / p0)}</dd>
-              </dl>
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
@@ -493,12 +477,6 @@ export default function Game() {
                 disabled={autoLocked}
                 onChange={(v) => change(() => setTarget(v))}
               />
-              <dl className="og-stats">
-                <dt>Title chance</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(RTP / p0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="bk-blocked">{bet.blocked}</p>}
@@ -527,8 +505,6 @@ export default function Game() {
               canPick={canPick}
               pickTitle={pickTitle}
               onPick={pickSeed}
-              live={showLive || !!autoView}
-              playingMine={phase === 'playing' && !!play?.mine}
             />
           ))}
         </div>
@@ -548,18 +524,7 @@ export default function Game() {
         )}
       </Board>
 
-      {!isAuto && live ? (
-        <ChanceBar
-          p={pNow}
-          label={`Seed ${held + 1} wins the title`}
-          note="Your purple slice of the centre ring is this chance. Click any live seed to switch: the cash-out stays, the prize relocks."
-        />
-      ) : (
-        <Caption>
-          <b className="bk-rule">{RULE}</b> Cash out or switch seeds after any match. Each match is won with chance rating ÷ (both ratings). Seed {seed + 1} takes the title {fmtChance(p0)} of the time
-          for {fmtMult(RTP / p0)}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Bracket" onClose={() => setInfoOpen(false)}>
@@ -577,9 +542,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Every seed's ring and percentage is its exact chance to win the title from here. The centre ring splits 100% between the seeds still in; your
-              seed's <b style={{ color: 'var(--accent)' }}>purple slice</b> is your chance. The next match's node is split by its odds, and the bar under the bracket
-              shows both results with the title chance each would leave you: weighted by the match odds they average to your chance now.
+              The title chance shown above the bracket is your seed's exact chance to win the title from here, and it moves after every match. Your seed and
+              its path to the final are drawn in the accent colour; knocked-out seeds turn grey. Each match is won with chance rating ÷ (both ratings).
             </p>
           </InfoSection>
           <InfoSection title="The maths">

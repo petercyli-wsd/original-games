@@ -1,12 +1,12 @@
 import { formatAmount, type Volatility } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,6 +20,7 @@ import {
   StageTop,
   VolBadge,
   fmtChance,
+  eventMs,
   fmtMult,
   useAutoBet,
   useBetInput,
@@ -132,7 +133,7 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const dealMs = turbo.turbo ? 130 : 520;
+  const dealMs = eventMs(turbo.turbo);
   const live = phase === 'live' || phase === 'dealing';
   const dealing = incoming !== null;
 
@@ -306,13 +307,6 @@ export default function Game() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto.mode]);
 
-  // Clear the win / lose glow shortly after it shows.
-  useEffect(() => {
-    if (!flash) return;
-    const id = window.setTimeout(() => setFlash((f) => (f && f.key === flash.key ? null : f)), 900);
-    return () => window.clearTimeout(id);
-  }, [flash]);
-
   // ---------- Keys ----------
 
   const rank = card.card.rank;
@@ -366,16 +360,11 @@ export default function Game() {
   const won = round?.won ?? 0;
   const base = phase === 'live' || phase === 'dealing' ? cash : RTP;
   const canCall = (g: Guess) => phase === 'live' && !dealing && available(g, rank, calls) && withinCap(base, g, rank);
-  const pUp = chance(up, rank);
-  const pDown = chance(down, rank);
-  const best = likelier(rank);
   // The next round's first card: the fixed start card, or (random) the card showing.
   const nextRank = !live && typeof startPref === 'number' ? startPref : rank;
-  const nextBest = likelier(nextRank);
-  // After a round with a fixed start card, the call readouts preview the next round's first card.
+  // After a round with a fixed start card, the call buttons preview the next round's first card.
   const rr = live ? rank : nextRank;
   const [rUp, rDown] = mainPair(rr);
-  const from = rr !== rank ? ` · next from ${RANK_LABEL[rr]}` : '';
 
   const autoStart = startPref === 'random' ? null : startPref;
   const autoP = useMemo(
@@ -405,32 +394,11 @@ export default function Game() {
     tone = round.cash > 0 ? 'won' : 'lost';
   }
 
-  const readouts: ReadoutItem[] = isAuto
-    ? [
-        {
-          label: 'Win chance',
-          value: stopKind === 'streak' ? fmtChance(autoP) : `≈ ${fmtChance(autoP)}`,
-          sub: stopKind === 'streak' ? `${streak} right in a row` : `reach ${fmtMult(target)}`,
-          tone: 'chance',
-        },
-        {
-          label: 'Average win',
-          value: `${stopKind === 'streak' ? '' : '≈ '}${fmtMult(RTP / autoP)}`,
-          sub: stopKind === 'streak' ? formatAmount(bet.value * (RTP / autoP), 2) : `never below ${fmtMult(target)}`,
-          tone: 'cash',
-        },
-        { label: 'Rule', value: PICK_LABEL[pick], sub: skipRule === 'off' ? 'no skips' : `skips ${SKIP_LABEL[skipRule]}`, tone: 'prize' },
-      ]
-    : [
-        { label: `▲ ${guessLabel(rUp, rr)}`, value: fmtChance(chance(rUp, rr)), sub: `wins ${fmtMult(base * factor(rUp, rr))}${from}`, tone: 'chance' },
-        {
-          label: phase === 'over' ? 'Result' : 'Cash out now',
-          value: (live && won > 0) || phase === 'over' ? fmtMult(cash) : '—',
-          sub: (live && won > 0) || phase === 'over' ? formatAmount(stake * cash, 2) : live ? 'after a right call' : `round starts at ${fmtMult(RTP)}`,
-          tone: 'cash',
-        },
-        { label: `▼ ${guessLabel(rDown, rr)}`, value: fmtChance(chance(rDown, rr)), sub: `wins ${fmtMult(base * factor(rDown, rr))}${from}`, tone: 'chance' },
-      ];
+  // Manual shows its odds on the call buttons and the rank scale, so the stage has no readout there.
+  const readouts: ReadoutItem[] = [
+    { label: 'Win chance', value: stopKind === 'streak' ? fmtChance(autoP) : `≈ ${fmtChance(autoP)}`, tone: 'chance' },
+    { label: 'Average win', value: `${stopKind === 'streak' ? '' : '≈ '}${fmtMult(RTP / autoP)}`, tone: 'cash' },
+  ];
 
   const overCap = (g: Guess) => phase === 'live' && available(g, rank, calls) && !withinCap(base, g, rank);
   const capTitle = (g: Guess) => (overCap(g) ? `Would pass the ${MAX_WIN.toLocaleString('en-US')}× max win` : undefined);
@@ -486,26 +454,10 @@ export default function Game() {
         onChange={changeCalls}
       />
 
-      {live ? (
-        <>
-          <Label hint={fmtMult(won > 0 ? cash : 0)}>Total profit</Label>
-          <div className={'hl-profit' + (won > 0 ? ' up' : '')}>
-            {won > 0 ? '+' : ''}
-            {formatAmount(won > 0 ? stake * cash - stake : 0, 2)}
-          </div>
-        </>
-      ) : (
-        <dl className="og-stats">
-          <dt>Likelier first call</dt>
-          <dd>
-            {nextBest === mainPair(nextRank)[0] ? '▲' : '▼'} {fmtChance(chance(nextBest, nextRank))}
-          </dd>
-          <dt>It pays</dt>
-          <dd>{fmtMult(RTP * factor(nextBest, nextRank))}</dd>
-          <dt>Max win</dt>
-          <dd>{fmtMult(MAX_WIN)}</dd>
-        </dl>
-      )}
+      <dl className="og-stats">
+        <dt>Max win</dt>
+        <dd>{fmtMult(MAX_WIN)}</dd>
+      </dl>
 
       {live ? (
         <ActionButton kind="cash" disabled={phase !== 'live' || won === 0} onClick={cashOut}>
@@ -518,16 +470,16 @@ export default function Game() {
       )}
 
       <div className="hl-calls">
-        <CallButton dir="up" guess={rUp} rank={rr} pays={base * factor(rUp, rr)} p={chance(rUp, rr)} disabled={!canCall(up)} keyHint="↑" onClick={() => call(up)} title={capTitle(up)} />
-        <CallButton dir="down" guess={rDown} rank={rr} pays={base * factor(rDown, rr)} p={chance(rDown, rr)} disabled={!canCall(down)} keyHint="↓" onClick={() => call(down)} title={capTitle(down)} />
+        <CallButton dir="up" guess={rUp} rank={rr} pays={base * factor(rUp, rr)} p={chance(rUp, rr)} disabled={!canCall(up)} onClick={() => call(up)} title={capTitle(up)} />
+        <CallButton dir="down" guess={rDown} rank={rr} pays={base * factor(rDown, rr)} p={chance(rDown, rr)} disabled={!canCall(down)} onClick={() => call(down)} title={capTitle(down)} />
       </div>
       {calls === 'extended' && (
         <div className="hl-calls three">
           {rr !== 1 && rr !== RANKS && (
-            <CallButton dir="same" guess="same" rank={rr} pays={base * factor('same', rr)} p={chance('same', rr)} disabled={!canCall('same')} keyHint="E" onClick={() => call('same')} title={capTitle('same')} compact />
+            <CallButton dir="same" guess="same" rank={rr} pays={base * factor('same', rr)} p={chance('same', rr)} disabled={!canCall('same')} onClick={() => call('same')} title={capTitle('same')} compact />
           )}
-          <CallButton dir="red" guess="red" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('red')} keyHint="R" onClick={() => call('red')} title={capTitle('red')} compact />
-          <CallButton dir="black" guess="black" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('black')} keyHint="B" onClick={() => call('black')} title={capTitle('black')} compact />
+          <CallButton dir="red" guess="red" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('red')} onClick={() => call('red')} title={capTitle('red')} compact />
+          <CallButton dir="black" guess="black" rank={rr} pays={base * 2} p={0.5} disabled={!canCall('black')} onClick={() => call('black')} title={capTitle('black')} compact />
         </div>
       )}
       <button
@@ -537,7 +489,7 @@ export default function Game() {
         onClick={skip}
         title="Skip this card for free"
       >
-        ↷ Skip card <kbd>S</kbd>
+        ↷ Skip card
       </button>
     </>
   );
@@ -602,7 +554,7 @@ export default function Game() {
   return (
     <GameLayout
       name="HiLo"
-      accent="#f43f5e"
+      accent={ACCENTS.pink}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live || autoBusy || dealing} />
@@ -621,9 +573,7 @@ export default function Game() {
       }
     >
       <StageTop status={status} tone={tone} history={history} />
-      <div className={'hl-readouts' + (isAuto ? ' auto' : ' manual')}>
-        <Readouts items={readouts} />
-      </div>
+      {isAuto && <Readouts items={readouts} />}
 
       <Board className={'hl-board' + (isAuto ? ' auto' : '')}>
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
@@ -635,17 +585,10 @@ export default function Game() {
           </div>
           <Ladder rank={rank} show={!dealing} />
         </div>
-        <p className="hl-scale-note">
-          <span>K high · A low</span>
-          <span>
-            Lit ranks win: <b className="u">▲ {Math.round(pUp * 13)}</b> / <b className="d">▼ {Math.round(pDown * 13)}</b> of 13
-          </span>
-        </p>
+        <Trail items={trail} />
       </Board>
 
-      <Trail items={trail} />
-
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -657,19 +600,8 @@ export default function Game() {
           onClear={() => clear()}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={chance(best, rank)}
-          label={`Likelier call: ${guessLabel(best, rank)}`}
-          note={`${Math.round(chance(best, rank) * 13)} of the 13 ranks win it. Every call pays 1 ÷ its chance, so none is better value than another.`}
-        />
-      ) : (
-        <Caption>
-          {isAuto
-            ? `Each bet deals a card and calls ${PICK_LABEL[pick].toLowerCase()} until it ${stopKind === 'target' ? `reaches ${fmtMult(target)}` : `gets ${streak} right in a row`} or misses. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `Call the next card higher or lower. Every right call multiplies your cash-out by 1 ÷ its chance. Skips are free. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Call each next card higher or lower, and cash out before a wrong call.</Caption>
 
       {infoOpen && (
         <InfoModal title="HiLo" onClose={() => setInfoOpen(false)}>

@@ -1,15 +1,16 @@
 import { type BetTicket } from '@originals/game-sdk';
-import { useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { eventMs } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import Croc from './components/Croc';
 import CustomiseDrawer from './components/CustomiseDrawer';
 import InfoModal from './components/InfoModal';
 import Tip from './components/Tip';
-import { colorVars, loadConfig, saveConfig, withFixedMaths, type CrocConfig } from './config';
+import { loadConfig, saveConfig, type CrocConfig } from './config';
 import { fairValue, initialState, reducer } from './game';
-import { BITE, buildLadder, cardValue, fmtAmt, fmtMult, fmtPct, ladderStats, pickTraps, winChance } from './math';
+import { BITE, buildLadder, cardValue, fmtAmt, fmtMult, fmtPct, pickTraps, winChance } from './math';
 
-const RULE = 'Take turns pressing teeth with the House. Press the bad tooth and you lose; if the House presses it, you win. Cash out between rounds.';
+const RULE = "Don't press the bad tooth; if the House does, you win.";
 
 const pick = (options: number[], want: number) => (options.includes(want) ? want : options[0]);
 
@@ -17,7 +18,8 @@ export default function App() {
   const { wallet, rng, track } = useHost();
   const balance = useBalance();
   const hostSettings = useSettings();
-  const [config, setConfig] = useState<CrocConfig>(loadConfig);
+  // Fixed maths (loadConfig applies withFixedMaths); the drawer only shows it.
+  const [config] = useState<CrocConfig>(loadConfig);
   const [state, dispatch] = useReducer(reducer, undefined, initialState);
   // The open bet. `placing` blocks double-starts while the wallet responds.
   const ticket = useRef<BetTicket | null>(null);
@@ -37,7 +39,6 @@ export default function App() {
   const inPlay = phase === 'you' || phase === 'house';
 
   useEffect(() => saveConfig(config), [config]);
-  const vars = useMemo(() => colorVars(config.colors), [config.colors]);
 
   // Settle the bet when a round ends. history[0] is the round just finished.
   useEffect(() => {
@@ -63,7 +64,6 @@ export default function App() {
 
   const validK = k < N ? k : Math.max(1, ...config.badTeethOptions.filter((x) => x < N));
   const preview = useMemo(() => buildLadder(N, validK, BITE, config.rtp), [N, validK, config.rtp]);
-  const previewStats = useMemo(() => ladderStats(preview), [preview]);
   const ladder = inPlay && round ? round.ladder : preview;
 
   // Each survived round is a checkpoint.
@@ -80,7 +80,7 @@ export default function App() {
     const free = round.pressed.flatMap((p, i) => (p ? [] : [i]));
     const target = free[rng.int(free.length)];
     housePick.current = target;
-    const delay = turbo ? config.turboHouseDelay : config.houseDelay;
+    const delay = eventMs(turbo);
     const t1 = setTimeout(() => dispatch({ type: 'houseTarget', i: target }), delay * 0.3);
     const t2 = setTimeout(() => {
       housePick.current = null;
@@ -143,7 +143,7 @@ export default function App() {
   const shownN = shown ? shown.N : N;
   const shownK = shown ? shown.k : validK;
   const remaining = shown ? shown.pressed.filter((p) => !p).length : shownN;
-  // Bad teeth still unpressed (all k while the game runs; one fewer after a bite).
+  // Bad teeth still unpressed (all k while the game runs; one fewer after a bite): the next press's risk, as a count.
   const badLeft = shown ? shown.traps.filter((t) => !shown.pressed[t]).length : shownK;
   const rung = inPlay && round ? round.ladder[round.r] : preview[0];
   const canCash = phase === 'you' && !!round && round.r > 0;
@@ -163,13 +163,8 @@ export default function App() {
     else void startBet();
   };
 
-  let riskLabel = 'Bite odds on your first press';
-  if (phase === 'you') riskLabel = 'Your bite odds on this press';
-  if (phase === 'house') riskLabel = "House's bite odds on this press";
-  if (phase === 'over') riskLabel = 'Bad teeth left unpressed';
-
   return (
-    <div className="croc-root" style={vars}>
+    <div className="croc-root">
       <main className="shell">
         <aside className="panel">
           <div className="field-label">
@@ -189,31 +184,17 @@ export default function App() {
             <span>
               Bad Teeth <Tip text={`How many of the ${N} teeth bite. More bad teeth: a lower chance to win and bigger payouts.`} />
             </span>
-            <span className="hint">of {N} · more = riskier</span>
+            <span className="hint">of {N}</span>
           </div>
-          <div className="chips knob">
+          <div className="chips">
             {config.badTeethOptions.map((x) => (
               <button key={x} className={'chip' + (x === validK ? ' on' : '')} disabled={inPlay || x >= N} onClick={() => changeSetting(() => setK(x))}>
                 {x}
               </button>
             ))}
           </div>
-          <dl className="setting-stats">
-            <div>
-              <dt>Chance to win</dt>
-              <dd>{fmtPct(previewStats.winChance)}</dd>
-            </div>
-            <div>
-              <dt>Top prize</dt>
-              <dd>{fmtMult(previewStats.max)}</dd>
-            </div>
-          </dl>
 
-          <button
-            className={'primary' + (canCash ? ' cash' : '')}
-            disabled={phase === 'house' || (!inPlay && betInvalid)}
-            onClick={onMain}
-          >
+          <button className="primary" disabled={phase === 'house' || (!inPlay && betInvalid)} onClick={onMain}>
             {mainLabel}
           </button>
           {inPlay && round && round.r > 0 && (
@@ -227,27 +208,18 @@ export default function App() {
             <Tip text="Makes the House take its turn almost instantly. The odds don't change." />
           </label>
           <div className="panel-links">
-            <button className="ghost info-btn" onClick={() => setInfoOpen(true)}>
-              <span className="i">i</span> How to play
+            <button className="ghost" onClick={() => setInfoOpen(true)}>
+              How to play
             </button>
             <button className="ghost" onClick={() => setDrawerOpen(true)}>
-              ⚙ Customise
+              Customise
             </button>
           </div>
         </aside>
 
         <section className="stage">
           <div className="stage-top">
-            <div className="turns">
-              <span className={'turn you' + (phase === 'you' ? ' on' : '')}>YOU</span>
-              <span className="vs">vs</span>
-              <span className={'turn house' + (phase === 'house' ? ' on' : '')}>HOUSE</span>
-              {phase !== 'over' && rung && (
-                <span className="house-pays">
-                  House bitten pays <b>{fmtMult(rung.bite)}</b>
-                </span>
-              )}
-            </div>
+            <span className={'status' + (state.message.tone === 'win' ? ' w' : state.message.tone === 'lose' ? ' l' : '')}>{state.message.text}</span>
             <div className="history">
               {state.history.map((h, i) => (
                 <span key={state.history.length - i} className={'hist ' + (h.win ? 'w' : 'l')}>
@@ -257,7 +229,35 @@ export default function App() {
             </div>
           </div>
 
-          <div className="croc-wrap">
+          <div className="readouts">
+            <div>
+              <span className="label">Win chance</span>
+              <b className={phase === 'over' && last ? (last.win ? 'w' : 'l') : ''}>{fmtPct(liveChance)}</b>
+            </div>
+            {phase !== 'over' && rung && (
+              <div>
+                <span className="label">House bitten pays</span>
+                <b>{fmtMult(rung.bite)}</b>
+              </div>
+            )}
+          </div>
+
+          {/* The whole bet: the win chance as a share of a track, moving after every press (STYLE.md §6). */}
+          <div className="win-track" aria-hidden="true">
+            <i className={phase === 'over' && last ? (last.win ? 'w' : 'l') : ''} style={{ width: `${(liveChance * 100).toFixed(2)}%` }} />
+          </div>
+
+          {/* What the next press risks: one dot per unpressed tooth, the bad ones red (STYLE.md §6 unit key). */}
+          <div className="teeth-left" aria-label={`${badLeft} bad of ${remaining} unpressed teeth`}>
+            <span className="label">{`${badLeft} bad ${badLeft === 1 ? 'tooth' : 'teeth'} among ${remaining} unpressed`}</span>
+            <div className="teeth-dots">
+              {Array.from({ length: remaining }, (_, i) => (
+                <i key={i} className={i < badLeft ? 'bad' : ''} />
+              ))}
+            </div>
+          </div>
+
+          <div className="board-wrap">
             <Croc
               N={shownN}
               pressed={shown ? shown.pressed : Array(shownN).fill(null)}
@@ -265,78 +265,29 @@ export default function App() {
               playable={phase === 'you'}
               onPress={(i) => dispatch({ type: 'pressYou', i })}
               houseTarget={phase === 'house' ? state.houseTarget : null}
-              fx={state.fx}
-              danger={0}
-              focused={phase === 'house'}
-              open={inPlay}
-              steady
             />
-            {phase === 'over' && round && shown && last && (
-              <div className={'result ' + (last.win ? 'w' : 'l')} key={state.history.length}>
-                <span className="result-title">{last.win ? fmtMult(last.mult) : 'Bitten'}</span>
-                <span className="result-amt">
-                  {last.win ? '+' : '−'}
-                  {fmtAmt(Math.abs(round.bet * last.mult - round.bet))}
-                </span>
-                <div className="result-actions">
-                  <button className="primary" disabled={betInvalid} onClick={() => void startBet()}>
-                    Bet Again
-                  </button>
-                  <button className="ghost" onClick={() => dispatch({ type: 'clear' })}>
-                    Clear Board
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
-          <p className="rule">{RULE}</p>
-          <div className={'message' + (state.message.tone === 'win' ? ' w' : state.message.tone === 'lose' ? ' l' : '')}>{state.message.text}</div>
+          {phase === 'over' && round && shown && last && (
+            <RoundOver
+              key={state.history.length}
+              placement="inline"
+              title={last.win ? 'You win' : 'Bitten'}
+              multiplier={last.mult}
+              stake={round.bet}
+              nextBet={bet}
+              blocked={betInvalid ? (bet > balance ? 'Not enough balance' : 'Enter a valid bet') : undefined}
+              onBetAgain={() => void startBet()}
+              onClear={() => dispatch({ type: 'clear' })}
+            />
+          )}
 
-          <div className="bars">
-            <div className="risk">
-              <div className="risk-label">
-                <span>{riskLabel}</span>
-                <span className="risk-text">
-                  {badLeft} bad of {remaining} · {fmtPct(badLeft / remaining)}
-                </span>
-              </div>
-              <div className="risk-bar">
-                {Array.from({ length: remaining }, (_, i) => (
-                  <i key={i} className={i < badLeft ? 'bad' : ''} />
-                ))}
-              </div>
-            </div>
-
-            <div className="risk">
-              <div className="risk-label">
-                <span>Win chance if you play to the end</span>
-                <span className="risk-text win">{fmtPct(liveChance)}</span>
-              </div>
-              <div className="win-bar">
-                <i style={{ width: `${(liveChance * 100).toFixed(2)}%` }} />
-              </div>
-            </div>
-          </div>
-
-          <div className="ladder-head">Cash-out after each round</div>
-          <div className="ladder wrap">
-            {ladder.map((r, i) => {
-              const now = inPlay && round?.r === i;
-              const done = inPlay && !!round && i < round.r;
-              return (
-                <div key={i} className={'rung' + (now ? ' now' : '') + (done ? ' done' : '')}>
-                  Round {i + 1}
-                  <b>{fmtMult(cardValue(r))}</b>
-                </div>
-              );
-            })}
-          </div>
+          <p className="rule og-caption">{RULE}</p>
         </section>
       </main>
 
-      {infoOpen && <InfoModal rtp={config.rtp} teeth={N} onClose={closeInfo} />}
-      {drawerOpen && <CustomiseDrawer config={config} onChange={(c) => setConfig(withFixedMaths(c))} onClose={() => setDrawerOpen(false)} />}
+      {infoOpen && <InfoModal rtp={config.rtp} teeth={N} rounds={ladder.map((r) => fmtMult(cardValue(r)))} onClose={closeInfo} />}
+      {drawerOpen && <CustomiseDrawer config={config} onClose={() => setDrawerOpen(false)} />}
     </div>
   );
 }

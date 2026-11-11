@@ -6,7 +6,7 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
+  ACCENTS,
   Chips,
   GameLayout,
   InfoModal,
@@ -18,8 +18,8 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
-  fmtMult,
   useAutoBet,
   useBetInput,
   useHistory,
@@ -32,7 +32,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import Chart from './Chart';
 import {
-  ACCENT,
   DEALER_BUST_ANY,
   INSURANCE_RTP,
   MAX_MULTIPLIER,
@@ -63,7 +62,6 @@ import {
   pairsKind,
   pairsMult,
   playerDone,
-  standOdds,
   totalLabel,
   tripsKind,
   tripsMult,
@@ -176,10 +174,10 @@ export default function Game() {
   };
 
   const T = turbo.turbo;
-  const dealMs = T ? 70 : 240;
-  const flipMs = T ? 110 : 380;
-  const dealerMs = T ? 140 : 520;
-  const peekMs = T ? 160 : 650;
+  const dealMs = eventMs(T, 240);
+  const flipMs = eventMs(T);
+  const dealerMs = eventMs(T);
+  const peekMs = eventMs(T);
 
   const commit = (r: Round) => {
     cur.current = r;
@@ -446,15 +444,10 @@ export default function Game() {
   const ctx = phase === 'player' && t ? ctxOf(t) : null;
   const L = phase === 'player' && t ? legal(t) : null;
   const hint = hints && ctx ? bestAction(ctx) : null;
-  const values = ctx ? actionValues(ctx) : null;
   const upVisible = t && round ? valueOf(t.dealer[0]) : null;
   const dist = upVisible ? dealerDist(upVisible, round!.peeked) : null;
-  const standNow = ctx && dist ? standOdds(ctx.total, dist) : null;
   const canAfford = (x: number) => x <= balance + 1e-9;
 
-  const stake = round?.base ?? bet.value;
-  const sides = round ? { pairs: round.pairs, trips: round.trips } : sideStakes(bet.value);
-  const inPlay = round ? round.wagered : stake + sides.pairs + sides.trips;
   const vol = volatilityOf(pairsSize, tripsSize);
 
   let status = 'Place your bet · blackjack pays 3:2';
@@ -469,39 +462,18 @@ export default function Game() {
     else status = round.title;
   }
 
+  // One chance on the stage: the dealer busting from the card showing.
   const readouts = [
     {
       label: 'Dealer busts',
       value: upVisible && dist ? fmtChance(dist[5]) : fmtChance(DEALER_BUST_ANY),
-      sub: upVisible ? `showing ${upVisible === 1 ? 'an ace' : upVisible === 10 ? 'a ten' : `a ${upVisible}`}` : 'from any up card',
       tone: 'chance' as const,
     },
-    {
-      label: 'In play',
-      value: formatAmount(inPlay, 2),
-      sub: round && round.wagered > round.base + round.pairs + round.trips + 1e-9 ? 'incl. extra bets' : sides.pairs + sides.trips > 0 ? 'main + side bets' : 'main bet',
-      tone: 'cash' as const,
-    },
-    phase === 'over' && round
-      ? {
-          label: 'Returned',
-          value: fmtMult(round.wagered ? round.returned / round.wagered : 0),
-          sub: `${formatAmount(round.returned, 2)} of ${formatAmount(round.wagered, 2)}`,
-          tone: round.returned > round.wagered + 1e-9 ? ('prize' as const) : ('neutral' as const),
-        }
-      : hint && values
-        ? {
-            label: 'Basic strategy',
-            value: ACTION_LABEL[hint],
-            sub: `worth ${(values[hint]! >= 0 ? '+' : '−') + Math.abs(values[hint]!).toFixed(3)}× bet`,
-            tone: 'prize' as const,
-          }
-        : { label: 'Blackjack pays', value: '2.50×', sub: '3 to 2 · win pays 2×', tone: 'prize' as const },
   ];
 
   const tableView: TableView | null = round ? { ...round, live: phase === 'player' || phase === 'acting' } : null;
 
-  const mid =
+  const over =
     phase === 'over' && round ? (
       <RoundOver
         key={round.id}
@@ -512,14 +484,15 @@ export default function Game() {
         blocked={auto.running ? 'Autobet running' : blocked}
         onBetAgain={() => void start()}
         onClear={clear}
-        placement="center"
+        placement="inline"
       />
-    ) : phase === 'insurance' && round ? (
+    ) : null;
+
+  const mid =
+    phase === 'insurance' && round ? (
       <div className="bj-banner" role="status">
         <b>Insurance?</b>
-        <span>
-          The dealer shows an ace. Insure for {formatAmount(round.base / 2, 2)}; it pays 2:1 if the dealer has blackjack ({fmtChance(4 / 13)}).
-        </span>
+        <span>The dealer shows an ace. Insure for {formatAmount(round.base / 2, 2)}; it pays 2:1 if the dealer has blackjack.</span>
       </div>
     ) : round?.note && phase !== 'dealing' ? (
       <div className="bj-banner warn" role="status">
@@ -563,7 +536,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Blackjack"
-      accent={ACCENT}
+      accent={ACCENTS.sky}
       className="bj-game"
       panel={
         <>
@@ -595,12 +568,6 @@ export default function Game() {
           <dl className="og-stats">
             <dt>Total stake</dt>
             <dd>{formatAmount(totalStake(bet.value), 2)}</dd>
-            <dt>Main bet RTP</dt>
-            <dd>{(RTP * 100).toFixed(2)}%</dd>
-            <dt>Side bets pay up to</dt>
-            <dd>
-              {PAIRS_PAYS.perfect + 1}× · {TRIPS_PAYS['suited-trips'] + 1}×
-            </dd>
           </dl>
 
           {auto.mode === 'manual' ? (
@@ -631,24 +598,12 @@ export default function Game() {
       <Readouts items={readouts} />
 
       <Board className="bj-board">
-        <Table view={tableView} preview={{ base: bet.value, ...sideStakes(bet.value) }} hint={hint} dealMs={dealMs} flipMs={flipMs} mid={mid} />
+        <Table view={tableView} preview={{ base: bet.value, ...sideStakes(bet.value) }} dealMs={dealMs} flipMs={flipMs} mid={mid} />
       </Board>
 
-      <div className="bj-foot">
       {decisions && <div className="bj-stage-actions">{decisions}</div>}
-      {standNow && ctx ? (
-        <ChanceBar
-          p={standNow.win}
-          label={`Standing on ${ctx.total} wins`}
-          note={`Push ${fmtChance(standNow.push)} · lose ${fmtChance(standNow.lose)}. Exact, against the dealer's ${upVisible === 1 ? 'ace' : upVisible} after the peek.`}
-        />
-      ) : (
-        <Caption>
-          Infinite deck · dealer stands on soft 17 and peeks for blackjack · double any two cards, also after a split · split once · RTP {(RTP * 100).toFixed(2)}% with
-          basic strategy.
-        </Caption>
-      )}
-      </div>
+      {over}
+      <Caption>Finish closer to 21 than the dealer without going over.</Caption>
 
       {infoOpen && (
         <InfoModal title="Blackjack" onClose={() => setInfoOpen(false)}>
@@ -669,8 +624,8 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The readouts are exact. <b>Dealer busts</b> is the chance the dealer goes over 21 from the card showing. The bar shows what standing on your total
-              would do right now. With hints on, the suggested play is the one with the highest exact value; it follows this chart:
+              The readout is exact. <b>Dealer busts</b> is the chance the dealer goes over 21 from the card showing. With hints on, the suggested button is outlined:
+              it is the play with the highest exact value, and it follows this chart:
             </p>
             <Chart />
           </InfoSection>

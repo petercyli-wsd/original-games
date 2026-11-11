@@ -4,8 +4,8 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
+  ACCENTS,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -16,6 +16,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -26,7 +27,7 @@ import {
   useTurbo,
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
-import { useRef, useState, type CSSProperties } from 'react';
+import { useRef, useState } from 'react';
 import { Dial, Floor, Tally, type NeedleRec } from './Board';
 import {
   LENGTH_MAX,
@@ -37,8 +38,6 @@ import {
   averageCrossingArcs,
   cashOutValue,
   complementArcs,
-  crossChance,
-  formulaText,
   onSide,
   prizeOf,
   sideChance,
@@ -55,7 +54,7 @@ import {
   type Side,
 } from './math';
 
-const ACCENT = '#ffd166';
+const ACCENT = ACCENTS.amber;
 
 /**
  * idle → dropping (a centre falls) → landed (checkpoint) → spinning → between
@@ -126,9 +125,9 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const dropMs = turbo.turbo ? 160 : 620;
-  const spinMs = turbo.turbo ? 320 : 1250;
-  const pauseMs = turbo.turbo ? 160 : 650;
+  const dropMs = eventMs(turbo.turbo);
+  const spinMs = eventMs(turbo.turbo, 1000);
+  const pauseMs = eventMs(turbo.turbo);
   const live = phase !== 'idle' && phase !== 'over';
   const busy = phase === 'dropping' || phase === 'spinning' || phase === 'sure';
 
@@ -245,7 +244,6 @@ export default function Game() {
         ? 0
         : stateWinChance(s, st);
   const cash = round?.cash ?? RTP;
-  const remaining = s.needles - st.settled - (st.landed ? 1 : 0);
 
   // The current needle's exact odds are shown once its centre is down; before
   // that (idle, or between needles) the dial shows the cell average.
@@ -275,12 +273,6 @@ export default function Game() {
   if (phase === 'between') status = `Checkpoint · ${st.settled} of ${s.needles} ${s.side === 'cross' ? 'crossed' : 'missed'}`;
   if (phase === 'over' && round?.outcome) status = outcomeTitle(round);
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  const formula = formulaText(s.floor, s.side);
-  const headline = s.needles > 1 ? `(${formula})${s.needles === 2 ? '²' : '³'}` : formula;
-
-  // Next step's chance: this needle's spin once its centre is down, else a fresh needle.
-  const nextChance = st.landed ? sideFraction(s, st.landed) : p;
 
   return (
     <GameLayout
@@ -334,22 +326,13 @@ export default function Game() {
             onChange={(v) => change(() => setNeedles(v))}
           />
 
-          <dl className="og-stats">
-            <dt>Per needle</dt>
-            <dd>{fmtChance(sideChance(chosen))}</dd>
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(winChance(chosen))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeOf(chosen))}</dd>
-          </dl>
-
           {phase === 'landed' || phase === 'between' ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={next}>
-                {phase === 'landed' ? `Spin · ${fmtChance(nextChance)} to ${word}` : `Drop needle ${k + 1} · ${fmtChance(p)} avg`}
+                {phase === 'landed' ? 'Spin' : `Drop needle ${k + 1}`}
               </ActionButton>
             </>
           ) : (
@@ -369,27 +352,14 @@ export default function Game() {
           {
             label: 'Win chance',
             value: fmtChance(winNow),
-            sub: round
-              ? round.outcome === 'won' || round.outcome === 'lost'
-                ? `${needleWord(st.settled)} of ${s.needles} landed your way`
-                : st.landed
-                ? `this needle ${fmtChance(share)}${remaining > 0 ? ` · then ${needleWord(remaining)} at ${fmtChance(p)}` : ''}`
-                : `${needleWord(Math.max(0, s.needles - st.settled))} at ${fmtChance(p)} each`
-              : headline,
             tone: 'chance',
           },
-          {
-            label: phase === 'over' ? 'Paid' : 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'once a centre lands',
-            tone: 'cash',
-          },
-          { label: 'Full win', value: fmtMult(prize), sub: s.needles > 1 ? `if all ${s.needles} ${word}` : `if it ${word === 'cross' ? 'crosses' : 'misses'}`, tone: 'prize' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
       <Board>
-        <div className="nd-board" style={{ '--nd-speed': turbo.turbo ? 0.3 : 1 } as CSSProperties}>
+        <div className="nd-board">
           <Floor
             drop={s}
             needles={recs}
@@ -405,7 +375,6 @@ export default function Game() {
           <div className="nd-side">
             <Dial
               side={s.side}
-              floor={s.floor}
               win={dialWin}
               lose={complementArcs(dialWin)}
               average={!showExact}
@@ -416,44 +385,28 @@ export default function Game() {
               spinning={phase === 'spinning'}
               waiting={phase === 'dropping'}
             />
-            <div className="nd-slot">
-              {phase === 'over' && round?.outcome ? (
-                <RoundOver
-                  key={history[0]?.id}
-                  title={outcomeTitle(round)}
-                  multiplier={round.cash}
-                  stake={round.stake}
-                  nextBet={bet.value}
-                  blocked={bet.blocked}
-                  onBetAgain={() => void start()}
-                  onClear={clear}
-                  placement="center"
-                />
-              ) : (
-                <Tally needles={recs} count={s.needles} side={s.side} />
-              )}
-            </div>
+            <Tally needles={recs} count={s.needles} />
           </div>
         </div>
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={nextChance}
-          label={st.landed ? `Needle ${k} lands on ${word === 'cross' ? 'Cross' : 'Miss'}` : `Next needle lands on ${word === 'cross' ? 'Cross' : 'Miss'}`}
-          note={
-            st.landed
-              ? "The green share of the direction dial is exactly this chance: the needle settles at a uniformly random angle."
-              : `Before its centre lands, a needle ${word === 'cross' ? 'crosses' : 'misses'} with chance ${formula} = ${fmtChance(p)}.`
-          }
+      {phase === 'over' && round?.outcome && (
+        <RoundOver
+          key={history[0]?.id}
+          title={outcomeTitle(round)}
+          multiplier={round.cash}
+          stake={round.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
         />
-      ) : (
-        <Caption>
-          {s.side === 'cross' ? 'Back Cross: the needle must touch a line.' : 'Back Miss: the needle must touch no line.'}{' '}
-          {s.floor === 'lines' ? "Buffon: a needle of length ℓ on lines 1 apart crosses with chance 2ℓ/π" : 'Buffon–Laplace: on a unit grid it touches a line with chance (4ℓ − ℓ²)/π'}
-          {' '}= {fmtChance(crossChance(s.floor, s.length))}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
       )}
+
+      <Caption>
+        {`Win if ${s.needles > 1 ? 'every needle' : 'the needle'} ${s.side === 'cross' ? 'touches a line' : 'touches no line'}.`}
+      </Caption>
 
       {infoOpen && (
         <InfoModal title="Needle" onClose={() => setInfoOpen(false)}>
@@ -473,12 +426,12 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Once a centre is down, the circle round it has radius ℓ/2: the reach of the needle. The <b style={{ color: 'var(--green)' }}>green</b>{' '}
-              directions win and the <b style={{ color: 'var(--red)' }}>red</b> ones lose. The dial on the right is the same thing magnified: every needle
+              Once a centre is down, the circle round it has radius ℓ/2: the reach of the needle. The <b style={{ color: 'var(--win)' }}>green</b>{' '}
+              directions win and the <b style={{ color: 'var(--lose)' }}>red</b> ones lose. The dial on the right is the same thing magnified: every needle
               direction from 0° to 180°, equally likely. Its green share is exactly your chance on this spin.
             </p>
             <p>
-              Before a centre lands, the shaded bands along the lines show where a centre can reach a line (darker means a better chance to touch it),
+              Before a centre lands, the shaded bands along the lines show where a centre can reach a line,
               and the dial shows the directions that cross on average over the cell.
             </p>
           </InfoSection>

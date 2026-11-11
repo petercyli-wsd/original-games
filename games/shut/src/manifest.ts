@@ -13,6 +13,6 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#7aa2ff',
+  accent: '#7b93ff', // ACCENTS.blue (docs/STYLE.md)
   revision: { kind: 'new', date: '2026-11-02', note: RULE },
 });

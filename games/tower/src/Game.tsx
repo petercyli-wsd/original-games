@@ -4,9 +4,9 @@ import {
   ActionButton,
   AutoBetControls,
   BetField,
+  ACCENTS,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -109,7 +110,6 @@ export default function Game() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [pending, setPending] = useState<{ row: number; col: number } | null>(null);
-  const [shake, setShake] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
 
   // Auto choices: a target row and a pick pattern (Custom = tiles set on the board).
@@ -129,7 +129,8 @@ export default function Game() {
   const fair = useRef(0);
   const ticket = useTicket(() => fair.current);
 
-  const flipMs = turbo.turbo ? 80 : 300;
+  // Manual: a picked tile is marked for a readable 600 ms before it is revealed (docs/STYLE.md).
+  const flipMs = eventMs(turbo.turbo);
   const autoStepMs = turbo.turbo ? 35 : 120;
   const live = phase === 'live' || phase === 'revealing';
   const spec = DIFFICULTY[difficulty];
@@ -143,7 +144,6 @@ export default function Game() {
     setRound({ ...r, outcome, cash, bust });
     setPending(null);
     setPhase('over');
-    if (bust !== null) setShake((s) => s + 1);
   }
 
   async function start() {
@@ -228,7 +228,6 @@ export default function Game() {
     view.bust = res.bust;
     view.showAll = true;
     setAutoView({ ...view });
-    if (res.bust !== null) setShake((s) => s + 1);
     fair.current = 0;
     ticket.settle(res.multiplier);
     pushHistory(res.multiplier);
@@ -372,31 +371,15 @@ export default function Game() {
   }
 
   const nextRow = Math.min(ROWS, cleared + 1);
+  // One chance and one payout (docs/STYLE.md §6); the cash-out lives on its button.
   const readouts: ReadoutItem[] = isAuto
     ? [
-        { label: 'Win chance', value: fmtChance(reachChance(difficulty, target)), sub: `clear ${rowsWord(target)}`, tone: 'chance' },
-        { label: 'Payout', value: fmtMult(multiplier(difficulty, target)), sub: `pays ${formatAmount(bet.value * multiplier(difficulty, target), 2)}`, tone: 'cash' },
-        { label: 'Summit', value: fmtMult(summit(difficulty)), sub: `${spec.label} · row ${ROWS}`, tone: 'prize' },
+        { label: 'Win chance', value: fmtChance(reachChance(difficulty, target)), tone: 'chance' },
+        { label: 'Payout', value: fmtMult(multiplier(difficulty, target)), tone: 'prize' },
       ]
     : [
-        {
-          label: 'Next row safe',
-          value: phase === 'over' ? '—' : fmtChance(p),
-          sub: phase === 'over' ? `${safe} of ${tiles} tiles` : `${safe} of ${tiles} tiles in row ${nextRow}`,
-          tone: 'chance',
-        },
-        {
-          label: phase === 'over' ? (round?.outcome === 'bust' ? 'Paid' : OUTCOME_TITLE[round?.outcome ?? 'cashed']) : 'Cash out now',
-          value: (live && cleared > 0) || phase === 'over' ? fmtMult(cash) : '—',
-          sub: (live && cleared > 0) || phase === 'over' ? formatAmount(stake * cash, 2) : 'after row 1',
-          tone: 'cash',
-        },
-        {
-          label: 'Next row pays',
-          value: phase === 'over' ? '—' : fmtMult(multiplier(d, nextRow)),
-          sub: phase === 'over' ? 'round over' : `pays ${formatAmount(stake * multiplier(d, nextRow), 2)}`,
-          tone: 'prize',
-        },
+        { label: 'Next row safe', value: phase === 'over' ? '—' : fmtChance(p), tone: 'chance' },
+        { label: 'Next row pays', value: phase === 'over' ? '—' : fmtMult(multiplier(d, nextRow)), tone: 'prize' },
       ];
 
   const difficultyPicker = (
@@ -425,7 +408,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Tower"
-      accent="#fb923c"
+      accent={ACCENTS.amber}
       className="tw-game"
       panel={
         <>
@@ -435,27 +418,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              {live ? (
-                <>
-                  <Label hint={fmtMult(cleared > 0 ? cash : 0)}>Total profit</Label>
-                  <div className={'tw-profit' + (cleared > 0 ? ' up' : '')}>
-                    {cleared > 0 ? '+' : ''}
-                    {formatAmount(cleared > 0 ? stake * cash - stake : 0, 2)}
-                  </div>
-                </>
-              ) : (
-                <dl className="og-stats">
-                  <dt>Each row safe</dt>
-                  <dd>{fmtChance(rowSafe(difficulty))}</dd>
-                  <dt>Row 1 pays</dt>
-                  <dd>{fmtMult(multiplier(difficulty, 1))}</dd>
-                  <dt>Summit pays</dt>
-                  <dd>{fmtMult(summit(difficulty))}</dd>
-                  <dt>Reach the summit</dt>
-                  <dd>{fmtChance(reachChance(difficulty, ROWS))}</dd>
-                </dl>
-              )}
-
               {live ? (
                 <>
                   <ActionButton kind="cash" disabled={phase !== 'live' || cleared === 0} onClick={cashOut}>
@@ -473,23 +435,15 @@ export default function Game() {
             </>
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || autoBusy}>
-              <div className="tw-auto-pair">
-                <div>
-                  <Label>Target row</Label>
-                  <div className="tw-stepper">
-                    <button type="button" aria-label="Lower target row" disabled={autoLocked || target <= 1} onClick={() => changeTarget(target - 1)}>
-                      −
-                    </button>
-                    <span>{target}</span>
-                    <button type="button" aria-label="Raise target row" disabled={autoLocked || target >= ROWS} onClick={() => changeTarget(target + 1)}>
-                      +
-                    </button>
-                  </div>
-                </div>
-                <div>
-                  <Label>Pays</Label>
-                  <div className="tw-pays">{fmtMult(multiplier(difficulty, target))}</div>
-                </div>
+              <Label>Target row</Label>
+              <div className="tw-stepper">
+                <button type="button" aria-label="Lower target row" disabled={autoLocked || target <= 1} onClick={() => changeTarget(target - 1)}>
+                  −
+                </button>
+                <span>{target}</span>
+                <button type="button" aria-label="Raise target row" disabled={autoLocked || target >= ROWS} onClick={() => changeTarget(target + 1)}>
+                  +
+                </button>
               </div>
               <Label hint={pattern === 'custom' ? 'set on the board' : 'or click tiles'}>Pick pattern</Label>
               <div className="tw-pattern">
@@ -514,13 +468,11 @@ export default function Game() {
           target={isAuto ? autoView?.target ?? target : null}
           clickable={isAuto ? !autoLocked : phase === 'live'}
           onTile={onTile}
-          shakeKey={shake}
           won={manualWon || autoWon}
-          hotkeys={!isAuto && phase === 'live'}
         />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={OUTCOME_TITLE[round.outcome]}
@@ -532,15 +484,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar p={p} label={`Row ${nextRow} tile is safe`} note={`${safe} of the ${tiles} tiles in every row are safe, whichever you pick. Keys 1–${tiles} pick a tile.`} />
-      ) : (
-        <Caption>
-          {isAuto
-            ? `Each bet climbs to row ${target} with ${pattern === 'random' ? 'a random tile per row' : 'the marked tiles'}. Reaching it pays ${fmtMult(multiplier(difficulty, target))}; a trap on the way loses.`
-            : `Nine rows, ${safe} safe ${safe === 1 ? 'tile' : 'tiles'} of ${tiles} in each. Press Bet, then climb. Cash out after any row. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>Climb the rows by picking safe tiles; a trap loses the round.</Caption>
 
       {infoOpen && (
         <InfoModal title="Tower" onClose={() => setInfoOpen(false)}>
@@ -550,7 +495,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Choose a difficulty and your bet, then press Bet.</li>
-              <li>Pick a tile in the glowing bottom row (click, keys 1–{tiles}, or Random pick / Space).</li>
+              <li>Pick a tile in the outlined bottom row (click, keys 1–{tiles}, or Random pick / Space).</li>
               <li>After each safe row, cash out (C) or keep climbing. Clearing row 9 pays the summit prize automatically.</li>
               <li>When the round ends, every row is revealed so you can see where the traps were.</li>
               <li>Auto: set a target row and a pick pattern (Random, Left, Right, Zigzag, or Custom by clicking tiles on the board), then Start autobet. Each bet climbs to the target and pays its multiplier if every pick is safe.</li>
@@ -560,8 +505,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Each row hides {safe} safe {safe === 1 ? 'tile' : 'tiles'} among {tiles}, placed at random when you bet, independently for every row. So every
-              tile you could pick is safe with the same chance, {fmtChance(p)}: no column, pattern or streak is luckier than another. The bar under the tower is that
-              chance, and the number beside each row is what you can cash out once it is cleared.
+              tile you could pick is safe with the same chance, {fmtChance(p)}: no column, pattern or streak is luckier than another. The number beside each row is what you can cash out once it is cleared.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

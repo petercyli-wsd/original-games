@@ -1,10 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -14,6 +16,7 @@ import {
   ModeTabs,
   PanelFoot,
   VolBadge,
+  eventMs,
   useAutoBet,
   useBetInput,
   useHotkeys,
@@ -38,7 +41,7 @@ import {
   winChance,
 } from './math';
 
-const ACCENT = '#a855f7';
+const ACCENT = ACCENTS.violet;
 
 interface Last {
   id: number;
@@ -48,12 +51,6 @@ interface Last {
   stake: number;
   target: number;
 }
-
-/** Counter animation length: longer for bigger results, ~25% in turbo. */
-const climbMs = (x: number, turbo: boolean) => {
-  const ms = Math.min(1250, 560 + 170 * Math.log10(Math.max(1, x)));
-  return turbo ? Math.round(ms * 0.25) : ms;
-};
 
 /** Compact history label: 1.50, 20.90, 1.2k, 3.4M. */
 const fmtHist = (x: number) => (x >= 1e6 ? `${+(x / 1e6).toFixed(1)}M` : x >= 1e4 ? `${+(x / 1e3).toFixed(1)}k` : fmtX(x));
@@ -110,7 +107,7 @@ export default function Game() {
     setRolling(true);
     setLast(null);
     setDisplay(1);
-    await climb(out.result, climbMs(out.result, turbo.turbo));
+    await climb(out.result, eventMs(turbo.turbo || auto.mode === 'auto'));
     ticket.settle(out.multiplier);
     const id = ++seq.current;
     setHistory((h) => [{ id, result: out.result, win: out.win }, ...h].slice(0, 16));
@@ -203,8 +200,10 @@ export default function Game() {
           <BetField bet={bet} disabled={busy} />
           {auto.mode === 'manual' && (
             <>
-              <Label hint={`${fmtX(target)}× payout`}>Profit on win</Label>
-              <div className="limbo-profit">+{formatAmount(profit, 2)}</div>
+              <dl className="og-stats">
+                <dt>Profit on win</dt>
+                <dd>+{formatAmount(profit, 2)}</dd>
+              </dl>
             </>
           )}
 
@@ -257,11 +256,7 @@ export default function Game() {
               {rolling ? 'Climbing…' : 'Bet'}
             </ActionButton>
           ) : (
-            <AutoBetControls auto={auto} disabled={!!bet.blocked || rolling}>
-              <p className="limbo-auto-note">
-                Each bet: <b>{fmtX(target)}×</b> at {fmtPct(chance * 100)}% · profit +{formatAmount(profit, 2)}
-              </p>
-            </AutoBetControls>
+            <AutoBetControls auto={auto} disabled={!!bet.blocked || rolling} />
           )}
           {bet.blocked && <p className="limbo-blocked">{bet.blocked}</p>}
 
@@ -284,8 +279,9 @@ export default function Game() {
 
       <Board className="limbo-board">
         <InstantResult multiplier={last && !rolling ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
-        <Dial target={last && !rolling ? last.target : target} value={display} state={state} burstId={last?.id ?? 0} />
+        <Dial target={last && !rolling ? last.target : target} value={display} state={state} />
       </Board>
+      <Caption>Win if the result reaches your target.</Caption>
 
       {infoOpen && (
         <InfoModal title="Limbo" onClose={() => setInfoOpen(false)}>
@@ -302,7 +298,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The dial is drawn on the scale 1 − 0.99 ÷ x. On that scale the green arc past your target is exactly your chance to win, and the needle lands
+              The dial is drawn on the scale 1 − 0.99 ÷ x. On that scale the green arc past your target (the violet tick) is exactly your chance to win, and the needle lands
               uniformly along the dial: a result is as likely to land in any stretch as that stretch is long.
             </p>
           </InfoSection>

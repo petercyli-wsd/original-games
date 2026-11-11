@@ -1,5 +1,6 @@
 import { InsufficientFundsError, formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
 import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { eventMs } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
 import Board, { type Blade } from './Board';
 import InfoModal from './InfoModal';
@@ -94,12 +95,13 @@ export default function App() {
   const [blade, setBlade] = useState<Blade | null>(null);
   const [ending, setEnding] = useState<Ending | null>(null);
   const [message, setMessage] = useState<{ text: string; tone: Tone }>({
-    text: 'Drag your circle anywhere, pick a size, and bet.',
+    text: 'Drag the circle to place it, then bet.',
     tone: 'neutral',
   });
 
   const turbo = localTurbo || host.turbo;
-  const bladeMs = turbo ? 140 : 420;
+  // A cut is drawn across the square at a readable pace in Manual (docs/STYLE.md), faster with Turbo.
+  const bladeMs = eventMs(turbo);
   const fallMs = turbo ? 200 : 560;
   const autoPauseMs = turbo ? 140 : 520;
 
@@ -280,7 +282,9 @@ export default function App() {
     <div className="slice">
       <aside className="panel">
         <div className="field">
-          <span className="label">Bet amount</span>
+          <span className="label">
+            Bet amount <em>Balance {formatAmount(balance, 2)}</em>
+          </span>
           <div className="bet-row">
             <input
               value={betText}
@@ -367,53 +371,35 @@ export default function App() {
                 if (e.target.checked) cutAgain();
               }}
             />
-            <i />
             <span>Auto-cut</span>
           </label>
           <label className="toggle">
             <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
-            <i />
             <span>Turbo</span>
           </label>
         </div>
 
-        <dl className="stats">
-          <div>
-            <dt>Circle covers</dt>
-            <dd>{formatPercent(Math.PI * r * r)}</dd>
-          </div>
-          <div>
-            <dt>Max prize</dt>
-            <dd>{formatAmount(stake * MODES[mode].mult, 2)}</dd>
-          </div>
-          <div>
-            <dt>Balance</dt>
-            <dd>{formatAmount(balance, 2)}</dd>
-          </div>
-        </dl>
-        <button className="link" onClick={() => setInfoOpen(true)}>
-          <span className="i">i</span> How to play
-        </button>
+        <div className="foot">
+          <button className="link" onClick={() => setInfoOpen(true)}>
+            How to play
+          </button>
+        </div>
       </aside>
 
       <section className="stage">
+        <div className={'status ' + (tone === 'neutral' ? (inRound ? 'live' : '') : tone)} aria-live="polite">
+          {message.text}
+        </div>
+
+        {/* One flat row: the one chance (the circle's share of the lighter region) and the prize. */}
         <div className="readout">
           <div className={'chance ' + tone}>
             <span className="label">Win chance</span>
             <b>{pct(shownChance, 1)}</b>
-            <div className="odds" aria-hidden="true">
-              <i style={{ width: `${shownChance * 100}%` }} />
-            </div>
           </div>
-          <div className="tile">
-            <span className="label">Cash out</span>
-            <b>{phase === 'checkpoint' ? formatAmount(stake * cashMult, 2) : '–'}</b>
-            <small>{phase === 'checkpoint' ? formatMultiplier(cashMult) : 'after a cut'}</small>
-          </div>
-          <div className="tile">
+          <div>
             <span className="label">If inside</span>
             <b>{formatAmount(stake * prize, 2)}</b>
-            <small>{formatMultiplier(prize)}</small>
           </div>
         </div>
 
@@ -434,27 +420,9 @@ export default function App() {
             bladeMs={bladeMs}
             fallMs={fallMs}
           />
-          {phase === 'idle' && <div className="hint">Drag to place your circle · the odds don't change</div>}
         </div>
 
-        <ol className="ladder" aria-label="Win chance after each cut">
-          {Array.from({ length: shown.maxCuts }, (_, i) => {
-            const s = shown.slices[i];
-            const prev = i === 0 ? shown.circle.r ** 2 * Math.PI : shown.slices[i - 1]?.chance;
-            const next = inRound && i === shown.slices.length;
-            const trend = s && prev !== undefined ? (s.chance > prev + 1e-9 ? ' up' : s.chance < prev - 1e-9 ? ' down' : '') : '';
-            const last = i === shown.maxCuts - 1;
-            return (
-              <li key={i} className={(s ? 'done' + trend : '') + (next ? ' next' : '')}>
-                <span>Cut {i + 1}</span>
-                <b>{s ? pct(s.chance, s.chance < 0.1 ? 1 : 0) : '–'}</b>
-                <small>{last ? 'then reveal' : s ? formatMultiplier(shown.mult * s.chance) : ''}</small>
-              </li>
-            );
-          })}
-        </ol>
-
-        <div className="outcome" aria-live="polite">
+        <div className="outcome">
           {phase === 'over' && ending && (
             <RoundOver
               key={round?.dot.x}
@@ -468,8 +436,9 @@ export default function App() {
               onClear={reset}
             />
           )}
-          <p className={'message ' + message.tone}>{message.text}</p>
         </div>
+
+        <p className="rule og-caption">Win if the hidden dot is inside your circle.</p>
       </section>
 
       {infoOpen && <InfoModal rtp={RTP} onClose={() => setInfoOpen(false)} />}

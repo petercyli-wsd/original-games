@@ -1,9 +1,11 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -12,8 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   useAutoBet,
   useBetInput,
@@ -32,7 +36,6 @@ import {
   RTP,
   STRIPS,
   STRIP_NAMES,
-  chanceOf,
   layoutStats,
   payoutOf,
   scaleLayout,
@@ -47,10 +50,9 @@ import {
   type StripSize,
 } from './math';
 
-const ACCENT = '#14b8a6';
+const ACCENT = ACCENTS.sky;
 const CHIP_VALUES = [0.1, 1, 5, 25, 100];
 const KEY_OF: Record<string, BetKey> = { r: 'red', g: 'green', b: 'black', e: 'edge' };
-const KEY_LABEL: Record<BetKey, string> = { red: 'R', green: 'G', black: 'B', edge: 'E' };
 
 const cents = (x: number) => Math.round(x * 100) / 100;
 /** 2.12142857 → "2.1214×", 14.85 → "14.85×". */
@@ -76,12 +78,6 @@ interface Last {
   stake: number;
 }
 
-interface Recent {
-  id: number;
-  colour: Colour;
-  number: number;
-}
-
 function typing(e: KeyboardEvent) {
   const t = e.composedPath()[0] as HTMLElement | undefined;
   if (!t || !t.tagName) return false;
@@ -103,7 +99,6 @@ export default function Game() {
   const [spinning, setSpinning] = useState(false);
   const [pos, setPos] = useState({ p: restPos(15), ms: 0 });
   const [last, setLast] = useState<Last | null>(null);
-  const [recent, setRecent] = useState<Recent[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -121,7 +116,7 @@ export default function Game() {
 
   const total = cents(totalOf(layout));
   const stats = useMemo(() => layoutStats(layout, n), [layout, n]);
-  const spinMs = turbo.turbo ? 650 : 2800;
+  const spinMs = eventMs(turbo.turbo, 2800);
 
   // ---------- Layout editing ----------
   function commit(next: Layout) {
@@ -198,7 +193,6 @@ export default function Game() {
     // Re-base the strip to an identical position in the second copy, without animating.
     setPos({ p: n + (target % n), ms: 0 });
     setLast({ id: ++seq.current, slot: res.slot, colour: slot.colour, number: slot.number, winners: res.winners, layout: lay, paid: res.paid, multiplier: res.multiplier, stake: t });
-    setRecent((r) => [{ id: seq.current, colour: slot.colour, number: slot.number }, ...r].slice(0, 100));
     pushHistory(res.multiplier);
     setSpinning(false);
     return res.multiplier;
@@ -254,9 +248,8 @@ export default function Game() {
   const cells = useMemo(() => Array.from({ length: n * copiesFor(n) }, (_, j) => stripOrder(n)[j % n]), [n]);
   const hitIdx = last && !spinning ? Math.floor(pos.p) : -1;
   const h = (n - 1) / 2;
-
-  const counts = { red: 0, green: 0, black: 0 } as Record<Colour, number>;
-  for (const r of recent) counts[r.colour]++;
+  // Outcome colour for the landed slot: profit wins, nothing back loses, part of the stake back is neutral.
+  const outcome = !last ? '' : last.multiplier > 1 ? 'won' : last.multiplier > 0 ? 'part' : 'lost';
 
   const vol = volatilityOf(stats.sd);
   const shown = last?.layout ?? layout;
@@ -333,15 +326,6 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className="og-stats">
-            <dt>Total bet</dt>
-            <dd>{money(total)}</dd>
-            <dt>Chance to win</dt>
-            <dd>{total > 0 ? fmtChance(stats.pHit) : '–'}</dd>
-            <dt>Best payout</dt>
-            <dd>{total > 0 ? money(stats.maxMult * total) : '–'}</dd>
-          </dl>
-
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={bet}>
               {spinning ? 'Spinning…' : total > 0 ? `Bet ${money(total)}` : 'Bet'}
@@ -371,9 +355,16 @@ export default function Game() {
     >
       <StageTop status={status} tone={spinning ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Win chance', value: total > 0 ? fmtChance(stats.pHit) : '–', tone: 'chance' },
+          { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–', tone: 'prize' },
+        ]}
+      />
+
       <Board className="sr-board">
         <InstantResult multiplier={last && !spinning ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
-        <div className={'sr-viewport' + (last && !spinning ? ' landed ' + last.colour : '') + (spinning ? ' spinning' : '')}>
+        <div className={'sr-viewport' + (last && !spinning ? ' landed ' + outcome : '') + (spinning ? ' spinning' : '')}>
           <div
             className="sr-strip"
             style={{ transform: `translateX(calc(var(--slot) * ${-pos.p}))`, transitionDuration: `${pos.ms}ms` } as CSSProperties}
@@ -401,12 +392,9 @@ export default function Game() {
               const isEdge = cls.endsWith('edge');
               const covered = shown[colour] > 0 || (isEdge && shown.edge > 0);
               const hit = last && !spinning && last.colour === colour && order[last.slot].edge === isEdge;
-              return <i key={cls} className={`${cls}` + (covered ? ' on' : '') + (hit ? ' hit' : '')} style={{ flexGrow: k }} />;
+              return <i key={cls} className={`${cls}` + (covered ? ' on' : '') + (hit ? ' hit ' + outcome : '')} style={{ flexGrow: k }} />;
             })}
           </div>
-          <p className="sr-odds-cap">
-            The bar is the strip: each colour's share is its chance. {total > 0 ? <>Your bets cover <b>{fmtChance(stats.pHit)}</b> of it.</> : 'Bright parts are covered by your bets.'}
-          </p>
         </div>
       </Board>
 
@@ -421,11 +409,10 @@ export default function Game() {
                 <span className="sr-bet-head">
                   <i className="sr-sw" />
                   <span>{BET_NAMES[k]}</span>
-                  <kbd>{KEY_LABEL[k]}</kbd>
                 </span>
                 <b className="sr-bet-mult">{fmtPay(payoutOf(k, n))}</b>
                 <small>
-                  {slotsCovered(k, n)} of {n} · {fmtChance(chanceOf(k, n))}
+                  {slotsCovered(k, n)} of {n} slots
                 </small>
                 <span className="sr-bet-stake">
                   {won ? <em>+{money(amt * payoutOf(k, n))}</em> : amt > 0 ? <span className="sr-chip">{money(amt)}</span> : <span className="sr-add">+ {money(chip.value)}</span>}
@@ -441,29 +428,7 @@ export default function Game() {
         })}
       </div>
 
-      <div className="sr-recent">
-        <span className="sr-recent-label">Previous</span>
-        <div className="sr-dots" aria-label="Recent results">
-          {recent.length === 0 && <span className="sr-none">No spins yet</span>}
-          {recent.slice(0, 24).map((r) => (
-            <i key={r.id} className={`sr-dot ${r.colour}`} title={`${r.colour} ${r.number}`} />
-          ))}
-        </div>
-        <div className="sr-counts" title={`Last ${recent.length} spins`}>
-          <span>
-            <i className="sr-dot red" />
-            {counts.red}
-          </span>
-          <span>
-            <i className="sr-dot green" />
-            {counts.green}
-          </span>
-          <span>
-            <i className="sr-dot black" />
-            {counts.black}
-          </span>
-        </div>
-      </div>
+      <Caption>Win if the strip stops on a slot your chips cover.</Caption>
 
       {infoOpen && (
         <InfoModal title="Strip Roulette" onClose={() => setInfoOpen(false)}>
@@ -476,7 +441,7 @@ export default function Game() {
           <InfoSection title="How to play">
             <ol>
               <li>Pick a chip value (or a preset), then click Red, Green, Black or Edge to put a chip there. Click again to add more; − removes one.</li>
-              <li>Back any mix in the same spin. Edge wins when the strip stops on either slot touching the green (marked with a gold diamond).</li>
+              <li>Back any mix in the same spin. Edge wins when the strip stops on either slot touching the green (marked with a small diamond).</li>
               <li>Choose the strip length: longer strips keep one green, so green gets rarer and pays more.</li>
               <li>Press Bet (or Space). Auto repeats your layout with your stop rules; on win / on loss scale every bet together.</li>
             </ol>
@@ -487,7 +452,7 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Every slot is equally likely, so a bet's chance is simply the number of slots it covers divided by the strip length. The bar under the strip draws those
-              shares to scale and lights the part your chips cover.
+              shares to scale and brightens the part your chips cover.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { RATE, fmtX, multAt, reachChance, timeTo } from './math';
+import { fmtX, multAt, timeTo } from './math';
 
 export type ChartState = 'idle' | 'live' | 'crashed' | 'max';
 
@@ -15,7 +15,7 @@ export interface ChartProps {
   children?: ReactNode;
 }
 
-const PAD = { l: 50, r: 58, t: 30, b: 30 };
+const PAD = { l: 50, r: 24, t: 24, b: 30 };
 
 /** A "nice" step (1, 2, 2.5, 5 × 10^n) giving at most `max` ticks over a span. */
 function niceStep(span: number, max: number, steps = [1, 2, 2.5, 5, 10]) {
@@ -27,15 +27,10 @@ function niceStep(span: number, max: number, steps = [1, 2, 2.5, 5, 10]) {
 
 const fmtTick = (y: number) =>
   (y >= 1000 ? Math.round(y).toLocaleString('en-US') : y >= 10 ? y.toFixed(0) : y % 1 === 0 ? y.toFixed(1) : y.toFixed(2).replace(/0$/, '')) + '×';
-const fmtPct = (p: number) => {
-  const pct = p * 100;
-  return (pct >= 10 ? pct.toFixed(1) : pct >= 1 ? pct.toFixed(2) : pct >= 0.01 ? pct.toFixed(2) : pct.toPrecision(2)) + '%';
-};
 
 /**
- * The crash graph: multiplier against flight time with axes, a right-hand
- * scale giving the exact chance of reaching each height (0.99 ÷ height), the
- * auto cash-out target as a dashed line, and the cash-out point on the curve.
+ * The crash graph: multiplier against flight time with axes, a flat 2px curve,
+ * the auto cash-out target as an accent line, and the cash-out point on the curve.
  */
 export default function Chart({ state, tau, target, cash, children }: ChartProps) {
   const box = useRef<HTMLDivElement>(null);
@@ -55,7 +50,7 @@ export default function Chart({ state, tau, target, cash, children }: ChartProps
 
   const { w, h } = size;
   const narrow = w < 480;
-  const pad = narrow ? { l: 42, r: 48, t: 28, b: 26 } : PAD;
+  const pad = narrow ? { l: 42, r: 16, t: 24, b: 26 } : PAD;
   const pw = Math.max(10, w - pad.l - pad.r);
   const ph = Math.max(10, h - pad.t - pad.b);
 
@@ -94,52 +89,23 @@ export default function Chart({ state, tau, target, cash, children }: ChartProps
     pts.push(`${X(t).toFixed(1)},${Y(multAt(t)).toFixed(1)}`);
   }
   const line = 'M' + pts.join('L');
-  const area = `${line}L${X(end).toFixed(1)},${Y(1).toFixed(1)}L${X(0).toFixed(1)},${Y(1).toFixed(1)}Z`;
   const tip = { x: X(end), y: Y(multAt(end)) };
-  // Direction of travel at the tip, for the comet's tail.
-  const slope = Math.atan2(-(ph / (yTop - 1)) * RATE * multAt(end), pw / xTop);
 
   const targetVisible = tY !== null && tY <= yTop;
-  const tone = state === 'crashed' ? 'crashed' : state === 'max' ? 'max' : cash ? 'cashed' : state;
+  // Once over, the curve end is --win if the player cashed out before the crash, else --lose.
+  const over = state === 'crashed' || state === 'max';
+  const tone = over ? (cash ? 'won' : 'lost') : state;
 
   return (
     <div className={`crash-chart ${tone}`} ref={box}>
       <svg viewBox={`0 0 ${w} ${h}`} width={w} height={h} role="img" aria-label={`Crash graph at ${fmtX(m)}`}>
-        <defs>
-          <linearGradient id="crash-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="var(--curve)" stopOpacity="0.38" />
-            <stop offset="1" stopColor="var(--curve)" stopOpacity="0.02" />
-          </linearGradient>
-          <filter id="crash-glow" x="-50%" y="-50%" width="200%" height="200%">
-            <feGaussianBlur stdDeviation="5" />
-          </filter>
-        </defs>
-
-        {/* Grid and axes */}
-        <g className="crash-grid">
-          {yTicks.map((y) => (
-            <line key={'y' + y} x1={pad.l} x2={pad.l + pw} y1={Y(y)} y2={Y(y)} />
-          ))}
-          {xTicks.map((t) => (
-            <line key={'x' + t} x1={X(t)} x2={X(t)} y1={pad.t} y2={pad.t + ph} />
-          ))}
-        </g>
+        {/* Axes */}
         <line className="crash-axis" x1={pad.l} x2={pad.l + pw} y1={pad.t + ph} y2={pad.t + ph} />
         <line className="crash-axis" x1={pad.l} x2={pad.l} y1={pad.t} y2={pad.t + ph} />
         <g className="crash-ylabels">
           {yTicks.map((y) => (
             <text key={y} x={pad.l - 8} y={Y(y) + 4} textAnchor="end">
               {fmtTick(y)}
-            </text>
-          ))}
-        </g>
-        <g className="crash-plabels">
-          <text x={pad.l + pw + 8} y={pad.t - 14} className="head">
-            reach
-          </text>
-          {yTicks.map((y) => (
-            <text key={y} x={pad.l + pw + 8} y={Y(y) + 4}>
-              {fmtPct(reachChance(Math.round(y * 100)))}
             </text>
           ))}
         </g>
@@ -153,7 +119,7 @@ export default function Chart({ state, tau, target, cash, children }: ChartProps
 
         {/* Target line */}
         {tY !== null && (
-          <g className={'crash-target' + (cash && cash.cents === target ? ' hit' : '')}>
+          <g className="crash-target">
             {targetVisible ? (
               <>
                 <line x1={pad.l} x2={pad.l + pw} y1={Y(tY)} y2={Y(tY)} />
@@ -173,47 +139,21 @@ export default function Chart({ state, tau, target, cash, children }: ChartProps
         {state === 'idle' ? (
           <path className="crash-preview" d={line} />
         ) : (
-          <>
-            <path className="crash-area" d={area} fill="url(#crash-fill)" />
-            <path className="crash-line glow" d={line} filter="url(#crash-glow)" />
-            <path className="crash-line" d={line} />
-          </>
+          <path className="crash-line" d={line} />
         )}
 
-        {/* Cash-out marker */}
+        {/* Cash-out marker: the player's own point on the curve */}
         {cash && state !== 'idle' && (
           <g className="crash-cash" transform={`translate(${X(cash.tau)},${Y(cash.cents / 100)})`}>
-            <circle r="10" className="halo" />
-            <circle r="5.5" />
-            <g transform={`translate(${X(cash.tau) > pad.l + pw - 90 ? -12 : 12},-14)`}>
-              <rect x={X(cash.tau) > pad.l + pw - 90 ? -74 : 0} y="-13" width="74" height="22" rx="6" />
-              <text x={X(cash.tau) > pad.l + pw - 90 ? -37 : 37} y="2" textAnchor="middle">
-                {fmtX(cash.cents / 100)}
-              </text>
-            </g>
+            <circle r="5" />
+            <text x={X(cash.tau) > pad.l + pw - 70 ? -10 : 10} y="-10" textAnchor={X(cash.tau) > pad.l + pw - 70 ? 'end' : 'start'}>
+              {fmtX(cash.cents / 100)}
+            </text>
           </g>
         )}
 
-        {/* Tip: a comet in flight, a burst on the crash */}
-        {state !== 'idle' && (
-          <g className="crash-tip" transform={`translate(${tip.x},${tip.y})`}>
-            {state === 'crashed' ? (
-              <g className="burst">
-                {Array.from({ length: 10 }, (_, i) => {
-                  const a = (i / 10) * Math.PI * 2;
-                  return <line key={i} x1={Math.cos(a) * 7} y1={Math.sin(a) * 7} x2={Math.cos(a) * 17} y2={Math.sin(a) * 17} />;
-                })}
-                <circle r="6" />
-              </g>
-            ) : (
-              <g transform={`rotate(${(slope * 180) / Math.PI})`}>
-                <circle r="13" className="aura" />
-                <path className="tail" d="M -26 0 L -4 -4 L -4 4 Z" />
-                <circle r="6" className="core" />
-              </g>
-            )}
-          </g>
-        )}
+        {/* Curve end: a dot in flight; it takes the outcome colour once the round is over */}
+        {state !== 'idle' && <circle className="crash-tip" cx={tip.x} cy={tip.y} r="5" />}
       </svg>
       <div className="crash-overlay">{children}</div>
     </div>

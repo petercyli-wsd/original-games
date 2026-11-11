@@ -1,10 +1,12 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -13,11 +15,12 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
-  fmtOneIn,
   useAutoBet,
   useBetInput,
   useHistory,
@@ -26,8 +29,8 @@ import {
   useTimers,
   useTurbo,
 } from '@originals/game-sdk/ui';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { CaseIcon, Gem, multLabel } from './Item';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { CaseIcon, multLabel } from './Item';
 import {
   CASES,
   CASE_COUNTS,
@@ -35,12 +38,10 @@ import {
   DIFFICULTY_NAMES,
   MAX_MULTIPLIER,
   RTP,
-  TIER_NAMES,
   WEIGHT_TOTAL,
   playRound,
   profitChance,
   reelFor,
-  tierOf,
   topItem,
   volatilityOf,
   type CaseCount,
@@ -49,7 +50,7 @@ import {
 } from './math';
 import { Reel } from './Reel';
 
-const ACCENT = '#f472b6';
+const ACCENT = ACCENTS.pink;
 const AUTO_STOPS = [0, 10, 50, 200] as const;
 
 interface Last {
@@ -112,8 +113,9 @@ export default function Game() {
     const n = count;
     const res = playRound(() => rng.next(), d, n);
     const inAuto = !!autoRef.current?.running;
-    const base = turbo.turbo ? 800 : inAuto ? 1900 : 3600;
-    const stagger = turbo.turbo ? 90 : inAuto ? 160 : 280;
+    // A reel needs a little longer than a plain 600 ms event to read as a spin; Turbo is a quarter of the Manual time.
+    const base = eventMs(turbo.turbo || inAuto, 1800);
+    const stagger = inAuto ? 60 : eventMs(turbo.turbo, 140);
     const durations = res.openings.map((_, r) => base + r * stagger);
     resolved.current = res.multiplier;
     setSkip(false);
@@ -177,39 +179,19 @@ export default function Game() {
     return Array.from({ length: count }, (_, r) => reelFor(difficulty, 0, 0.37 + 0.113 * r + DIFFICULTIES.indexOf(difficulty) * 0.05));
   }, [last, difficulty, count]);
   const phase = last ? (opening ? 'spinning' : 'done') : 'preview';
-  const wonSet = new Set(last && !opening ? last.openings.map((o) => o.index) : []);
 
-  const top = topItem(difficulty);
+  // The odds bar marks the landed item(s) after the spin, until the next bet or a setting change.
+  const hitSet = new Set(last && !opening ? last.openings.map((o) => o.index) : []);
+  const top = topItem(shownD);
   const pProfit = profitChance(difficulty, count);
   const vol = volatilityOf(difficulty, count);
-  const n = last?.n ?? count;
 
   let status = `${DIFFICULTY_NAMES[difficulty]} case · up to ${multLabel(top.mult)}`;
   if (opening && last) status = last.n > 1 ? `Opening ${last.n} ${DIFFICULTY_NAMES[last.d]} cases…` : `Opening ${DIFFICULTY_NAMES[last.d]} case…`;
   else if (last) {
-    status =
-      last.n > 1
-        ? `${last.n} cases · average ${fmtMult(last.multiplier)}`
-        : `${TIER_NAMES[tierOf(last.multiplier)]} · ${fmtMult(last.multiplier)}`;
+    status = last.n > 1 ? `${last.n} cases · average ${fmtMult(last.multiplier)}` : `Landed ${fmtMult(last.multiplier)}`;
   }
   const tone = opening ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle';
-
-  let caption: ReactNode = 'Press Bet to open. Only the item that stops under the marker pays; every item and its exact chance is listed below.';
-  if (opening) caption = auto.mode === 'manual' ? 'Press Space or Skip to stop the reel now. The prize was drawn when you bet.' : 'Auto is opening cases…';
-  else if (last && last.n > 1)
-    caption = (
-      <>
-        ({last.openings.map((o) => multLabel(o.mult)).join(' + ')}) ÷ {last.n} = <b>{fmtMult(last.multiplier)}</b> on your {formatAmount(last.stake, 2)} stake
-      </>
-    );
-  else if (last) {
-    const it = CASES[last.d][last.openings[0].index];
-    caption = (
-      <>
-        {TIER_NAMES[tierOf(it.mult)]} item <b>{fmtMult(it.mult)}</b> · {fmtChance(it.p)} chance ({fmtOneIn(it.p)})
-      </>
-    );
-  }
 
   return (
     <GameLayout
@@ -239,22 +221,12 @@ export default function Game() {
             onChange={(v) => change(() => setCount(v))}
           />
 
-          <dl className="og-stats">
-            <dt>Chance to profit</dt>
-            <dd>{fmtChance(pProfit)}</dd>
-            <dt>Top prize</dt>
-            <dd>
-              {multLabel(top.mult)} · {formatAmount(bet.value * top.mult, 2)}
-            </dd>
-            {count > 1 && (
-              <>
-                <dt>Stake per case</dt>
-                <dd>{formatAmount(bet.value / count, 2)}</dd>
-              </>
-            )}
-            <dt>RTP</dt>
-            <dd>{(RTP * 100).toFixed(2)}%</dd>
-          </dl>
+          {count > 1 && (
+            <dl className="og-stats">
+              <dt>Stake per case</dt>
+              <dd>{formatAmount(bet.value / count, 2)}</dd>
+            </dl>
+          )}
 
           {auto.mode === 'manual' ? (
             opening ? (
@@ -286,17 +258,19 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Chance to profit', value: fmtChance(pProfit), tone: 'chance' },
+          { label: 'Top prize', value: multLabel(top.mult), tone: 'prize' },
+        ]}
+      />
+
       <Board className="cs-board">
         <InstantResult multiplier={last && !opening ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         {reels.length <= 2 && (
           <div className="cs-case-head">
-            <CaseIcon level={DIFFICULTIES.indexOf(shownD)} shaking={opening} />
-            <div>
-              <b>{DIFFICULTY_NAMES[shownD]} case</b>
-              <span>
-                {items.length} items · up to {multLabel(topItem(shownD).mult)} · {fmtChance(profitChance(shownD, n))} to profit
-              </span>
-            </div>
+            <CaseIcon level={DIFFICULTIES.indexOf(shownD)} open={opening} />
+            <b>{DIFFICULTY_NAMES[shownD]} case</b>
           </div>
         )}
         <div className={`cs-reels n${reels.length}`}>
@@ -312,33 +286,20 @@ export default function Game() {
             />
           ))}
         </div>
-        <p className="cs-caption">{caption}</p>
+        <Caption>Only the item that stops under the marker pays.</Caption>
       </Board>
 
-      <section className="cs-contents" aria-label="Case contents">
-        <div className="cs-contents-head">
-          <h3>
-            {DIFFICULTY_NAMES[shownD]} case <span>· {items.length} items</span>
-          </h3>
-          <span className="cs-contents-sub">
-            {n > 1 ? `${n} cases, ` : ''}profit {fmtChance(profitChance(shownD, n))} · RTP {(RTP * 100).toFixed(0)}%
-          </span>
-        </div>
-        <div className="cs-oddsbar" role="img" aria-label="Item chances as shares of the bar">
-          {items.map((it, i) => (
-            <i key={i} className={`t-${tierOf(it.mult)}` + (wonSet.has(i) ? ' won' : '')} style={{ flexGrow: it.weight }} title={`${multLabel(it.mult)} · ${fmtChance(it.p)}`} />
-          ))}
-        </div>
-        <ul className="cs-list">
-          {items.map((it, i) => (
-            <li key={i} className={`t-${tierOf(it.mult)}` + (wonSet.has(i) ? ' won' : '')}>
-              <Gem mult={it.mult} />
-              <b>{multLabel(it.mult)}</b>
-              <span>{((it.weight / WEIGHT_TOTAL) * 100).toFixed(it.weight < 100 ? 3 : it.weight < 1000 ? 2 : 1)}%</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className="cs-oddsbar" role="img" aria-label="Item chances as shares of the bar: grey loses, green wins, pink is the top prize">
+        {items.map((it, i) => {
+          const share = it.weight / WEIGHT_TOTAL;
+          const cls = it.mult < 1 ? 'lose' : it.mult === top.mult ? 'top' : 'win';
+          return (
+            <i key={i} className={`${cls}${hitSet.has(i) ? ' hit' : ''}`} style={{ flexGrow: it.weight }} title={multLabel(it.mult)}>
+              {it.mult >= 1 && share >= 0.09 ? multLabel(it.mult) : ''}
+            </i>
+          );
+        })}
+      </div>
 
       {infoOpen && (
         <InfoModal title="Cases" onClose={() => setInfoOpen(false)}>
@@ -354,9 +315,19 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The contents panel lists every item with its exact chance; the coloured bar splits into those same shares. Colours mark rarity: grey under 1×, blue
-              1–2×, violet 2–5×, pink 5–20×, orange 20–100× and gold 100× and up. The items scrolling past on the reel are decoration that shows off the whole case (rare
-              items appear there more often than their real chances); only the one under the marker counts, at the chance listed.
+              Every item in the {DIFFICULTY_NAMES[shownD]} case, with its exact chance:
+            </p>
+            <ul className="cs-list">
+              {items.map((it, i) => (
+                <li key={i}>
+                  <b>{multLabel(it.mult)}</b>
+                  <span>{((it.weight / WEIGHT_TOTAL) * 100).toFixed(it.weight < 100 ? 3 : it.weight < 1000 ? 2 : 1)}%</span>
+                </li>
+              ))}
+            </ul>
+            <p>
+              The items scrolling past on the reel are decoration that shows off the whole case (rare items appear there more often than their real chances); only
+              the one under the marker counts, at the chance listed. The tile that stops under the marker is outlined green when it pays 1× or more, red when it pays less.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

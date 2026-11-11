@@ -3,7 +3,7 @@ import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import Field from './components/Field';
 import InfoModal from './components/InfoModal';
-import { fmtAmt, fmtChance, fmtMult, fmtMultShort, fmtPct } from './format';
+import { fmtAmt, fmtChance, fmtMult, fmtMultShort } from './format';
 import { initialState, position, reducer, type Action, type GameState, type Outcome } from './round';
 import {
   BURSTS,
@@ -164,7 +164,6 @@ export default function Game() {
   const stake = shown ? shown.bet : bet;
   const prize = prizeMultiplier(vW, vx0);
   const cash = cashMultiplier(x, vx0);
-  const prev = path.length > 1 ? cashMultiplier(path[path.length - 2], vx0) : cash;
   const steps = path.length - 1;
   const last = state.history[0];
   const vol = volatilityOf(x0, W);
@@ -212,14 +211,6 @@ export default function Game() {
           aria-label="Start position"
           onChange={(e) => change(() => changeStart(Number(e.target.value)))}
         />
-        <div className="start-readout">
-          <span>
-            Win <b>{fmtChance(x0, W)}</b>
-          </span>
-          <span>
-            Prize <b className="t-green">{fmtMult(prizeMultiplier(W, x0))}</b>
-          </span>
-        </div>
         <div className="chips">
           {startPresets(W).map((p) => (
             <button key={p} className={'chip' + (p === x0 ? ' on' : '')} disabled={inRound} onClick={() => change(() => changeStart(p))}>
@@ -327,7 +318,7 @@ export default function Game() {
 
       <section className="stage">
         <div className="stage-top">
-          <span className={`status ${phase} ${phase === 'over' && shown ? (shown.mult >= 1 ? 'won' : 'lost') : ''}`} aria-live="polite">
+          <span className={`status ${phase} ${phase === 'over' && shown ? (shown.mult >= 1 ? 'won' : shown.mult > 0 ? '' : 'lost') : ''}`} aria-live="polite">
             {status}
           </span>
           <div className="history">
@@ -340,25 +331,13 @@ export default function Game() {
         </div>
 
         <div className="readouts">
-          <div className={`readout chance ${x <= 0 ? 'at-red' : x >= vW ? 'at-green' : ''}`}>
+          <div className="readout">
             <span>Win chance</span>
             <b>{fmtChance(x, vW)}</b>
-            <small>
-              {x} of {vW} steps from red
-            </small>
           </div>
-          <div className={`readout cashout ${!shown || steps === 0 ? '' : cash >= 1 ? 'up' : 'down'}`}>
-            <span>Cash out now</span>
-            <b>
-              {fmtMult(cash)}
-              {inRound && cash !== prev && <i className={cash > prev ? 'arrow up' : 'arrow down'}>{cash > prev ? '▲' : '▼'}</i>}
-            </b>
-            <small>{fmtAmt(stake * cash)}</small>
-          </div>
-          <div className="readout prize">
+          <div className="readout">
             <span>Prize at green</span>
             <b>{fmtMult(prize)}</b>
-            <small>{fmtAmt(stake * prize)}</small>
           </div>
         </div>
 
@@ -376,6 +355,7 @@ export default function Game() {
           {phase === 'over' && shown?.outcome && last && (
             <RoundOver
               key={last.id}
+              placement="inline"
               title={OUTCOME_TEXT[shown.outcome]}
               multiplier={shown.mult}
               stake={shown.bet}
@@ -387,11 +367,7 @@ export default function Game() {
           )}
         </div>
 
-        <p className="caption">
-          {inRound
-            ? `About ${expectedSteps(x, vW)} more steps to a wall on average. Cash-out = prize × win chance.`
-            : `Fair 50/50 steps: from any point the chance of reaching green is exactly the position. RTP ${fmtPct(RTP, 0)}.`}
-        </p>
+        <p className="og-caption">Win by drifting to the green wall before the red one.</p>
       </section>
 
       {infoOpen && <InfoModal rtp={RTP} onClose={() => setInfoOpen(false)} />}

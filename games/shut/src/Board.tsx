@@ -1,10 +1,9 @@
-import { fmtChance } from '@originals/game-sdk/ui';
 import { useEffect, useState } from 'react';
 import { isOpen, type Mask, type NextTotal } from './math';
 
 const W = 480;
 const PAD = 12;
-export const BOARD_H = 300;
+export const BOARD_H = 240;
 
 // Pip positions on a 3×3 grid (0..2) for each face.
 const PIPS: Record<number, [number, number][]> = {
@@ -16,11 +15,12 @@ const PIPS: Record<number, [number, number][]> = {
   6: [[0, 0], [2, 0], [0, 1], [2, 1], [0, 2], [2, 2]],
 };
 
-function Die({ x, y, size, face, tumbling }: { x: number; y: number; size: number; face: number | null; tumbling: boolean }) {
+/** A flat light square with dark pips. */
+function Die({ x, y, size, face }: { x: number; y: number; size: number; face: number | null }) {
   const step = size / 4;
   return (
-    <g className={'die' + (tumbling ? ' tumbling' : '')} style={{ transformOrigin: `${x + size / 2}px ${y + size / 2}px` }}>
-      <rect x={x} y={y} width={size} height={size} rx={10} className="die-body" />
+    <g className="die">
+      <rect x={x} y={y} width={size} height={size} rx={6} className="die-body" />
       {face === null ? (
         <text x={x + size / 2} y={y + size / 2 + 8} className="die-blank">
           ?
@@ -49,12 +49,11 @@ export interface BoardProps {
   total: number | null;
   /** The totals strip for the roll being shown: which totals the open tiles can make. */
   strip: NextTotal[];
-  openSum: number;
   busted: boolean;
   won: boolean;
 }
 
-export default function Board({ n, mask, preview, justClosed, dice, diceCount, tumbling, total, strip, openSum, busted, won }: BoardProps) {
+export default function Board({ n, mask, preview, justClosed, dice, diceCount, tumbling, total, strip, busted, won }: BoardProps) {
   // Cosmetic tumbling faces while the dice are in the air (the result is already decided).
   const [frame, setFrame] = useState(0);
   useEffect(() => {
@@ -68,24 +67,24 @@ export default function Board({ n, mask, preview, justClosed, dice, diceCount, t
   const tileW = Math.min(52, (W - 2 * PAD - gap * (n - 1)) / n);
   const rowW = n * tileW + (n - 1) * gap;
   const x0 = (W - rowW) / 2;
-  const tileY = 10;
-  const tileH = 62;
+  const tileY = 6;
+  const tileH = 56;
 
-  // ---- Dice tray ----
-  const trayY = 92;
-  const trayH = 84;
-  const dieSize = 52;
+  // ---- Dice ----
+  const diceY = 86;
+  const dieSize = 56;
   const faces: (number | null)[] = Array.from({ length: diceCount }, (_, i) =>
     tumbling ? ((frame * (i === 0 ? 5 : 1) + i * 3 + frame * i) % 6) + 1 : dice ? dice[i] ?? null : null,
   );
   const one = diceCount === 1;
   const landed = total !== null && !tumbling;
+  const diceX = PAD + 8;
 
   // ---- Totals band: one cell per dice total, as wide as its chance; green = the open tiles can make it ----
   const sx = PAD;
   const sw = W - 2 * PAD;
-  const headY = 206;
-  const bandY = 216;
+  const headY = 178;
+  const bandY = 188;
   const bandH = 34;
   const share = strip.reduce((a, s) => a + (s.playable ? s.p : 0), 0);
   const greenShare = share > 1 - 1e-9 ? 1 : share;
@@ -109,7 +108,7 @@ export default function Board({ n, mask, preview, justClosed, dice, diceCount, t
         const x = x0 + i * (tileW + gap);
         return (
           <g key={tile} className={cls}>
-            <rect x={x} y={tileY} width={tileW} height={tileH} rx={7} />
+            <rect x={x} y={tileY} width={tileW} height={tileH} rx={6} />
             <text x={x + tileW / 2} y={tileY + tileH / 2 + 8} style={{ fontSize: Math.min(24, tileW * 0.62) }}>
               {tile}
             </text>
@@ -117,28 +116,20 @@ export default function Board({ n, mask, preview, justClosed, dice, diceCount, t
         );
       })}
 
-      {/* Dice tray, with the dice rule that applies right now */}
-      <rect x={PAD} y={trayY} width={W - 2 * PAD} height={trayH} rx={12} className={'tray' + (one ? ' one' : '')} />
+      {/* The dice (one when the open tiles total 6 or less) and what they made */}
       {faces.map((f, i) => (
-        <Die key={i} x={PAD + 16 + i * (dieSize + 12)} y={trayY + (trayH - dieSize) / 2} size={dieSize} face={f} tumbling={tumbling} />
+        <Die key={i} x={diceX + i * (dieSize + 12)} y={diceY} size={dieSize} face={f} />
       ))}
-      <text x={PAD + 16 + diceCount * (dieSize + 12) + 6} y={trayY + trayH / 2 + 12} className={'roll-total' + (busted ? ' bust' : '')}>
+      <text x={diceX + diceCount * (dieSize + 12) + 6} y={diceY + dieSize / 2 + 15} className={'roll-total' + (busted ? ' bust' : '')}>
         {landed ? `= ${total}` : ''}
       </text>
-      <text x={W - PAD - 14} y={trayY + 34} className={'dice-rule' + (one ? ' one' : '')}>
+      <text x={W - PAD - 8} y={diceY + dieSize / 2 + 6} className="dice-rule">
         {won ? 'Box shut' : one ? 'One die' : 'Two dice'}
-      </text>
-      <text x={W - PAD - 14} y={trayY + 56} className="dice-sub">
-        {won ? 'every tile closed' : one ? `open tiles total ${openSum} (6 or less)` : `open tiles total ${openSum}`}
       </text>
 
       {/* Totals band: width = chance of rolling it, green = playable with the open tiles, red = round lost */}
       <text x={sx} y={headY} className="strip-head">
-        {landed ? 'THIS ROLL' : 'NEXT ROLL'}
-        <tspan className="strip-sub"> · green totals can be played</tspan>
-      </text>
-      <text x={sx + sw} y={headY} className="strip-legend">
-        <tspan className="g">{fmtChance(greenShare)}</tspan> playable
+        {landed ? 'This roll' : 'Next roll'}
       </text>
       {cells.map((c) => (
         <g key={c.total} className={c.cls}>
@@ -154,12 +145,6 @@ export default function Board({ n, mask, preview, justClosed, dice, diceCount, t
         .map((c) => (
           <rect key="hit" x={c.x - 1.5} y={bandY - 4} width={c.w + 3} height={bandH + 8} rx={5} className={'hit-frame' + (c.playable ? '' : ' bust')} />
         ))}
-      <text x={sx} y={bandY + bandH + 24} className="strip-key">
-        Width = chance of rolling it
-      </text>
-      <text x={sx + sw} y={bandY + bandH + 24} className="strip-key end">
-        <tspan className="r">red</tspan> = no tiles add up: lost
-      </text>
     </svg>
   );
 }

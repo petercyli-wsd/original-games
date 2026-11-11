@@ -1,4 +1,4 @@
-import { LETTERS, type NextEvent } from './math';
+import { LETTERS } from './math';
 
 const CX = 200;
 const CY = 204;
@@ -31,9 +31,6 @@ function arc(a0: number, a1: number, r: number) {
   return `M ${f(p.x)} ${f(p.y)} A ${r} ${r} 0 ${span > 180 ? 1 : 0} 1 ${f(q.x)} ${f(q.y)}`;
 }
 
-const hubPct = (p: number) => (p >= 0.9995 ? '100%' : `${(p * 100).toFixed(p < 0.0995 ? 2 : 1)}%`);
-const norm = (deg: number) => ((deg % 360) + 360) % 360;
-
 export type Outcome = 'won' | 'lost' | 'cashed';
 
 export interface BoardProps {
@@ -42,57 +39,38 @@ export interface BoardProps {
   /** Wheel rotation in degrees (slice A starts here, clockwise from the top). */
   rot: number;
   mine: number;
-  /** Each slice's chance to be the last one (for the slices still in). */
-  last: ArrayLike<number>;
-  /** The next spin's landings with the odds each would leave you (at a checkpoint). */
-  events: readonly NextEvent[] | null;
   /** Your chance to win now. */
   win: number;
   /** The slice the pointer just landed on. */
   hit: number | null;
   outcome: Outcome | null;
-  /** Slices already out, in order. */
-  out: readonly number[];
-  spins: number;
-  live: boolean;
-  /** The wheel is turning: light up the slice passing under the pointer. */
-  spinning: boolean;
   editable: boolean;
   onSlice(i: number): void;
 }
 
-export default function Board({ sizes, rot, mine, last, events, win, hit, outcome, out, spins, live, spinning, editable, onSlice }: BoardProps) {
+export default function Board({ sizes, rot, mine, win, hit, outcome, editable, onSlice }: BoardProps) {
   const W = sizes.reduce((a, b) => a + b, 0);
-  const slices: { i: number; a0: number; a1: number; share: number }[] = [];
+  const slices: { i: number; a0: number; a1: number }[] = [];
   let cum = 0;
   sizes.forEach((s, i) => {
     if (!(s > 0)) return;
-    slices.push({ i, a0: rot + (cum / W) * 360, a1: rot + ((cum + s) / W) * 360, share: s / W });
+    slices.push({ i, a0: rot + (cum / W) * 360, a1: rot + ((cum + s) / W) * 360 });
     cum += s;
   });
-  const evOf = (i: number) => events?.find((e) => e.slice === i) ?? null;
-  const mineSlice = slices.find((s) => s.i === mine);
   const winDeg = Math.max(0, Math.min(1, win)) * 360;
-  // While the wheel turns, the slice under the pointer lights up (red when it is yours).
-  const under = spinning && hit === null ? (slices.find((s) => norm(-s.a0) < s.a1 - s.a0)?.i ?? null) : null;
 
   return (
-    <svg viewBox="0 0 400 412" className="ls-wheel" role="img" aria-label={`Your slice ${LETTERS[mine]}: ${pct(win)} to be the last slice`}>
-      {/* Rim track, with your slice's arc in red while live: the chance this spin knocks you out. */}
-      <circle cx={CX} cy={CY} r={R + 7} className="rim" />
-      {live && mineSlice && <path d={arc(mineSlice.a0, mineSlice.a1, R + 7)} className="rim-risk" />}
-
-      {/* The wheel: each slice's angle is its chance to be hit by the next spin. */}
+    <svg viewBox="40 34 320 336" className="ls-wheel" role="img" aria-label={`Your slice ${LETTERS[mine]}: ${pct(win)} to be the last slice`}>
+      {/* The wheel: each slice's angle is its chance to be hit by the next spin. Yours is the accent; once the round ends it keeps its result colour. */}
       <g className="slices">
         {slices.map(({ i, a0, a1 }) => (
           <path
             key={i}
             d={wedge(a0, a1, R)}
             className={
-              `slice c${i}` +
+              `slice s${i % 2}` +
               (i === mine ? ' mine' : '') +
-              (hit === i ? (i === mine ? ' hit lose' : ' hit') : '') +
-              (under === i ? (i === mine ? ' under danger' : ' under') : '') +
+              (hit === i && i === mine ? ' lose' : '') +
               (outcome === 'won' && i === mine ? ' champ' : '')
             }
             onClick={editable ? () => onSlice(i) : undefined}
@@ -103,86 +81,36 @@ export default function Board({ sizes, rot, mine, last, events, win, hit, outcom
         ))}
       </g>
 
-      {/* Labels: the letter and its spin chance inside; outside, its chance to be last (idle) or your odds if it is hit (live). */}
+      {/* Letters. */}
       <g className="labels">
-        {slices.map(({ i, a0, a1, share }) => {
+        {slices.map(({ i, a0, a1 }) => {
           const span = a1 - a0;
-          const mid = (a0 + a1) / 2;
-          const inR = R * (span < 26 ? 0.8 : 0.68);
-          const p = polar(mid, inR);
-          const big = span >= 24;
-          const ev = evOf(i);
-          // Labels next to the pointer step aside, left or right of it.
-          const signed = norm(mid) > 180 ? norm(mid) - 360 : norm(mid);
-          const nearTop = Math.abs(signed) < 11;
-          const o = nearTop ? { x: CX + (signed < 0 ? -36 : 36), y: CY - R - 16 } : polar(mid, R + 24);
-          let outer: { text: string; cls: string } | null = null;
-          if (ev) outer = i === mine ? { text: 'out', cls: 'lose' } : { text: `→${pct(ev.win)}`, cls: 'up' };
-          else if (!live && outcome === null && slices.length > 1) outer = { text: pct(last[i]), cls: i === mine ? 'mine' : '' };
+          const p = polar((a0 + a1) / 2, R * (span < 26 ? 0.8 : 0.68));
+          if (span < 7.5) return null;
           return (
-            <g key={i} className={'lab' + (i === mine ? ' mine' : '')}>
-              {span >= 7.5 && (
-                <text x={f(p.x)} y={f(p.y + (big ? -2 : 5))} className={'letter' + (big ? '' : ' sm')}>
-                  {LETTERS[i]}
-                </text>
-              )}
-              {big && (
-                <text x={f(p.x)} y={f(p.y + 13)} className="share">
-                  {pct(share)}
-                </text>
-              )}
-              {outer && span < 300 && (
-                <text x={f(o.x)} y={f(o.y + 4)} className={'outer ' + outer.cls}>
-                  {outer.text}
-                </text>
-              )}
-            </g>
+            <text key={i} x={f(p.x)} y={f(p.y + 6)} className={'letter' + (span >= 24 ? '' : ' sm') + (i === mine ? ' mine' : '')}>
+              {LETTERS[i]}
+            </text>
           );
         })}
       </g>
 
       {/* The pointer. */}
-      <path d={`M ${CX - 11} ${CY - R - 22} L ${CX + 11} ${CY - R - 22} L ${CX} ${CY - R + 6} Z`} className={'pointer' + (hit !== null ? (hit === mine ? ' lose' : ' hit') : under === mine ? ' danger' : '')} />
+      <path d={`M ${CX - 11} ${CY - R - 22} L ${CX + 11} ${CY - R - 22} L ${CX} ${CY - R + 6} Z`} className={'pointer' + (hit !== null && hit === mine ? ' lose' : '')} />
 
-      {/* Hub: your chance as a green arc. */}
+      {/* Hub: your chance as a green arc, the rest red. */}
       <circle cx={CX} cy={CY} r={HUB} className="hub" />
       <circle cx={CX} cy={CY} r={HUB - 7} className="dial-bg" />
       {winDeg > 0.5 && <path d={arc(0, winDeg, HUB - 7)} className="dial-win" />}
       {outcome === null ? (
-        <>
-          <text x={CX} y={CY + 3} className="big">
-            {hubPct(win)}
-          </text>
-          <text x={CX} y={CY + 18} className="small">
-            {LETTERS[mine]} is last
-          </text>
-        </>
+        <text x={CX} y={CY + 6} className="big">
+          {LETTERS[mine]}
+        </text>
       ) : (
-        <>
-          <text x={CX} y={CY + 2} className={'verdict ' + outcome}>
-            {outcome === 'won' ? 'last!' : outcome === 'lost' ? 'out' : 'cashed'}
-          </text>
-          <text x={CX} y={CY + 18} className="small">
-            {outcome === 'cashed' ? `at ${pct(win)}` : `slice ${LETTERS[mine]}`}
-          </text>
-        </>
+        <text x={CX} y={CY + 6} className={'verdict ' + outcome}>
+          {outcome === 'won' ? 'last' : outcome === 'lost' ? 'out' : 'cashed'}
+        </text>
       )}
-
-      {/* Legend. */}
-      <g className="legend">
-        <text x={6} y={392}>
-          {out.length ? `out: ${out.map((i) => LETTERS[i]).join(' → ')}` : 'slice size = chance the spin hits it'}
-        </text>
-        <text x={6} y={408} className="dim">
-          {live ? (events ? 'outside: your odds if that slice is hit' : `spin ${spins + 1}`) : outcome ? `${spins} spin${spins === 1 ? '' : 's'}` : 'outside: chance to be the last slice'}
-        </text>
-        <text x={394} y={392} className="end">
-          {live ? <tspan className="r">red rim = hits yours</tspan> : 'small slices survive'}
-        </text>
-        <text x={394} y={408} className="end dim">
-          {slices.length} of {sizes.length} left
-        </text>
-      </g>
     </svg>
   );
 }

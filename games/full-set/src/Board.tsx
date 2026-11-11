@@ -1,11 +1,10 @@
 import type { CSSProperties } from 'react';
-import { fmtChance } from '@originals/game-sdk/ui';
 import { darkCount, endShares, litOf, segmentArc, sparesOf, type Draw } from './math';
 
 export type Phase = 'idle' | 'drawing' | 'checkpoint' | 'over';
 export type Outcome = 'full' | 'cashed' | 'short';
 
-export const VIEW = { w: 400, h: 462 };
+export const VIEW = { w: 400, h: 436 };
 const C = { x: 200, y: 174 };
 const R_OUT = 152;
 const R_IN = 110;
@@ -13,8 +12,7 @@ const R_MID = (R_OUT + R_IN) / 2;
 /** The budget ring of draw cells, inside the segment ring. */
 const B_OUT = 100;
 const B_IN = 89;
-const LEGEND_Y = 372;
-const STRIP = { x: 16, y: 410, w: 368, h: 24 };
+const STRIP = { x: 16, y: 380, w: 368, h: 20 };
 
 const polar = (turn: number, r: number) => {
   const a = turn * 2 * Math.PI;
@@ -67,7 +65,6 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
   const idle = phase === 'idle';
   const hits = new Array<number>(k).fill(0);
   for (const dr of draws) hits[dr.seg]++;
-  const last = draws.length ? draws[draws.length - 1] : null;
   // With no spare, a lit segment is exactly where the next draw ends the round.
   const noSpare = live && spares === 0 && m > 0 && m < k;
   const aiming = phase === 'drawing' ? used : -1;
@@ -95,10 +92,10 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
     return 'cell spare' + aim;
   };
 
-  let cap = 'next draw new';
-  let big = fmtChance(m / k);
-  let bigClass = 'big new';
-  let sub = `${m} of ${k} segments dark`;
+  let cap = 'segments lit';
+  let big = `${k - m}/${k}`;
+  let bigClass = 'big';
+  let sub = `${m} dark`;
   if (idle) {
     cap = 'draw budget';
     big = String(D);
@@ -121,13 +118,9 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
     sub = `lit · ${draws_(d)} left`;
   }
 
-  let stripCap = 'HOW THE ROUND ENDS';
-  if (outcome === 'cashed') stripCap = 'IF YOU HAD PLAYED ON';
-  if (outcome === 'full' || outcome === 'short') stripCap = 'HOW IT ENDED';
-
-  // Legend: the two shares of the ring, which are the next draw's two outcomes.
-  const newShare = m / k;
-  const legendLit = noSpare ? 'ends the round' : 'repeat';
+  let stripCap = 'How the round ends';
+  if (outcome === 'cashed') stripCap = 'If you had played on';
+  if (outcome === 'full' || outcome === 'short') stripCap = 'How it ended';
 
   return (
     <svg
@@ -137,7 +130,7 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
       role="img"
       aria-label={`${k - m} of ${k} segments lit, ${d} draws left`}
     >
-      {/* The ring: lit segments glow, dark ones wait. The dark share is the chance of a new segment. */}
+      {/* The ring: lit segments are filled, dark ones are empty. The dark share is the chance of a new segment. */}
       {lit.map((on, i) => {
         const { start, length } = segmentArc(i, k);
         return <path key={`s${k}-${i}`} d={sector(start, start + length, R_OUT, R_IN, 2.5)} className={'seg ' + (on ? 'lit' : 'dark')} />;
@@ -152,15 +145,6 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
           </text>
         );
       })}
-
-      {/* The newest landing flashes its segment. */}
-      {last && (
-        <path
-          key={`f${roundId}-${used}`}
-          d={sector(segmentArc(last.seg, k).start, segmentArc(last.seg, k).start + 1 / k, R_OUT, R_IN, 2.5)}
-          className={'flash ' + (last.fresh ? 'fresh' : 'repeat')}
-        />
-      )}
 
       {/* Every landing point so far, on the rim: uniform points on a circle. */}
       {draws.map((dr, i) => {
@@ -183,7 +167,7 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
 
       {/* Centre readout. */}
       <text x={C.x} y={C.y - 34} className="cap">
-        {cap.toUpperCase()}
+        {cap}
       </text>
       <text x={C.x} y={C.y + 8} className={bigClass}>
         {big}
@@ -204,27 +188,10 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
         </text>
       )}
 
-      {/* Legend: what the next draw does, as the two shares of the ring. */}
-      {!outcome && (
-        <g className="legend">
-          <text x={C.x - 12} y={LEGEND_Y} className="key-t left">
-            <tspan className="new">dark</tspan> = new <tspan className="new">{fmtChance(newShare)}</tspan>
-          </text>
-          <circle cx={C.x} cy={LEGEND_Y - 4} r={2} className="key-dot" />
-          <text x={C.x + 12} y={LEGEND_Y} className="key-t right">
-            <tspan className={noSpare ? 'bust' : 'litc'}>lit</tspan> = {legendLit}{' '}
-            <tspan className={noSpare ? 'bust' : 'litc'}>{fmtChance(1 - newShare)}</tspan>
-          </text>
-        </g>
-      )}
-
       {/* How the round ends if you play on: the green share is the win chance. */}
       <g className="strip">
         <text x={STRIP.x} y={STRIP.y - 9} className="strip-cap">
           {stripCap}
-        </text>
-        <text x={STRIP.x + STRIP.w} y={STRIP.y - 9} className="strip-win">
-          full set {fmtChance(shares[0])}
         </text>
         <rect x={STRIP.x} y={STRIP.y} width={STRIP.w} height={STRIP.h} rx={6} className="strip-bg" />
         {slices.map((s) => {
@@ -242,15 +209,8 @@ export default function Board({ k, D, draws, phase, outcome, spin, travelMs, rou
           );
         })}
         {slices.map((s) =>
-          s.w >= 44 ? (
-            <text key={`t${s.j}`} x={s.x + s.w / 2} y={STRIP.y + 16.5} className={'slice-pct' + (s.j === 0 ? ' on-win' : '')}>
-              {fmtChance(s.p)}
-            </text>
-          ) : null,
-        )}
-        {slices.map((s) =>
           s.w >= 56 ? (
-            <text key={`n${s.j}`} x={s.x + s.w / 2} y={STRIP.y + STRIP.h + 17} className={'slice-name' + (s.j === 0 ? ' win' : '')}>
+            <text key={`n${s.j}`} x={s.x + s.w / 2} y={STRIP.y + STRIP.h + 18} className={'slice-name' + (s.j === 0 ? ' win' : '')}>
               {sliceName(s.j)}
             </text>
           ) : null,

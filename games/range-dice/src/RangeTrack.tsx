@@ -117,7 +117,6 @@ export default function RangeTrack({
         {ghosts.map((g) => (
           <i key={g.id} className={'rd-ghost' + (g.win ? ' w' : ' l')} style={{ left: pct(g.n + 0.5) }} />
         ))}
-        {marker && marker.tone !== 'moving' && <i key={`p${marker.id}`} className={`rd-pulse ${marker.tone}`} style={{ left: pct(marker.pos) }} />}
         {(['low', 'high'] as const).map((end) => (
           <div
             key={end}

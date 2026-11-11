@@ -1,5 +1,5 @@
 import { defineManifest } from '@originals/game-sdk';
-import { ACCENT, MAX_MULTIPLIER, RTP } from './math';
+import { MAX_MULTIPLIER, RTP } from './math';
 
 export default defineManifest({
   id: 'blackjack',
@@ -12,5 +12,5 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: false,
-  accent: ACCENT,
+  accent: '#5ec4e6', // ACCENTS.sky (docs/STYLE.md)
 });

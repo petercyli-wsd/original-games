@@ -1,9 +1,11 @@
 import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
@@ -12,8 +14,10 @@ import {
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   useAutoBet,
   useBetInput,
@@ -25,7 +29,7 @@ import {
   type BetInput,
 } from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { ChipDisc, Hand } from './Cards';
+import { Hand, fmtChip } from './Cards';
 import { Felt, type SpotState } from './Felt';
 import {
   BET_IDS,
@@ -53,9 +57,8 @@ import {
   type Result,
   type Variant,
 } from './math';
-import { Road, ROAD_COLS, ROAD_ROWS, type Bead } from './Road';
 
-const ACCENT = '#8b5cf6';
+const ACCENT = ACCENTS.violet;
 const CHIP_VALUES = [0.1, 0.5, 1, 5, 10, 25, 100, 500];
 
 const cents = (x: number) => Math.round(x * 100) / 100;
@@ -115,7 +118,6 @@ export default function Game() {
   const [dealing, setDealing] = useState(false);
   const [table, setTable] = useState<TableView | null>(null);
   const [last, setLast] = useState<Last | null>(null);
-  const [beads, setBeads] = useState<Bead[]>([]);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
 
@@ -134,7 +136,7 @@ export default function Game() {
 
   const total = stakeOf(layout);
   const stats = useMemo(() => layoutStats(layout, variant), [layout, variant]);
-  const step = turbo.turbo ? 120 : 440;
+  const step = eventMs(turbo.turbo, 440);
 
   // ---------- Layout editing (any change clears the last result off the board) ----------
   const clearBoard = useCallback(() => {
@@ -229,13 +231,12 @@ export default function Game() {
       else view.br++;
       setTable({ ...view });
     }
-    if (!(await timers.wait(turbo.turbo ? 50 : 180))) return null;
+    if (!(await timers.wait(eventMs(turbo.turbo, 180)))) return null;
 
     ticket.settle(s.multiplier);
     const id = ++seq.current;
     setLast({ id, deal: d, result, layout: lay, variant: v, multiplier: s.multiplier, stake: t });
     setLastDealt(lay);
-    setBeads((b) => [...b, { id, win: result.win, total: result.win === 'P' ? d.pTotal : d.bTotal, pp: result.pp, bp: result.bp }].slice(-ROAD_ROWS * ROAD_COLS * 3));
     pushHistory(s.multiplier);
     setDealing(false);
     return s.multiplier;
@@ -325,20 +326,6 @@ export default function Game() {
         ? `Total bet ${money(total)} · press Bet`
         : 'Place your chips on the table';
 
-  let banner: { cls: string; title: string; sub: string } = {
-    cls: 'idle',
-    title: total > 0 ? 'Ready to deal' : 'Place your bets',
-    sub: '8-deck shoe · reshuffled every round',
-  };
-  if (dealing) banner = { cls: 'live', title: 'No more bets', sub: 'Dealing from the shoe' };
-  else if (d) {
-    const natural = d.natural ? `Natural ${Math.max(d.pTotal, d.bTotal)}` : `${d.player.length + d.banker.length} cards`;
-    banner =
-      d.winner === 'tie'
-        ? { cls: 'T', title: 'Tie', sub: `${d.pTotal} – ${d.bTotal} · ${natural}` }
-        : { cls: d.winner === 'player' ? 'P' : 'B', title: `${d.winner === 'player' ? 'Player' : 'Banker'} wins`, sub: `${d.pTotal} – ${d.bTotal} · ${natural}` };
-  }
-
   return (
     <GameLayout
       name="Baccarat"
@@ -369,9 +356,7 @@ export default function Game() {
                 title={`Chip ${money(val)} (key ${i + 1})`}
                 aria-label={`Chip ${money(val)}`}
               >
-                <svg viewBox="-15 -15 30 30" aria-hidden="true">
-                  <ChipDisc value={val} r={14} />
-                </svg>
+                {fmtChip(val)}
               </button>
             ))}
           </div>
@@ -404,16 +389,6 @@ export default function Game() {
               Clear
             </button>
           </div>
-          <dl className="og-stats">
-            <dt>Total bet</dt>
-            <dd>{money(total)}</dd>
-            <dt>Return to player</dt>
-            <dd>{total > 0 ? pct(stats.rtp) : '–'}</dd>
-            <dt>Chance of profit</dt>
-            <dd>{total > 0 ? fmtChance(stats.pProfit) : '–'}</dd>
-            <dt>Best payout</dt>
-            <dd>{total > 0 ? money(stats.maxMult * total) : '–'}</dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={bet}>
@@ -436,24 +411,27 @@ export default function Game() {
     >
       <StageTop status={status} tone={dealing ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <Readouts
+        items={[
+          { label: 'Win chance', value: total > 0 ? fmtChance(stats.pProfit) : '–', tone: 'chance' },
+          { label: 'Best payout', value: total > 0 ? money(stats.maxMult * total) : '–', tone: 'prize' },
+        ]}
+      />
+
       <Board className="bc-board">
         <InstantResult multiplier={last && !dealing ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
         <div className="bc-table" style={{ '--step': `${step}ms` } as CSSProperties}>
-          <Hand who="player" cards={table?.player ?? []} flipped={table?.pf ?? 0} revealed={table?.pr ?? 0} state={handState('player')} />
+          <Hand who="player" cards={table?.player ?? []} flipped={table?.pf ?? 0} revealed={table?.pr ?? 0} state={handState('player')} bet={(shownLayout.player ?? 0) > 0} />
           <div className="bc-vs" aria-hidden="true">
-            <span>vs</span>
+            vs
           </div>
-          <Hand who="banker" cards={table?.banker ?? []} flipped={table?.bf ?? 0} revealed={table?.br ?? 0} state={handState('banker')} />
-        </div>
-        <div className={`bc-banner ${banner.cls}`} key={last?.id ?? (dealing ? 'deal' : 'idle')} aria-live="polite">
-          <b>{banner.title}</b>
-          <span>{banner.sub}</span>
+          <Hand who="banker" cards={table?.banker ?? []} flipped={table?.bf ?? 0} revealed={table?.br ?? 0} state={handState('banker')} bet={(shownLayout.banker ?? 0) > 0} />
         </div>
       </Board>
 
       <Felt layout={shownLayout} variant={variant} states={spotStates} gains={gains} disabled={busy} onAdd={add} onRemove={remove} />
 
-      <Road beads={beads} />
+      <Caption>Back the hand that finishes closer to 9; a tie returns Player and Banker bets.</Caption>
 
       {infoOpen && (
         <InfoModal title="Baccarat" onClose={() => setInfoOpen(false)}>
@@ -476,9 +454,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Each spot on the felt shows its payout and its exact chance to win. The panel shows your whole layout's return, its chance of a profit and the most it
-              can pay. The bead road under the felt records every round: P blue, B red, T green, with a corner dot for a Player pair (top left) or a Banker pair
-              (bottom right). Every round is dealt from a fresh shoe, so past beads never change the next round's odds.
+              Each spot on the felt shows its payout; the table below gives every bet's exact chance. Above the felt, Win chance is your whole layout's chance of a
+              profit and Best payout is the most it can pay (your layout's return is {total > 0 ? pct(stats.rtp) : 'shown once chips are down'}). Your chips are
+              outlined in the accent colour; after a deal, a spot with your chips is outlined green if it won and red if it lost. Every round is dealt from a fresh
+              shoe, so past rounds never change the next round's odds.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

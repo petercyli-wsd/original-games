@@ -11,6 +11,6 @@ export default defineManifest({
   maxMultiplier: MAX_MULTIPLIER,
   volatility: ['low', 'medium', 'high', 'extreme'],
   checkpoints: true,
-  accent: '#a5b4fc',
+  accent: '#7b93ff', // ACCENTS.blue (docs/STYLE.md)
   revision: { kind: 'new', date: '2026-11-02', note: 'Roll your dice up to three times; sixes stay put, and you win if every die shows a six.' },
 });

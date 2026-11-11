@@ -1,10 +1,10 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -16,6 +16,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -26,7 +27,7 @@ import {
   useTurbo,
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import Field, { type Outcome, type Phase } from './Board';
 import {
   MAX_MULTIPLIER,
@@ -35,7 +36,6 @@ import {
   ROW_CENTRE,
   START,
   WIDTHS,
-  cardsLeft,
   gateCentre,
   headline,
   placeGate,
@@ -51,7 +51,7 @@ import {
   type Pos,
 } from './math';
 
-const ACCENT = '#b8f2e6';
+const ACCENT = ACCENTS.sky;
 
 interface Round {
   id: number;
@@ -75,16 +75,7 @@ const TITLE: Record<Outcome, string> = {
   cashed: 'Cashed out',
 };
 
-/** What the line under the bar says once the round is over. */
-const OVER_LINE: Record<Outcome, string> = {
-  through: 'The ball landed in your gate',
-  locked: "The last cards can't miss your gate",
-  missed: 'The ball landed outside your gate',
-  unreachable: "The last cards can't reach your gate",
-  cashed: 'Cashed out',
-};
-
-const RULE = `Six ↙ cards and six ↘ cards are shuffled. The ball follows the first ${N} dealt; land it in the green gate to win.`;
+const RULE = 'Land the ball in your green gate on the bottom row to win.';
 
 function offsetText(g: Gate) {
   const d = gateCentre(g) - ROW_CENTRE;
@@ -93,26 +84,12 @@ function offsetText(g: Gate) {
   return `${k % 1 ? k.toFixed(1) : k} ${d < 0 ? 'left' : 'right'} of centre`;
 }
 
-/** Narrow boards get the result card inline, below the board, so it never covers the bar. */
-function useNarrow(threshold: number) {
-  const [el, setEl] = useState<SVGSVGElement | null>(null);
-  const [narrow, setNarrow] = useState(false);
-  useEffect(() => {
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < threshold));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [el, threshold]);
-  return [narrow, setEl] as const;
-}
-
 export default function Game() {
   const { rng, track } = useHost();
   const bet = useBetInput();
   const turbo = useTurbo();
   const timers = useTimers();
   const [history, pushHistory] = useHistory();
-  const [narrow, svgRef] = useNarrow(470);
 
   const [gate, setGate] = useState<Gate>(() => placeGate(1, ROW_CENTRE));
   const [phase, setPhase] = useState<Phase>('idle');
@@ -156,7 +133,8 @@ export default function Game() {
     resolved.current = cash;
     const next: Round = { ...r, path, cash, running: run };
 
-    const per = Math.round((run ? 300 : 460) * speed);
+    // Manual: each card takes a readable 600 ms (docs/STYLE.md); running to the gate stays quick.
+    const per = run ? Math.round(300 * speed) : eventMs(turbo.turbo);
     const hold = Math.round((run ? 240 : 80) * speed);
     // A new round snaps the ball back to the top before it moves.
     const lead = seen === 0 ? 40 : 0;
@@ -245,18 +223,12 @@ export default function Game() {
   const dealt = rowOf(walker);
   const p0 = headline(gate);
   const lows = positions(gate.width);
-  const deck = cardsLeft(walker);
 
   let status = `Ready · ${N} cards to the bottom row`;
   if (phase === 'stepping') status = round?.running ? `Dealing to the gate · card ${dealt}` : `Dealing card ${dealt} of ${N}`;
   if (phase === 'checkpoint') status = `Your call · ${dealt} of ${N} cards dealt`;
   if (phase === 'over' && round?.outcome) status = `${TITLE[round.outcome]} · ${dealt} of ${N} cards`;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
-
-  let prompt = 'Tap a bottom tile to move the gate';
-  if (phase === 'stepping') prompt = round?.running ? 'Dealing to the gate…' : 'Dealing…';
-  if (phase === 'checkpoint') prompt = 'Deal the next card, or cash out';
-  if (phase === 'over' && round?.outcome) prompt = OVER_LINE[round.outcome];
 
   return (
     <GameLayout
@@ -278,23 +250,13 @@ export default function Game() {
           <Label hint={offsetText(gate)}>Gate position</Label>
           <Slider label="Gate position" min={lows[0]} max={lows[lows.length - 1]} value={gate.lo} disabled={live} onChange={setGateLo} />
 
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(gate))}</dd>
-          </dl>
-
           {live && round ? (
             <>
               <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
-              <ActionButton kind="secondary" className="pas-next" disabled={phase !== 'checkpoint'} onClick={() => move(round, false)}>
+              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, false)}>
                 Deal next card
-                <small>
-                  {deck.left} ↙ · {deck.right} ↘ left
-                </small>
               </ActionButton>
               <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={() => move(round, true)}>
                 Run to the gate
@@ -314,27 +276,19 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Win chance', value: fmtChance(pNow), sub: 'ball lands in the gate', tone: 'chance' },
-          {
-            label: 'Cash out now',
-            value: live || phase === 'over' ? fmtMult(cash) : '—',
-            sub: live || phase === 'over' ? formatAmount(stake * cash, 2) : 'after every card',
-            tone: 'cash',
-          },
-          { label: 'Prize', value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
       <Board className="pas-board">
         <Field
-          svgRef={svgRef}
           gate={g}
           walker={walker}
           trail={trail}
           phase={phase}
           outcome={round?.outcome ?? null}
           stepMs={phase === 'stepping' ? stepMs : 0}
-          prompt={prompt}
           onPick={live ? undefined : pickTile}
         />
         {phase === 'over' && round?.outcome && (
@@ -347,18 +301,18 @@ export default function Game() {
             blocked={bet.blocked}
             onBetAgain={() => void start()}
             onClear={clear}
-            placement={narrow ? 'inline' : dealt >= N / 2 ? 'top' : 'bottom'}
+            placement="inline"
           />
         )}
       </Board>
 
-      {live ? <ChanceBar p={pNow} label="Chance to pass through the gate" note={RULE} /> : <Caption>{RULE} RTP {(RTP * 100).toFixed(0)}%.</Caption>}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Pascal" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A ball starts on the top tile of a triangle and drops one row per card. Land it in your <b style={{ color: 'var(--green)' }}>gate</b>: one
+              A ball starts on the top tile of a triangle and drops one row per card. Land it in your <b style={{ color: 'var(--win)' }}>gate</b>: one
               to three tiles on the bottom row.
             </p>
           </InfoSection>
@@ -382,7 +336,7 @@ export default function Game() {
             </p>
             <p>
               <b>The bar</b> under the triangle is the bottom row again, each tile stretched to its chance of being where the ball lands. The{' '}
-              <b style={{ color: 'var(--green)' }}>green share</b> is your gate: your exact chance to win. Tiles the ball can no longer reach are dimmed
+              <b style={{ color: 'var(--win)' }}>green share</b> is your gate: your exact chance to win. Tiles the ball can no longer reach are dimmed
               and drop out of the bar.
             </p>
           </InfoSection>

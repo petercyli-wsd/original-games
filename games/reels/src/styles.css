@@ -1,17 +1,10 @@
-/* Reels: a 5×3 slot cabinet with line markers, win lines, banners and a paytable. */
+/* Reels: a flat 5×3 slot with line markers and a paytable in How to play. Tokens only (docs/STYLE.md). */
 
-.rl-gold {
-  color: var(--gold);
-}
-.rl-note,
 .rl-blocked {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   text-align: center;
-  color: var(--muted);
-}
-.rl-blocked {
-  color: var(--red);
+  color: var(--lose);
 }
 
 /* ---------- Panel ---------- */
@@ -22,15 +15,15 @@
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) 34px;
   align-items: center;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .rl-step {
   height: 34px;
   border-radius: var(--radius);
   background: var(--bg);
   border: 1px solid var(--line) !important;
-  font-size: 18px;
-  font-weight: 800;
+  font-size: var(--fs-3);
+  font-weight: 600;
   color: var(--muted);
 }
 .rl-step:not(:disabled):hover {
@@ -41,165 +34,67 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
-  padding: 11px 14px;
-  font-size: 14px;
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent) !important;
-  background: color-mix(in srgb, var(--accent) 10%, var(--hover));
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
 }
 .rl-buy span {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .rl-buy-confirm {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
   border-radius: var(--radius);
-  border: 1px solid color-mix(in srgb, var(--accent) 60%, transparent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg));
-  font-size: 13px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: var(--fs-2);
   text-align: center;
-  animation: rl-pop 0.18s ease-out both;
-}
-.rl-buy-confirm b {
-  color: var(--gold);
 }
 .rl-buy-confirm > div {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: var(--sp-2);
 }
 .rl-buy-confirm .og-btn {
   padding: 10px;
-  font-size: 14px;
+  font-size: var(--fs-2);
 }
 .rl-auto-toggle {
-  padding: 4px 0 2px;
+  padding: var(--sp-1) 0 2px;
 }
 
-/* ---------- Cabinet ---------- */
-.reels .og-stage {
-  gap: 10px;
-}
-.rl-board .og-instant {
-  top: 2px;
-}
+/* ---------- Reels ---------- */
 .rl-board {
   min-height: 0;
   align-content: start;
-}
-.rl-defs {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
 }
 .rl-cabinet {
   position: relative;
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: 8px 10px 10px;
-  border-radius: 18px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--accent) 16%, #14141c) 0%, #0d0d13 60%),
-    #0d0d13;
-  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
-  box-shadow:
-    0 0 0 4px #0a0a0f,
-    0 24px 60px -20px #000c,
-    inset 0 1px 0 #ffffff14;
-  transition:
-    border-color 0.4s ease,
-    box-shadow 0.4s ease;
-}
-.rl-cabinet.free {
-  border-color: var(--gold);
-  box-shadow:
-    0 0 0 4px #0a0a0f,
-    0 0 50px -12px color-mix(in srgb, var(--gold) 70%, transparent),
-    inset 0 1px 0 #ffffff14;
-}
-.rl-cabinet.veiled .rl-window,
-.rl-cabinet.veiled .rl-markers {
-  filter: brightness(0.4) saturate(0.6);
-  transition: filter 0.25s ease;
-}
-.rl-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  min-height: 28px;
-  margin-bottom: 6px;
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.rl-topbar-hint {
-  font-size: 12px;
-  font-weight: 600;
-}
-.rl-topbar-hint b {
-  font-size: 13px;
-  color: var(--text);
-}
-.rl-topbar-hint.hidden,
-.rl-topbar-narrow.hidden {
-  visibility: hidden;
-}
-.rl-topbar-narrow {
-  display: none;
-}
-.rl-topbar-note {
-  position: absolute;
-  right: 18px;
-  font-size: 12px;
-  font-weight: 600;
-}
-.rl-fs-tag {
-  padding: 3px 10px;
-  border-radius: 99px;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #1a1206;
-  background: var(--gold);
-}
-.rl-topbar b {
-  color: var(--text);
-  font-size: 15px;
-}
-.rl-mult {
-  color: var(--accent);
-  font-weight: 900;
-}
-.rl-fs-won b {
-  color: var(--gold);
 }
 
 .rl-machine {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr) 26px;
-  gap: 6px;
+  gap: var(--sp-1);
 }
 .rl-markers {
   display: grid;
   grid-template-rows: repeat(3, 1fr);
   /* The tabs take the reels' height; they never stretch the reels. */
   contain: size;
-  padding: 4px 0;
+  padding: var(--sp-1) 0;
 }
 .rl-marker-row {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   min-height: 0;
 }
 .rl-marker {
@@ -208,35 +103,34 @@
   flex: 0 1 15px;
   min-height: 0;
   line-height: 1;
-  border-radius: 4px;
-  font-size: 9px;
-  font-weight: 800;
+  border-radius: 2px;
+  font-size: var(--fs-1);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: #fff6;
-  background: #ffffff0d;
+  color: var(--faint);
   cursor: pointer;
   transition:
-    background 0.15s,
-    color 0.15s,
-    transform 0.15s;
+    background var(--dur-ui) ease,
+    color var(--dur-ui) ease;
 }
 .rl-marker.on {
-  color: #0b0b10;
-  background: color-mix(in srgb, var(--lc) 75%, #222);
+  color: var(--muted);
 }
-.rl-marker.lit {
-  background: var(--lc);
-  color: #0b0b10;
-  transform: scale(1.15);
-  box-shadow: 0 0 10px var(--lc);
+.rl-marker.won {
+  color: var(--bg);
+  background: var(--win);
+}
+.rl-marker.pick {
+  color: var(--bg);
+  background: var(--accent);
 }
 
 .rl-window {
   position: relative;
-  border-radius: 12px;
-  padding: 4px;
-  background: #07070b;
-  box-shadow: inset 0 0 0 1px #ffffff12, inset 0 8px 24px #000a;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
 }
 .rl-reels {
   display: grid;
@@ -246,42 +140,23 @@
   position: relative;
   aspect-ratio: 1 / 3;
   overflow: hidden;
-  background: linear-gradient(180deg, #0d0d14, #16161f 50%, #0d0d14);
-  border-right: 1px solid #ffffff0d;
-}
-.rl-reel:first-child {
-  border-radius: 9px 0 0 9px;
+  border-right: 1px solid var(--line);
 }
 .rl-reel:last-child {
   border-right: 0;
-  border-radius: 0 9px 9px 0;
-}
-.rl-reel::after {
-  /* top / bottom shading of the curved reel */
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(180deg, #000a 0%, transparent 14%, transparent 86%, #000a 100%);
 }
 .rl-reel.anticip {
-  box-shadow: inset 0 0 0 2px var(--gold), inset 0 0 30px color-mix(in srgb, var(--gold) 45%, transparent);
-  animation: rl-anticip 0.5s ease-in-out infinite alternate;
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
 }
 .rl-strip {
   position: absolute;
   inset: 0 0 auto 0;
   will-change: transform;
 }
-.rl-reel.spinning .rl-sym {
-  filter: blur(0.6px) brightness(0.9);
-}
 .rl-cell {
   display: grid;
   place-items: center;
-  transition:
-    opacity 0.25s,
-    filter 0.25s;
 }
 .rl-sym {
   display: block;
@@ -289,253 +164,108 @@
   height: 82%;
   overflow: visible;
 }
-.rl-sym-text {
-  font-family: system-ui, sans-serif;
-  font-weight: 900;
-  fill: #fff;
-  letter-spacing: 0.04em;
-  paint-order: stroke;
-  stroke: #7c2d12;
-  stroke-width: 2.5px;
+.rl-f {
+  fill: var(--text);
 }
-.rl-sym-text.scatter {
-  fill: #fde68a;
-  stroke: #431407;
+.rl-o {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 8;
+}
+.rl-sym-text {
+  font-family: var(--og-font, system-ui, sans-serif);
+  font-weight: 700;
+  fill: var(--text);
 }
 .rl-cell.dim {
-  opacity: 0.32;
-  filter: saturate(0.5);
+  opacity: 0.4;
 }
-.rl-cell.win .rl-sym {
-  animation: rl-win 0.7s ease-in-out infinite alternate;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--gold) 80%, transparent));
+.rl-cell.win {
+  background: var(--hover);
+  outline: 2px solid var(--win);
+  outline-offset: -2px;
 }
 
 .rl-lines {
   position: absolute;
-  inset: 4px;
-  width: calc(100% - 8px);
-  height: calc(100% - 8px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
   pointer-events: none;
 }
-.rl-line-under {
-  fill: none;
-  stroke: var(--lc);
-  stroke-opacity: 0.4;
-  stroke-width: 2px;
-  stroke-dasharray: 3 5;
-  stroke-linejoin: round;
-  stroke-linecap: round;
-}
 .rl-line-over {
   fill: none;
-  stroke: var(--lc);
-  stroke-width: 4px;
+  stroke: var(--win);
+  stroke-width: 3px;
   stroke-linejoin: round;
   stroke-linecap: round;
-  filter: drop-shadow(0 0 4px var(--lc));
-  animation: rl-draw 0.35s ease-out both;
 }
-.rl-line.hover .rl-line-over {
+.rl-line.pick .rl-line-over {
+  stroke: var(--accent);
   stroke-dasharray: 6 5;
-  animation: none;
 }
 
-.rl-hud {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
+/* A partial return is neutral, never green. */
+.rl-cabinet.part .rl-cell.win {
+  outline-color: var(--text);
 }
-.rl-hud > div {
+.rl-cabinet.part .rl-line-over {
+  stroke: var(--text);
+}
+.rl-cabinet.part .rl-marker.won {
+  background: var(--text);
+}
+
+/* ---------- Paytable: one flat row under the reels ---------- */
+.rl-paytable {
+  width: min(100%, 560px);
+  margin: var(--sp-2) auto 0;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.rl-pt-head {
+  margin-bottom: var(--sp-1);
+}
+.rl-pt-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--sp-1);
+}
+.rl-pt {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  background: #07070b;
-  border: 1px solid #ffffff10;
-  min-width: 0;
+  padding: var(--sp-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
 }
-.rl-hud span {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
+.rl-pt .rl-sym {
+  width: 22px;
+  height: 22px;
 }
-.rl-hud b {
-  font-size: 16px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.rl-hud-win b {
-  color: var(--muted);
-}
-.rl-hud-win.on {
-  border-color: color-mix(in srgb, var(--gold) 55%, transparent);
-}
-.rl-hud-win.on b {
-  color: var(--gold);
-  animation: rl-pop 0.3s ease-out both;
-}
-
-/* ---------- Odds bar ---------- */
-.rl-odds {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin-top: 8px;
-  padding: 6px 10px 7px;
-  border-radius: 10px;
-  background: #07070b;
-  border: 1px solid #ffffff10;
-}
-.rl-odds-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  white-space: nowrap;
-  font-size: 13px;
-  font-weight: 700;
+.rl-pt.on {
+  border-color: var(--text);
+  background: var(--hover);
   color: var(--text);
 }
-.rl-odds-head small {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.rl-odds-head em {
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  animation: rl-pop 0.3s ease-out both;
-}
-.rl-odds-head em.up {
-  color: var(--green);
-}
-.rl-odds-head em.down {
-  color: var(--red);
-}
-.rl-odds-head b {
-  margin-left: auto;
-  font-size: 18px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-.rl-odds-track {
-  display: flex;
-  height: 12px;
-  border-radius: 99px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--red) 28%, var(--bg));
-}
-.rl-odds-track i {
-  display: block;
-  height: 100%;
-  transition: width 0.35s cubic-bezier(0.2, 0.8, 0.3, 1);
-}
-.rl-odds i.more {
-  background: var(--green);
-}
-.rl-odds i.less {
-  background: color-mix(in srgb, var(--green) 45%, var(--bg));
-}
-.rl-odds i.free {
-  background: var(--gold);
-}
-.rl-odds-key {
+.rl-pt-note {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
 }
-.rl-odds-key span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
-.rl-odds-key i {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-}
-.rl-odds-key .none i {
-  background: color-mix(in srgb, var(--red) 28%, var(--bg));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--red) 50%, transparent);
-}
-.rl-odds-key b {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- Rule strip ---------- */
-.rl-rule {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 6px 14px;
-  width: min(100%, 720px);
-  margin: 0 auto;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-}
-.rl-rule > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-.rl-rule b {
+.rl-pt-note .on {
   color: var(--text);
 }
-.rl-rule .rl-sym {
-  width: 20px;
-  height: 20px;
-}
-.rl-rule-icons {
-  display: inline-flex;
-}
-.rl-rule-icons .rl-sym {
-  width: 16px;
-  height: 16px;
-  margin-right: -3px;
-}
 
-.rl-board .og-instant {
-  white-space: nowrap;
-}
-/* A result that returns less than the stake is neither a win nor a loss colour. */
-.rl-board .og-instant.part {
-  border-color: var(--line-strong, #ffffff40);
-}
-.rl-board .og-instant.part b {
-  color: var(--text);
-}
-.rl-board .og-instant.won {
-  border-color: var(--green);
-  box-shadow: 0 0 30px -10px var(--green);
-}
-.rl-board .og-instant.won b {
-  color: var(--green);
-}
-.rl-board .og-instant.lost {
-  border-color: var(--red);
-}
-.rl-board .og-instant.lost b {
-  color: var(--red);
-}
-
-/* ---------- Banners ---------- */
-.rl-banner,
-.rl-bigwin {
+/* ---------- Banner (free-spin announcements) ---------- */
+.rl-banner {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -543,258 +273,92 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
+  min-width: min(78%, 320px);
+  padding: var(--sp-4) var(--sp-5);
   transform: translate(-50%, -50%);
   text-align: center;
   cursor: pointer;
-}
-.rl-banner {
-  min-width: min(78%, 340px);
-  padding: 16px 26px 18px;
-  border-radius: 16px;
-  background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--gold) 28%, #15110a), #0d0b08 75%);
-  border: 2px solid var(--gold);
-  box-shadow: 0 0 60px -10px color-mix(in srgb, var(--gold) 70%, transparent), 0 20px 50px #000c;
-  animation: rl-banner-in 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
 }
 .rl-banner b {
-  font-size: clamp(22px, 5cqi, 34px);
-  font-weight: 900;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--gold);
-  text-shadow: 0 2px 0 #7c2d12;
+  font-size: var(--fs-5);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
 }
 .rl-banner span {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-}
-.rl-banner.end b {
-  font-size: clamp(26px, 6cqi, 40px);
-}
-.rl-banner-icon {
-  width: 54px;
-  height: 54px;
-  animation: rl-pulse 0.8s ease-in-out infinite alternate;
-}
-.rl-bigwin {
-  inset: 0;
-  left: 0;
-  top: 0;
-  transform: none;
-  justify-content: center;
-  border-radius: 18px;
-  background: radial-gradient(circle at 50% 50%, #000a 0%, #000d 70%);
-  animation: rl-fade 0.3s ease-out both;
-}
-.rl-bigwin span {
-  font-size: clamp(28px, 7cqi, 52px);
-  font-weight: 900;
-  font-style: italic;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  background: linear-gradient(180deg, #fff7d6 0%, var(--gold) 55%, #b45309 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  filter: drop-shadow(0 4px 0 #431407) drop-shadow(0 0 22px color-mix(in srgb, var(--gold) 60%, transparent));
-  animation: rl-banner-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
-}
-.rl-bigwin.mega span {
-  background-image: linear-gradient(180deg, #fff 0%, var(--accent) 55%, #9a3412 100%);
-}
-.rl-bigwin.epic span {
-  background-image: linear-gradient(180deg, #fff 0%, #f0abfc 45%, #a21caf 100%);
-}
-.rl-bigwin b {
-  font-size: clamp(22px, 5cqi, 36px);
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  color: #fff;
+  font-size: var(--fs-2);
+  font-weight: 500;
+  color: var(--muted);
 }
 
-/* ---------- Paytable ---------- */
-.rl-paytable {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: min(100%, 640px);
-  margin: 0 auto;
-}
-.rl-pt-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-.rl-pt-grid {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-}
-.rl-pt {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 8px;
-  border-radius: var(--radius);
-  background: var(--bg);
-  border: 1px solid var(--line);
-  min-width: 0;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s;
-}
-.rl-pt.on {
-  border-color: var(--gold);
-  box-shadow: 0 0 18px -8px var(--gold);
-}
-.rl-pt .rl-sym {
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-}
-.rl-pt dl {
-  display: grid;
-  gap: 1px;
-  margin: 0;
-  flex: 1;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-}
-.rl-pt dl > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-}
-.rl-pt dt {
-  color: var(--muted);
-}
-.rl-pt dt::after {
-  content: '×';
-}
-.rl-pt dd {
-  margin: 0;
-  font-weight: 800;
-}
-.rl-pt.special {
-  grid-column: span 2;
-}
-.rl-pt.special p,
-.rl-pt.wild p {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--muted);
-}
-.rl-pt p b {
-  color: var(--text);
-}
-
-/* ---------- Info modal ---------- */
+/* ---------- How to play ---------- */
 .rl-paylines {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
-  gap: 6px;
-  margin-top: 10px;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 .rl-paylines svg {
   width: 100%;
   height: auto;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 .rl-paylines svg.on {
   opacity: 1;
 }
 .rl-paylines rect {
-  fill: #ffffff14;
+  fill: var(--hover);
 }
 .rl-paylines rect.hit {
-  fill: var(--lc);
+  fill: var(--text);
 }
 .rl-paylines text {
   font-size: 0;
 }
-.rl-rtp-table {
+.rl-rtp-table,
+.rl-pt-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-2);
   font-variant-numeric: tabular-nums;
 }
 .rl-rtp-table th,
-.rl-rtp-table td {
+.rl-rtp-table td,
+.rl-pt-table th,
+.rl-pt-table td {
   padding: 5px 6px;
   text-align: right;
   border-bottom: 1px solid var(--line);
 }
 .rl-rtp-table th:first-child,
-.rl-rtp-table td:first-child {
+.rl-rtp-table td:first-child,
+.rl-pt-table th:first-child,
+.rl-pt-table td:first-child {
   text-align: left;
 }
 .rl-rtp-table tr.on td {
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--text);
+  font-weight: 600;
 }
-
-/* ---------- Motion ---------- */
-@keyframes rl-win {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.1);
-  }
+.rl-pt-table td:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
 }
-@keyframes rl-draw {
-  from {
-    opacity: 0;
-  }
+.rl-pt-table .rl-sym {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
 }
-@keyframes rl-pop {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-@keyframes rl-fade {
-  from {
-    opacity: 0;
-  }
-}
-@keyframes rl-banner-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.6);
-  }
-}
-.rl-bigwin span {
-  transform-origin: center;
-}
-.rl-bigwin span {
-  animation-name: rl-big-in;
-}
-@keyframes rl-big-in {
-  from {
-    opacity: 0;
-    transform: scale(0.5) rotate(-4deg);
-  }
-}
-@keyframes rl-anticip {
-  from {
-    box-shadow: inset 0 0 0 2px var(--gold), inset 0 0 18px color-mix(in srgb, var(--gold) 30%, transparent);
-  }
-  to {
-    box-shadow: inset 0 0 0 2px var(--gold), inset 0 0 40px color-mix(in srgb, var(--gold) 65%, transparent);
-  }
-}
-@keyframes rl-pulse {
-  to {
-    transform: scale(1.12);
-    filter: drop-shadow(0 0 10px var(--gold));
-  }
+.rl-sym.rl-inline {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: middle;
 }
 
 /* ---------- Narrow frames ---------- */
@@ -804,96 +368,5 @@
   }
   .rl-markers {
     display: none;
-  }
-  .rl-cabinet {
-    padding: 8px 6px 10px;
-  }
-  .rl-topbar-note,
-  .rl-topbar-hint {
-    display: none;
-  }
-  .rl-topbar-narrow {
-    display: inline;
-  }
-  .rl-odds-key {
-    gap: 3px 10px;
-    font-size: 10.5px;
-  }
-  .rl-odds-head {
-    gap: 6px;
-    font-size: 12px;
-  }
-  .rl-odds-head small,
-  .rl-odds-head em {
-    font-size: 10px;
-  }
-  .rl-odds-head b {
-    font-size: 16px;
-  }
-  .rl-hud b {
-    font-size: 14px;
-  }
-  .rl-board .og-instant {
-    top: -4px;
-    padding: 5px 12px;
-  }
-  .rl-board .og-instant b {
-    font-size: 18px;
-  }
-  .rl-pt-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .rl-pt {
-    flex-direction: column;
-    gap: 4px;
-    padding: 6px;
-  }
-  .rl-pt dl {
-    width: 100%;
-  }
-  .rl-pt.special {
-    grid-column: span 4;
-    flex-direction: row;
-  }
-  .rl-pt.wild p {
-    font-size: 10px;
-    text-align: center;
-  }
-}
-
-/* ---------- Paytable toggle: collapsed on narrow frames so the controls sit closer to the reels ---------- */
-.rl-pt-toggle {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-.rl-pt-toggle i {
-  font-style: normal;
-  transition: transform 0.2s;
-}
-.rl-paytable.open .rl-pt-toggle i {
-  transform: rotate(180deg);
-}
-@container (max-width: 760px) {
-  .rl-pt-toggle {
-    display: inline-flex;
-  }
-  .rl-pt-title {
-    display: none;
-  }
-  .rl-paytable:not(.open) .rl-pt-grid {
-    display: none;
-  }
-  .rl-pt-head {
-    padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    background: var(--bg);
   }
 }

@@ -85,7 +85,10 @@ export const afterSafeDrop = (cash: number, q: number) => cash / (1 - q);
 
 /** Exact chance that n uniform points all fit in a window of size a (fraction of a turn). */
 export function fitChance(n: number, window: Window): number {
-  const a = window / 360;
+  return fitFraction(n, window / 360);
+}
+
+function fitFraction(n: number, a: number): number {
   let p = 0;
   let binom = 1;
   for (let k = 1; k <= n; k++) {
@@ -93,6 +96,31 @@ export function fitChance(n: number, window: Window): number {
     const base = 1 - k * (1 - a);
     if (base <= 0) break;
     p += (k % 2 ? 1 : -1) * binom * base ** (n - 1);
+  }
+  return Math.min(1, p);
+}
+
+/**
+ * Chance that the board still fills from here: the `target - points.length`
+ * remaining points all land so that, with the points already down, everything
+ * fits in one window. Collapse the span s of the current points to one spot;
+ * the m new points that land outside it must then fit, with that spot, in a
+ * window of (a - s) / (1 - s) of the shrunken circle.
+ */
+export function fillChance(points: readonly number[], window: Window, target: number): number {
+  const k = target - points.length;
+  if (k <= 0) return 1;
+  const a = window / 360;
+  const s = span(points)?.length ?? 0;
+  if (s > a + 1e-12) return 0;
+  // No points yet: k fresh points. One point down (span 0): k more beside it.
+  if (s <= 0) return fitFraction(points.length === 0 ? k : k + 1, a);
+  const ap = Math.min(1, (a - s) / (1 - s));
+  let p = 0;
+  let binom = 1;
+  for (let m = 0; m <= k; m++) {
+    if (m > 0) binom = (binom * (k - m + 1)) / m;
+    p += binom * (1 - s) ** m * s ** (k - m) * (m === 0 ? 1 : fitFraction(m + 1, ap));
   }
   return Math.min(1, p);
 }

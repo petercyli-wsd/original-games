@@ -1,5 +1,6 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   BetField,
   Board,
@@ -15,7 +16,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
-  fmtChance,
+  eventMs,
   fmtMult,
   useBetInput,
   useHistory,
@@ -56,7 +57,7 @@ interface Round {
   outcome: Outcome | null;
 }
 
-const ACCENT = '#ff99c8';
+const ACCENT = ACCENTS.pink;
 const OUTCOME_TITLE: Record<Outcome, string> = { bust: 'No room on the table', cashed: 'Cashed out', full: 'All pairs matched', max: 'Max win reached' };
 
 export default function Game() {
@@ -83,9 +84,12 @@ export default function Game() {
   const ticket = useTicket(() => resolved.current);
 
   // Risky draws get a pause in the hand; free draws (room on the table) flow quickly.
-  const T = turbo.turbo
-    ? { move: 70, risky: { lift: 170, meet: 80, settle: 90 }, free: { lift: 70, meet: 50, settle: 30 } }
-    : { move: 240, risky: { lift: 650, meet: 320, settle: 360 }, free: { lift: 260, meet: 200, settle: 110 } };
+  const tb = turbo.turbo;
+  const T = {
+    move: eventMs(tb, 300),
+    risky: { lift: eventMs(tb, 600), meet: eventMs(tb, 300), settle: eventMs(tb, 300) },
+    free: tb ? { lift: 70, meet: 50, settle: 30 } : { lift: 260, meet: 200, settle: 110 },
+  };
   const timing = useRef(T);
   timing.current = T;
   const live = phase === 'drawing' || phase === 'checkpoint';
@@ -186,11 +190,10 @@ export default function Game() {
   const deal = round?.deal ?? newDeal(pairs, slots);
   const n = deal.pairs;
   const k = deal.slots;
-  const { u, t, left } = counts(deal);
+  const { left } = counts(deal);
   const q = risk(deal);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const fromHere = dealWinChance(deal);
   const drawn = 2 * n - left;
   const started = !!round;
 
@@ -242,10 +245,6 @@ export default function Game() {
           />
 
           <dl className="og-stats">
-            <dt>Chance to match all</dt>
-            <dd>{fmtChance(pickWin)}</dd>
-            <dt>Typical full prize</dt>
-            <dd>{fmtMult(RTP / pickWin)}</dd>
             <dt>Max prize</dt>
             <dd>{fmtMult(maxMultiplier(pairs, slots))}</dd>
           </dl>
@@ -256,7 +255,7 @@ export default function Game() {
                 Cash out <span>{formatAmount(stake * cash, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={next}>
-                Draw · {fmtChance(1 - q)} safe
+                Draw next
               </ActionButton>
             </>
           ) : (
@@ -271,30 +270,21 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar
+        p={!started ? pickWin : phase === 'over' && round?.outcome === 'bust' ? 0 : dealWinChance(deal)}
+        label={!started || (phase === 'over' && round?.outcome === 'bust') ? 'Chance to match all' : 'Chance to match all from here'}
+      />
+
       <Readouts
-        items={
+        items={[
           started
-            ? [
-                {
-                  label: 'Next draw safe',
-                  value: live ? fmtChance(1 - q) : '—',
-                  sub: live ? (q === 0 ? 'room on the table' : `${t} twins of ${left} tokens`) : `${deal.matched.length} of ${n} pairs`,
-                  tone: 'chance',
-                },
-                { label: 'Cash out now', value: fmtMult(cash), sub: formatAmount(stake * cash, 2), tone: 'cash' },
-                {
-                  label: live && q === 0 ? 'After this draw' : 'If it is a twin',
-                  value: live ? fmtMult(afterSafeDraw(cash, q)) : '—',
-                  sub: live ? `clear all from here ${fmtChance(fromHere)}` : 'round over',
-                  tone: 'prize',
-                },
-              ]
-            : [
-                { label: 'Chance to match all', value: fmtChance(pickWin), sub: `${pairs} pairs, ${slots} slots`, tone: 'chance' },
-                { label: 'Cash out now', value: '—', sub: `bet ${formatAmount(stake, 2)}`, tone: 'cash' },
-                { label: 'Typical full prize', value: fmtMult(RTP / pickWin), sub: `${2 * pairs} tokens to draw`, tone: 'prize' },
-              ]
-        }
+            ? {
+                label: live && q === 0 ? 'After this draw' : 'If it is a twin',
+                value: live ? fmtMult(afterSafeDraw(cash, q)) : '—',
+                tone: 'prize',
+              }
+            : { label: 'Typical full prize', value: fmtMult(RTP / pickWin), tone: 'prize' },
+        ]}
       />
 
       <Board className="socks-board">
@@ -321,22 +311,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={1 - q}
-          label="Next draw is safe"
-          note={
-            q === 0
-              ? 'The table has room, so any token fits: this draw is free.'
-              : `Only the ${t} green twins clear a slot; the ${2 * u} red tokens have no twin on the table and would bust. Chance to clear all from here: ${fmtChance(fromHere)}.`
-          }
-        />
-      ) : (
-        <Caption>
-          Each new colour waits on the table until its twin turns up. With {n} pairs and {k} slots, all {2 * n} tokens come out safely{' '}
-          {fmtChance(winChance(n, k))} of the time. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>Match every token with its twin before the table runs out of room.</Caption>
 
       {infoOpen && (
         <InfoModal title="Socks" onClose={() => setInfoOpen(false)}>
@@ -356,10 +331,10 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Every token left in the pile is equally likely to come next. When the table is full, the <b style={{ color: 'var(--green)' }}>green</b> tokens
-              in the pile are the twins of the tokens on the table: drawing one clears a pair. The <b style={{ color: 'var(--red)' }}>red</b> tokens belong to
+              Every token left in the pile is equally likely to come next. When the table is full, the tokens in the pile with a <b>green</b> outline
+              are the twins of the tokens on the table: drawing one clears a pair. The tokens with a <b>red</b> outline belong to
               pairs not yet started, and there is nowhere to put them. So the chance the next draw is safe is simply green tokens ÷ tokens in the pile, shown
-              as the thin bar above the pile.
+              as the thin bar above the pile. Pairs are told apart by their letter.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

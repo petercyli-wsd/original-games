@@ -7,14 +7,14 @@ export interface Shown {
   card: Card;
 }
 
-/** A playing card: geometric face, house back. `deal` slides it in from the deck and flips it. */
+/** A playing card: flat light face with rank and suit as text. `deal` slides it in from the deck and flips it. */
 export function PlayingCard({ card, deal, ms, mini }: { card: Card; deal?: boolean; ms?: number; mini?: boolean }) {
   const rank = RANK_LABEL[card.rank];
   const suit = SUIT_GLYPH[card.suit];
   return (
     <div
       className={'hl-card' + (deal ? ' deal' : '') + (isRed(card.suit) ? ' red' : '') + (mini ? ' mini' : '')}
-      style={{ '--deal-ms': `${ms ?? 400}ms` } as CSSProperties}
+      style={{ '--deal-ms': `${ms ?? 600}ms` } as CSSProperties}
       aria-label={`${rank} of ${['spades', 'hearts', 'diamonds', 'clubs'][card.suit]}`}
     >
       <div className="hl-flip">
@@ -23,8 +23,12 @@ export function PlayingCard({ card, deal, ms, mini }: { card: Card; deal?: boole
             <b>{rank}</b>
             <i>{suit}</i>
           </span>
-          <span className="hl-pip">{suit}</span>
-          {!mini && <span className="hl-big">{rank}</span>}
+          {!mini && (
+            <span className="hl-big">
+              <b>{rank}</b>
+              <i>{suit}</i>
+            </span>
+          )}
           {!mini && (
             <span className="hl-corner br">
               <b>{rank}</b>
@@ -52,7 +56,7 @@ export function Deck() {
 /**
  * The rank scale, K at the top and A at the bottom. The left column lights
  * the ranks that win the top call, the right column the ranks that win the
- * bottom call: lit cells ÷ 13 is exactly each call's chance.
+ * bottom call: the lit share is each call's chance.
  */
 export function Ladder({ rank, show }: { rank: number; show: boolean }) {
   const [up, down] = mainPair(rank);
@@ -61,8 +65,9 @@ export function Ladder({ rank, show }: { rank: number; show: boolean }) {
   const rows = Array.from({ length: RANKS }, (_, i) => RANKS - i);
   return (
     <div className="hl-ladder" aria-label={`${guessLabel(up, rank)} wins on ${upSet.size} of 13 ranks; ${guessLabel(down, rank)} on ${downSet.size}`}>
-      <div className="hl-lad-head up">
-        <b>▲</b> {upSet.size}/13
+      <div className="hl-lad-head">
+        <b>▲</b>
+        <b>▼</b>
       </div>
       <div className="hl-lad-rows">
         {rows.map((r) => (
@@ -72,9 +77,6 @@ export function Ladder({ rank, show }: { rank: number; show: boolean }) {
             <i className={'d' + (show && downSet.has(r) ? ' on' : '')} />
           </div>
         ))}
-      </div>
-      <div className="hl-lad-head down">
-        <b>▼</b> {downSet.size}/13
       </div>
     </div>
   );
@@ -95,11 +97,10 @@ export function Trail({ items }: { items: TrailItem[] }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) el.scrollTo({ left: el.scrollWidth, behavior: 'smooth' });
+    if (el) el.scrollTo({ left: el.scrollWidth });
   }, [items.length]);
   return (
     <div className="hl-trail" ref={ref} aria-label="Cards this round">
-      {items.length === 0 && <span className="hl-trail-empty">Cards you draw this round line up here.</span>}
       {items.map((it, i) => {
         const from = i > 0 ? items[i - 1].card.rank : it.card.rank;
         const tone = it.won === null ? 'n' : it.won ? 'w' : 'l';
@@ -109,7 +110,7 @@ export function Trail({ items }: { items: TrailItem[] }) {
               {ACTION_ICON[it.action]}
             </span>
             <PlayingCard card={it.card} mini />
-            <span className="hl-trail-cash">{it.won === false ? '✕' : it.action === 'skip' || it.action === 'start' ? (i === 0 ? fmtMult(it.cash) : '—') : fmtMult(it.cash)}</span>
+            <span className="hl-trail-cash">{it.won === false ? '×' : it.action === 'skip' || it.action === 'start' ? (i === 0 ? fmtMult(it.cash) : '—') : fmtMult(it.cash)}</span>
           </div>
         );
       })}
@@ -117,7 +118,7 @@ export function Trail({ items }: { items: TrailItem[] }) {
   );
 }
 
-/** A call button: arrow, label, chance and payout. `compact` for the extended row. */
+/** A call button: glyph, label, chance and payout. `compact` for the extended row. */
 export function CallButton({
   dir,
   guess,
@@ -125,7 +126,6 @@ export function CallButton({
   pays,
   p,
   disabled,
-  keyHint,
   onClick,
   title,
   compact,
@@ -136,21 +136,19 @@ export function CallButton({
   pays: number;
   p: number;
   disabled: boolean;
-  keyHint: string;
   onClick(): void;
   title?: string;
   compact?: boolean;
 }) {
   const icon = dir === 'up' ? '▲' : dir === 'down' ? '▼' : dir === 'same' ? '=' : '●';
   return (
-    <button type="button" className={`hl-call ${dir}` + (compact ? ' compact' : '')} disabled={disabled} onClick={onClick} title={title ?? `${guessLabel(guess, rank)} (${keyHint})`}>
+    <button type="button" className={`hl-call ${dir}` + (compact ? ' compact' : '')} disabled={disabled} onClick={onClick} title={title ?? guessLabel(guess, rank)}>
       <span className="hl-call-ico">{icon}</span>
       <span className="hl-call-text">
         <b>{guessLabel(guess, rank)}</b>
         <small>{compact ? fmtMult(pays) : fmtChance(p)}</small>
       </span>
       {!compact && <span className="hl-call-pay">{fmtMult(pays)}</span>}
-      {!compact && <kbd>{keyHint}</kbd>}
     </button>
   );
 }

@@ -1,18 +1,22 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
   Board,
+  Caption,
   Chips,
   GameLayout,
   InfoModal,
   InfoSection,
-  InstantResult,
   Label,
   ModeTabs,
   PanelFoot,
+  Readouts,
   StageTop,
+  type ReadoutItem,
+  eventMs,
   fmtChance,
   useAutoBet,
   useBetInput,
@@ -22,7 +26,7 @@ import {
   useTimers,
   useTurbo,
 } from '@originals/game-sdk/ui';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   BOARD,
   DRAWS,
@@ -32,7 +36,6 @@ import {
   RISK_LABEL,
   RTP,
   TOTAL_DRAWS,
-  countHits,
   payRows,
   playKeno,
   profitChance,
@@ -60,19 +63,6 @@ function shortChance(p: number): string {
 }
 /** Exact multiplier text: tables are set to the cent, so never round them away ("1,011.60×"). */
 const fmtX = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '×';
-const fmtAmt = (x: number) => x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const longOdds = (p: number) => (p <= 0 ? 'never' : `1 in ${Math.round(1 / p).toLocaleString('en-US')}`);
-
-function Gem() {
-  return (
-    <svg className="kn-gem" viewBox="0 0 40 40" aria-hidden="true">
-      <polygon points="20,2 38,20 20,38 2,20" className="g0" />
-      <polygon points="20,2 29,20 20,38 11,20" className="g1" />
-      <polygon points="20,2 38,20 29,20" className="g2" />
-      <polygon points="2,20 11,20 20,38" className="g3" />
-    </svg>
-  );
-}
 
 export default function Game() {
   const { rng } = useHost();
@@ -87,7 +77,6 @@ export default function Game() {
   const [drawing, setDrawing] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
   const [repick, setRepick] = useState(false);
-  const [hover, setHover] = useState<number | null>(null);
   const [fullFlash, setFullFlash] = useState(0);
   const [infoOpen, setInfoOpen] = useState(false);
   const seq = useRef(0);
@@ -98,25 +87,25 @@ export default function Game() {
   const ticket = useTicket(() => resolved.current);
 
   const n = picks.length;
-  const rows = payRows(risk, n);
-  const stepMs = turbo.turbo ? 24 : 95;
 
   async function playOnce(stake: number): Promise<number | null> {
     const count = repick && auto.mode === 'auto' ? picks.length || MAX_PICKS : 0;
     if (count === 0 && picks.length === 0) return null;
     if (!(await ticket.place(stake))) return null;
+    // Manual: a number is drawn about every 160 ms so the ten draws read one by one; Turbo and Auto are about 4x faster.
+    const fast = turbo.turbo || auto.mode === 'auto';
+    const stepMs = eventMs(fast, 160);
     const round = playKeno(rng, risk, picks, count);
     resolved.current = round.multiplier;
     setPicks(round.picks);
     setDrawn([]);
     setLast(null);
-    setHover(null);
     setDrawing(true);
     for (let i = 0; i < DRAWS; i++) {
       if (!(await timers.wait(stepMs))) return null;
       setDrawn(round.drawn.slice(0, i + 1));
     }
-    await timers.wait(turbo.turbo ? 60 : 220);
+    await timers.wait(eventMs(fast, 200));
     ticket.settle(round.multiplier);
     pushHistory(round.multiplier);
     setLast({ id: ++seq.current, hits: round.hits, multiplier: round.multiplier, stake });
@@ -185,12 +174,8 @@ export default function Game() {
     return () => clearTimeout(id);
   }, [fullFlash]);
 
-  const liveHits = countHits(picks, drawn);
-  const done = !!last && !drawing;
-  const markHits = drawing || done ? liveHits : null;
-  const focus = hover ?? (markHits !== null ? markHits : n > 0 ? n : null);
-  const focusRow = focus !== null && focus <= n ? rows[focus] : null;
   const latest = drawn[drawn.length - 1];
+  const tableN = n || MAX_PICKS;
 
   const status = drawing
     ? `Drawing… ${drawn.length}/${DRAWS}`
@@ -198,12 +183,18 @@ export default function Game() {
       ? `${last.hits} ${last.hits === 1 ? 'hit' : 'hits'} · ${fmtX(last.multiplier)}`
       : n === 0
         ? `Pick 1–${MAX_PICKS} numbers`
-        : `${n} picked · up to ${fmtX(topPayout(risk, n))}`;
+        : `${n} picked`;
+
+  // One chance and one payout (docs/STYLE.md §6); the full table is in How to play.
+  const readouts: ReadoutItem[] = [
+    { label: 'Chance of profit', value: n ? fmtChance(profitChance(risk, n)) : '–', tone: 'chance' },
+    { label: 'Top payout', value: n ? fmtX(topPayout(risk, n)) : '–', tone: 'prize' },
+  ];
 
   return (
     <GameLayout
       name="Keno"
-      accent="#eab308"
+      accent={ACCENTS.violet}
       panel={
         <>
           <ModeTabs auto={auto} disabled={drawing} />
@@ -220,19 +211,6 @@ export default function Game() {
               Clear table
             </ActionButton>
           </div>
-
-          <dl className="og-stats">
-            <dt>Picks</dt>
-            <dd>
-              {n} / {MAX_PICKS}
-            </dd>
-            <dt>Chance of profit</dt>
-            <dd>{n ? fmtChance(profitChance(risk, n)) : '–'}</dd>
-            <dt>Top payout</dt>
-            <dd>{n ? fmtX(topPayout(risk, n)) : '–'}</dd>
-            <dt>RTP</dt>
-            <dd>{(RTP * 100).toFixed(2)}%</dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             <ActionButton disabled={!canBet} onClick={() => void playOnce(bet.value)}>
@@ -261,22 +239,15 @@ export default function Game() {
     >
       <StageTop status={status} tone={drawing ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle'} history={history} />
 
+      <Readouts items={readouts} />
+
       <Board className="kn-board">
-        {done && last && (
-          <div className={'kn-result-wrap' + (last.multiplier >= 1 ? ' win' : ' lose')}>
-            <InstantResult multiplier={last.multiplier} stake={last.stake} id={last.id} />
-          </div>
-        )}
         <div className="kn-wrap">
-          <div className={'kn-grid' + (showFull ? ' full' : '')} role="group" aria-label="Keno board">
+          <div className="kn-grid" role="group" aria-label="Keno board">
             {NUMBERS.map((num) => {
               const picked = picks.includes(num);
               const isDrawn = drawn.includes(num);
-              const cls =
-                'kn-tile' +
-                (picked && isDrawn ? ' hit' : isDrawn ? ' miss' : picked ? ' picked' : '') +
-                (done && picked && !isDrawn ? ' dim' : '') +
-                (num === latest && drawing ? ' fresh' : '');
+              const cls = 'kn-tile' + (picked && isDrawn ? ' hit' : isDrawn ? ' drawn' : picked ? ' picked' : '') + (num === latest && drawing ? ' latest' : '');
               return (
                 <button
                   key={num}
@@ -287,82 +258,15 @@ export default function Game() {
                   disabled={busy}
                   onClick={() => toggle(num)}
                 >
-                  {picked && isDrawn && <Gem />}
-                  <span>{num}</span>
+                  {num}
                 </button>
               );
             })}
             {showFull && <div className="kn-full">Max {MAX_PICKS} picks</div>}
           </div>
-
-          <div className="kn-rail" aria-label="Drawn numbers">
-            {Array.from({ length: DRAWS }, (_, i) => {
-              const d = drawn[i];
-              return (
-                <span key={i} className={'kn-ball' + (d === undefined ? '' : picks.includes(d) ? ' hit' : ' miss')}>
-                  {d ?? ''}
-                </span>
-              );
-            })}
-          </div>
         </div>
       </Board>
-
-      <div className="kn-table">
-        {n === 0 ? (
-          <p className="kn-empty">
-            Pick 1–{MAX_PICKS} numbers on the board (or press <b>Auto pick</b>) to see the payout and chance for every hit count.
-          </p>
-        ) : (
-          <>
-            <div className="kn-pay" style={{ '--n': n + 1, '--m': n + 1 > 6 ? Math.ceil((n + 1) / 2) : n + 1 } as CSSProperties} onMouseLeave={() => setHover(null)}>
-              {rows.map((r) => (
-                <button
-                  key={r.hits}
-                  type="button"
-                  className={
-                    'kn-cell' +
-                    (r.multiplier >= 1 ? ' pays' : r.multiplier > 0 ? ' part' : '') +
-                    (markHits === r.hits ? (drawing ? ' live' : r.multiplier >= 1 ? ' won' : ' lost') : '') +
-                    (focus === r.hits ? ' focus' : '')
-                  }
-                  onMouseEnter={() => setHover(r.hits)}
-                  onFocus={() => setHover(r.hits)}
-                  onBlur={() => setHover(null)}
-                  onClick={() => setHover(r.hits)}
-                  aria-label={`${r.hits} hits pays ${fmtX(r.multiplier)}, chance ${fmtChance(r.chance)}`}
-                >
-                  <b>{fmtX(r.multiplier)}</b>
-                  <small className="kn-odds">{shortChance(r.chance)}</small>
-                  <span className="kn-hits">
-                    {r.hits}
-                    <i aria-hidden="true" />
-                  </span>
-                </button>
-              ))}
-            </div>
-            {focusRow && (
-              <div className="kn-detail">
-                <div>
-                  <span>{focusRow.hits} {focusRow.hits === 1 ? 'hit' : 'hits'} pays</span>
-                  <b className={focusRow.multiplier >= 1 ? 'g' : focusRow.multiplier > 0 ? 'p' : 'r'}>{fmtX(focusRow.multiplier)}</b>
-                </div>
-                <div>
-                  <span>Profit</span>
-                  <b>
-                    {bet.value * focusRow.multiplier - bet.value >= 0 ? '+' : '−'}
-                    {fmtAmt(Math.abs(bet.value * focusRow.multiplier - bet.value))}
-                  </b>
-                </div>
-                <div>
-                  <span>Chance</span>
-                  <b title={longOdds(focusRow.chance)}>{shortChance(focusRow.chance)}</b>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      <Caption>Win when enough of your picks are among the {DRAWS} numbers drawn.</Caption>
 
       {infoOpen && (
         <InfoModal title="Keno" onClose={() => setInfoOpen(false)}>
@@ -376,16 +280,35 @@ export default function Game() {
             <ol>
               <li>Click numbers to pick them (1 to {MAX_PICKS}), or press Auto pick for a random set. Clear table removes your picks.</li>
               <li>Choose a risk: Low pays small amounts often, High pays only on many hits but much more. Classic sits in between.</li>
-              <li>Press Bet (or Space). Ten numbers are drawn one by one: green gems are hits, red numbers were drawn but not picked.</li>
+              <li>Press Bet (or Space). Ten numbers are drawn one by one: a green number is a hit (a pick that was drawn), a grey number was drawn but not picked.</li>
               <li>Auto runs a series of bets on your picks, or on fresh random numbers each bet, with your own stop rules.</li>
               <li>Shortcuts: Space bet, A auto pick, X clear table.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The table under the board lists every possible hit count for your number of picks, with its payout and its exact chance. Hover or tap a cell
-              for the profit at your bet. During the draw the live hit count is highlighted.
+              Your picks are marked in colour; drawn numbers fill in as they come up, green where they match a pick. "Chance of profit" above the board is the
+              chance of any hit count that pays more than your bet. The table lists every hit count for {RISK_LABEL[risk]} risk with {tableN}{' '}
+              {tableN === 1 ? 'pick' : 'picks'}.
             </p>
+            <table className="kn-paytable">
+              <thead>
+                <tr>
+                  <th>Hits</th>
+                  <th>Pays</th>
+                  <th>Chance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payRows(risk, tableN).map((r) => (
+                  <tr key={r.hits}>
+                    <td>{r.hits}</td>
+                    <td>{fmtX(r.multiplier)}</td>
+                    <td>{shortChance(r.chance)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </InfoSection>
           <InfoSection title="The maths">
             <p>

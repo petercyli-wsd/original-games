@@ -1,53 +1,11 @@
 // The road: a start kerb, 20 lanes and a finish kerb, scrolled so the token
 // stays in view. Each lane carries a pad with the cash-out for reaching it.
-// Geometric art only: a token built from circles and triangles, block cars,
-// striped barriers on the lanes already crossed.
+// Flat and geometric (docs/STYLE.md): the token is an accent dot, traffic is a
+// red block that drops into its lane, and nothing moves between events.
 
 import { fmtMult } from '@originals/game-sdk/ui';
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
 import { LANES, multiplier, type Difficulty, type Road as RoadT } from './math';
-
-const CAR_COLOURS = ['#60a5fa', '#f472b6', '#a78bfa', '#34d399', '#fb923c', '#e2e8f0', '#22d3ee', '#f87171'];
-
-export function Token() {
-  return (
-    <svg viewBox="0 0 48 48" aria-hidden="true" className="ck-token-art">
-      <ellipse cx="24" cy="44" rx="12" ry="2.6" className="tk-shadow" />
-      <line x1="20" y1="38" x2="19" y2="43.5" className="tk-leg" />
-      <line x1="28" y1="38" x2="29" y2="43.5" className="tk-leg" />
-      <circle cx="21.5" cy="12.5" r="3.1" className="tk-comb" />
-      <circle cx="25.5" cy="10.8" r="3.5" className="tk-comb" />
-      <circle cx="29.5" cy="12.8" r="2.9" className="tk-comb" />
-      <ellipse cx="24" cy="27" rx="14" ry="13" className="tk-body" />
-      <ellipse cx="19" cy="29.5" rx="7.5" ry="5" transform="rotate(-14 19 29.5)" className="tk-wing" />
-      <polygon points="37,23.5 43.5,26.2 37,29" className="tk-beak" />
-      <circle cx="31" cy="22" r="2.3" className="tk-eye" />
-      <circle cx="31.7" cy="21.3" r="0.7" className="tk-glint" />
-    </svg>
-  );
-}
-
-function Car({ colour }: { colour: string }) {
-  return (
-    <svg viewBox="0 0 46 74" aria-hidden="true" className="ck-car-art" style={{ '--car': colour } as CSSProperties}>
-      <rect x="3" y="2" width="40" height="70" rx="10" className="cr-body" />
-      <rect x="8" y="10" width="30" height="13" rx="4" className="cr-glass" />
-      <rect x="8" y="46" width="30" height="16" rx="4" className="cr-glass front" />
-      <rect x="10" y="27" width="26" height="15" rx="3" className="cr-roof" />
-      <rect x="7" y="65" width="9" height="4" rx="2" className="cr-light" />
-      <rect x="30" y="65" width="9" height="4" rx="2" className="cr-light" />
-    </svg>
-  );
-}
-
-function Flag() {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden="true" className="ck-flag">
-      <line x1="5" y1="2" x2="5" y2="18" />
-      <polygon points="5,3 16,6.5 5,10" />
-    </svg>
-  );
-}
 
 export interface RoadView {
   difficulty: Difficulty;
@@ -127,7 +85,6 @@ export function RoadBoard({
           const traffic = road ? road[lane - 1] : false;
           const isSel = target !== null && lane <= target;
           const isTarget = target !== null && lane === target;
-          const ambient = !crossed && !isHit && lane !== moving && !revealed;
           const cls = [
             'ck-lane',
             crossed && 'crossed',
@@ -140,35 +97,10 @@ export function RoadBoard({
           ]
             .filter(Boolean)
             .join(' ');
-          const colour = CAR_COLOURS[(lane * 5) % CAR_COLOURS.length];
           return (
-            <div
-              key={lane}
-              className={cls}
-              data-lane={lane}
-              style={
-                {
-                  '--dur': `${2.3 + ((lane * 37) % 17) / 10}s`,
-                  '--delay': `${-((lane * 53) % 31) / 10}s`,
-                } as CSSProperties
-              }
-            >
-              {ambient && (
-                <div className="ck-car ambient">
-                  <Car colour={colour} />
-                </div>
-              )}
-              {isHit && (
-                <div className="ck-car slam">
-                  <Car colour="#f87171" />
-                </div>
-              )}
-              {revealed && traffic && (
-                <div className="ck-car parked">
-                  <Car colour={colour} />
-                </div>
-              )}
-              {crossed && <div className="ck-barrier" />}
+            <div key={lane} className={cls} data-lane={lane}>
+              {isHit && <i className="ck-block slam" />}
+              {revealed && traffic && <i className="ck-block parked" />}
               <button
                 type="button"
                 className="ck-pad"
@@ -185,20 +117,15 @@ export function RoadBoard({
         })}
 
         <div className={'ck-kerb finish' + (finished && won ? ' reached' : '') + (target === LANES ? ' targeted' : '')} data-lane={LANES + 1}>
-          <Flag />
           <span className="ck-kerb-label">Finish</span>
           <b>{fmtMult(multiplier(d, LANES))}</b>
         </div>
 
-        <div
-          className={'ck-token' + (snap ? ' snap' : '') + (hit !== null ? ' squash' : '') + (won ? ' won' : '')}
+        <i
+          className={'ck-token' + (snap ? ' snap' : '') + (hit !== null ? ' hit' : '') + (won ? ' won' : '')}
           style={{ left: tokenLeft(tokenLane) }}
-        >
-          <div key={tokenLane} className={'ck-hop' + (tokenLane > 0 && !snap ? ' go' : '')}>
-            <Token />
-          </div>
-          {hit !== null && <i className="ck-impact" />}
-        </div>
+          aria-hidden="true"
+        />
       </div>
     </div>
   );

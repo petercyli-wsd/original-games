@@ -3,29 +3,20 @@
 .pivot text {
   fill: var(--text);
   font-family: inherit;
+  font-weight: 600;
   text-anchor: middle;
 }
-.pivot .head {
-  font-size: 15px;
-  font-weight: 800;
-  text-anchor: start;
-}
 .pivot .sec {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-1);
   fill: var(--muted);
   text-anchor: start;
 }
 .pivot .sec.end {
   text-anchor: end;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0;
+  font-size: var(--fs-2);
 }
 .pivot .axis {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-1);
   fill: var(--muted);
   text-anchor: end;
 }
@@ -33,27 +24,27 @@
   text-anchor: middle;
 }
 .pivot .axis.line-t {
-  font-size: 13px;
-  font-weight: 800;
+  font-size: var(--fs-2);
   fill: var(--text);
 }
 .pivot .tick {
-  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke: var(--line-strong);
   stroke-width: 1;
 }
 .pivot .floor {
-  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke: var(--line-strong);
   stroke-width: 1.5;
 }
 .pivot .col {
-  fill: color-mix(in srgb, var(--hover) 60%, transparent);
+  fill: var(--raised);
+  stroke: var(--line);
 }
 .pivot .line {
   stroke: var(--text);
   stroke-width: 2.5;
 }
 .pivot .top {
-  stroke: color-mix(in srgb, var(--text) 40%, transparent);
+  stroke: var(--faint);
   stroke-width: 1;
   stroke-dasharray: 4 4;
   transition:
@@ -63,29 +54,26 @@
 
 /* Blocks on the stack. */
 .pivot .blk {
-  fill: color-mix(in srgb, var(--text) 45%, var(--bg));
-  stroke: var(--bg);
+  fill: var(--muted);
+  stroke: var(--raised);
   stroke-width: 1;
 }
 .pivot .blk.you {
   fill: var(--accent);
 }
 .pivot .blk.you.lost {
-  fill: color-mix(in srgb, var(--accent) 45%, var(--bg));
-  stroke: var(--red);
+  stroke: var(--lose);
   stroke-width: 2;
 }
 .pivot .blk.you.won {
-  stroke: #fff;
+  stroke: var(--win);
   stroke-width: 2;
-  filter: drop-shadow(0 0 10px var(--accent));
 }
 .pivot .blk.beat {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .pivot .blk-t {
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--fs-1);
   fill: var(--bg);
   pointer-events: none;
 }
@@ -94,40 +82,40 @@
   font-size: 9.5px;
 }
 .pivot .fresh {
-  animation: pivot-in 0.35s ease-out;
+  animation: pivot-in 0.3s ease-out;
 }
 .pivot .gap line {
-  stroke: var(--red);
+  stroke: var(--lose);
   stroke-width: 2;
 }
 .pivot .gap text {
-  font-size: 12px;
-  font-weight: 800;
-  fill: var(--red);
+  font-size: var(--fs-1);
+  fill: var(--lose);
   text-anchor: start;
 }
 
 /* Waiting blocks, standing on the stack top. */
 .pivot .tile-r {
-  fill: color-mix(in srgb, var(--text) 22%, var(--bg));
-  stroke: color-mix(in srgb, var(--text) 35%, transparent);
+  fill: var(--hover);
+  stroke: var(--line-strong);
   stroke-width: 1;
   transition:
     y 0.3s ease,
     fill 0.3s ease;
 }
 .pivot .tile-t {
-  font-size: 11px;
-  font-weight: 800;
+  font-size: var(--fs-1);
   pointer-events: none;
 }
 .pivot .tile.out .tile-r {
-  fill: color-mix(in srgb, var(--red) 55%, var(--bg));
-  stroke: var(--red);
+  fill: var(--hover);
+  stroke: var(--lose);
+  stroke-width: 2;
 }
 .pivot .tile.win .tile-r {
-  fill: color-mix(in srgb, var(--green) 55%, var(--bg));
-  stroke: var(--green);
+  fill: var(--hover);
+  stroke: var(--win);
+  stroke-width: 2;
 }
 .pivot .tile.you .tile-r {
   stroke: var(--accent);
@@ -140,18 +128,15 @@
   fill: var(--bg);
 }
 .pivot .tile .mark {
-  font-size: 12px;
-  font-weight: 800;
-  fill: var(--red);
+  font-size: var(--fs-1);
+  fill: var(--lose);
 }
 .pivot .tile.win .mark {
-  fill: var(--green);
+  fill: var(--win);
 }
 .pivot .tile.pick .tile-r {
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 3;
-  filter: drop-shadow(0 0 8px var(--accent));
-  animation: pivot-pulse 0.4s ease-in-out infinite alternate;
 }
 .pivot .tile.clickable {
   cursor: pointer;
@@ -160,70 +145,30 @@
   stroke: var(--accent);
   stroke-width: 2;
 }
-.pivot .t-p {
-  font-size: 11.5px;
-  font-weight: 800;
-}
 .pivot .t-prize {
-  font-size: 11.5px;
-  font-weight: 800;
-  fill: var(--gold);
+  font-size: var(--fs-1);
+  fill: var(--muted);
 }
-.pivot .tile.you .t-p,
 .pivot .tile.you .t-prize,
 .pivot .t-you {
   fill: var(--accent);
 }
 .pivot .t-you {
-  font-size: 11px;
-  font-weight: 800;
-}
-.pivot .legend {
-  font-size: 12px;
-  font-weight: 600;
-  fill: var(--muted);
-}
-.pivot .legend .bad {
-  fill: var(--red);
-  font-weight: 800;
+  font-size: var(--fs-1);
 }
 .pivot .note {
-  font-size: 13px;
-  font-weight: 700;
+  font-size: var(--fs-2);
   fill: var(--muted);
 }
 .pivot .note.win {
-  fill: var(--green);
+  fill: var(--win);
 }
 .pivot .note.lose {
-  fill: var(--red);
-}
-
-/* The chance meter inside the headline readout: its filled length is the chance. */
-.pv-meter {
-  display: block;
-  height: 6px;
-  margin-top: 4px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--red) 30%, var(--bg));
-  overflow: hidden;
-}
-.pv-meter i {
-  display: block;
-  height: 100%;
-  border-radius: 99px;
-  background: var(--green);
-  transition: width 0.3s ease;
+  fill: var(--lose);
 }
 
 @keyframes pivot-in {
   from {
     transform: translateY(-24px);
-    opacity: 0.2;
-  }
-}
-@keyframes pivot-pulse {
-  to {
-    opacity: 0.55;
   }
 }

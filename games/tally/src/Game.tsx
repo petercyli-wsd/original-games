@@ -4,9 +4,9 @@ import {
   ActionButton,
   AutoBetControls,
   BetField,
+  ACCENTS,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -19,6 +19,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -39,10 +40,8 @@ import {
   HEIGHT,
   MAX_WIN,
   RTP,
-  SHARE,
   emptyStacks,
   firstChances,
-  ghosts,
   landing,
   relock,
   startPrize,
@@ -72,6 +71,7 @@ interface Last {
 }
 
 const RULE = 'Balls drop onto a floor of unequal bins; back the bin that is first to stack three balls.';
+const CAPTION = `Back the bin that is first to stack ${HEIGHT} balls.`;
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 const easeOut = (t: number) => 1 - (1 - t) ** 3;
 const START = emptyStacks();
@@ -109,8 +109,9 @@ export default function Game() {
 
   const isAutoRef = useRef(false);
   const fast = turbo.turbo;
-  const sweepMs = () => (isAutoRef.current ? (fast ? 90 : 300) : fast ? 130 : 520);
-  const fallMs = () => (isAutoRef.current ? (fast ? 70 : 220) : fast ? 90 : 360);
+  // Manual: the ball slides (360 ms) then falls (240 ms), about 600 ms in all (docs/STYLE.md).
+  const sweepMs = () => (isAutoRef.current ? (fast ? 90 : 300) : eventMs(fast, 360));
+  const fallMs = () => (isAutoRef.current ? (fast ? 70 : 220) : eventMs(fast, 240));
   const live = phase === 'dropping' || phase === 'checkpoint';
 
   function cashOf(r: Round) {
@@ -319,15 +320,12 @@ export default function Game() {
   const winNow = outcome === 'won' ? 1 : outcome === 'lost' ? 0 : chances[r.mine];
   const cash = r.prize * winNow;
   const decided = r.stacks.findIndex((x) => x >= HEIGHT);
-  const showGhosts = phase === 'idle' || phase === 'checkpoint' || (phase === 'dropping' && !isAuto);
-  const nextGhosts = showGhosts && decided < 0 ? ghosts(r.stacks, r.mine) : null;
   const stake = r.stake;
   const name = BIN_NAME[r.mine];
 
   const p0 = START_P[mine];
   const prize0 = RTP / p0;
   const vol = volatilityOf(p0);
-  const mineGhost = nextGhosts?.[r.mine];
 
   let status = `Ready · back a bin to stack ${HEIGHT} first`;
   let tone: StatusTone = 'idle';
@@ -350,33 +348,28 @@ export default function Game() {
     tone = 'live';
   }
 
-  const showCash = live || phase === 'over';
+  // One chance and one prize (docs/STYLE.md §6); the cash-out lives on its button.
   const readouts: ReadoutItem[] = [
-    { label: 'Win chance', value: fmtChance(round ? winNow : p0), sub: `${name} bin stacks ${HEIGHT} first`, tone: 'chance' },
-    {
-      label: phase === 'over' ? 'Paid' : isAuto && !round ? 'Auto cashes at' : 'Cash out now',
-      value: phase === 'over' ? fmtMult(r.paid) : showCash ? fmtMult(cash) : isAuto ? (target > 0 ? fmtMult(target) : 'the end') : '—',
-      sub: phase === 'over' ? formatAmount(stake * r.paid, 2) : showCash ? formatAmount(stake * cash, 2) : 'after the first ball',
-      tone: 'cash',
-    },
-    { label: 'Prize', value: fmtMult(r.prize), sub: `pays ${formatAmount(stake * r.prize, 2)}`, tone: 'prize' },
+    { label: 'Win chance', value: fmtChance(round ? winNow : p0), tone: 'chance' },
+    { label: 'Prize', value: fmtMult(r.prize), tone: 'prize' },
   ];
 
+  // Options show the prize, not the chance.
   const binChips = Array.from({ length: BINS }, (_, i) => ({
     value: i,
     label: (
       <span className="tally-chip">
         {BIN_NAME[i]}
-        <small>{fmtChance(START_P[i])}</small>
+        <small>{fmtMult(RTP / START_P[i])}</small>
       </span>
     ),
-    title: `The ${BIN_NAME[i]} bin stacks ${HEIGHT} first ${fmtChance(START_P[i])} of the time`,
+    title: `Backing the ${BIN_NAME[i]} bin pays ${fmtMult(RTP / START_P[i])} if it stacks ${HEIGHT} first`,
   }));
 
   return (
     <GameLayout
       name="Tally"
-      accent="#7aa2f7"
+      accent={ACCENTS.blue}
       className="tally-game"
       panel={
         <>
@@ -391,26 +384,18 @@ export default function Game() {
             disabled={phase === 'checkpoint' && !isAuto ? false : busy}
             onChange={onBin}
           />
-          <p className="tally-hint">{phase === 'checkpoint' && !isAuto ? 'Switch bins: cash-out kept, prize relocked.' : 'Width on top, chance to stack 3 first below.'}</p>
+          <p className="tally-hint">{phase === 'checkpoint' && !isAuto ? 'Switch bins: cash-out kept, prize relocked.' : 'Bin width on top, prize below.'}</p>
           {note && <p className="tally-note">{note}</p>}
 
           {!isAuto ? (
             <>
-              {phase !== 'checkpoint' && (
-                <dl className="og-stats">
-                  <dt>Chance to win</dt>
-                  <dd>{fmtChance(p0)}</dd>
-                  <dt>Prize</dt>
-                  <dd>{fmtMult(prize0)}</dd>
-                </dl>
-              )}
               {phase === 'checkpoint' && round ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
                     Cash out <span>{formatAmount(stake * cash, 2)}</span>
                   </ActionButton>
                   <ActionButton kind="secondary" onClick={() => void drop(round)}>
-                    Drop next · {fmtChance(SHARE[round.mine])} lands in yours
+                    Drop next ball
                   </ActionButton>
                 </>
               ) : (
@@ -432,12 +417,6 @@ export default function Game() {
                   if (phase === 'over' && !busy) clear();
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(p0)}</dd>
-                <dt>Full prize</dt>
-                <dd>{fmtMult(prize0)}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="tally-note">{bet.blocked}</p>}
@@ -455,7 +434,6 @@ export default function Game() {
           stacks={r.stacks}
           mine={r.mine}
           chances={chances}
-          ghosts={nextGhosts}
           ball={ball}
           landed={phase === 'dropping' ? null : r.landed}
           winner={decided >= 0 ? decided : null}
@@ -476,31 +454,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : live || (isAuto && round && (autoBusy || auto.running)) ? (
-        <ChanceBar
-          p={winNow}
-          label={`Win chance: your ${name} bin stacks ${HEIGHT} first`}
-          note={
-            isAuto
-              ? target > 0 && target < r.prize
-                ? `Worth ${fmtMult(cash)} now · Auto cashes at ${fmtMult(target)}, or wins ${fmtMult(r.prize)} if your bin stacks ${HEIGHT} first`
-                : `Worth ${fmtMult(cash)} now · Auto plays to the finish for ${fmtMult(r.prize)}`
-              : phase === 'dropping'
-                ? 'Dropping…'
-                : mineGhost
-                  ? `Next ball: ${fmtChance(SHARE[r.mine])} it lands in your bin (${mineGhost.win >= 1 ? 'you win' : `→ ${fmtChance(mineGhost.win)}`}). The cards under the bins show every landing; weighted by the bin widths they average to ${fmtChance(winNow)}.`
-                  : null
-          }
-        />
-      ) : (
-        <Caption>
-          <b className="tally-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet plays a whole round${target > 0 ? ` and cashes out once it is worth ${fmtMult(target)}` : ' to the finish'}. Wide bins catch more balls, so they tend to win. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `A bin's width is its chance to catch each ball, so wide bins tend to win and narrow ones pay more. Tap a bin to back it. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
-      )}
+      ) : null}
+      <Caption>{CAPTION}</Caption>
 
       {infoOpen && (
         <InfoModal title="Tally" onClose={() => setInfoOpen(false)}>
@@ -521,11 +476,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               Each bin's width is its exact chance to catch the next ball; the label under it says so. The bar at the top splits 100% between the bins by their
-              chance to stack {HEIGHT} first. Your piece is gold: that is your chance to win.
-            </p>
-            <p>
-              The cards under the bins show what your chance becomes if the next ball lands in that bin. A ball in your bin raises it (green); a ball for a rival
-              lowers it (red), most of all for a rival that is close to the line. Weighted by the bin widths, the cards average back to your chance now.
+              chance to stack {HEIGHT} first. Your piece is blue: that is your chance to win, shown above the board as Win chance. A ball in your bin raises it;
+              a ball for a rival lowers it, most of all for a rival that is close to the line.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

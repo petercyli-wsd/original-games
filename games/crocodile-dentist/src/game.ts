@@ -107,14 +107,14 @@ export function reducer(s: GameState, a: Action): GameState {
       const round = { ...rd, pressed, r: rd.r + 1, cashMult: rung.next };
       const safeLeft = rd.N - rd.k - pressed.filter(Boolean).length;
       if (safeLeft <= 0) {
-        return finish(s, round, rung.next, `All the good teeth are gone. Auto cash-out at ${fmtMult(rung.next)}`, 'win', null);
+        return finish(s, round, rung.next, `No good teeth left: cashed out at ${fmtMult(rung.next)}`, 'win', null);
       }
       return {
         ...s,
         round,
         phase: 'you',
         houseTarget: null,
-        message: { text: `Both safe. Cash out at ${fmtMult(rung.next)}, or press on.`, tone: 'neutral' },
+        message: { text: 'Both safe. Cash out or press on.', tone: 'neutral' },
       };
     }
 

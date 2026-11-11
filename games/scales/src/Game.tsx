@@ -6,7 +6,7 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
+  ACCENTS,
   Chips,
   GameLayout,
   InfoModal,
@@ -20,6 +20,7 @@ import {
   Slider,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useAutoBet,
@@ -48,7 +49,6 @@ import {
   chanceAt,
   clampK,
   diffOf,
-  forecast as forecastOf,
   kMax,
   leftToDrop,
   openChance,
@@ -141,8 +141,8 @@ export default function Game() {
   const dropping = useRef(false);
   const ticket = useTicket(() => resolved.current);
 
-  const fallMs = turbo.turbo ? 170 : 560;
-  const tiltMs = turbo.turbo ? 110 : 380;
+  const fallMs = eventMs(turbo.turbo);
+  const tiltMs = eventMs(turbo.turbo, 400);
   const autoFallMs = turbo.turbo ? 60 : 190;
   const runFallMs = turbo.turbo ? 90 : 260;
   const live = phase === 'dropping' || phase === 'checkpoint';
@@ -301,10 +301,6 @@ export default function Game() {
   const prize = round?.prize ?? prizeFor(n, chosen);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
-  const over = isAuto ? !!last && !autoBusy : phase === 'over';
-  const done = over || settled(s, shownBet) !== null;
-  const showForecast = !done && leftToDrop(s) > 0;
-  const fc = showForecast ? forecastOf(s, shownBet) : null;
   const vol = volatilityOf(n, chosen);
   const range = rangeFor(s.n, shownBet, D);
   const dropped = s.beads.length;
@@ -320,7 +316,7 @@ export default function Game() {
       tone = last.multiplier > 0 ? 'won' : 'lost';
     } else status = `Auto · ${betLabel(chosen)}, ${cashAt === null ? 'play to the end' : `cash out at ${fmtMult(cashAt)}`}`;
   } else if (phase === 'dropping') {
-    status = running ? `Dropping all · ${dropped + 1} of ${s.n} · ${describe(D)}` : `Bead ${dropped + 1} of ${s.n} falling…`;
+    status = running ? `Dropping all · ${Math.min(dropped + 1, s.n)} of ${s.n} · ${describe(D)}` : `Bead ${Math.min(dropped + 1, s.n)} of ${s.n} falling…`;
     tone = 'live';
   } else if (phase === 'checkpoint') {
     status = `Checkpoint · ${dropped} of ${s.n} · ${describe(D)}`;
@@ -348,7 +344,6 @@ export default function Game() {
             onClick={() => change(() => setKind(bk))}
           >
             <span className="n">{bk === 'K' ? `Left by ≥ ${b.k}` : BET_NAME[bk]}</span>
-            <b>{fmtChance(p)}</b>
             <small>{fmtMult(RTP / p)}</small>
           </button>
         );
@@ -359,7 +354,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Scales"
-      accent="#e9c46a"
+      accent={ACCENTS.amber}
       className="sc-game"
       panel={
         <>
@@ -375,7 +370,7 @@ export default function Game() {
             onChange={(v) => change(() => setN(v))}
           />
 
-          <Label hint="chance · prize">Bet on the final balance</Label>
+          <Label hint="prize">Bet on the final balance</Label>
           {betButtons}
           {kind === 'K' && (
             <>
@@ -386,12 +381,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(live ? chance : openChance(n, chosen))}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(live ? prize : prizeFor(n, chosen))}</dd>
-              </dl>
               {phase === 'checkpoint' ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -435,35 +424,17 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: betLabel(shownBet), value: fmtChance(chance), sub: live || autoBusy ? 'your chance now' : 'your chance', tone: 'chance' },
-          isAuto
-            ? {
-                label: 'Value now',
-                value: autoView ? fmtMult(prizeFor(s.n, shownBet) * chance) : '—',
-                sub: autoView ? formatAmount(bet.value * prizeFor(s.n, shownBet) * chance, 2) : 'prize × your chance',
-                tone: 'cash',
-              }
-            : {
-                label: 'Cash out now',
-                value: round && dropped > 0 ? fmtMult(cash) : '—',
-                sub: round && dropped > 0 ? formatAmount(stake * cash, 2) : 'after the first bead',
-                tone: 'cash',
-              },
-          {
-            label: 'Prize',
-            value: fmtMult(isAuto ? prizeFor(s.n, shownBet) : prize),
-            sub: `pays ${formatAmount((isAuto ? bet.value : stake) * (isAuto ? prizeFor(s.n, shownBet) : prize), 2)}`,
-            tone: 'prize',
-          },
+          { label: `Win chance · ${betLabel(shownBet)}`, value: fmtChance(chance), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(isAuto ? prizeFor(s.n, shownBet) : prize), tone: 'prize' },
         ]}
       />
 
       <Board className="sc-board">
         {isAuto && <InstantResult multiplier={last && !autoBusy ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />}
-        <Field n={s.n} beads={s.beads} bet={shownBet} falling={falling} forecast={fc} chance={chance} range={range} tiltMs={isAuto ? autoFallMs : tiltMs} />
+        <Field n={s.n} beads={s.beads} bet={shownBet} falling={falling} chance={chance} range={range} tiltMs={isAuto ? autoFallMs : tiltMs} />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={overTitle(round)}
@@ -475,20 +446,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={chance}
-          label={`Your chance: ${betLabel(shownBet)}`}
-          note={running ? 'Dropping every bead until your bet settles.' : 'The green share of the strip is your chance. Space drops the next bead, C cashes out.'}
-        />
-      ) : (
-        <Caption>
-          <b className="sc-rule">{RULE}</b>{' '}
-          {isAuto
-            ? `Auto plays whole rounds${cashAt === null ? ' to the end' : `, cashing out at ${fmtMult(cashAt)}`}.`
-            : `Each bead lands left or right and weighs 1 to 6, all 12 equally likely. The tilt is the lead; the green bars are your chance. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Scales" onClose={() => setInfoOpen(false)}>
@@ -508,9 +467,9 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The beam tilts with the lead. The strip at the bottom is every possible final difference with its exact chance; your winning region is shaded
-              and its <b style={{ color: 'var(--green)' }}>green bars</b> add up to your chance. The ▲ marks where the difference stands now. The twelve cells
-              show your chance after each possible next bead (left or right, weight 1 to 6). Each happens 1 time in 12, so they average to your chance now.
+              Each bead lands left or right and weighs 1 to 6, all 12 equally likely. The beam tilts with the lead. The strip at the bottom is every
+              possible final difference; the <b style={{ color: 'var(--win)' }}>green bars</b> are the differences that win your bet, and together they are
+              your chance. The ▲ marks where the difference stands now. Your backed pan is drawn in the accent colour.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

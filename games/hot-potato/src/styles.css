@@ -4,94 +4,50 @@
   max-height: 60vh;
 }
 
-/* ---------- The heat ring ---------- */
-.hp-ring .cell-bg {
-  fill: none;
-  stroke: color-mix(in srgb, var(--text) 7%, transparent);
-}
-.hp-ring .cell.good .cell-bg {
-  stroke: color-mix(in srgb, var(--green) 9%, transparent);
-}
-.hp-ring .cell-heat {
-  fill: none;
-  transition: opacity 0.35s ease;
-}
-.hp-ring .cell.good .cell-heat {
-  stroke: var(--green);
-}
-.hp-ring .cell.bad .cell-heat {
-  stroke: color-mix(in srgb, var(--red) 85%, var(--accent));
-}
-.hp-ring .cell-mine {
-  fill: none;
-  stroke: var(--green);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-}
-.hp-ring .cell.blast .cell-heat {
-  filter: drop-shadow(0 0 10px var(--accent));
-}
-
 /* ---------- Table and seats ---------- */
+.hp-ring text {
+  font-family: inherit;
+}
 .hp-ring .table {
-  fill: color-mix(in srgb, var(--accent) 4%, transparent);
-  stroke: color-mix(in srgb, var(--text) 12%, transparent);
-  stroke-width: 2;
-  stroke-dasharray: 2 5;
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
 }
 .hp-ring .seat {
-  fill: var(--raised, #1c1c24);
-  stroke: color-mix(in srgb, var(--text) 25%, transparent);
-  stroke-width: 1.5;
-  transition: fill 0.2s ease, stroke 0.2s ease;
+  fill: var(--raised);
+  stroke: var(--line-strong);
+  stroke-width: 1;
 }
 .hp-ring .seat.pick {
   fill: var(--accent);
-  stroke: var(--green);
-  stroke-width: 3;
+  stroke: var(--accent);
 }
 .hp-ring .seat.boom-win {
-  fill: var(--green);
-  stroke: #fff;
+  fill: var(--win);
+  stroke: var(--win);
 }
 .hp-ring .seat.boom-lose {
-  fill: var(--red);
-  stroke: #fff;
+  fill: var(--lose);
+  stroke: var(--lose);
 }
 .hp-ring .seat-n {
   text-anchor: middle;
-  font-weight: 700;
+  font-size: var(--fs-2);
+  font-weight: 600;
   fill: var(--muted);
   pointer-events: none;
 }
-.hp-ring .seat-n.pick {
-  fill: #1a0e08;
+.hp-ring .seat-n.ink {
+  fill: var(--bg);
 }
 
-/* ---------- Where a green spin can send it ---------- */
-.hp-ring .chev {
-  fill: none;
-  stroke-width: 2.4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.hp-ring .chev.up {
-  stroke: var(--green);
-}
-.hp-ring .chev.down {
-  stroke: var(--red);
-}
-.hp-ring .chev.flat {
-  stroke: var(--muted);
-}
-
-/* ---------- Turning parts: the bomb and the dial follow the bomb's seat ---------- */
+/* ---------- Turning parts: the dot and the dial follow the dot's seat ---------- */
 .hp-ring .turn,
 .hp-ring .needle {
   transform-box: view-box;
   transform-origin: 200px 200px;
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  transition-timing-function: ease-in-out;
   pointer-events: none;
 }
 .hp-ring .needle {
@@ -101,192 +57,62 @@
   transform-box: fill-box;
   transform-origin: center;
   transition-property: transform;
-  transition-timing-function: cubic-bezier(0.3, 0.7, 0.3, 1);
+  transition-timing-function: ease-in-out;
 }
 
 /* ---------- The fuse dial ---------- */
 .hp-ring .slice {
-  stroke: var(--bg, #0f0f14);
+  stroke: var(--card);
   stroke-width: 2;
 }
-.hp-ring .slice.boom {
-  fill: color-mix(in srgb, var(--red) 78%, var(--bg, #0f0f14));
+.hp-ring .slice.boom.win {
+  fill: var(--win);
+}
+.hp-ring .slice.boom.lose {
+  fill: var(--lose);
 }
 .hp-ring .slice.pass {
-  fill: color-mix(in srgb, var(--green) 30%, var(--bg, #0f0f14));
+  fill: var(--hover);
 }
-.hp-ring .slice.pass.alt {
-  fill: color-mix(in srgb, var(--green) 22%, var(--bg, #0f0f14));
-}
-.hp-ring .dl-head,
-.hp-ring .dl-pct,
-.hp-ring .dl-sub {
+.hp-ring .dl {
   text-anchor: middle;
   pointer-events: none;
-  paint-order: stroke;
-  stroke: rgb(0 0 0 / 0.55);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--text);
 }
-.hp-ring .dl-head {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  fill: #fff;
-}
-.hp-ring .dl-pct {
-  font-size: 12px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  fill: color-mix(in srgb, #fff 85%, transparent);
-}
-.hp-ring .dl-sub {
-  font-size: 10px;
-  font-weight: 700;
-}
-.hp-ring .dl-sub.win {
-  fill: #b8ffd0;
-}
-.hp-ring .dl-sub.lose {
-  fill: color-mix(in srgb, #fff 80%, transparent);
+.hp-ring .dl-boom {
+  fill: var(--bg);
 }
 .hp-ring .needle line {
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 3;
   stroke-linecap: round;
 }
 .hp-ring .needle path {
-  fill: #fff;
-}
-.hp-ring .needle {
-  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.6));
+  fill: var(--text);
 }
 .hp-ring .hub {
-  fill: #fff;
-  stroke: var(--bg, #0f0f14);
-  stroke-width: 2;
+  fill: var(--text);
 }
 
-/* ---------- The bomb ---------- */
-.hp-ring.lit .spark {
-  animation-duration: 0.18s;
-}
-.hp-ring.lit .bomb-halo {
-  animation: hp-fizz 0.6s ease-in-out infinite alternate;
-}
-@keyframes hp-fizz {
-  to {
-    stroke-width: 3.5;
-  }
-}
-.hp-ring .bomb-body.hop {
-  animation: hp-hop var(--hop) ease-out;
-}
-.hp-ring .bomb-halo {
-  fill: color-mix(in srgb, var(--accent) 22%, transparent);
-  stroke: var(--accent);
-  stroke-width: 2;
-  filter: drop-shadow(0 0 8px var(--accent));
-}
-.hp-ring .bomb-core {
-  fill: #15151b;
-  stroke: color-mix(in srgb, #fff 30%, transparent);
-  stroke-width: 1.5;
-}
-.hp-ring .fuse {
-  fill: none;
-  stroke: var(--gold);
-  stroke-width: 2;
-  stroke-linecap: round;
-}
-.hp-ring .spark {
-  fill: #fff;
-  filter: drop-shadow(0 0 4px var(--gold));
-  animation: hp-spark 0.5s ease-in-out infinite alternate;
-}
-@keyframes hp-hop {
-  50% {
-    transform: translateY(-9px);
-  }
-}
-@keyframes hp-spark {
-  to {
-    opacity: 0.3;
-  }
+/* ---------- The dot ---------- */
+.hp-ring .dot-core {
+  fill: var(--text);
 }
 
-/* ---------- The blast ---------- */
-.hp-ring .blast .ring {
-  fill: none;
-  stroke-width: 4;
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: hp-blast 0.7s ease-out both;
-}
-.hp-ring .blast.win .ring {
-  stroke: var(--green);
-}
-.hp-ring .blast.lose .ring {
-  stroke: var(--red);
-}
-.hp-ring .blast .r1 {
-  animation-delay: 0.08s;
-}
-.hp-ring .blast .r2 {
-  animation-delay: 0.16s;
-}
-@keyframes hp-blast {
-  from {
-    transform: scale(0.6);
-    opacity: 1;
-  }
-  to {
-    transform: scale(2.4);
-    opacity: 0;
-  }
+.hp-legend {
+  margin: 0;
+  text-align: center;
+  font-size: var(--fs-1);
+  color: var(--muted);
 }
 
-/* ---------- Legend ---------- */
-.hp-ring text {
-  font-family: inherit;
-}
-.hp-ring .legend text {
-  font-size: 11px;
-  fill: var(--muted);
-}
-.hp-ring .legend .end {
-  text-anchor: end;
-}
-.hp-ring .key.good {
-  fill: var(--green);
-}
-.hp-ring .key.bad {
-  fill: color-mix(in srgb, var(--red) 85%, var(--accent));
-}
-
-/* ---------- Next spin, under the bar ---------- */
-.hp-next {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px 16px;
-}
-.hp-next b {
-  color: var(--text);
-  font-variant-numeric: tabular-nums;
-}
-.hp-next .boom b {
-  color: var(--red);
-}
-
-.hp-rule {
-  color: var(--text);
-  font-size: 14px;
-}
 .hp-note {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-1);
   line-height: 1.4;
-  color: var(--gold);
+  color: var(--muted);
 }
 
 @container (max-width: 760px) {
