@@ -1,0 +1,159 @@
+/* Seven Out board. Layout, panel and readouts come from the kit. */
+
+.so text {
+  font-family: inherit;
+  fill: var(--text);
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.so .die {
+  fill: var(--raised);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.so .die-n {
+  font-size: 28px;
+  font-weight: 700;
+}
+.so .die-eq {
+  font-size: 28px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.so .die-total {
+  font-size: 44px;
+  font-weight: 700;
+}
+.so .die-total.seven {
+  fill: var(--lose, var(--red));
+}
+.so .die-total.repeat,
+.so .die-total.none {
+  fill: var(--muted);
+}
+
+.so .lab {
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.so .slot {
+  fill: var(--bg);
+  stroke: var(--accent);
+  stroke-width: 1;
+  transition: fill 120ms;
+}
+.so .slot.made {
+  fill: var(--accent);
+}
+.so .slot-n {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--bg);
+}
+
+.so .cell {
+  stroke: none;
+}
+.so .cell.open {
+  fill: var(--win, var(--green));
+}
+.so .cell.seven {
+  fill: var(--lose, var(--red));
+}
+.so .cell.lit {
+  fill: var(--hover);
+}
+.so .cell-n {
+  font-size: 16px;
+  font-weight: 600;
+  fill: var(--bg);
+}
+.so .cell-n.lit {
+  fill: var(--muted);
+}
+.so .mark {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 3.5;
+  pointer-events: none;
+}
+
+.so .bar-cap {
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: start;
+}
+.so .bar-cap.end {
+  text-anchor: end;
+}
+.so .bar-cap.win {
+  fill: var(--win, var(--green));
+}
+.so .bar-cap.lose {
+  fill: var(--lose, var(--red));
+}
+.so .bar-bg {
+  fill: var(--bg);
+}
+.so .bar-win {
+  fill: var(--win, var(--green));
+  transition: width 600ms;
+}
+.so .bar-lose {
+  fill: var(--lose, var(--red));
+}
+
+.so.narrow .lab,
+.so.narrow .bar-cap {
+  font-size: 15px;
+}
+.so.narrow .cell-n {
+  font-size: 17px;
+}
+
+/* The board: the picture, then one plain sentence about what the last roll did. */
+.so-board {
+  flex-direction: column;
+  gap: 8px;
+}
+.so-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-height: 0;
+  align-items: center;
+}
+.so-main svg {
+  width: 100%;
+  max-height: 62vh;
+  min-height: 0;
+}
+.so-say {
+  margin: 0;
+  max-width: 440px;
+  min-height: 3em;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.so-say.lost b {
+  color: var(--lose, var(--red));
+}
+.so-say.won b {
+  color: var(--win, var(--green));
+}
+.so-say.same {
+  color: var(--muted);
+}
+
+/* The result card sits below the board, so it never covers the grid. */
+.so-board.over {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
