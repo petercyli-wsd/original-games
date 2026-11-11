@@ -124,16 +124,15 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 - **Badges:** New and Improved, from `revision`.
 - **Forking:** team-reviewed games are forked rather than edited, so their reviews stay attached to the version reviewed.
 
-## Current state (2026-11-09; update this section as it changes)
+## Current state (2026-11-11; update this section as it changes)
 
 | Branch / checkout | State |
 |---|---|
-| `main` | The November revamp: v7, gate, Archive, 5 new games, 14 improved, 16 archived |
-| `fairness` (pushed) | The audit fixes and tests for all 114 games, plus this file. **Needs a PR merged into `main` first.** |
-| `restyle` (worktree `../original-games-restyle`) | 67 games flattened to `docs/STYLE.md`, `fairness` merged in (conflicts resolved). All 29 regressed games re-restored under §6 and re-reviewed with 3-player panels (local queue only, `.evaluator/_pending.json`). Done 2026-11-10: every game that passed the gate before still passes (drift and cross fail only on their team ratings, as before); mean clarity over the 29 is 3.977 vs 3.954 before. STYLE.md §6 gained the unit-key rule (≤ 2 lines, < 9 tokens) and the numbered next-step cells exception (Tumble). On 2026-11-10 the other 24 games were re-reviewed after the fairness merge (3-player panels); Crocodile Dentist (hidden-bad-teeth count, whole-bet track, statuses under 9 words) and Leverage (outcome bar) got §6 restores. All 67 local reviews now match the code; mean clarity over all 67 is 4.060 vs 3.970 live. PR #3, awaiting Peter's merge (after #2). |
+| `main` | The November revamp (v7, gate, Archive), plus the fairness audit (PR #2, all 114 games) and the restyle (PR #3: 67 games flattened to `docs/STYLE.md`), both merged 2026-11-11, plus the search loop's games. |
+| `restyle` (worktree `../original-games-restyle`, merged) | Restyle result: every game that passed the gate before still passes (drift and cross fail only on their team ratings, as before). Mean clarity over the 29 regressed games is 3.977 vs 3.954 before; over all 67 it is 4.060 vs 3.970 live. STYLE.md §6 gained the unit-key rule (≤ 2 lines, < 9 tokens) and the numbered next-step cells exception (Tumble). All 67 local reviews match the merged code and sit in that worktree's `.evaluator/_pending.json`, **not submitted**: `submit --pending` from there only when Peter says so. |
 | `search` (main checkout) | The `/search-games` loop. 2 cycles kept Derby v2, Back to Back and Stepladder (all unrated by the team). Ledger in `.evaluator/_search/ledger.md`. |
 
 Open items:
 - The team should rate the `docs/SEARCH.md` games; the loop stops at 12 unrated.
-- About 80 live AI reviews are stale after the fairness fixes; the restyle's re-review replaces them.
+- About 80 live AI reviews are stale after the fairness and restyle merges; the restyle worktree's queued reviews replace them once submitted.
 - Retired games mostly have no v7 review.
