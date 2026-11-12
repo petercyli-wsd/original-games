@@ -383,9 +383,7 @@ export default function Game() {
             <>
               {phase === 'checkpoint' ? (
                 <>
-                  <ActionButton kind="cash" onClick={cashOut}>
-                    Cash out <span>{formatAmount(stake * cash, 2)}</span>
-                  </ActionButton>
+                  {/* The next step sits where Bet was, so pressing the same spot keeps the round going; Cash out is below. */}
                   <div className="sc-steps">
                     <ActionButton kind="secondary" onClick={() => round && drop(round)}>
                       Next bead
@@ -394,6 +392,9 @@ export default function Game() {
                       Drop all
                     </ActionButton>
                   </div>
+                  <ActionButton kind="cash" onClick={cashOut}>
+                    Cash out <span>{formatAmount(stake * cash, 2)}</span>
+                  </ActionButton>
                 </>
               ) : (
                 <ActionButton disabled={live || !!bet.blocked} onClick={() => void start()}>

@@ -262,11 +262,12 @@ export default function Game() {
 
         {phase === 'checkpoint' && round ? (
           <>
-            <button className="primary cash" onClick={() => cashOut(round)}>
-              Cash out <b>{formatAmount(round.bet * round.mult, 2)}</b>
-            </button>
+            {/* Drop next sits where Bet was, so pressing the same spot keeps the round going; Cash out is below. */}
             <button className="secondary" onClick={() => dropNext(round)}>
               Drop next
+            </button>
+            <button className="primary cash" onClick={() => cashOut(round)}>
+              Cash out <b>{formatAmount(round.bet * round.mult, 2)}</b>
             </button>
           </>
         ) : (

@@ -348,9 +348,7 @@ export default function Game() {
             <>
               {live ? (
                 <>
-                  <ActionButton kind="cash" disabled={phase !== 'live'} onClick={cashOut}>
-                    Cash out <span>{formatAmount(stake * cash, 2)}</span>
-                  </ActionButton>
+                  {/* The next move sits where Bet was, so pressing the same spot keeps the round going; Cash out is below. */}
                   <div className="mz-go">
                     <ActionButton kind="secondary" disabled={phase !== 'live'} onClick={() => round && play(round, 1)}>
                       Step · 1 move
@@ -359,6 +357,9 @@ export default function Game() {
                       {phase === 'moving' ? 'Rolling…' : `Roll · ${ROLL} moves`}
                     </ActionButton>
                   </div>
+                  <ActionButton kind="cash" disabled={phase !== 'live'} onClick={cashOut}>
+                    Cash out <span>{formatAmount(stake * cash, 2)}</span>
+                  </ActionButton>
                 </>
               ) : (
                 <ActionButton disabled={!!bet.blocked} onClick={() => void startRound()}>

@@ -107,6 +107,7 @@
   display: grid;
   grid-template-columns: 1fr 1.3fr;
   gap: var(--sp-2);
+  margin-top: var(--sp-2);
 }
 .mz-go .og-btn {
   padding: var(--sp-3) var(--sp-2);

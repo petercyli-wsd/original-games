@@ -173,6 +173,12 @@ export default function Game() {
   if (phase === 'paused') status = `Checkpoint · step ${steps}`;
   if (phase === 'over' && shown?.outcome) status = `${OUTCOME_TEXT[shown.outcome]} · ${steps} steps`;
 
+  const proceedButton = (
+    <button key="proceed" className="secondary" disabled={!inRound} onClick={proceed}>
+      {phase === 'paused' ? `Continue · ${burst ? `${burst} step${burst > 1 ? 's' : ''}` : 'run'}` : 'Pause'}
+    </button>
+  );
+
   return (
     <div className="drift">
       <aside className="panel">
@@ -292,6 +298,8 @@ export default function Game() {
           </label>
         </details>
 
+        {/* In a round, Continue/Pause sits where Bet was (pressing the same spot keeps the round going) and Cash out goes below. */}
+        {inRound && proceedButton}
         {inRound ? (
           <button key="cash" className="primary cash" onClick={() => dispatch({ type: 'cashOut' })}>
             Cash out <span className="amt">{fmtAmt(stake * cash)}</span>
@@ -301,9 +309,7 @@ export default function Game() {
             {phase === 'over' ? 'Bet again' : 'Bet'}
           </button>
         )}
-        <button className="secondary" disabled={!inRound} onClick={proceed}>
-          {phase === 'paused' ? `Continue · ${burst ? `${burst} step${burst > 1 ? 's' : ''}` : 'run'}` : 'Pause'}
-        </button>
+        {!inRound && proceedButton}
 
         <div className="panel-foot">
           <label className="toggle">

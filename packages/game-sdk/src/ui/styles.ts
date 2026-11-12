@@ -201,6 +201,12 @@ export const kitStyles =
 .og-btn.bet:not(:disabled):hover, .og-btn.cash:not(:disabled):hover { background: #ffffff; }
 .og-btn.secondary { color: var(--text); background: transparent; border: 1px solid var(--line-strong) !important; }
 .og-btn.secondary:not(:disabled):hover { background: var(--hover); }
+/* Mid-round, the "next step" button takes the slot Bet had and Cash out goes under it, so pressing the same spot keeps
+   the round going. Games render Cash out first and the next button right after it; flex order swaps the pair (the
+   cash button moves to 2 with everything after the pair, so nothing else shifts). */
+.og-panel > .og-btn.cash:has(+ .og-btn.secondary) { order: 2; margin-top: 0; }
+.og-panel > .og-btn.cash:has(+ .og-btn.secondary) + .og-btn.secondary { order: 1; margin-top: var(--sp-2); }
+.og-panel > .og-btn.cash:has(+ .og-btn.secondary) + .og-btn.secondary ~ * { order: 2; }
 
 .og-game .og-ghost, .og-modal .og-ghost { background: transparent; border: 1px solid var(--line) !important; padding: 7px 10px; color: var(--muted); font-size: var(--fs-2); }
 .og-game .og-ghost:not(:disabled):hover, .og-modal .og-ghost:not(:disabled):hover { color: var(--text); border-color: var(--line-strong) !important; }
@@ -366,6 +372,8 @@ export const kitStyles =
   /* Phones: the main action sits right under the board. */
   .og-mode-tabs { order: -3; }
   .og-panel > .og-btn.bet, .og-panel > .og-btn.cash, .og-panel > .og-btn.secondary { order: -2; margin-top: 0; }
+  .og-panel > .og-btn.cash:has(+ .og-btn.secondary) { order: -1; }
+  .og-panel > .og-btn.cash:has(+ .og-btn.secondary) + .og-btn.secondary { order: -2; margin-top: 0; }
   .og-board { min-height: 240px; }
   .og-readout > b { font-size: var(--fs-3); }
   .og-readouts { gap: var(--sp-2) var(--sp-5); }

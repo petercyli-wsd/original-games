@@ -27,7 +27,7 @@
 .sc-bet.on { background: var(--hover); color: var(--text); }
 .sc-bet:disabled.on { opacity: 1; }
 
-.sc-steps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.sc-steps { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); margin-top: var(--sp-2); }
 .sc-steps > * { min-width: 0; }
 /* Phones: the kit lifts the main action under the board; lift the step buttons with it. */
 @container (max-width: 760px) {
