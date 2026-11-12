@@ -1,0 +1,186 @@
+/* Last Wicket board. Layout, panel and readouts come from the kit; colours are kit tokens. */
+.lw-board {
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  gap: var(--sp-3);
+}
+.lw-bar {
+  width: 100%;
+  max-width: 560px;
+  height: 14px;
+  background: var(--lose);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.lw-bar i {
+  display: block;
+  height: 100%;
+  background: var(--win);
+  transition: width var(--dur-event, 600ms) ease;
+}
+.lw-chase {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.lw-need {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.lw-need-n {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lw-need-n.won {
+  color: var(--win);
+}
+.lw-need-n.lost {
+  color: var(--lose);
+}
+.lw-need-b {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  min-width: 0;
+  white-space: nowrap;
+  text-align: right;
+}
+.lw-pace {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.lw-pips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+.lw-pip {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--hover);
+  border: 1px solid var(--line-strong);
+}
+.lw-pip.empty {
+  background: none;
+  border-color: var(--line);
+}
+.lw-pip.out {
+  color: var(--lose);
+  border-color: var(--lose);
+}
+.lw-pip.last {
+  border: 2px solid var(--text);
+}
+.lw-pip.out.last {
+  border-color: var(--lose);
+}
+.lw-why {
+  min-height: calc(var(--fs-2) * 2.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--fs-2);
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+}
+.lw-wheels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-4);
+  width: 100%;
+}
+.lw-wheel {
+  flex: 1 1 130px;
+  max-width: 230px;
+  min-width: 0;
+}
+.lw-wheel .sector {
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.lw-wheel .sector.up {
+  fill: var(--win);
+}
+.lw-wheel .sector.down {
+  fill: var(--lose);
+}
+.lw-wheel .sector.same,
+.lw-wheel .sector.none {
+  fill: var(--hover);
+}
+.lw-wheel .sector.landed {
+  stroke: var(--text);
+  stroke-width: 4;
+}
+.lw-wheel .sec-label {
+  font-family: inherit;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: var(--bg);
+  pointer-events: none;
+}
+.lw-wheel .sec-label.same,
+.lw-wheel .sec-label.none {
+  fill: var(--text);
+}
+.lw-wheel .arm {
+  transform-box: view-box;
+  transform-origin: 100px 96px;
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.lw-wheel .arm line {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.lw-wheel .arm polygon {
+  fill: var(--text);
+}
+.lw-wheel .hub {
+  fill: var(--card);
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.lw-wheel .wheel-name {
+  font-family: inherit;
+  font-size: var(--fs-2);
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.lw-wheel.picked .wheel-name {
+  fill: var(--accent);
+}
+.lw-key {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  text-align: center;
+}
+
+.lw-cap {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
