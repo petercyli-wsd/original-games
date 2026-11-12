@@ -194,14 +194,16 @@ export default function App() {
             ))}
           </div>
 
-          <button className="primary" disabled={phase === 'house' || (!inPlay && betInvalid)} onClick={onMain}>
-            {mainLabel}
-          </button>
+          {/* From round 2 the main button turns into Cash out; Press a random tooth then sits above it, where the first
+              press was, so pressing the same spot keeps the game going. */}
           {inPlay && round && round.r > 0 && (
             <button className="secondary" disabled={phase !== 'you'} onClick={pressRandom}>
               Press a random tooth
             </button>
           )}
+          <button className="primary" disabled={phase === 'house' || (!inPlay && betInvalid)} onClick={onMain}>
+            {mainLabel}
+          </button>
 
           <label className="toggle">
             <input type="checkbox" checked={turbo} onChange={(e) => setTurbo(e.target.checked)} /> <span>Turbo</span>
