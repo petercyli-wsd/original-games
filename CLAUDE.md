@@ -17,9 +17,9 @@ Read before changing things:
 - **Test before adopting.** A/B any evaluator or pipeline change before it enters the pipeline. Use the local harness, both arms run fresh, report ρ, MAE and the games that flipped. Reject changes that fix one case and break another.
 - **Commit and push only when asked.** A brief or prompt that says to commit counts.
   - Commit one game per commit with `node scripts/commit-game.mjs <id> "msg"`, ending with the attribution line.
-  - Never push `main` or force-push. Work on a branch; Peter merges PRs.
+  - Never push `main` or force-push. Work on a branch; Peter merges PRs. **One exception (Peter, 2026-11-12):** at the end of each cycle the `/search-games` loop fast-forwards `main` to `search` so the games it kept go live. Never force-push.
   - `gh` may need `gh auth login`. If it's missing, give the `/pull/new/<branch>` link plus a PR body file.
-- **Production API writes only when Peter says so:** creating or promoting evaluator versions, `submit --pending`, any POST/PUT. Reading the API is fine. Never print `ORIGINALS_ADMIN_KEY` (in `.env.local`).
+- **Production API writes only when Peter says so:** creating or promoting evaluator versions, `submit --pending`, any POST/PUT. **One exception (Peter, 2026-11-12):** the `/search-games` loop publishes the AI review (`submit <id>`) of the games it kept that cycle, and only those. Reading the API is fine. Never print `ORIGINALS_ADMIN_KEY` (in `.env.local`).
 - **Keep history.** Never delete team reviews. Retired games go to the Archive (status `retired`), not the bin; delete only builds that never shipped. Mark lobby changes with the manifest `revision`: `new` / `improved` + a note.
 - **Ask before big runs.** More than 6 builds, or anything that fans out many Opus agents. The org's monthly spend limit has been hit once.
 - **Subagent models:**

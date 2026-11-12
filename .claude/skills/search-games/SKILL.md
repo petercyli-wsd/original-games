@@ -11,8 +11,8 @@ What this loop can and can't tell: the AI gate is a good filter (games the team 
 
 ## Hard rules
 
-- **Branch `search` only.** Never commit to `main`, never push `main`, never force-push. Push `search` at the end of each cycle.
-- **No production writes.** `.evaluator/_local` must exist (local mode: prompts are built from this checkout, and `submit` queues to `.evaluator/_pending.json`). Never run `submit --pending`, `promote`, `seed-version`, `refine`, or any POST/PUT to the API. Reading the API is fine.
+- **Work on `search`; deploy by fast-forward.** Never commit directly to `main`, never force-push. Push `search` at the end of each cycle, then (section 5, "Publish") fast-forward `main` to it so kept games go live. Peter authorised that on 2026-11-12. If `main` can't be fast-forwarded, don't push it: say so in the brief.
+- **Production writes: only the two in section 5 ("Publish").** The only API write is `submit <kept ids>` for the games kept this cycle, with `.evaluator/_local` moved aside for that one call and put back straight after. Everything else stays in local mode (prompts built from this checkout, `submit` queues to `.evaluator/_pending.json`). Never run `submit --pending`, `promote`, `seed-version`, `submit-version`, `refine`, or any other POST/PUT. Reading the API is fine.
 - **Stay in your lane.** A UI restyle runs in parallel on another branch, and it owns every existing `games/<id>` folder, `packages/`, `apps/` and `scripts/`. You may only write:
   - new `games/<id>` folders;
   - `package-lock.json`;
@@ -43,6 +43,7 @@ What this loop can and can't tell: the AI gate is a good filter (games the team 
    - Count the cycles started in the last 24 hours. If that has reached cycles-per-day, write nothing and end the cycle; under `/loop`, wake in an hour.
 4. Check the stop conditions (section 6).
 5. Run `node .claude/skills/search-games/team-feed.mjs` for new team reviews since the last cycle.
+6. Check the last deploy: `gh run list --branch main --limit 1`. If that CI run failed, don't fast-forward `main` this cycle (section 5, "Publish"), and say so in the brief.
 
 ## 2. Pick the work
 
@@ -107,9 +108,13 @@ These come from the team's reviews of earlier builds. They are pre-build checks,
 
 Review each build with `.claude/skills/review-game/SKILL.md`, keeping its isolation rules exactly. The blind player never learns the id or name.
 
+This one review does two jobs: it decides keep or drop now, and it is the review that gets published for a kept game (section 5, "Publish"). It is never run twice for the same code.
+
+**Set the manifest `revision` before the first `prepare`** (`{ kind: 'new', date, note: 'Sonnet-generated, not yet rated by the team. <one sentence>' }`; a fork is `improved` and its note names the complaint it fixes). A review is stored with the game's code hash, and the site flags it stale if the code changes afterwards, so any later edit to `games/<id>` (a repair, a label tweak) means the review must be redone.
+
 1. Run one blind player, then `npm run evaluator -- preview <id>`.
-2. If the overall is in 3.25–3.75, widen to a panel: `player-prompt <id> --players 2 --more`, run the two new blind players, redo the designer, and preview again.
-3. `submit <id> --model claude-code` only queues (local mode); do that only for games you keep.
+2. If the overall is in 3.25–3.75, widen to a panel: `player-prompt <id> --players 2 --more`, run the two new blind players, redo the designer, and preview again. Scores of exactly 3.75 have been widened too.
+3. For a game you keep, `submit <id> --model claude-code` (local mode, so it queues).
 
 Keep a game if `preview` passes the gate **and** it meets the team-derived checks.
 
@@ -122,8 +127,8 @@ Don't overrule the gate or a failed check.
 
 For each kept game:
 
-1. Set the manifest `revision`: `{ kind: 'new' | 'improved', date, note }`. A fork is `improved`, and its note names the complaint it fixes.
-2. Queue its review: `npm run evaluator -- submit <id> --model claude-code`.
+1. Confirm the manifest `revision` is set (it must have been set before the review, section 4).
+2. Queue its review: `npm run evaluator -- submit <id> --model claude-code` (local mode, so it queues).
 3. Commit it: `node scripts/commit-game.mjs <id> "Add <Name>: <one-line rule>"`, or `"Fork <Name>: fixes <complaint>"`. End every commit message with the attribution line from the session's instructions.
 
 Then:
@@ -143,6 +148,11 @@ Then:
   - each drop with its reason.
 - **Patterns.** If the ledger shows the same failure reason three or more times, append a rule to `docs/DESIGN-RULES.md` citing the games, and commit it.
 - **Push:** `git push origin search`.
+- **Publish** (only if at least one game was kept this cycle; make sure no subagent is running):
+  1. **Deploy.** `git fetch origin`. If `origin/main` is an ancestor of `search` and the last CI run on `main` didn't fail (section 1, step 6), run `git push origin search:main`. Render builds from `main`, so the kept games then go live. Never force-push. If it isn't a fast-forward, don't push; say so in the brief.
+  2. **Publish the reviews.** For the ids kept this cycle only, run this as one command so `.evaluator/_local` always goes back:
+     `mv .evaluator/_local .evaluator/_local.off; npm run evaluator -- submit <kept ids> --model claude-code; mv .evaluator/_local.off .evaluator/_local`
+     Each id should print `✓ <id>: <score>/5`. If it prints `Queued` instead, the API was unreachable: the reviews stay in `.evaluator/_pending.json`, so say so in the brief. Never pass `--pending`, and check `.evaluator/_local` exists again afterwards.
 
 ## 6. Stop conditions
 
@@ -153,6 +163,13 @@ Check these at the start of each cycle. If any holds, write the reason at the to
 - **Backlog full.** 12 or more kept games in `docs/SEARCH.md` haven't been rated by the team yet. They can't review faster than that, so wait.
 - **Broken twice.** The build or the tests broke on `search` in two cycles (run `npm run typecheck` and `npm test` before pushing).
 
-## Report (end of each cycle, 3–6 lines)
+## Brief Peter (end of every cycle that did work)
 
-Mode and source; concepts proposed, passed the screen, built, kept; each kept game with its overall; each drop with its reason; and the next wake-up.
+Plain language, short, written for Peter. Include:
+
+- **The concepts.** Every concept proposed this cycle, one line each: name, the rule in plain words, and whether it passed the screen or why it failed.
+- **What was built.** Each kept game with its AI overall, a line on what it is like to play, and any weakness the designer flagged. Each drop with its reason.
+- **Where it is.** Pushed to `search`; deployed to `main` or why not; AI review published or still queued; the last CI result.
+- **Counts and the next wake-up.** Proposed, passed the screen, built, kept; how many kept games the team hasn't rated yet.
+
+A tick that is skipped because the cycle cap is reached needs one line only.
