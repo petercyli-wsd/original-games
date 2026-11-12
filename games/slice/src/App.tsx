@@ -351,14 +351,15 @@ export default function App() {
           </div>
         </div>
 
-        <button className="primary" disabled={main.disabled} onClick={main.action}>
-          {main.label}
-        </button>
+        {/* In a round, Cut again sits where Bet was (pressing the same spot keeps the round going) and Cash out goes below. */}
         {inRound && (
           <button className="secondary" disabled={phase !== 'checkpoint'} onClick={cutAgain}>
             {auto ? 'Auto-cutting…' : `Cut again · ${(round?.slices.length ?? 0) + 1} of ${shown.maxCuts}`}
           </button>
         )}
+        <button className="primary" disabled={main.disabled} onClick={main.action}>
+          {main.label}
+        </button>
 
         <div className="toggles">
           <label className="toggle">
