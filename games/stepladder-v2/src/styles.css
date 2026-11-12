@@ -1,0 +1,168 @@
+/* Stepladder board. Layout, panel and readouts come from the kit. */
+
+.ladder-board {
+  min-height: 0;
+}
+.ladder {
+  width: min(100%, 520px);
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.ladder text {
+  fill: var(--text);
+  font-family: inherit;
+  text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.ladder text.left {
+  text-anchor: start;
+}
+.ladder text.right {
+  text-anchor: end;
+}
+.ladder .small {
+  font-size: 12px;
+  fill: var(--muted);
+}
+.ladder .head {
+  font-size: 15px;
+  font-weight: 800;
+}
+.ladder .g {
+  fill: var(--green);
+  font-weight: 800;
+}
+
+/* Roll-off list: your die against each other die, with its chance as a bar. */
+.ladder .vs {
+  font-size: 14px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+.ladder .duel-bg {
+  fill: var(--hover);
+  stroke: var(--line);
+}
+.ladder .duel.now .duel-bg {
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+.ladder .duel.won .duel-bg {
+  fill-opacity: 0.5;
+}
+.ladder .tname {
+  font-size: 13px;
+  font-weight: 700;
+}
+.ladder .tpct {
+  font-size: 13px;
+  font-weight: 700;
+}
+.ladder .tstat {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.ladder .duel.won .tstat {
+  fill: var(--green);
+}
+.ladder .duel.lost .tstat {
+  fill: var(--red);
+}
+.ladder .bar-bg {
+  fill: var(--bg);
+}
+.ladder .bar {
+  fill: var(--gold);
+}
+.ladder .product {
+  font-size: 18px;
+  font-weight: 800;
+  fill: var(--gold);
+}
+.ladder .product.bad {
+  fill: var(--red);
+}
+/* Dice: they climb by moving up a step; the loser drops to the floor, greyed. */
+.ladder .die {
+  transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.ladder .tile {
+  fill: var(--panel, var(--bg));
+  stroke: var(--text);
+  stroke-opacity: 0.5;
+  stroke-width: 2;
+}
+.ladder .die.mine .tile {
+  stroke: var(--gold);
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+.ladder .die.won .tile {
+  stroke: var(--green);
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+.ladder .die .dname {
+  font-size: 11px;
+  fill: var(--muted);
+}
+.ladder .die .face {
+  font-size: 26px;
+  font-weight: 800;
+}
+.ladder .die.tumble .tile {
+  animation: ladder-shake 0.28s ease-in-out infinite;
+}
+.ladder .die.tumble {
+  transform-box: fill-box;
+}
+
+/* Face-pair grid. */
+.ladder .axis {
+  font-size: 10px;
+  fill: var(--muted);
+}
+.ladder .cell.good {
+  fill: var(--green);
+  fill-opacity: 0.85;
+}
+.ladder .cell.bad {
+  fill: var(--red);
+  fill-opacity: 0.5;
+}
+.ladder .pair {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 3;
+}
+.ladder .pair.tumbling {
+  stroke: var(--gold);
+  stroke-dasharray: 4 3;
+}
+.ladder .pair.landed {
+  filter: drop-shadow(0 0 4px #fff);
+}
+.ladder .share-bg {
+  fill: var(--red);
+  fill-opacity: 0.5;
+}
+.ladder .share {
+  fill: var(--green);
+}
+.ladder .share-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+@keyframes ladder-shake {
+  0%,
+  100% {
+    stroke-opacity: 0.5;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+
