@@ -1,0 +1,112 @@
+/* Fan Out board. Layout, panel and readouts come from the kit. */
+
+.fanout text {
+  fill: var(--text);
+  font-family: inherit;
+  text-anchor: middle;
+}
+.fanout .start {
+  text-anchor: start;
+}
+.fanout .end {
+  text-anchor: end;
+}
+.fanout .lbl {
+  font-size: 14px;
+  font-weight: 600;
+  fill: var(--muted);
+}
+.fanout .fuse {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.fanout .fuse.burnt {
+  fill: var(--lose);
+  stroke: var(--lose);
+}
+.fanout .pip {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.fanout .pip.on {
+  fill: var(--text);
+  stroke: var(--text);
+}
+
+/* Slots: the empty ones are the deck */
+.fanout .slot .face {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.fanout .slot .rank {
+  font-size: 20px;
+  font-weight: 600;
+  fill: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.fanout .slot.lit .face {
+  stroke: var(--win);
+  stroke-width: 3;
+}
+.fanout .slot.lit .rank {
+  fill: var(--text);
+}
+.fanout .slot.grey .face {
+  stroke: var(--faint);
+  stroke-dasharray: 4 4;
+}
+.fanout .slot.grey .rank {
+  fill: var(--faint);
+}
+.fanout .slot.laid .face {
+  fill: var(--hover);
+  stroke: var(--line-strong);
+}
+.fanout .slot.laid .rank {
+  fill: var(--text);
+}
+.fanout .slot.burned .face {
+  stroke: var(--lose);
+  stroke-width: 2;
+}
+.fanout .slot.burned .rank {
+  fill: var(--faint);
+}
+.fanout .cross {
+  stroke: var(--lose);
+  stroke-width: 3;
+  fill: none;
+}
+.fanout .slot.last .face {
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.fanout .tag {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--accent);
+}
+
+.fanout .hop {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.fanout .key {
+  font-size: 16px;
+  font-weight: 600;
+}
+.fanout .key.dim {
+  font-size: 14px;
+  fill: var(--muted);
+}
+
+.fanout-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
