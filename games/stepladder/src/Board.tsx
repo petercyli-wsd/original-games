@@ -83,7 +83,7 @@ export default function Board({ die, s, grid, results, mark, rolling }: BoardPro
   // The literal derivation of the overall chance: the roll-offs still to win.
   const left = s.lost ? [] : chances.slice(s.j);
   const total = titleChance(die, s);
-  const product = s.lost ? 'Lost a roll-off · 0%' : left.length === 0 ? 'Won all three roll-offs' : `${fmtChance(total)} = ${left.map(fmtChance).join(' × ')}`;
+  const product = s.lost ? 'Lost a roll-off' : left.length === 0 ? 'Won all three roll-offs' : `${fmtChance(total)} = ${left.map(fmtChance).join(' × ')}`;
 
   const tile = (x: number, who: number, f: number | null, mine: boolean, win: boolean) => (
     <g className={'die' + (mine ? ' mine' : '') + (win ? ' won' : '') + (tumbling ? ' tumble' : '')} style={{ transform: `translate(${x}px, 34px)` }}>
@@ -121,9 +121,6 @@ export default function Board({ die, s, grid, results, mark, rolling }: BoardPro
             </text>
             <rect x="130" y={y + 5} width="120" height="10" rx="4" className="bar-bg" />
             <rect x="130" y={y + 5} width={Math.max(2, chances[i] * 120)} height="10" rx="4" className="bar" />
-            <text x="288" y={y + 14} className="tpct right">
-              {fmtChance(chances[i])}
-            </text>
             <text x="384" y={y + 14} className="tstat right">
               {status}
             </text>
@@ -132,20 +129,20 @@ export default function Board({ die, s, grid, results, mark, rolling }: BoardPro
       })}
 
       <text x="200" y="262" className="small">
-        Win all three to win the round
+        Bar: chance to win each roll-off
       </text>
       <text x="200" y="290" className={'product' + (s.lost ? ' bad' : '')}>
-        {product}
+        {s.lost ? 'Dropped off' : left.length === 0 ? 'Won all three roll-offs' : ''}
       </text>
 
       <text x="8" y="326" className="head left">
         Your d{m.a} vs the d{m.b}
       </text>
       <text x="8" y="344" className="small left">
-        Your d{m.a} faces down the side, the d{m.b} across. <tspan className="g">Green</tspan> = your die wins.
+        Your d{m.a} down the side, d{m.b} across.
       </text>
       <text x="8" y="360" className="small left">
-        Highest roll wins; a tie goes to the bigger die (the d{Math.max(m.a, m.b)}).
+        <tspan className="g">Green</tspan>: your die wins.
       </text>
 
       {Array.from({ length: m.b }, (_, c) => (
@@ -173,7 +170,7 @@ export default function Board({ die, s, grid, results, mark, rolling }: BoardPro
       <rect x={GRID_X} y={GRID_Y + GRID_H + 12} width={GRID_W} height="10" rx="4" className="share-bg" />
       <rect x={GRID_X} y={GRID_Y + GRID_H + 12} width={Math.max(0, (g.good / g.total) * GRID_W)} height="10" rx="4" className="share" />
       <text x={GRID_X + GRID_W / 2} y={GRID_Y + GRID_H + 42} className="share-label">
-        <tspan className="g">{g.good}</tspan> of {g.total} pairs are green = {fmtChance(g.good / g.total)}
+        <tspan className="g">{g.good}</tspan> of {g.total} pairs win
       </text>
     </svg>
   );

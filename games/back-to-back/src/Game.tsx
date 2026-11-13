@@ -3,10 +3,10 @@ import { useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
   AutoBetControls,
+  ACCENTS,
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -34,8 +34,8 @@ import { useEffect, useRef, useState } from 'react';
 import Field, { COLOURS, fmtChance } from './Board';
 import { DECK, NO_TOP, RTP, ifNext, startChances, startPrize, turn, valueAfter, volatilityOf, winChances } from './math';
 
-const ACCENT = '#e8a23a';
-const RULE = 'Cards are turned from a deck of four colours; the first colour to come up twice in a row wins; back a colour.';
+const ACCENT = ACCENTS.pink;
+const RULE = 'Back a colour; the first colour turned twice in a row wins.';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 
 type Phase = 'idle' | 'drawing' | 'checkpoint' | 'over';
@@ -310,7 +310,7 @@ export default function Game() {
   const snapped = outcome === 'won' || outcome === 'lost';
   const cards = shown?.pile.length ?? 0;
 
-  let status = `Ready · ${COLOURS[pick].name} snaps first ${fmtChance(startP)} of the time`;
+  let status = `Ready · ${COLOURS[pick].name} backed`;
   let tone: StatusTone = 'idle';
   if (isAuto) {
     if (auto.running || autoBusy) {
@@ -324,7 +324,7 @@ export default function Game() {
     status = `Turning card ${cards + 1}`;
     tone = 'live';
   } else if (phase === 'checkpoint' && round) {
-    status = `Card ${cards} · ${lc(round.top)} on top · cash out or turn on`;
+    status = `Card ${cards} · ${lc(round.top)} on top`;
     tone = 'live';
   } else if (phase === 'over' && round?.outcome) {
     status = `${title(round)} · ${cards} card${cards === 1 ? '' : 's'}`;
@@ -334,17 +334,10 @@ export default function Game() {
   const readouts: ReadoutItem[] = [
     {
       label: `${COLOURS[me].name} snaps first`,
-      value: fmtChance(outcome ? (outcome === 'won' ? 1 : 0) : chances[me]),
-      sub: !shown ? 'before the first card' : outcome ? 'round over' : `${counts.reduce((a, b) => a + b, 0)} cards left`,
+      value: fmtChance(outcome === 'won' ? 1 : outcome === 'lost' || outcome === 'out' ? 0 : chances[me]),
       tone: 'chance',
     },
-    {
-      label: outcome ? 'Paid' : shown ? 'Cash out now' : 'Cash out now',
-      value: shown ? fmtMult(value) : '—',
-      sub: shown ? formatAmount(stake * value, 2) : 'after each card',
-      tone: 'cash',
-    },
-    { label: `If ${lc(me)} snaps`, value: fmtMult(prize), sub: `pays ${formatAmount(stake * prize, 2)}`, tone: 'prize' },
+    { label: `If ${lc(me)} snaps`, value: fmtMult(prize), tone: 'prize' },
   ];
 
   const pickerChances = shown && !outcome ? chances : startChances();
@@ -389,12 +382,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(live ? chances[me] : startP)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(phase === 'checkpoint' || phase === 'drawing' ? prize : startPrize(pick))}</dd>
-              </dl>
               {phase === 'checkpoint' ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -427,12 +414,6 @@ export default function Game() {
                   }
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(startP)}</dd>
-                <dt>Prize at the snap</dt>
-                <dd>{fmtMult(startPrize(pick))}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="b2b-blocked">{bet.blocked}</p>}
@@ -462,7 +443,7 @@ export default function Game() {
         />
       </Board>
 
-      {!isAuto && phase === 'over' && round?.outcome ? (
+      {!isAuto && phase === 'over' && round?.outcome && (
         <RoundOver
           key={history[0]?.id}
           title={title(round)}
@@ -474,21 +455,8 @@ export default function Game() {
           onClear={clear}
           placement="inline"
         />
-      ) : !isAuto && live ? (
-        <ChanceBar
-          p={chances[me]}
-          label={`${COLOURS[me].name} snaps first`}
-          note={phase === 'checkpoint' ? 'Space turns the next card, C cashes out. Your colour is fixed for this round.' : 'The deck bar above is the next card’s exact chance.'}
-        />
-      ) : (
-        <Caption>
-          <b className="b2b-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet backs ${lc(pick)} and ${target ? `cashes out once the value reaches ${fmtMult(target)}` : 'rides to the snap'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `Pick a colour, then Bet. The deck bar shows the next card exactly. RTP ${(RTP * 100).toFixed(0)}%.`}
-        </Caption>
       )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Back to Back" onClose={() => setInfoOpen(false)}>

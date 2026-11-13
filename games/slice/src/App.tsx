@@ -1,6 +1,30 @@
-import { InsufficientFundsError, formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
-import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
-import { eventMs } from '@originals/game-sdk/ui';
+import { formatAmount } from '@originals/game-sdk';
+import { useHost } from '@originals/game-sdk/react';
+import {
+  ACCENTS,
+  ActionButton,
+  BetField,
+  Board as BoardArea,
+  Caption,
+  Chips,
+  GameLayout,
+  Label,
+  PanelFoot,
+  Readouts,
+  RoundOver,
+  StageTop,
+  eventMs,
+  fmtChance,
+  fmtMult,
+  useBetInput,
+  useHistory,
+  useHotkeys,
+  useTicket,
+  useTimers,
+  useTurbo,
+  type ReadoutItem,
+  type StatusTone,
+} from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
 import Board, { type Blade } from './Board';
 import InfoModal from './InfoModal';
@@ -14,7 +38,6 @@ import {
   chord,
   clampCentre,
   cutRound,
-  inCircle,
   isWin,
   newRound,
   radiusFor,
@@ -39,14 +62,6 @@ const ENDING_TITLE: Record<Ending['kind'], string> = {
 };
 
 const MODE_LABEL: Record<Mode, string> = { low: 'Low', medium: 'Medium', high: 'High', extreme: 'Extreme' };
-
-/** A percentage that never rounds a live chance to a misleading 0% or 100%. */
-function pct(x: number, digits: number) {
-  const floor = 10 ** -(digits + 2);
-  if (x > 0 && x < floor) return `<${formatPercent(floor, digits)}`;
-  if (x < 1 && x > 1 - floor) return `>${formatPercent(1 - floor, digits)}`;
-  return formatPercent(x, digits);
-}
 
 /** Eases a displayed number toward its target. */
 function useTween(target: number, ms: number) {
@@ -78,15 +93,15 @@ function useTween(target: number, ms: number) {
 }
 
 export default function App() {
-  const { wallet, rng, track } = useHost();
-  const balance = useBalance();
-  const host = useSettings();
+  const { rng, track } = useHost();
+  const bet = useBetInput();
+  const turbo = useTurbo();
+  const timers = useTimers();
+  const [history, pushHistory] = useHistory(14);
 
   const [mode, setMode] = useState<Mode>('medium');
   const [maxCuts, setMaxCuts] = useState<number>(DEFAULT_CUTS);
   const [centre, setCentre] = useState<Pt>({ x: 0.5, y: 0.5 });
-  const [betText, setBetText] = useState('1.00');
-  const [localTurbo, setLocalTurbo] = useState(false);
   const [auto, setAuto] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -94,71 +109,44 @@ export default function App() {
   const [round, setRound] = useState<Round | null>(null);
   const [blade, setBlade] = useState<Blade | null>(null);
   const [ending, setEnding] = useState<Ending | null>(null);
-  const [message, setMessage] = useState<{ text: string; tone: Tone }>({
-    text: 'Drag the circle to place it, then bet.',
-    tone: 'neutral',
-  });
+  const [message, setMessage] = useState<{ text: string; tone: Tone }>({ text: 'Drag the circle, then bet', tone: 'neutral' });
 
-  const turbo = localTurbo || host.turbo;
   // A cut is drawn across the square at a readable pace in Manual (docs/STYLE.md), faster with Turbo.
-  const bladeMs = eventMs(turbo);
-  const fallMs = turbo ? 200 : 560;
-  const autoPauseMs = turbo ? 140 : 520;
+  const bladeMs = eventMs(turbo.turbo);
+  const fallMs = turbo.turbo ? 200 : 560;
+  const autoPauseMs = turbo.turbo ? 140 : 520;
 
-  // Latest values for timer callbacks and the unmount cleanup.
-  const ticket = useRef<BetTicket | null>(null);
+  // `resolved` is the open ticket's value right now, set synchronously at every
+  // transition (RTP when the stake is placed, the post-cut value M x P' the
+  // moment a cut is drawn, since the dot is already fixed). So leaving while
+  // the blade animates settles at the cut's real result, never at the pre-cut
+  // value. The ticket reads only this ref.
+  const resolved = useRef(0);
+  const ticket = useTicket(() => resolved.current);
+  const stakeRef = useRef(0);
   const placing = useRef(false);
-  const roundRef = useRef<Round | null>(null);
   const autoRef = useRef(auto);
   autoRef.current = auto;
-  const timer = useRef<ReturnType<typeof setTimeout>>();
-  const later = (ms: number, fn: () => void) => {
-    clearTimeout(timer.current);
-    timer.current = setTimeout(fn, ms);
-  };
-
-  // Leaving mid-round settles the open ticket at `resolved`: the value right
-  // now, set synchronously at every transition (RTP when the stake is placed,
-  // the post-cut value M × P' the moment a cut is drawn, since the dot is
-  // already fixed). So leaving while the blade animates settles at the cut's
-  // real result, never at the pre-cut value. A bet still being placed when
-  // the game unmounts is refunded (no round was started for it).
-  const resolved = useRef(0);
-  const mounted = useRef(true);
   /** The round waiting at a checkpoint: the only one that can be cut again or cashed (null while cutting or over). */
   const waiting = useRef<Round | null>(null);
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      clearTimeout(timer.current);
-      const t = ticket.current;
-      ticket.current = null;
-      if (t) void t.settle(resolved.current);
-    };
-  }, []);
 
-  const show = (r: Round | null) => {
-    roundRef.current = r;
-    setRound(r);
-  };
+  const show = (r: Round | null) => setRound(r);
 
   function finish(r: Round, end: Omit<Ending, 'stake'>) {
     waiting.current = null;
-    const t = ticket.current;
-    ticket.current = null;
+    ticket.settle(end.mult);
+    pushHistory(end.mult);
     setPhase('over');
-    setEnding({ ...end, stake: t?.amount ?? 0 });
-    const prize = formatMultiplier(end.mult);
+    setEnding({ ...end, stake: stakeRef.current });
+    const prize = fmtMult(end.mult);
     const text = {
-      cashout: `Cashed out at ${prize}. The dot was ${inCircle(r.circle, r.dot) ? 'inside' : 'outside'} your circle.`,
-      covered: `Everything left is inside your circle. You win ${prize}!`,
-      missed: 'Your circle has been sliced away. The dot was elsewhere.',
-      hit: `Revealed: the dot is inside your circle. You win ${prize}!`,
-      miss: 'Revealed: the dot is outside your circle.',
+      cashout: `Cashed out ${prize}`,
+      covered: `Covered, you win ${prize}`,
+      missed: 'Your circle was sliced away',
+      hit: `Dot inside, you win ${prize}`,
+      miss: 'Dot outside your circle',
     }[end.kind];
     setMessage({ text, tone: end.mult > 0 ? 'win' : 'lose' });
-    if (t) void t.settle(end.mult);
     show(r);
   }
 
@@ -171,9 +159,9 @@ export default function App() {
     const [from, to] = chord(r.region, c);
     setBlade({ from, to, id: r.slices.length + 1 });
     setPhase('cutting');
-    later(bladeMs, () => {
+    timers.after(bladeMs, () => {
       show(next);
-      later(fallMs, () => {
+      timers.after(fallMs, () => {
         setBlade(null);
         if (next.outcome !== 'live') {
           finish(next, { kind: next.outcome as Ending['kind'], mult: cashMultiplier(next) });
@@ -183,40 +171,28 @@ export default function App() {
         track({ type: 'checkpoint', multiplier: mult, winChance: next.chance });
         waiting.current = next;
         setPhase('checkpoint');
-        setMessage({
-          text: `The dot is on the bright side. Cash out ${formatMultiplier(mult)} or cut again.`,
-          tone: 'neutral',
-        });
-        if (autoRef.current) later(autoPauseMs, () => waiting.current === next && cut(next));
+        setMessage({ text: 'Cash out or cut again', tone: 'neutral' });
+        if (autoRef.current) timers.after(autoPauseMs, () => waiting.current === next && cut(next));
       });
     });
   }
 
-  const bet = parseFloat(betText) || 0;
-  const betInvalid = !(bet > 0) || bet > balance;
-
   async function start() {
-    if (placing.current || ticket.current) return;
+    if (placing.current || phase === 'cutting' || phase === 'checkpoint' || bet.blocked) return;
     placing.current = true;
+    let placed = false;
     try {
-      ticket.current = await wallet.placeBet(bet);
-    } catch (err) {
-      setMessage({ text: err instanceof InsufficientFundsError ? 'Not enough balance.' : 'Enter a valid bet.', tone: 'lose' });
-      return;
+      placed = await ticket.place(bet.value);
     } finally {
       placing.current = false;
     }
-    if (!mounted.current) {
-      // Left while the bet was being placed: no round was started, so refund it.
-      const t = ticket.current;
-      ticket.current = null;
-      void t?.settle(1);
-      return;
-    }
-    // A fresh round is worth M × πr² = RTP until its first cut is drawn.
+    if (!placed) return;
+    stakeRef.current = bet.value;
+    // A fresh round is worth M x pi r^2 = RTP until its first cut is drawn.
     resolved.current = RTP;
     // The dot is drawn up front, uniformly in the square, and never shown until the end.
     const r = newRound(mode, centre, maxCuts, { x: rng.next(), y: rng.next() });
+    timers.clearAll();
     setEnding(null);
     setMessage({ text: 'Slicing…', tone: 'neutral' });
     show(r);
@@ -226,8 +202,9 @@ export default function App() {
   const cashOut = () => {
     const r = waiting.current;
     if (!r) return;
-    clearTimeout(timer.current);
+    timers.clearAll();
     setAuto(false);
+    autoRef.current = false;
     finish(r, { kind: 'cashout', mult: cashMultiplier(r) });
   };
 
@@ -241,128 +218,100 @@ export default function App() {
     setPhase('idle');
     show(null);
     setEnding(null);
+    setMessage({ text: 'Drag the circle, then bet', tone: 'neutral' });
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.composedPath()[0] as HTMLElement;
-      if (infoOpen || target.tagName === 'INPUT') return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (phase === 'idle' || phase === 'over') {
-          if (!betInvalid) void start();
-        } else cutAgain();
-      } else if (e.key.toLowerCase() === 'c') cashOut();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
+  useHotkeys(
+    {
+      space: () => {
+        if (phase === 'idle' || phase === 'over') void start();
+        else cutAgain();
+      },
+      cashOut,
+    },
+    !infoOpen,
+  );
 
   const inRound = phase === 'cutting' || phase === 'checkpoint';
   const r = radiusFor(mode);
   const preview = newRound(mode, centre, maxCuts, { x: 0, y: 0 });
   const shown = round ?? preview;
-  const stake = ticket.current?.amount ?? bet;
-  const prize = shown.mult;
+  const stake = inRound ? stakeRef.current : bet.value;
   const cashMult = phase === 'checkpoint' && round ? cashMultiplier(round) : 0;
   // Once the dot is known the chance snaps to 100% or 0% (a cash-out keeps the last value).
   const chance = phase === 'over' && ending && ending.kind !== 'cashout' ? (isWin(ending.kind) ? 1 : 0) : shown.chance;
   const shownChance = useTween(chance, fallMs);
   const tone: Tone = phase === 'over' && ending ? (ending.mult > 0 ? 'win' : 'lose') : 'neutral';
+  const statusTone: StatusTone = tone === 'win' ? 'won' : tone === 'lose' ? 'lost' : inRound ? 'live' : 'idle';
 
-  let main: { label: string; action: () => void; disabled: boolean } = {
-    label: phase === 'over' ? 'Bet again' : 'Bet',
-    action: () => void start(),
-    disabled: betInvalid,
-  };
-  if (phase === 'cutting') main = { label: 'Slicing…', action: () => {}, disabled: true };
-  if (phase === 'checkpoint') main = { label: `Cash out ${formatAmount(stake * cashMult, 2)}`, action: cashOut, disabled: false };
+  const readouts: ReadoutItem[] = [
+    { label: 'Win chance', value: fmtChance(shownChance), tone: 'chance' },
+    { label: 'If inside', value: fmtMult(shown.mult), tone: 'prize' },
+  ];
 
   return (
-    <div className="slice">
-      <aside className="panel">
-        <div className="field">
-          <span className="label">
-            Bet amount <em>Balance {formatAmount(balance, 2)}</em>
-          </span>
-          <div className="bet-row">
-            <input
-              value={betText}
-              inputMode="decimal"
-              aria-label="Bet amount"
-              disabled={inRound}
-              onChange={(e) => setBetText(e.target.value)}
-              onBlur={() => setBetText((v) => formatAmount(parseFloat(v) || 0, 2))}
-            />
-            <button disabled={inRound} onClick={() => setBetText(formatAmount(bet / 2, 2))}>
-              ½
-            </button>
-            <button disabled={inRound} onClick={() => setBetText(formatAmount(Math.min(balance, bet * 2), 2))}>
-              2×
-            </button>
-          </div>
-        </div>
+    <GameLayout
+      name="Slice"
+      accent={ACCENTS.sky}
+      panel={
+        <>
+          <BetField bet={bet} disabled={inRound} />
 
-        <div className="field">
-          <span className="label">
-            Circle size <em>smaller pays more</em>
-          </span>
-          <div className="sizes">
-            {MODE_NAMES.map((m) => (
-              <button
-                key={m}
-                className={m === mode ? 'on' : ''}
-                disabled={inRound}
-                onClick={() => {
-                  reset();
-                  setMode(m);
-                  setCentre((c) => clampCentre(c, radiusFor(m)));
-                }}
-              >
-                <svg viewBox="0 0 20 20" aria-hidden="true">
-                  <rect x="1" y="1" width="18" height="18" rx="2" />
-                  <circle cx="10" cy="10" r={radiusFor(m) * 18} />
-                </svg>
-                <span>{MODE_LABEL[m]}</span>
-                <b>{formatMultiplier(MODES[m].mult)}</b>
-              </button>
-            ))}
-          </div>
-        </div>
+          <Label hint="smaller pays more">Circle size</Label>
+          <Chips
+            label="Circle size"
+            value={mode}
+            disabled={inRound}
+            options={MODE_NAMES.map((m) => ({
+              value: m,
+              label: (
+                <span className="slice-size">
+                  <svg viewBox="0 0 20 20" aria-hidden="true">
+                    <rect x="1" y="1" width="18" height="18" rx="2" />
+                    <circle cx="10" cy="10" r={radiusFor(m) * 18} />
+                  </svg>
+                  <span>{MODE_LABEL[m]}</span>
+                  <b>{fmtMult(MODES[m].mult)}</b>
+                </span>
+              ),
+            }))}
+            onChange={(m) => {
+              reset();
+              setMode(m);
+              setCentre((c) => clampCentre(c, radiusFor(m)));
+            }}
+          />
 
-        <div className="field">
-          <span className="label">
-            Cuts <em>before the reveal</em>
-          </span>
-          <div className="segmented">
-            {CUT_OPTIONS.map((n) => (
-              <button
-                key={n}
-                className={n === maxCuts ? 'on' : ''}
-                disabled={inRound}
-                onClick={() => {
-                  reset();
-                  setMaxCuts(n);
-                }}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
-        </div>
+          <Label hint="before the reveal">Cuts</Label>
+          <Chips
+            label="Cuts"
+            value={maxCuts}
+            disabled={inRound}
+            options={CUT_OPTIONS.map((n) => ({ value: n, label: n }))}
+            onChange={(n) => {
+              reset();
+              setMaxCuts(n);
+            }}
+          />
 
-        {/* In a round, Cut again sits where Bet was (pressing the same spot keeps the round going) and Cash out goes below. */}
-        {inRound && (
-          <button className="secondary" disabled={phase !== 'checkpoint'} onClick={cutAgain}>
-            {auto ? 'Auto-cutting…' : `Cut again · ${(round?.slices.length ?? 0) + 1} of ${shown.maxCuts}`}
-          </button>
-        )}
-        <button className="primary" disabled={main.disabled} onClick={main.action}>
-          {main.label}
-        </button>
+          {/* In a round, Cut again sits where Bet was and Cash out goes below. */}
+          {inRound ? (
+            <>
+              <ActionButton kind="secondary" disabled={phase !== 'checkpoint'} onClick={cutAgain}>
+                {auto ? 'Auto-cutting…' : `Cut again · ${(round?.slices.length ?? 0) + 1} of ${shown.maxCuts}`}
+              </ActionButton>
+              <ActionButton kind="cash" disabled={phase !== 'checkpoint'} onClick={cashOut}>
+                Cash out {phase === 'checkpoint' && <span>{formatAmount(stake * cashMult, 2)}</span>}
+              </ActionButton>
+            </>
+          ) : (
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              {phase === 'over' ? 'Bet again' : 'Bet'}
+            </ActionButton>
+          )}
+          {bet.blocked && <p className="slice-blocked">{bet.blocked}</p>}
 
-        <div className="toggles">
-          <label className="toggle">
+          <label className="og-toggle">
             <input
               type="checkbox"
               checked={auto}
@@ -374,75 +323,50 @@ export default function App() {
             />
             <span>Auto-cut</span>
           </label>
-          <label className="toggle">
-            <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
-            <span>Turbo</span>
-          </label>
-        </div>
 
-        <div className="foot">
-          <button className="link" onClick={() => setInfoOpen(true)}>
-            How to play
-          </button>
-        </div>
-      </aside>
+          <PanelFoot turbo={turbo} onInfo={() => setInfoOpen(true)} />
+        </>
+      }
+    >
+      <StageTop status={message.text} tone={statusTone} history={history} />
+      <Readouts items={readouts} />
 
-      <section className="stage">
-        <div className={'status ' + (tone === 'neutral' ? (inRound ? 'live' : '') : tone)} aria-live="polite">
-          {message.text}
-        </div>
+      <BoardArea className="slice-board-area">
+        <Board
+          circle={shown.circle}
+          region={shown.region}
+          slices={shown.slices}
+          blade={blade}
+          dot={phase === 'over' ? shown.dot : null}
+          dotTone={ending?.kind === 'cashout' ? 'neutral' : tone}
+          editable={!inRound}
+          showHandle={phase === 'idle'}
+          onMove={(p) => {
+            reset();
+            setCentre(clampCentre(p, r));
+          }}
+          bladeMs={bladeMs}
+          fallMs={fallMs}
+        />
+      </BoardArea>
 
-        {/* One flat row: the one chance (the circle's share of the lighter region) and the prize. */}
-        <div className="readout">
-          <div className={'chance ' + tone}>
-            <span className="label">Win chance</span>
-            <b>{pct(shownChance, 1)}</b>
-          </div>
-          <div>
-            <span className="label">If inside</span>
-            <b>{formatAmount(stake * prize, 2)}</b>
-          </div>
-        </div>
+      {phase === 'over' && ending && (
+        <RoundOver
+          key={history[0]?.id}
+          placement="inline"
+          title={ENDING_TITLE[ending.kind]}
+          multiplier={ending.mult}
+          stake={ending.stake}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={reset}
+        />
+      )}
 
-        <div className="board-wrap">
-          <Board
-            circle={shown.circle}
-            region={shown.region}
-            slices={shown.slices}
-            blade={blade}
-            dot={phase === 'over' ? shown.dot : null}
-            dotTone={ending?.kind === 'cashout' ? 'neutral' : tone}
-            editable={!inRound}
-            showHandle={phase === 'idle'}
-            onMove={(p) => {
-              reset();
-              setCentre(clampCentre(p, r));
-            }}
-            bladeMs={bladeMs}
-            fallMs={fallMs}
-          />
-        </div>
-
-        <div className="outcome">
-          {phase === 'over' && ending && (
-            <RoundOver
-              key={round?.dot.x}
-              placement="inline"
-              title={ENDING_TITLE[ending.kind]}
-              multiplier={ending.mult}
-              stake={ending.stake}
-              nextBet={bet}
-              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
-              onBetAgain={() => void start()}
-              onClear={reset}
-            />
-          )}
-        </div>
-
-        <p className="rule og-caption">Win if the hidden dot is inside your circle.</p>
-      </section>
+      <Caption>Win if the hidden dot is inside your circle.</Caption>
 
       {infoOpen && <InfoModal rtp={RTP} onClose={() => setInfoOpen(false)} />}
-    </div>
+    </GameLayout>
   );
 }

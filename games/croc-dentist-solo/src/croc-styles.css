@@ -1,0 +1,648 @@
+/* Lives in the game's shadow root. Colours, type and spacing come from the
+   kit's tokenStyles (docs/STYLE.md); this file only lays out the game's own
+   panel and board. Flat: no gradients, glows or shadows. */
+
+:host {
+  display: block;
+  height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.croc-root {
+  --accent: #5ec4e6; /* ACCENTS.sky */
+
+  height: 100%;
+  background: var(--card);
+  color: var(--text);
+  font-family: var(--og-font, system-ui, sans-serif);
+  font-size: var(--fs-2);
+  font-weight: 500;
+  color-scheme: dark;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: 0;
+  border-radius: var(--radius);
+  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
+}
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.shell {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  height: 100%;
+}
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-4);
+  background: var(--raised);
+  border-right: 1px solid var(--line);
+}
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-5) clamp(var(--sp-4), 3vw, var(--sp-6));
+  background: var(--card);
+}
+
+/* ---------------------------------------------------------------- panel */
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.field-label > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.hint {
+  font-weight: 500;
+}
+.bet-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px 48px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.bet-row input {
+  min-width: 0;
+  padding: 10px var(--sp-3);
+  font-size: var(--fs-3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 0;
+  outline: none;
+}
+.bet-row button {
+  border-radius: 0;
+  border-left: 1px solid var(--line);
+  font-weight: 600;
+  color: var(--muted);
+  background: transparent;
+}
+.bet-row button:not(:disabled):hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.chips {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.chip {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 0;
+  border-radius: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  background: transparent;
+}
+.chip:not(:disabled):hover {
+  color: var(--text);
+}
+.chip.on {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.primary,
+.secondary {
+  padding: 13px var(--sp-3);
+  font-size: var(--fs-3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.primary {
+  color: var(--bg);
+  background: var(--text);
+}
+.primary:not(:disabled):hover {
+  opacity: 0.9;
+}
+.secondary {
+  margin-top: calc(-1 * var(--sp-2));
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+.secondary:not(:disabled):hover {
+  background: var(--hover);
+}
+.ghost {
+  padding: 7px 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+.ghost:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.toggle input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--text);
+}
+.toggle input:checked ~ span {
+  color: var(--text);
+}
+.panel-links {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: auto;
+}
+.panel-links .ghost {
+  flex: 1;
+}
+
+/* ---------------------------------------------------------------- stage */
+
+.stage-top {
+  align-self: stretch;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.status {
+  min-height: 22px;
+  font-weight: 600;
+  color: var(--text);
+}
+.status.w {
+  color: var(--win);
+}
+.status.l {
+  color: var(--lose);
+}
+.history {
+  display: flex;
+  gap: var(--sp-1);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.hist {
+  padding: 3px 7px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hist.w {
+  color: var(--win);
+}
+.hist.l {
+  color: var(--lose);
+}
+.hist:first-child {
+  border-color: currentColor;
+}
+
+/* The one chance and the one payout. */
+.readouts {
+  display: flex;
+  gap: var(--sp-6);
+  align-self: stretch;
+}
+.readouts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.label {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.readouts b {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.readouts b.w {
+  color: var(--win);
+}
+.readouts b.l {
+  color: var(--lose);
+}
+
+/* The whole-bet win chance as a share of a flat track. */
+.win-track {
+  align-self: stretch;
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--lose) 35%, var(--card));
+  overflow: hidden;
+}
+.win-track i {
+  display: block;
+  height: 100%;
+  background: var(--win);
+  transition: width 0.3s ease;
+}
+.win-track i.l {
+  width: 0 !important;
+}
+
+/* The next press's risk as a count: one dot per unpressed tooth, bad ones red. */
+.teeth-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  align-self: stretch;
+}
+.teeth-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.teeth-dots i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.teeth-dots i.bad {
+  background: var(--lose);
+}
+
+.board-wrap {
+  width: min(760px, 100%);
+}
+#jaw {
+  display: block;
+  width: 100%;
+  max-height: 50vh;
+  user-select: none;
+}
+
+/* Teeth: plain cells on an arc. Spent ones go quiet; the bite is --lose. */
+.tooth .cell {
+  fill: var(--hover);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  transition: fill var(--dur-ui) ease, stroke var(--dur-ui) ease;
+}
+.tooth.pressed .cell {
+  fill: var(--bg);
+  stroke: var(--line);
+}
+.tooth.bad .cell {
+  fill: var(--lose);
+  stroke: var(--lose);
+}
+.tooth .mark {
+  stroke-width: 3;
+}
+.tooth .mark.you {
+  fill: var(--text);
+  stroke: none;
+}
+.tooth .mark.house {
+  fill: none;
+  stroke: var(--muted);
+}
+.tooth.bad .mark.you {
+  fill: var(--bg);
+}
+.tooth.bad .mark.house {
+  stroke: var(--bg);
+}
+.tooth.aim .cell {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+/* The player's next pick is outlined in the accent. */
+.playable .tooth.fresh {
+  cursor: pointer;
+}
+.playable .tooth.fresh:hover .cell {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.rule {
+  margin: 0;
+  max-width: 560px;
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* ---------------------------------------------------------------- tips */
+
+.tip {
+  position: relative;
+  display: inline-flex;
+}
+.tip-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+.tip-btn:hover,
+.tip-btn:focus-visible {
+  color: var(--text);
+}
+.tip-pop {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + var(--sp-2));
+  z-index: 5;
+  width: max-content;
+  max-width: 230px;
+  padding: var(--sp-2) 10px;
+  border-radius: var(--radius);
+  font-size: var(--fs-1);
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bg);
+  background: var(--text);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+.tip:hover .tip-pop,
+.tip:focus-within .tip-pop {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ---------------------------------------------------------------- drawer */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, 100vw);
+  background: var(--raised);
+  border-left: 1px solid var(--line);
+}
+.drawer-head,
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--line);
+}
+.drawer-head h2,
+.modal-head h2 {
+  margin: 0;
+  font-size: var(--fs-4);
+  font-weight: 600;
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-5) var(--sp-5);
+}
+.drawer-body h3,
+.modal-body h3 {
+  margin: var(--sp-4) 0 var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.cfg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 6px 0;
+}
+.cfg-row input[type='text'],
+.cfg-row input[type='number'] {
+  width: 150px;
+  padding: 6px var(--sp-2);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.cfg-note {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.drawer-foot {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line);
+}
+.drawer-foot button {
+  flex: 1;
+  padding: 10px;
+}
+.drawer-foot .secondary {
+  margin-top: 0;
+  font-size: var(--fs-2);
+}
+
+/* ---------------------------------------------------------------- modal */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5) var(--sp-4);
+  background: rgb(0 0 0 / 0.6);
+}
+.modal {
+  display: flex;
+  flex-direction: column;
+  width: min(600px, 100%);
+  max-height: min(86vh, 900px);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+}
+.modal-body {
+  overflow-y: auto;
+  padding: var(--sp-1) var(--sp-5) var(--sp-5);
+  line-height: 1.55;
+  color: var(--text);
+}
+.modal-body p {
+  margin: 0 0 var(--sp-2);
+}
+.lede {
+  margin-top: var(--sp-3) !important;
+  font-size: var(--fs-3);
+}
+.small {
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.t-win {
+  color: var(--win);
+}
+.t-lose {
+  color: var(--lose);
+}
+.steps {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-2);
+  padding: 0;
+  list-style: none;
+}
+.steps li {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: var(--sp-3);
+  align-items: start;
+  padding: var(--sp-3);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  border-radius: 50%;
+}
+.dot.you {
+  background: var(--text);
+}
+.dot.house {
+  border: 2px solid var(--muted);
+}
+.dot.win {
+  background: var(--win);
+}
+.defs {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0;
+}
+.defs dt {
+  font-weight: 600;
+}
+.defs dd {
+  margin: 0;
+  min-width: 0;
+}
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-5);
+}
+kbd {
+  padding: 1px 6px;
+  font: inherit;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  background: var(--hover);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.modal-foot {
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border-top: 1px solid var(--line);
+}
+.modal-foot .primary {
+  width: 100%;
+}
+
+/* ---------------------------------------------------------------- phone */
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+  .stage {
+    order: -1;
+    padding: var(--sp-4);
+    gap: var(--sp-3);
+  }
+  .panel {
+    padding: var(--sp-4);
+    border-right: 0;
+    border-top: 1px solid var(--line);
+  }
+  .panel-links {
+    margin-top: 0;
+  }
+}
+@media (max-width: 520px) {
+  .defs {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .defs dd {
+    margin-bottom: var(--sp-3);
+  }
+  .modal-body {
+    padding: var(--sp-1) var(--sp-4) var(--sp-4);
+  }
+}

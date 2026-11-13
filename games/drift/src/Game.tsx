@@ -1,9 +1,33 @@
-import { type BetTicket } from '@originals/game-sdk';
-import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
+import { formatAmount } from '@originals/game-sdk';
+import { useHost } from '@originals/game-sdk/react';
+import {
+  ACCENTS,
+  ActionButton,
+  BetField,
+  Board,
+  Caption,
+  Chips,
+  GameLayout,
+  InfoModal,
+  InfoSection,
+  Label,
+  PanelFoot,
+  Readouts,
+  RoundOver,
+  Slider,
+  StageTop,
+  VolBadge,
+  fmtChance,
+  fmtMult,
+  useBetInput,
+  useHotkeys,
+  useTicket,
+  useTurbo,
+  type ReadoutItem,
+} from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react';
 import Field from './components/Field';
-import InfoModal from './components/InfoModal';
-import { fmtAmt, fmtChance, fmtMult, fmtMultShort } from './format';
+import { fmtMultShort } from './format';
 import { initialState, position, reducer, type Action, type GameState, type Outcome } from './round';
 import {
   BURSTS,
@@ -32,41 +56,37 @@ const OUTCOME_TEXT: Record<Outcome, string> = {
 const STEP_MS = { normal: 90, turbo: 24 };
 
 export default function Game() {
-  const { wallet, rng, track } = useHost();
-  const balance = useBalance();
-  const host = useSettings();
+  const { rng, track } = useHost();
+  const bet = useBetInput();
+  const turbo = useTurbo();
   const [state, dispatchState] = useReducer(reducer, undefined, initialState);
   // A synchronous mirror of the reducer state: every dispatch applies the same
-  // pure reducer here at once. Leaving the game settles from this mirror, never
-  // from the last render, which can be stale (just after Bet again it still
-  // held the previous round, so a new stake could be settled at the old
-  // round's result).
+  // pure reducer here at once. The open ticket reads only `resolved`, which is
+  // refreshed in the same step, so leaving mid-round settles at the cash-out
+  // the player could have taken, never at a stale render's value.
   const latest = useRef<GameState>(state);
+  const resolved = useRef(0);
   const dispatch = useCallback((a: Action) => {
     latest.current = reducer(latest.current, a);
+    const r = latest.current.round;
+    if (r && latest.current.phase !== 'over') resolved.current = cashMultiplier(position(r), r.x0);
     dispatchState(a);
   }, []);
-  const ticket = useRef<BetTicket | null>(null);
+  const ticket = useTicket(() => resolved.current);
   const placing = useRef(false);
-  const mounted = useRef(true);
 
-  const [betText, setBetText] = useState('1.00');
   const [W, setW] = useState<Track>(20);
   const [x0, setX0] = useState(5);
   const [burst, setBurst] = useState<Burst>(10);
   const [takeProfit, setTakeProfit] = useState<number | null>(null);
   const [stopLoss, setStopLoss] = useState<number | null>(null);
-  const [localTurbo, setLocalTurbo] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const turbo = localTurbo || host.turbo;
-  const stepMs = turbo ? STEP_MS.turbo : STEP_MS.normal;
+  const stepMs = turbo.turbo ? STEP_MS.turbo : STEP_MS.normal;
 
   const { phase, round } = state;
   const inRound = phase === 'running' || phase === 'paused';
-  const bet = parseFloat(betText) || 0;
-  const betInvalid = !(bet > 0) || bet > balance;
 
-  // Walk the dot while running. Each step's ±1 comes from the host RNG.
+  // Walk the dot while running. Each step's +-1 comes from the host RNG.
   useEffect(() => {
     if (phase !== 'running') return;
     const t = setTimeout(() => dispatch({ type: 'step', dx: step(0, rng) as 1 | -1 }), stepMs);
@@ -75,9 +95,8 @@ export default function Game() {
 
   // Settle exactly once when the round ends.
   useEffect(() => {
-    if (phase !== 'over' || !round || !ticket.current) return;
-    void ticket.current.settle(round.mult);
-    ticket.current = null;
+    if (phase !== 'over' || !round) return;
+    ticket.settle(round.mult);
   }, [phase, round]);
 
   // Each pause is a checkpoint: the player can cash out at the current value.
@@ -87,60 +106,26 @@ export default function Game() {
     track({ type: 'checkpoint', multiplier: cashMultiplier(x, round.x0), winChance: x / round.W });
   }, [phase, round?.checkpoints.length]);
 
-  // Leaving mid-round cashes out at the current value, which is fair at any step.
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      const r = latest.current.round;
-      if (ticket.current && r) void ticket.current.settle(cashMultiplier(position(r), r.x0));
-      ticket.current = null;
-    };
-  }, []);
-
   const start = useCallback(async () => {
-    if (placing.current || ticket.current || betInvalid) return;
+    if (placing.current || ticket.active() || bet.blocked) return;
     placing.current = true;
     try {
-      const accepted = await wallet.placeBet(bet);
-      // Left while the bet was being placed: no round started, return the stake.
-      if (!mounted.current) return void accepted.settle(1);
-      ticket.current = accepted;
-      dispatch({ type: 'start', bet, W, x0, burst, rules: { takeProfit, stopLoss } });
-    } catch {
-      /* rejected (e.g. insufficient funds): the button is already disabled for that */
+      if (!(await ticket.place(bet.value))) return;
+      resolved.current = cashMultiplier(x0, x0);
+      dispatch({ type: 'start', bet: bet.value, W, x0, burst, rules: { takeProfit, stopLoss } });
     } finally {
       placing.current = false;
     }
-  }, [wallet, bet, betInvalid, W, x0, burst, takeProfit, stopLoss]);
+  }, [ticket, bet.blocked, bet.value, W, x0, burst, takeProfit, stopLoss]);
 
-  const proceed = useCallback(() => {
+  const proceed = () => {
     if (phase === 'running') dispatch({ type: 'pause' });
     else if (phase === 'paused') dispatch({ type: 'continue', burst });
     else void start();
-  }, [phase, burst, start]);
+  };
+  const cashOut = () => dispatch({ type: 'cashOut' });
 
-  useEffect(() => {
-    const typing = (e: KeyboardEvent) => {
-      const t = e.composedPath()[0] as HTMLElement;
-      return t.tagName === 'TEXTAREA' || (t.tagName === 'INPUT' && (t as HTMLInputElement).type !== 'range');
-    };
-    const onDown = (e: KeyboardEvent) => {
-      if (infoOpen || typing(e)) return;
-      if (e.code === 'Space') {
-        e.preventDefault();
-        if (!e.repeat) proceed();
-      } else if (e.key.toLowerCase() === 'c') dispatch({ type: 'cashOut' });
-    };
-    // Stops a focused button from also "clicking" on Space.
-    const onUp = (e: KeyboardEvent) => e.code === 'Space' && !typing(e) && e.preventDefault();
-    window.addEventListener('keydown', onDown);
-    window.addEventListener('keyup', onUp);
-    return () => {
-      window.removeEventListener('keydown', onDown);
-      window.removeEventListener('keyup', onUp);
-    };
-  }, [proceed, infoOpen]);
+  useHotkeys({ space: proceed, cashOut }, !infoOpen);
 
   // Changing a setting after a round clears the finished board back to a preview.
   const change = (apply: () => void) => {
@@ -161,222 +146,186 @@ export default function Game() {
   const path = shown ? shown.path : [x0];
   const rules: AutoRules = shown ? shown.rules : { takeProfit, stopLoss };
   const x = path[path.length - 1];
-  const stake = shown ? shown.bet : bet;
+  const stake = shown ? shown.bet : bet.value;
   const prize = prizeMultiplier(vW, vx0);
   const cash = cashMultiplier(x, vx0);
   const steps = path.length - 1;
   const last = state.history[0];
   const vol = volatilityOf(x0, W);
+  const history = state.history.map((h) => ({ id: h.id, multiplier: h.mult }));
 
   let status = `Ready · about ${expectedSteps(x0, W)} steps to a wall`;
-  if (phase === 'running') status = `Drifting · step ${steps}`;
-  if (phase === 'paused') status = `Checkpoint · step ${steps}`;
-  if (phase === 'over' && shown?.outcome) status = `${OUTCOME_TEXT[shown.outcome]} · ${steps} steps`;
+  let tone: 'idle' | 'live' | 'won' | 'lost' = 'idle';
+  if (phase === 'running') {
+    status = `Drifting · step ${steps}`;
+    tone = 'live';
+  }
+  if (phase === 'paused') {
+    status = `Checkpoint · step ${steps}`;
+    tone = 'live';
+  }
+  if (phase === 'over' && shown?.outcome) {
+    status = `${OUTCOME_TEXT[shown.outcome]} · ${steps} steps`;
+    tone = shown.mult >= 1 ? 'won' : shown.mult > 0 ? 'idle' : 'lost';
+  }
 
-  const proceedButton = (
-    <button key="proceed" className="secondary" disabled={!inRound} onClick={proceed}>
-      {phase === 'paused' ? `Continue · ${burst ? `${burst} step${burst > 1 ? 's' : ''}` : 'run'}` : 'Pause'}
-    </button>
-  );
+  const readouts: ReadoutItem[] = [
+    { label: 'Win chance', value: fmtChance(x / vW), tone: 'chance' },
+    { label: 'Prize at green', value: fmtMult(prize), tone: 'prize' },
+  ];
+
+  const tpText = takeProfit === null ? 'Off' : fmtMult(cashMultiplier(takeProfit, x0));
+  const slText = stopLoss === null ? 'Off' : fmtMult(cashMultiplier(stopLoss, x0));
 
   return (
-    <div className="drift">
-      <aside className="panel">
-        <div className="label">
-          <span>Bet amount</span>
-          <span className="hint">Balance {fmtAmt(balance)}</span>
-        </div>
-        <div className="bet-row">
-          <input
-            value={betText}
-            inputMode="decimal"
-            aria-label="Bet amount"
+    <GameLayout
+      name="Drift"
+      accent={ACCENTS.sky}
+      panel={
+        <>
+          <BetField bet={bet} disabled={inRound} />
+
+          <Label hint={<VolBadge level={vol} />}>Start position</Label>
+          <Slider
+            label="Start position"
+            min={1}
+            max={W - 1}
+            value={x0}
             disabled={inRound}
-            onChange={(e) => setBetText(e.target.value)}
-            onBlur={() => setBetText(fmtAmt(bet))}
+            onChange={(v) => change(() => changeStart(v))}
           />
-          <button disabled={inRound} onClick={() => setBetText(fmtAmt(bet / 2))}>
-            ½
-          </button>
-          <button disabled={inRound} onClick={() => setBetText(fmtAmt(Math.min(balance, bet * 2)))}>
-            2×
-          </button>
-        </div>
-
-        <div className="label">
-          <span>Start position</span>
-          <span className={`vol ${vol}`}>{vol}</span>
-        </div>
-        <input
-          type="range"
-          className="start-range"
-          min={1}
-          max={W - 1}
-          value={x0}
-          disabled={inRound}
-          aria-label="Start position"
-          onChange={(e) => change(() => changeStart(Number(e.target.value)))}
-        />
-        <div className="chips">
-          {startPresets(W).map((p) => (
-            <button key={p} className={'chip' + (p === x0 ? ' on' : '')} disabled={inRound} onClick={() => change(() => changeStart(p))}>
-              {fmtMultShort(prizeMultiplier(W, p))}
-            </button>
-          ))}
-        </div>
-
-        <div className="label">
-          <span>Track length</span>
-          <span className="hint">longer = slower, smoother</span>
-        </div>
-        <div className="chips">
-          {TRACKS.map((t) => (
-            <button
-              key={t}
-              className={'chip' + (t === W ? ' on' : '')}
-              disabled={inRound}
-              onClick={() =>
-                change(() => {
-                  setW(t);
-                  changeStart(rescaleStart(x0, W, t), t);
-                })
-              }
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="label">
-          <span>Steps per burst</span>
-          <span className="hint">then pause to decide</span>
-        </div>
-        <div className="chips">
-          {BURSTS.map((b) => (
-            <button key={b} className={'chip' + (b === burst ? ' on' : '')} onClick={() => setBurst(b)} aria-label={b ? `${b} steps` : 'Run until paused'}>
-              {b || '∞'}
-            </button>
-          ))}
-        </div>
-
-        <details className="auto">
-          <summary>
-            Auto cash-out
-            <span className="hint">
-              {takeProfit !== null || stopLoss !== null
-                ? [takeProfit !== null && `≥ ${fmtMult(cashMultiplier(takeProfit, x0))}`, stopLoss !== null && `≤ ${fmtMult(cashMultiplier(stopLoss, x0))}`]
-                    .filter(Boolean)
-                    .join(' · ')
-                : 'off'}
-            </span>
-          </summary>
-          <label className="auto-row tp">
-            <span>
-              Take profit <b>{takeProfit === null ? 'Off' : fmtMult(cashMultiplier(takeProfit, x0))}</b>
-            </span>
-            <input
-              type="range"
-              min={x0 + 1}
-              max={W}
-              value={takeProfit ?? W}
-              disabled={inRound}
-              onChange={(e) => change(() => setTakeProfit(Number(e.target.value) >= W ? null : Number(e.target.value)))}
-            />
-          </label>
-          <label className="auto-row sl">
-            <span>
-              Stop loss <b>{stopLoss === null ? 'Off' : fmtMult(cashMultiplier(stopLoss, x0))}</b>
-            </span>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0, x0 - 1)}
-              value={stopLoss ?? 0}
-              disabled={inRound || x0 <= 1}
-              onChange={(e) => change(() => setStopLoss(Number(e.target.value) <= 0 ? null : Number(e.target.value)))}
-            />
-          </label>
-        </details>
-
-        {/* In a round, Continue/Pause sits where Bet was (pressing the same spot keeps the round going) and Cash out goes below. */}
-        {inRound && proceedButton}
-        {inRound ? (
-          <button key="cash" className="primary cash" onClick={() => dispatch({ type: 'cashOut' })}>
-            Cash out <span className="amt">{fmtAmt(stake * cash)}</span>
-          </button>
-        ) : (
-          <button key="bet" className="primary" disabled={betInvalid} onClick={() => void start()}>
-            {phase === 'over' ? 'Bet again' : 'Bet'}
-          </button>
-        )}
-        {!inRound && proceedButton}
-
-        <div className="panel-foot">
-          <label className="toggle">
-            <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
-            <span>Turbo</span>
-          </label>
-          <button className="ghost info-btn" onClick={() => setInfoOpen(true)}>
-            <span className="i">i</span> How to play
-          </button>
-        </div>
-      </aside>
-
-      <section className="stage">
-        <div className="stage-top">
-          <span className={`status ${phase} ${phase === 'over' && shown ? (shown.mult >= 1 ? 'won' : shown.mult > 0 ? '' : 'lost') : ''}`} aria-live="polite">
-            {status}
-          </span>
-          <div className="history">
-            {state.history.map((h) => (
-              <span key={h.id} className={'hist ' + (h.mult >= 1 ? 'w' : h.mult > 0 ? 'p' : 'l')}>
-                {fmtMult(h.mult)}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="readouts">
-          <div className="readout">
-            <span>Win chance</span>
-            <b>{fmtChance(x, vW)}</b>
-          </div>
-          <div className="readout">
-            <span>Prize at green</span>
-            <b>{fmtMult(prize)}</b>
-          </div>
-        </div>
-
-        <div className="field-wrap">
-          <Field
-            W={vW}
-            x0={vx0}
-            path={path}
-            checkpoints={shown?.checkpoints ?? []}
-            rules={rules}
-            phase={phase}
-            outcome={shown?.outcome ?? null}
-            stepMs={stepMs}
+          <Chips
+            label="Start presets"
+            options={startPresets(W).map((p) => ({ value: p, label: fmtMultShort(prizeMultiplier(W, p)) }))}
+            value={x0}
+            disabled={inRound}
+            onChange={(p) => change(() => changeStart(p))}
           />
-          {phase === 'over' && shown?.outcome && last && (
-            <RoundOver
-              key={last.id}
-              placement="inline"
-              title={OUTCOME_TEXT[shown.outcome]}
-              multiplier={shown.mult}
-              stake={shown.bet}
-              nextBet={bet}
-              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
-              onBetAgain={() => void start()}
-              onClear={() => dispatch({ type: 'clear' })}
-            />
+
+          <Label hint="longer is slower">Track length</Label>
+          <Chips
+            label="Track length"
+            options={TRACKS.map((t) => ({ value: t, label: t }))}
+            value={W}
+            disabled={inRound}
+            onChange={(t) =>
+              change(() => {
+                setW(t);
+                changeStart(rescaleStart(x0, W, t), t);
+              })
+            }
+          />
+
+          <Label hint="then pause to decide">Steps per burst</Label>
+          <Chips
+            label="Steps per burst"
+            options={BURSTS.map((b) => ({ value: b, label: b || '∞', title: b ? `${b} steps` : 'Run until paused' }))}
+            value={burst}
+            onChange={(b) => setBurst(b)}
+          />
+
+          <Label hint={tpText}>Auto cash-out above</Label>
+          <Slider
+            label="Take profit"
+            min={x0 + 1}
+            max={W}
+            value={takeProfit ?? W}
+            disabled={inRound}
+            onChange={(v) => change(() => setTakeProfit(v >= W ? null : v))}
+          />
+          <Label hint={slText}>Auto cash-out below</Label>
+          <Slider
+            label="Stop loss"
+            min={0}
+            max={Math.max(0, x0 - 1)}
+            value={stopLoss ?? 0}
+            disabled={inRound || x0 <= 1}
+            onChange={(v) => change(() => setStopLoss(v <= 0 ? null : v))}
+          />
+
+          {/* Cash out first, then the next-step button: the kit swaps them so Continue/Pause sits above Cash out. */}
+          {inRound ? (
+            <>
+              <ActionButton kind="cash" onClick={cashOut}>
+                Cash out <span>{formatAmount(stake * cash, 2)}</span>
+              </ActionButton>
+              <ActionButton kind="secondary" onClick={proceed}>
+                {phase === 'paused' ? `Continue · ${burst ? `${burst} step${burst > 1 ? 's' : ''}` : 'run'}` : 'Pause'}
+              </ActionButton>
+            </>
+          ) : (
+            <ActionButton disabled={!!bet.blocked} onClick={() => void start()}>
+              {phase === 'over' ? 'Bet again' : 'Bet'}
+            </ActionButton>
           )}
-        </div>
 
-        <p className="og-caption">Win by drifting to the green wall before the red one.</p>
-      </section>
+          <PanelFoot turbo={turbo} onInfo={() => setInfoOpen(true)} />
+        </>
+      }
+    >
+      <StageTop status={status} tone={tone} history={history} />
+      <Readouts items={readouts} />
 
-      {infoOpen && <InfoModal rtp={RTP} onClose={() => setInfoOpen(false)} />}
-    </div>
+      <Board className="drift-board">
+        <Field
+          W={vW}
+          x0={vx0}
+          path={path}
+          checkpoints={shown?.checkpoints ?? []}
+          rules={rules}
+          phase={phase}
+          outcome={shown?.outcome ?? null}
+          stepMs={stepMs}
+        />
+      </Board>
+
+      {phase === 'over' && shown?.outcome && last && (
+        <RoundOver
+          key={last.id}
+          placement="inline"
+          title={OUTCOME_TEXT[shown.outcome]}
+          multiplier={shown.mult}
+          stake={shown.bet}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={() => dispatch({ type: 'clear' })}
+        />
+      )}
+      <Caption>Win by drifting to the green wall before the red one.</Caption>
+
+      {infoOpen && (
+        <InfoModal title="Drift" onClose={() => setInfoOpen(false)}>
+          <InfoSection title="Goal">
+            <p>
+              A dot drifts one step left or right at a time, 50/50, between a red wall and a green wall. Reach green and you win the prize. Touch red and you
+              lose your bet.
+            </p>
+          </InfoSection>
+          <InfoSection title="Position is probability">
+            <p>
+              The dot's position along the track is exactly its chance of reaching green first. Halfway along is 50%; one step off the red wall on a 100-step
+              track is 1%. The labels above the track read it out.
+            </p>
+          </InfoSection>
+          <InfoSection title="How to play">
+            <ol>
+              <li>Start position sets the risk. Start near red for a big prize, near green for a likely small one. The prize is {(RTP * 100).toFixed(0)}% × track length ÷ start.</li>
+              <li>Cash out whenever the dot is paused or running. You get the prize × the current win chance, shown under the needle. It goes up and down as the dot drifts.</li>
+              <li>Steps per burst sets how often the round pauses at a checkpoint for you to decide. ∞ runs until you press Pause.</li>
+              <li>Track length sets the pace. Longer tracks give longer, smoother rounds.</li>
+              <li>Auto cash-out banks the value for you when the dot reaches your take-profit or stop-loss line.</li>
+              <li>Keys: Space bets, pauses or continues, C cashes out, Esc clears a finished board.</li>
+            </ol>
+          </InfoSection>
+          <InfoSection title="Fairness">
+            <p>
+              Every move is a fair coin flip, so no cash-out timing beats any other: holding to a wall, cashing early, take-profit and stop-loss all return{' '}
+              {(RTP * 100).toFixed(0)}% on average.
+            </p>
+          </InfoSection>
+        </InfoModal>
+      )}
+    </GameLayout>
   );
 }

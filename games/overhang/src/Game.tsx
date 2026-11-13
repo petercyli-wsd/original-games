@@ -1,6 +1,31 @@
-import { formatAmount, formatMultiplier, formatPercent, type BetTicket } from '@originals/game-sdk';
-import { RoundOver, useBalance, useHost, useSettings } from '@originals/game-sdk/react';
-import { eventMs } from '@originals/game-sdk/ui';
+import { formatAmount } from '@originals/game-sdk';
+import { useHost } from '@originals/game-sdk/react';
+import {
+  ACCENTS,
+  ActionButton,
+  BetField,
+  Board,
+  Caption,
+  Chips,
+  GameLayout,
+  InfoModal,
+  InfoSection,
+  Label,
+  PanelFoot,
+  Readouts,
+  RoundOver,
+  StageTop,
+  eventMs,
+  fmtChance,
+  fmtMult,
+  useBetInput,
+  useHistory,
+  useHotkeys,
+  useTicket,
+  useTimers,
+  useTurbo,
+  type ReadoutItem,
+} from '@originals/game-sdk/ui';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Tower, { type DropAnim, type ToppleAnim } from './Tower';
 import {
@@ -29,52 +54,35 @@ interface Round {
 const MODE_LABEL: Record<Mode, string> = { low: 'Low', medium: 'Med', high: 'High', extreme: 'Max' };
 
 export default function Game() {
-  const { wallet, rng, track } = useHost();
-  const balance = useBalance();
-  const host = useSettings();
+  const { rng, track } = useHost();
+  const bet = useBetInput();
+  const turboState = useTurbo();
+  const turbo = turboState.turbo;
+  const timers = useTimers();
+  const [history, pushHistory] = useHistory(14);
 
   const [mode, setMode] = useState<Mode>('medium');
-  const [betText, setBetText] = useState('1.00');
   const [autoText, setAutoText] = useState('');
-  const [localTurbo, setLocalTurbo] = useState(false);
-  const turbo = host.turbo || localTurbo;
+  const [infoOpen, setInfoOpen] = useState(false);
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [round, setRound] = useState<Round | null>(null);
   const [drop, setDrop] = useState<DropAnim | null>(null);
   const [topple, setTopple] = useState<ToppleAnim | null>(null);
   const [result, setResult] = useState<{ mult: number; win: boolean; amount: number } | null>(null);
-  const [history, setHistory] = useState<{ mult: number; win: boolean }[]>([]);
 
-  const ticket = useRef<BetTicket | null>(null);
-  const placing = useRef(false);
-  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   // What the open bet is worth if the game is closed now (the outcome of a drop
   // in flight is already decided).
   // It is set synchronously at every transition (RTP when a bet is placed, then
   // the decided result of each drop as it starts), never derived from rendered
   // state, so it can't be one render stale.
   const banked = useRef(0);
-  const mounted = useRef(true);
-
-  const later = (ms: number, fn: () => void) => timers.current.push(setTimeout(fn, ms));
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-      timers.current.forEach(clearTimeout);
-      const t = ticket.current;
-      ticket.current = null;
-      if (t) void t.settle(banked.current);
-    };
-  }, []);
+  const ticket = useTicket(() => banked.current);
 
   const spec = MODES[round?.mode ?? mode];
   const xs = round?.xs ?? [];
   const odds = nextOdds(xs, spec.s);
   const inRound = phase === 'dropping' || phase === 'checkpoint' || phase === 'toppling';
-  const bet = parseFloat(betText) || 0;
   const autoTarget = parseFloat(autoText) || 0;
   // A drop is a swing then a fall: about one event (docs/STYLE.md) in all, quicker with Turbo.
   const swingMs = eventMs(turbo, 700);
@@ -82,16 +90,14 @@ export default function Game() {
 
   // Settles the bet. A loss settles as the topple starts; the fall is only the show.
   const finish = useCallback(
-    (r: Round, m: number, phase: Phase = 'over') => {
-      const t = ticket.current;
-      ticket.current = null;
+    (r: Round, m: number, next: Phase = 'over') => {
       banked.current = 0;
-      if (t) void t.settle(m);
-      setPhase(phase);
+      ticket.settle(m);
+      pushHistory(m);
+      setPhase(next);
       setResult({ mult: m, win: m > 0, amount: r.bet * m });
-      setHistory((h) => [{ mult: m, win: m > 0 }, ...h].slice(0, 8));
     },
-    [],
+    [ticket, pushHistory],
   );
 
   const cashOut = useCallback(
@@ -113,7 +119,7 @@ export default function Game() {
       setPhase('dropping');
       setDrop({ d, t0: performance.now(), swingMs, fallMs });
 
-      later(swingMs + fallMs, () => {
+      timers.after(swingMs + fallMs, () => {
         setDrop(null);
         if (!safe) {
           const fail = failingLevel(nextXs) ?? { level: r.xs.length, dir: d > 0 ? 1 : -1 };
@@ -122,7 +128,7 @@ export default function Game() {
           const ms = eventMs(turbo, 800);
           setTopple({ ...fail, t0: performance.now(), ms });
           finish(lost, 0, 'toppling');
-          later(ms, () => setPhase('over'));
+          timers.after(ms, () => setPhase('over'));
           return;
         }
         const next: Round = { ...r, xs: nextXs, ps: [...r.ps, o.p], mult: r.mult / o.p };
@@ -137,56 +143,39 @@ export default function Game() {
         setPhase('checkpoint');
       });
     },
-    [rng, swingMs, fallMs, turbo, finish, cashOut, track],
+    [rng, swingMs, fallMs, turbo, finish, cashOut, track, timers],
   );
 
   const start = useCallback(async () => {
-    if (placing.current || ticket.current) return;
-    placing.current = true;
-    let placed: BetTicket;
-    try {
-      placed = await wallet.placeBet(bet);
-    } catch {
-      return;
-    } finally {
-      placing.current = false;
-    }
-    // Closed while the bet was being placed: no round was started or drawn, so return the stake.
-    if (!mounted.current) {
-      void placed.settle(1);
-      return;
-    }
-    ticket.current = placed;
+    if (inRound || bet.blocked) return;
+    if (!(await ticket.place(bet.value))) return;
     banked.current = RTP;
-    const r: Round = { bet, mode, xs: [], ps: [], mult: RTP };
+    const r: Round = { bet: bet.value, mode, xs: [], ps: [], mult: RTP };
     setRound(r);
     setTopple(null);
     setResult(null);
     dropNext(r);
-  }, [wallet, bet, mode, dropNext]);
+  }, [inRound, bet.blocked, bet.value, ticket, mode, dropNext]);
 
-  // Auto mode: keep dropping until the cash-out reaches the target.
+  // Auto cash-out: keep dropping until the cash-out reaches the target.
   useEffect(() => {
     if (phase !== 'checkpoint' || !round || autoTarget <= 1) return;
     const id = setTimeout(() => (round.mult >= autoTarget ? cashOut(round) : dropNext(round)), turbo ? 150 : 450);
     return () => clearTimeout(id);
   }, [phase, round, autoTarget, turbo, cashOut, dropNext]);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const target = e.composedPath()[0] as HTMLElement;
-      if (target.tagName === 'INPUT' || target.tagName === 'BUTTON') return;
-      if (e.code === 'Space') {
-        e.preventDefault();
+  useHotkeys(
+    {
+      space: () => {
         if (phase === 'idle' || phase === 'over') void start();
         else if (phase === 'checkpoint' && round) dropNext(round);
-      } else if (e.key.toLowerCase() === 'c' && phase === 'checkpoint' && round) {
-        cashOut(round);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [phase, round, start, dropNext, cashOut]);
+      },
+      cashOut: () => {
+        if (phase === 'checkpoint' && round) cashOut(round);
+      },
+    },
+    !infoOpen,
+  );
 
   // Clears a finished round back to an empty board.
   const clear = () => {
@@ -206,144 +195,132 @@ export default function Game() {
   const nextMult = (round && phase !== 'idle' ? round.mult : RTP) / (odds.p || 1);
   const height = xs.length;
   const over = (phase === 'over' || phase === 'toppling') && result;
-  const betInvalid = !(bet > 0) || bet > balance;
+
+  let status = `Ready · up to ${spec.maxHeight} blocks`;
+  let tone: 'idle' | 'live' | 'won' | 'lost' = 'idle';
+  if (phase === 'dropping') {
+    status = 'Dropping…';
+    tone = 'live';
+  } else if (phase === 'checkpoint') {
+    status = `Height ${height} of ${spec.maxHeight}`;
+    tone = 'live';
+  } else if (over) {
+    status = result.win ? `Cashed out · ${height} ${height === 1 ? 'block' : 'blocks'} high` : `Toppled on block ${height}`;
+    tone = result.win ? 'won' : 'lost';
+  }
+
+  const readouts: ReadoutItem[] = [
+    { label: 'Next drop stands', value: showRail ? fmtChance(odds.p) : '—', tone: 'chance' },
+    { label: 'Next drop pays', value: showRail ? fmtMult(nextMult) : '—', tone: 'prize' },
+  ];
 
   return (
-    <div className="ovh">
-      <aside className="panel">
-        <div className="field">
-          <span>Bet amount</span>
-          <div className="bet-row">
-            <input
-              value={betText}
-              inputMode="decimal"
-              disabled={inRound}
-              onChange={(e) => setBetText(e.target.value)}
-              onBlur={() => setBetText((v) => formatAmount(parseFloat(v) || 0, 2))}
-            />
-            <button disabled={inRound} onClick={() => setBetText(formatAmount(bet / 2, 2))}>
-              ½
-            </button>
-            <button disabled={inRound} onClick={() => setBetText(formatAmount(Math.min(balance, bet * 2), 2))}>
-              2×
-            </button>
-          </div>
-        </div>
-
-        <div className="field">
-          <span className="field-head">
-            Volatility
-          </span>
-          <div className="segmented">
-            {MODE_NAMES.map((m) => (
-              <button key={m} className={m === mode ? 'on' : ''} disabled={inRound} onClick={() => pickMode(m)}>
-                {MODE_LABEL[m]}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <label className="field">
-          <span className="field-head">
-            Auto cash-out <em>{autoTarget > 1 ? 'drops for you' : 'off'}</em>
-          </span>
-          <div className="auto-row">
+    <GameLayout
+      name="Overhang"
+      accent={ACCENTS.amber}
+      panel={
+        <>
+          <BetField bet={bet} disabled={inRound} />
+          <Label>Volatility</Label>
+          <Chips
+            label="Volatility"
+            options={MODE_NAMES.map((m) => ({ value: m, label: MODE_LABEL[m] }))}
+            value={mode}
+            disabled={inRound}
+            onChange={pickMode}
+          />
+          <Label hint={autoTarget > 1 ? 'drops for you' : 'off'}>Auto cash-out</Label>
+          <div className="ovh-auto">
             <input
               value={autoText}
               placeholder="Off"
               inputMode="decimal"
+              aria-label="Auto cash-out multiplier"
               disabled={inRound}
               onChange={(e) => setAutoText(e.target.value)}
               onBlur={() => setAutoText((v) => (parseFloat(v) > 1 ? (parseFloat(v) || 0).toFixed(2) : ''))}
             />
             <span>×</span>
           </div>
-        </label>
 
-        {phase === 'checkpoint' && round ? (
-          <>
-            {/* Drop next sits where Bet was, so pressing the same spot keeps the round going; Cash out is below. */}
-            <button className="secondary" onClick={() => dropNext(round)}>
-              Drop next
-            </button>
-            <button className="primary cash" onClick={() => cashOut(round)}>
-              Cash out <b>{formatAmount(round.bet * round.mult, 2)}</b>
-            </button>
-          </>
-        ) : (
-          <button className="primary" disabled={inRound || betInvalid} onClick={() => void start()}>
-            {phase === 'dropping' ? 'Dropping…' : phase === 'toppling' ? 'Toppling…' : phase === 'over' ? 'Bet again' : 'Bet'}
-          </button>
-        )}
-
-        <label className="toggle">
-          <input type="checkbox" checked={turbo} disabled={host.turbo} onChange={(e) => setLocalTurbo(e.target.checked)} />
-          <span>Turbo</span>
-        </label>
-
-        <dl className="stats">
-          <div>
-            <dt>Max win</dt>
-            <dd>{formatMultiplier(spec.cap)}</dd>
-          </div>
-        </dl>
-      </aside>
-
-      <section className="stage">
-        <header className="hud">
-          <div className="hud-height">
-            <span>Height</span>
-            <b>
-              {height}
-              <small>/{spec.maxHeight}</small>
-            </b>
-          </div>
-          <div className="history" aria-label="Recent results">
-            {history.map((h, i) => (
-              <span key={history.length - i} className={h.win ? 'w' : 'l'}>
-                {formatMultiplier(h.mult)}
-              </span>
-            ))}
-          </div>
-        </header>
-
-        <div className="readout">
-          <div>
-            <span>Next drop stands</span>
-            <b className="win">{showRail ? formatPercent(odds.p) : '–'}</b>
-          </div>
-          <div>
-            <span>Next multiplier</span>
-            <b>{showRail ? formatMultiplier(nextMult) : '–'}</b>
-          </div>
-        </div>
-
-        <div className="tower-wrap">
-          <Tower
-            xs={xs}
-            s={spec.s}
-            rail={showRail ? odds : null}
-            drop={drop}
-            topple={topple}
-            glow={over ? (result.win ? 'win' : 'lose') : null}
-          />
-          {phase === 'over' && result && round && (
-            <RoundOver
-              key={history.length}
-              placement="top"
-              title={result.win ? `Cashed out · ${height} ${height === 1 ? 'block' : 'blocks'} high` : `Toppled on block ${height}`}
-              multiplier={result.mult}
-              stake={round.bet}
-              nextBet={bet}
-              blocked={bet > balance ? 'Not enough balance' : !(bet > 0) ? 'Enter a valid bet' : undefined}
-              onBetAgain={() => void start()}
-              onClear={clear}
-            />
+          {!inRound && (
+            <dl className="og-stats">
+              <dt>Max win</dt>
+              <dd>{fmtMult(spec.cap)}</dd>
+            </dl>
           )}
-        </div>
 
-        <p className="og-caption">Win if the dropped block’s centre lands in the green.</p>
-      </section>
-    </div>
+          {phase === 'checkpoint' && round ? (
+            <>
+              <ActionButton kind="cash" onClick={() => cashOut(round)}>
+                Cash out <span>{formatAmount(round.bet * round.mult, 2)}</span>
+              </ActionButton>
+              {/* Drop next sits where Bet was (the kit swaps the pair), so pressing the same spot keeps the round going. */}
+              <ActionButton kind="secondary" onClick={() => dropNext(round)}>
+                Drop next
+              </ActionButton>
+            </>
+          ) : (
+            <ActionButton disabled={inRound || !!bet.blocked} onClick={() => void start()}>
+              {phase === 'dropping' ? 'Dropping…' : phase === 'toppling' ? 'Toppling…' : phase === 'over' ? 'Bet again' : 'Bet'}
+            </ActionButton>
+          )}
+          {bet.blocked && !inRound && <p className="ovh-blocked">{bet.blocked}</p>}
+
+          <PanelFoot turbo={turboState} onInfo={() => setInfoOpen(true)} />
+        </>
+      }
+    >
+      <StageTop status={status} tone={tone} history={history} />
+      <Readouts items={readouts} />
+
+      <Board className="ovh-board">
+        <Tower
+          xs={xs}
+          s={spec.s}
+          rail={showRail ? odds : null}
+          drop={drop}
+          topple={topple}
+          glow={over ? (result.win ? 'win' : 'lose') : null}
+        />
+      </Board>
+
+      {phase === 'over' && result && round && (
+        <RoundOver
+          key={history[0]?.id}
+          title={result.win ? 'Cashed out' : 'Toppled'}
+          multiplier={result.mult}
+          stake={round.bet}
+          nextBet={bet.value}
+          blocked={bet.blocked}
+          onBetAgain={() => void start()}
+          onClear={clear}
+          placement="inline"
+        />
+      )}
+      <Caption>Win if the dropped block’s centre lands in the green.</Caption>
+
+      {infoOpen && (
+        <InfoModal title="Overhang" onClose={() => setInfoOpen(false)}>
+          <InfoSection title="Goal">
+            <p>Stack blocks as high as you dare. Each block that stays up raises your cash-out; a block that topples the tower loses the bet.</p>
+          </InfoSection>
+          <InfoSection title="How to play">
+            <ol>
+              <li>Pick a volatility and your bet, then press Bet. The first block drops at once.</li>
+              <li>The green part of the rail is where the block's centre must land to stay up. A smaller green means a bigger payout.</li>
+              <li>After each block, Cash out or Drop next. Auto cash-out keeps dropping until your target multiplier.</li>
+              <li>Keys: Space bets or drops the next block, C cashes out, Esc clears a finished board.</li>
+            </ol>
+          </InfoSection>
+          <InfoSection title="Payouts and fairness">
+            <p>
+              Every drop pays the inverse of its chance of standing, so each step is a fair bet and the long-run return is {(RTP * 100).toFixed(0)}%.
+              The top prize on {MODE_LABEL[mode]} is {fmtMult(spec.cap)}.
+            </p>
+          </InfoSection>
+        </InfoModal>
+      )}
+    </GameLayout>
   );
 }

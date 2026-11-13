@@ -17,6 +17,7 @@ import {
   PanelFoot,
   Readouts,
   RoundOver,
+  ACCENTS,
   StageTop,
   VolBadge,
   fmtMult,
@@ -50,8 +51,7 @@ import {
   type Track,
 } from './math';
 
-const ACCENT = '#2a9d8f';
-const RULE = 'Back a runner; first past the line wins. Your runner stays yours to the end.';
+const RULE = 'Back a runner; the first past the line wins.';
 const AUTO_TARGETS = [0, 1.5, 2, 3, 5, 10];
 
 type Phase = 'idle' | 'running' | 'checkpoint' | 'over';
@@ -411,24 +411,8 @@ export default function Game() {
   }
 
   const readouts: ReadoutItem[] = [
-    {
-      label: `${name(me)} wins`,
-      value: fmtChance(myChance),
-      sub: boardPhase === 'idle' ? `${TRACK_NAME[T]} · ${T} long` : boardPhase === 'over' ? 'race over' : 'its share on the tote',
-      tone: 'chance',
-    },
-    {
-      label: boardPhase === 'over' ? 'Paid' : running ? 'Worth now' : 'Cash out now',
-      value: boardPhase !== 'idle' ? fmtMult(value) : '—',
-      sub: running && boardPhase === 'live' ? (isAuto ? `live · auto ${target ? `cashes at ${fmtMult(target)}` : 'rides to the line'}` : 'live · cash out after the leg') : boardPhase !== 'idle' ? formatAmount(stake * value, 2) : 'after each leg',
-      tone: 'cash',
-    },
-    {
-      label: `If #${me + 1} wins`,
-      value: fmtMult(prize),
-      sub: `pays ${formatAmount(stake * prize, 2)}`,
-      tone: 'prize',
-    },
+    { label: 'Win chance', value: fmtChance(myChance), tone: 'chance' },
+    { label: `If #${me + 1} wins`, value: fmtMult(prize), tone: 'prize' },
   ];
 
   const pickerChances = live ? P : startChances(L);
@@ -450,7 +434,7 @@ export default function Game() {
               title={GAITS[r.gait].detail}
               onClick={() => choose(i)}
             >
-              <i style={{ background: r.colour }}>{i + 1}</i>
+              <i>{i + 1}</i>
               <span>{GAITS[r.gait].name}</span>
               <b>{fmtChance(pickerChances[i])}</b>
             </button>
@@ -463,7 +447,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Derby v2"
-      accent={ACCENT}
+      accent={ACCENTS.sky}
       className="dby-game"
       panel={
         <>
@@ -482,12 +466,6 @@ export default function Game() {
 
           {!isAuto ? (
             <>
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(phase === 'checkpoint' ? myChance : startP)}</dd>
-                <dt>Prize</dt>
-                <dd>{fmtMult(phase === 'checkpoint' || phase === 'running' ? prize : startPrize(L, pick))}</dd>
-              </dl>
               {phase === 'checkpoint' ? (
                 <>
                   <ActionButton kind="cash" onClick={cashOut}>
@@ -521,12 +499,6 @@ export default function Game() {
                   }
                 }}
               />
-              <dl className="og-stats">
-                <dt>Chance to win</dt>
-                <dd>{fmtChance(startP)}</dd>
-                <dt>Prize at the line</dt>
-                <dd>{fmtMult(startPrize(L, pick))}</dd>
-              </dl>
             </AutoBetControls>
           )}
           {bet.blocked && <p className="dby-blocked">{bet.blocked}</p>}
@@ -587,11 +559,7 @@ export default function Game() {
         />
       ) : (
         <Caption>
-          <b className="dby-rule">{RULE}</b>
-          <br />
-          {isAuto
-            ? `Each bet backs ${name(pick)} and ${target ? `cashes out once the value reaches ${fmtMult(target)}` : 'rides to the line'}. RTP ${(RTP * 100).toFixed(0)}%.`
-            : `Same average speed, different gaits: the tote shows each runner's exact chance. Pick a lane, then Bet. RTP ${(RTP * 100).toFixed(0)}%.`}
+{RULE}
         </Caption>
       )}
 
@@ -618,7 +586,7 @@ export default function Game() {
             <ul>
               {FIELD.map((r, i) => (
                 <li key={i}>
-                  <b style={{ color: r.colour }}>
+                  <b>
                     #{i + 1} {GAITS[r.gait].name}
                   </b>
                   : {GAITS[r.gait].detail}.

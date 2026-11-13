@@ -1,6 +1,7 @@
 import { defineReactGame } from '@originals/game-sdk/react';
 import { tokenStyles } from '@originals/game-sdk/ui';
-import crocStyles from '@originals/crocodile-dentist/styles.css?inline';
+// Its own copy of the stylesheet it was built on (Crocodile Dentist moved onto the kit layout on 2026-11-13).
+import crocStyles from './croc-styles.css?inline';
 import App from './App';
 import styles from './styles.css?inline';
 

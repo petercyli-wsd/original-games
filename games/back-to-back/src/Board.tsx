@@ -1,11 +1,14 @@
 import type { CSSProperties } from 'react';
+import { ACCENTS } from '@originals/game-sdk/ui';
 import { total } from './math';
 
+// Team colours: the rules name them. Red and Green use the kit's content colours,
+// Blue and Yellow use the kit accent palette (no raw hex, docs/STYLE.md).
 export const COLOURS = [
-  { name: 'Red', fill: '#e5484d', ink: '#fff' },
-  { name: 'Blue', fill: '#3b82f6', ink: '#fff' },
-  { name: 'Green', fill: '#2fb36b', ink: '#07140c' },
-  { name: 'Yellow', fill: '#f4e04d', ink: '#1a1604' },
+  { name: 'Red', fill: 'var(--suit-red)', ink: 'var(--text)' },
+  { name: 'Blue', fill: ACCENTS.blue, ink: 'var(--bg)' },
+  { name: 'Green', fill: 'var(--suit-green)', ink: 'var(--text)' },
+  { name: 'Yellow', fill: ACCENTS.amber, ink: 'var(--bg)' },
 ] as const;
 
 export function fmtChance(p: number): string {
@@ -59,12 +62,12 @@ export default function Field({ counts, top, prev, drawing, pile, me, chances, g
   const n = total(counts);
   const shownTop = drawing !== null ? drawing : top;
   const shownPrev = drawing !== null ? top : prev;
-  const cap = top >= 0 && !snapped ? `Outlined: another ${COLOURS[top].name.toLowerCase()} snaps it (${fmtChance(counts[top] / Math.max(1, n))})` : 'The first card turned cannot snap';
+  const cap = top >= 0 && !snapped ? 'Outlined: snaps if turned next' : 'The first card turned cannot snap';
 
   return (
     <div className="b2b">
       <div className="b2b-cap">
-        <span>Deck · cards left by colour</span>
+        <span>Cards left by colour</span>
         <b>{n} left</b>
       </div>
       <div className="b2b-deck" role="img" aria-label={`Deck: ${counts.map((c, j) => `${c} ${COLOURS[j].name}`).join(', ')}`}>
@@ -92,11 +95,20 @@ export default function Field({ counts, top, prev, drawing, pile, me, chances, g
           )}
         </div>
       )}
-      <div className="b2b-note">{ghosts ? `Under each segment: your chance if that colour is the next card. ${cap}.` : 'Round over. The last two cards stay marked until the next bet.'}</div>
+      <div className="b2b-note">
+        {ghosts ? (
+          <>
+            <span>Below: your chance if it is next</span>
+            <span>{cap}</span>
+          </>
+        ) : (
+          <span>Round over: last two cards stay marked</span>
+        )}
+      </div>
 
       <div className={'b2b-pair' + (snapped ? ' snapped' : '')}>
         <Slot colour={shownPrev >= 0 ? shownPrev : null} label="Before" snap={snapped} fresh={false} ms={ms} />
-        <span className="b2b-eq">{snapped ? 'SNAP' : '='}</span>
+        <span className="b2b-eq">{snapped ? 'Snap' : '='}</span>
         <Slot colour={shownTop >= 0 ? shownTop : null} label={live || snapped ? 'Turned' : 'Next'} snap={snapped} fresh={drawing !== null} ms={ms} />
       </div>
 
@@ -111,25 +123,13 @@ export default function Field({ counts, top, prev, drawing, pile, me, chances, g
       <div className="b2b-cap">
         <span>Chance to snap first</span>
         <b>
-          you: <u>{COLOURS[me].name}</u>
+          you: {COLOURS[me].name}
         </b>
       </div>
       <div className="b2b-title">
         {chances.map((p, j) =>
           p <= 0 ? null : (
-            <div key={j} className={'b2b-tseg' + (j === me ? ' mine' : '')} style={{ flexGrow: p, background: COLOURS[j].fill, color: COLOURS[j].ink }} title={`${COLOURS[j].name} ${fmtChance(p)}`}>
-              {p > 0.07 ? short(p) : ''}
-            </div>
-          ),
-        )}
-      </div>
-      <div className="b2b-legend">
-        {chances.map((p, j) =>
-          p <= 0 ? null : (
-            <span key={j} className={j === me ? 'mine' : ''}>
-              <i style={{ background: COLOURS[j].fill }} />
-              {COLOURS[j].name} {fmtChance(p)}
-            </span>
+            <div key={j} className={'b2b-tseg' + (j === me ? ' mine' : '')} style={{ flexGrow: p, background: COLOURS[j].fill, color: COLOURS[j].ink }} title={`${COLOURS[j].name} ${fmtChance(p)}`} />
           ),
         )}
       </div>

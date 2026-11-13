@@ -1,29 +1,8 @@
-/* Lives inside the game's shadow root: use :host, not :root. Colours, type and
+/* Colours, type and
    spacing come from the kit's tokenStyles (docs/STYLE.md); this file only lays
-   out Snowball's own panel and board. Flat: no gradients, glows or shadows.
+   out Snowball's tally and urn; the panel and layout are the kit's.
    Blue is the player's side (the accent); red balls are --suit-red because the
    rules name the colour. Both are flat fills. */
-
-:host {
-  display: block;
-  height: 100%;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-.sb {
-  --accent: #5ec4e6; /* ACCENTS.sky */
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  height: 100%;
-  min-height: 600px;
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  color-scheme: dark;
-}
 
 .t-blue {
   color: var(--accent);
@@ -34,316 +13,15 @@
 .muted {
   color: var(--muted);
 }
-
-button,
-input {
-  font: inherit;
-  color: inherit;
+.og-game .og-chips.wrap .og-chip {
+  flex-basis: calc(33.3% - 2px);
+  padding-inline: var(--sp-1);
 }
-button {
-  cursor: pointer;
-  border: 0;
-  border-radius: var(--radius);
-  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---------- Control panel ---------- */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-4);
-  background: var(--raised);
-  border-right: 1px solid var(--line);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.hint {
-  font-weight: 500;
-  font-size: var(--fs-1);
-}
-
-.bet-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px 48px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.bet-row input {
-  min-width: 0;
-  padding: 10px var(--sp-3);
-  font-size: var(--fs-3);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 0;
-  outline: none;
-}
-.bet-row button {
-  border-radius: 0;
-  border-left: 1px solid var(--line);
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-}
-.bet-row button:not(:disabled):hover {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.presets {
-  display: grid;
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.preset {
-  display: grid;
-  grid-template-columns: 1fr 52px 64px;
-  align-items: center;
-  padding: var(--sp-2) 10px;
-  font-size: var(--fs-2);
-  font-weight: 600;
-  text-align: left;
-  color: var(--muted);
-  background: transparent;
-  border-radius: 4px;
-}
-.preset:not(:disabled):hover {
-  color: var(--text);
-}
-.preset.on {
-  color: var(--text);
-  background: var(--hover);
-}
-.ratio {
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.preset-prize {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-.blurb {
-  font-size: var(--fs-1);
-  color: var(--muted);
-  min-height: 1.3em;
-}
-
-.primary {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 50px;
-  padding: 13px var(--sp-3);
-  font-size: var(--fs-3);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--bg);
-  background: var(--text);
-}
-.primary:not(:disabled):hover {
-  background: var(--muted);
-}
-.primary small {
-  font-size: var(--fs-1);
-  font-weight: 600;
-  opacity: 0.7;
-}
-.actions {
-  display: grid;
-  gap: var(--sp-2);
-}
-/* Draw (continue) is the outline secondary, as in the kit; Cash out is the light primary. */
-.primary.secondary {
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-}
-.primary.secondary:not(:disabled):hover {
-  background: var(--hover);
-}
-/* Cash out is the secondary style until a draw makes it available. */
-.primary.cash:disabled {
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-  font-size: var(--fs-2);
-}
-
-.panel-foot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: auto;
-  padding-top: var(--sp-3);
-}
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-2);
-  color: var(--muted);
-  cursor: pointer;
-}
-.toggle input {
-  width: 16px;
-  height: 16px;
+.sb-blocked {
   margin: 0;
-  accent-color: var(--text);
-}
-.ghost {
-  padding: 7px 10px;
-  font-size: var(--fs-2);
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--line);
-}
-.ghost:hover {
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-/* ---------- Stage ---------- */
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  min-width: 0;
-  padding: var(--sp-5) clamp(var(--sp-4), 3vw, var(--sp-6));
-  background: var(--card);
-}
-
-.stage-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--sp-3);
-  min-height: 26px;
-}
-.message {
-  margin: 0;
-  flex-shrink: 0;
-  font-size: var(--fs-2);
-  font-weight: 600;
-  color: var(--muted);
-}
-.message.win {
-  color: var(--win);
-}
-.message.lose {
+  font-size: var(--fs-1);
+  text-align: center;
   color: var(--lose);
-}
-.recent {
-  display: flex;
-  gap: var(--sp-1);
-  justify-content: flex-end;
-  overflow: hidden;
-  min-width: 0;
-}
-.recent span {
-  flex-shrink: 0;
-  padding: 3px 7px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--muted);
-}
-.recent .w {
-  color: var(--win);
-}
-.recent .l {
-  color: var(--lose);
-}
-.recent span:first-child {
-  border-color: currentColor;
-}
-
-/* One flat row: the one chance and the prize. */
-/* The whole-bet chance bar (kit ChanceBar markup; this game loads only the kit
-   tokens, so the kit's rules are repeated here): green = blue wins. Flat; moves
-   after every draw. */
-.og-chance {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.og-chance-head {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.og-chance-head b {
-  color: var(--text);
-  font-size: var(--fs-4);
-  font-variant-numeric: tabular-nums;
-}
-.og-chance-track {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--hover);
-  overflow: hidden;
-}
-.og-chance-track i {
-  display: block;
-  height: 100%;
-  background: var(--win);
-  transition: width var(--dur-event) ease;
-}
-
-.readout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-2) var(--sp-6);
-}
-.readout > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.tile-label {
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.mid {
-  font-size: var(--fs-4);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 /* The draw tally: the race the bet is on. Blue fills from the left, red from
@@ -409,19 +87,18 @@ input:focus-visible {
   border-color: var(--faint);
 }
 
-.board {
+/* The urn fills the kit board. */
+.sb-board {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  min-height: 230px;
 }
 
 .urn-wrap {
-  --round-over-win: var(--win);
-  --round-over-lose: var(--lose);
-  position: relative;
   display: grid;
   place-items: end center;
   flex: 1;
+  width: 100%;
   min-height: 230px;
   padding: var(--sp-3) var(--sp-4);
   background: var(--bg);
@@ -499,94 +176,6 @@ input:focus-visible {
 .slot .ball.ringed {
   outline: 2px solid var(--text);
   outline-offset: 2px;
-}
-
-/* The one-sentence rule under the board. */
-.og-caption {
-  margin: 0;
-  text-align: center;
-  font-size: var(--fs-2);
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-/* ---------- Modal ---------- */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: var(--sp-4);
-  background: rgb(0 0 0 / 0.6);
-}
-.modal {
-  width: min(480px, 100%);
-  max-height: calc(100vh - 32px);
-  overflow: auto;
-  padding: var(--sp-4) var(--sp-5);
-  font-size: var(--fs-2);
-  line-height: 1.55;
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-}
-.modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.modal h2 {
-  margin: 0;
-  font-size: var(--fs-4);
-  font-weight: 600;
-}
-.ghost.icon {
-  padding: 4px 9px;
-}
-.rules {
-  display: grid;
-  gap: var(--sp-2);
-  margin: var(--sp-3) 0;
-  padding-left: 20px;
-}
-.modal h3 {
-  margin: var(--sp-4) 0 var(--sp-1);
-  font-size: var(--fs-1);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.modal p {
-  margin: 0 0 var(--sp-2);
-}
-kbd {
-  padding: 0 5px;
-  font: inherit;
-  font-size: var(--fs-1);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-}
-
-/* ---------- Narrow layouts ---------- */
-
-@media (max-width: 720px) {
-  .sb {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 0;
-  }
-  .stage {
-    order: -1;
-    padding: var(--sp-4);
-    gap: var(--sp-3);
-  }
-  .panel {
-    padding: var(--sp-4);
-    border-right: 0;
-    border-top: 1px solid var(--line);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

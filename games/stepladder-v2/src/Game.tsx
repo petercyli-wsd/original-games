@@ -1,5 +1,6 @@
 import { useHost } from '@originals/game-sdk/react';
 import {
+  ACCENTS,
   ActionButton,
   AutoBetControls,
   BetField,
@@ -50,8 +51,7 @@ interface Round {
 
 const OUTCOME_TITLE: Record<Outcome, string> = { out: 'Dropped off', cashed: 'Cashed out', top: 'Top step' };
 
-const RULE =
-  'Back one of four dice (d6, d8, d12, d20): it rolls off against each of the other three, biggest first, and must win all three. Highest roll wins; a tie goes to the bigger die.';
+const RULE = 'Win all three roll-offs, biggest die first; ties go to the bigger die.';
 
 const STOP_AFTER = [1, 2, 3] as const;
 
@@ -222,7 +222,7 @@ export default function Game() {
   return (
     <GameLayout
       name="Stepladder"
-      accent="#38bdf8"
+      accent={ACCENTS.sky}
       panel={
         <>
           <ModeTabs auto={auto} disabled={live} />
@@ -236,12 +236,6 @@ export default function Game() {
             disabled={locked}
             onChange={(v) => change(() => setDie(v))}
           />
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeOf(die))}</dd>
-          </dl>
 
           {auto.mode === 'manual' ? (
             phase === 'checkpoint' ? (
@@ -279,9 +273,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Chance to win', value: fmtChance(now), sub: `your d${DICE[d]} wins all three`, tone: 'chance' },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cash) : '—', sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'Full prize', value: fmtMult(prize), sub: 'if you win all three', tone: 'prize' },
+          { label: 'Chance to win', value: fmtChance(now), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -310,15 +303,8 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={rollOffChance}
-          label={`Your d${DICE[d]} wins this roll-off`}
-          note="The green share of the face-pair grid is exactly this chance."
-        />
-      ) : (
-        <Caption>{RULE}</Caption>
-      )}
+      {live && <ChanceBar p={rollOffChance} label={`Your d${DICE[d]} wins this roll-off`} />}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Stepladder" onClose={() => setInfoOpen(false)}>
@@ -334,7 +320,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The grid has one cell for every pair of faces, all equally likely. <b style={{ color: 'var(--green)' }}>Green</b> cells are the pairs where your die wins
+              The grid has one cell for every pair of faces, all equally likely. <b style={{ color: 'var(--win)' }}>Green</b> cells are the pairs where your die wins
               the current roll-off, and the green share is that roll-off's chance. The three bars list the chances of all three roll-offs, and your overall chance is
               written as their product.
             </p>

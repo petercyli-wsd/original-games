@@ -1,6 +1,7 @@
 import { cashMultiplier, type AutoRules } from '../math';
 import type { Outcome, Phase } from '../round';
-import { fmtMult, fmtPct } from '../format';
+import { fmtMult } from '@originals/game-sdk/ui';
+import { fmtPct } from '../format';
 
 interface Props {
   W: number;

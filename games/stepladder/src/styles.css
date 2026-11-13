@@ -27,11 +27,11 @@
 }
 .ladder .head {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .ladder .g {
-  fill: var(--green);
-  font-weight: 800;
+  fill: var(--win);
+  font-weight: 700;
 }
 
 /* Roll-off list: your die against each other die, with its chance as a bar. */
@@ -45,7 +45,7 @@
   stroke: var(--line);
 }
 .ladder .duel.now .duel-bg {
-  stroke: var(--gold);
+  stroke: var(--accent);
   stroke-width: 2;
 }
 .ladder .duel.won .duel-bg {
@@ -64,24 +64,25 @@
   fill: var(--muted);
 }
 .ladder .duel.won .tstat {
-  fill: var(--green);
+  fill: var(--win);
 }
 .ladder .duel.lost .tstat {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .ladder .bar-bg {
-  fill: var(--bg);
+  fill: var(--lose);
+  fill-opacity: 0.5;
 }
 .ladder .bar {
-  fill: var(--gold);
+  fill: var(--win);
 }
 .ladder .product {
   font-size: 18px;
-  font-weight: 800;
-  fill: var(--gold);
+  font-weight: 700;
+  fill: var(--text);
 }
 .ladder .product.bad {
-  fill: var(--red);
+  fill: var(--lose);
 }
 /* Dice: they climb by moving up a step; the loser drops to the floor, greyed. */
 .ladder .die {
@@ -94,12 +95,12 @@
   stroke-width: 2;
 }
 .ladder .die.mine .tile {
-  stroke: var(--gold);
+  stroke: var(--accent);
   stroke-opacity: 1;
   stroke-width: 3;
 }
 .ladder .die.won .tile {
-  stroke: var(--green);
+  stroke: var(--win);
   stroke-opacity: 1;
   stroke-width: 3;
 }
@@ -109,7 +110,7 @@
 }
 .ladder .die .face {
   font-size: 26px;
-  font-weight: 800;
+  font-weight: 700;
 }
 .ladder .die.tumble .tile {
   animation: ladder-shake 0.28s ease-in-out infinite;
@@ -124,31 +125,31 @@
   fill: var(--muted);
 }
 .ladder .cell.good {
-  fill: var(--green);
+  fill: var(--win);
   fill-opacity: 0.85;
 }
 .ladder .cell.bad {
-  fill: var(--red);
+  fill: var(--lose);
   fill-opacity: 0.5;
 }
 .ladder .pair {
   fill: none;
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 3;
 }
 .ladder .pair.tumbling {
-  stroke: var(--gold);
+  stroke: var(--muted);
   stroke-dasharray: 4 3;
 }
 .ladder .pair.landed {
-  filter: drop-shadow(0 0 4px #fff);
+  stroke-width: 4;
 }
 .ladder .share-bg {
-  fill: var(--red);
+  fill: var(--lose);
   fill-opacity: 0.5;
 }
 .ladder .share {
-  fill: var(--green);
+  fill: var(--win);
 }
 .ladder .share-label {
   font-size: 14px;

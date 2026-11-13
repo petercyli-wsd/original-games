@@ -50,7 +50,7 @@ export default function Board({ circle, region, slices, blade, dot, dotTone, edi
   return (
     <svg
       ref={svg}
-      className={'board' + (editable ? ' editable' : '')}
+      className={'slice-svg' + (editable ? ' editable' : '')}
       viewBox={`${-PAD} ${-PAD} ${S + 2 * PAD} ${S + 2 * PAD}`}
       style={vars}
       role="img"
