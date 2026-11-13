@@ -127,24 +127,18 @@ export default function Board({ die, s, grid, results, mark, rolling }: BoardPro
         );
       })}
 
-      <text x="200" y="262" className="small">
-        Win all three to win the round
-      </text>
       <text x="200" y="290" className={'product' + (s.lost ? ' bad' : '')}>
         {product}
-      </text>
-      <text x="200" y="308" className="small">
-        Each win drops one factor.
       </text>
 
       <text x="8" y="326" className="head left">
         Your d{m.a} vs the d{m.b}
       </text>
       <text x="8" y="344" className="small left">
-        Your d{m.a} faces down the side, the d{m.b} across. <tspan className="g">Green</tspan> = your die wins.
+        Rows: your d{m.a}. Columns: the d{m.b}.
       </text>
       <text x="8" y="360" className="small left">
-        Ties go to the bigger die
+        <tspan className="g">Green</tspan>: your die wins
       </text>
 
       {Array.from({ length: m.b }, (_, c) => (
