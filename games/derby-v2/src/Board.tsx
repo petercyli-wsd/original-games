@@ -42,6 +42,9 @@ const TOTE_H = 26;
 const LANES_Y = 66;
 const RUNOUT = 4;
 
+/** Your runner takes the accent; the rest are neutral, told apart by number. */
+const tint = (i: number, me: number) => (i === me ? 'var(--accent)' : i % 2 ? 'var(--faint)' : 'var(--muted)');
+
 export default function Board(props: BoardProps) {
   const { L, pos, chances, prev, me, outcomes, winners, crossed, moveMs, narrow, phase, pickable, onPick, note, running, legNow, photo } = props;
   const W = narrow ? 420 : 640;
@@ -62,9 +65,9 @@ export default function Board(props: BoardProps) {
   // The tote: one bar split into every runner's live chance.
   let acc = 16;
   const toteW = W - 32;
-  const tote = FIELD.map((r, i) => {
+  const tote = FIELD.map((_r, i) => {
     const w = chances[i] * toteW;
-    const seg = { i, x: acc, w, colour: r.colour };
+    const seg = { i, x: acc, w, colour: tint(i, me) };
     acc += w;
     return seg;
   });
@@ -73,16 +76,16 @@ export default function Board(props: BoardProps) {
     <svg viewBox={`0 0 ${W} ${H}`} className={'derby' + (narrow ? ' narrow' : '')} role="img" aria-label={`Race to ${L}. Your runner #${me + 1} has ${fmtChance(now)} to win.`}>
       {/* Tote */}
       <text x={16} y={16} className="cap">
-        TOTE · live chance to win
+        Tote: live chance to win
       </text>
       <text x={W - 16} y={16} className="cap end">
-        {phase === 'over' ? (winners ? 'result' : 'when you stopped') : 'sums to 100%'}
+        {phase === 'over' ? (winners ? 'result' : 'when you stopped') : 'adds to 100%'}
       </text>
       <rect x={16} y={TOTE_Y} width={toteW} height={TOTE_H} rx={6} className="tote-bg" />
       {tote.map((s) =>
         s.w > 0.2 ? (
           <g key={s.i} className={'tote-seg' + (s.i === me ? ' mine' : '')}>
-            <rect x={s.x} y={TOTE_Y} width={s.w} height={TOTE_H} fill={s.colour} style={{ transition: `all ${Math.max(moveMs, 200)}ms ease` }} />
+            <rect x={s.x} y={TOTE_Y} width={s.w} height={TOTE_H} style={{ fill: s.colour, transition: `all ${Math.max(moveMs, 200)}ms ease` }} />
             {s.w > (narrow ? 44 : 54) && (
               <text x={s.x + s.w / 2} y={TOTE_Y + 17.5} className="tote-txt">
                 #{s.i + 1} {Math.round(chances[s.i] * 100)}%
@@ -110,7 +113,7 @@ export default function Board(props: BoardProps) {
             aria-label={canPick ? `Back #${i + 1} ${g.name}` : undefined}
           >
             <rect x={6} y={y + 2} width={W - 12} height={LANE - 4} rx={9} className="lane-bg" />
-            <circle cx={narrow ? 26 : 30} cy={cy} r={13} fill={r.colour} className="saddle" />
+            <circle cx={narrow ? 26 : 30} cy={cy} r={13} style={{ fill: tint(i, me) }} className="saddle" />
             <text x={narrow ? 26 : 30} y={cy + 5} className="saddle-no">
               {i + 1}
             </text>
@@ -144,7 +147,7 @@ export default function Board(props: BoardProps) {
               ))}
             <g className="runner" style={{ transform: `translate(${xAt(pos[i])}px, ${cy}px)`, transition: `transform ${moveMs}ms linear` }}>
               {mine && <circle r={18} className="mine-ring" />}
-              <circle r={12} fill={r.colour} className="token" />
+              <circle r={12} style={{ fill: tint(i, me) }} className="token" />
               <text y={4.5} className="token-no">
                 {i + 1}
               </text>
@@ -154,7 +157,7 @@ export default function Board(props: BoardProps) {
               {phase === 'over' && winners ? (won ? (winners.length > 1 ? `÷${winners.length}` : 'WIN') : '—') : fmtChance(chances[i])}
             </text>
             <rect x={W - rightW + 2} y={cy + 8} width={rightW - 16} height={5} rx={2.5} className="pbar-bg" />
-            <rect x={W - rightW + 2} y={cy + 8} width={Math.max(0, (rightW - 16) * chances[i])} height={5} rx={2.5} fill={r.colour} />
+            <rect x={W - rightW + 2} y={cy + 8} width={Math.max(0, (rightW - 16) * chances[i])} height={5} rx={2.5} style={{ fill: tint(i, me) }} />
           </g>
         );
       })}
@@ -201,17 +204,16 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
   const scale = Math.min(1, niceCeil(Math.max(now * 1.25, ...outcomes.map((o) => o.chance * 1.12), 1e-6)));
   const yOf = (c: number) => top + h * (1 - c / scale);
   let acc = left;
-  const r = FIELD[me];
-  return (
+    return (
     <g className={'next-leg' + (dim ? ' dim' : '')}>
       <text x={left} y={12} className="cap">
-        {dim ? 'THIS LEG' : 'NEXT LEG'} · {narrow ? `#${me + 1}'s distance → chance after` : `how far #${me + 1} ${GAITS[r.gait].name} runs → its chance after`}
+        {dim ? 'This leg' : 'Next leg'}: {narrow ? 'distance, then chance' : `how far #${me + 1} runs, then its chance`}
       </text>
       <text x={left} y={27} className="cap sub">
-        {narrow ? `width = how likely · top = ${fmtChance(scale)}` : `bar width = how likely · height = chance after (top = ${fmtChance(scale)})`}
+        Width: how likely. Height: chance after
       </text>
       <text x={W - 16} y={27} className="now-txt">
-        - - now {fmtChance(now)} = {narrow ? 'average' : 'their average'}
+        Dashed: chance now
       </text>
       <rect x={left} y={top} width={width} height={h} rx={6} className="leg-bg" />
       {outcomes.map((o) => {
@@ -229,7 +231,7 @@ function NextLeg({ W, H, outcomes, now, me, narrow, dim }: { W: number; H: numbe
                   {fmtChance(o.chance)}
                 </text>
                 <text x={x + w / 2} y={top + h + 13} className="leg-adv">
-                  {o.crosses ? `+${o.advance} ✓` : `+${o.advance}`}
+                  {o.crosses ? `+${o.advance} end` : `+${o.advance}`}
                 </text>
               </>
             )}
@@ -262,7 +264,7 @@ function PhotoFinish({ W, crossed, winners, me }: { W: number; crossed: readonly
   return (
     <g className="photo">
       <text x={left} y={12} className="cap">
-        PHOTO FINISH · when each runner crossed in the last tick
+        Photo finish: who crossed first
       </text>
       <line x1={left} x2={left + width} y1={56} y2={56} className="rail" />
       {[0, 0.5, 1].map((f) => (
@@ -272,7 +274,7 @@ function PhotoFinish({ W, crossed, winners, me }: { W: number; crossed: readonly
       ))}
       {sorted.map((c, k) => (
         <g key={c.runner} transform={`translate(${left + c.at * width} 56)`}>
-          <circle r={12} fill={FIELD[c.runner].colour} className={'token' + (c.runner === me ? ' me' : '')} />
+          <circle r={12} style={{ fill: tint(c.runner, me) }} className={'token' + (c.runner === me ? ' me' : '')} />
           <text y={4.5} className="token-no">
             {c.runner + 1}
           </text>

@@ -76,17 +76,16 @@ export interface Runner {
   /** Saddle number, 1-based. */
   no: number;
   gait: GaitId;
-  colour: string;
 }
 
 /** The field. Steady is always in it: it finishes within L ticks, which bounds every race. */
 export const FIELD: readonly Runner[] = [
-  { no: 1, gait: 'steady', colour: '#2a9d8f' },
-  { no: 2, gait: 'erratic', colour: '#e9c46a' },
-  { no: 3, gait: 'sprinter', colour: '#f4a261' },
-  { no: 4, gait: 'stayer', colour: '#8ab4f8' },
-  { no: 5, gait: 'wildcard', colour: '#e76f9a' },
-  { no: 6, gait: 'plodder', colour: '#b0b8c4' },
+  { no: 1, gait: 'steady' },
+  { no: 2, gait: 'erratic' },
+  { no: 3, gait: 'sprinter' },
+  { no: 4, gait: 'stayer' },
+  { no: 5, gait: 'wildcard' },
+  { no: 6, gait: 'plodder' },
 ];
 export const RUNNERS = FIELD.length;
 

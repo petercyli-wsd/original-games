@@ -16,7 +16,7 @@
   border-radius: var(--radius);
   background: var(--bg);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--fs-1);
   text-align: left;
   cursor: pointer;
 }
@@ -27,9 +27,10 @@
   height: 20px;
   border-radius: 50%;
   font-style: normal;
-  font-size: 11px;
-  font-weight: 800;
-  color: #10141a;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  background: var(--hover);
+  color: var(--text);
 }
 .dby-runner span {
   overflow: hidden;
@@ -40,34 +41,33 @@
 .dby-runner b {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: var(--fs-1);
 }
 .dby-runner:hover:not(:disabled) {
   background: var(--hover);
 }
 .dby-runner.on {
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-  background: color-mix(in srgb, var(--accent) 14%, var(--bg));
+  background: var(--hover);
+}
+.dby-runner.on i {
+  background: var(--accent);
+  color: var(--bg);
 }
 .dby-runner.on b {
   color: var(--text);
 }
 .dby-runner:disabled {
   cursor: default;
-  opacity: 0.45;
+  opacity: 0.4;
 }
 .dby-runner.on:disabled {
   opacity: 1;
 }
 .dby-blocked {
   margin: 0;
-  font-size: 12px;
-  color: var(--red);
-}
-.dby-rule {
-  color: var(--text);
-  font-size: 14px;
+  font-size: var(--fs-1);
+  color: var(--lose);
 }
 
 /* ---------- Board ---------- */
@@ -92,9 +92,8 @@
   fill: var(--text);
 }
 .derby .cap {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
 .derby .cap.end {
@@ -103,7 +102,7 @@
   font-weight: 600;
 }
 .derby.narrow .cap {
-  font-size: 11.5px;
+  font-size: var(--fs-1);
 }
 
 /* Tote */
@@ -111,79 +110,79 @@
   fill: var(--hover);
 }
 .derby .tote-seg rect {
-  stroke: var(--card, #161a22);
+  stroke: var(--card);
   stroke-width: 1.5;
 }
 .derby .tote-txt {
   text-anchor: middle;
-  font-size: 12px;
-  font-weight: 800;
-  fill: #10141a;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--bg);
   font-variant-numeric: tabular-nums;
 }
 .derby .tote-mine {
   fill: none;
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 2.5;
   transition: all 0.3s ease;
 }
 
 /* Lanes */
 .derby .lane-bg {
-  fill: color-mix(in srgb, var(--hover) 55%, transparent);
+  fill: var(--raised);
 }
 .derby .lane.mine .lane-bg {
-  fill: color-mix(in srgb, var(--accent) 16%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 60%, transparent);
+  fill: var(--raised);
+  stroke: var(--accent);
   stroke-width: 1.5;
 }
 .derby .lane.pick {
   cursor: pointer;
 }
 .derby .lane.pick:hover .lane-bg {
-  fill: color-mix(in srgb, var(--accent) 10%, var(--hover));
+  fill: var(--hover);
 }
 .derby .lane.won .lane-bg {
-  fill: color-mix(in srgb, var(--green) 18%, transparent);
-  stroke: var(--green);
+  fill: var(--raised);
+  stroke: var(--win);
   stroke-width: 1.5;
 }
 .derby .saddle-no,
 .derby .token-no {
   text-anchor: middle;
-  font-size: 13px;
-  font-weight: 800;
-  fill: #10141a;
+  font-size: var(--fs-2);
+  font-weight: 600;
+  fill: var(--bg);
 }
 .derby .name {
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--fs-2);
+  font-weight: 600;
 }
 .derby .blurb {
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   fill: var(--muted);
 }
 .derby .rail {
-  stroke: color-mix(in srgb, var(--text) 16%, transparent);
+  stroke: var(--line-strong);
   stroke-width: 2;
   stroke-dasharray: 2 4;
 }
 .derby .mark {
-  stroke: color-mix(in srgb, var(--text) 8%, transparent);
+  stroke: var(--line);
   stroke-width: 1;
 }
 .derby .mark.start {
-  stroke: color-mix(in srgb, var(--text) 30%, transparent);
+  stroke: var(--line-strong);
   stroke-width: 2;
 }
 .derby .axis {
   text-anchor: middle;
-  font-size: 10.5px;
+  font-size: var(--fs-1);
   fill: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 .derby.narrow .axis {
-  font-size: 12px;
+  font-size: var(--fs-1);
 }
 .derby .finish .chk {
   fill: var(--text);
@@ -193,44 +192,44 @@
   opacity: 0.35;
 }
 .derby .runner .token {
-  stroke: #0b0d12;
+  stroke: var(--card);
   stroke-width: 2;
 }
 .derby .mine-ring {
   fill: none;
-  stroke: #fff;
-  stroke-width: 2.5;
-  filter: drop-shadow(0 0 6px var(--accent));
+  stroke: var(--text);
+  stroke-width: 2;
 }
 .derby .lane.won .token {
-  filter: drop-shadow(0 0 8px var(--green));
+  stroke: var(--win);
+  stroke-width: 3;
 }
 .derby .ghost {
   fill: var(--muted);
 }
 .derby .ghost.up {
-  fill: var(--green);
+  fill: var(--win);
 }
 .derby .ghost.down {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .derby .pct {
   text-anchor: end;
-  font-size: 14px;
-  font-weight: 800;
+  font-size: var(--fs-2);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .derby .pct.mine {
   fill: var(--accent);
 }
 .derby .pct.up {
-  fill: var(--green);
+  fill: var(--win);
 }
 .derby .pct.down {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .derby.narrow .pct {
-  font-size: 13.5px;
+  font-size: var(--fs-2);
 }
 .derby .pbar-bg {
   fill: var(--hover);
@@ -244,28 +243,28 @@
   transition: all 0.25s ease;
 }
 .derby .leg-bar.up {
-  fill: color-mix(in srgb, var(--green) 70%, transparent);
+  fill: var(--win);
 }
 .derby .leg-bar.down {
-  fill: color-mix(in srgb, var(--red) 65%, transparent);
+  fill: var(--lose);
 }
 .derby .leg-bar.flat {
   fill: var(--muted);
 }
 .derby .leg-pct {
   text-anchor: middle;
-  font-size: 12px;
-  font-weight: 800;
+  font-size: var(--fs-1);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 .derby .leg-adv {
   text-anchor: middle;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
 .derby .now-line {
-  stroke: var(--gold);
+  stroke: var(--text);
   stroke-width: 2;
   stroke-dasharray: 6 4;
 }
@@ -279,40 +278,40 @@
 .derby .leg-pct,
 .derby .now-txt {
   paint-order: stroke;
-  stroke: var(--bg, #0b0d12);
+  stroke: var(--bg);
   stroke-width: 3px;
   stroke-linejoin: round;
 }
 .derby .now-txt {
   text-anchor: end;
-  font-size: 11px;
-  font-weight: 700;
-  fill: var(--gold);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--text);
 }
 .derby .note {
   text-anchor: middle;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--fs-3);
+  font-weight: 600;
   fill: var(--muted);
 }
 
 /* Photo finish */
 .derby .photo .token {
-  stroke: #0b0d12;
+  stroke: var(--card);
   stroke-width: 2;
 }
 .derby .photo .token.me {
-  stroke: #fff;
+  stroke: var(--text);
   stroke-width: 3;
 }
 .derby .photo-lbl {
   text-anchor: middle;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: var(--fs-1);
+  font-weight: 600;
   fill: var(--muted);
 }
 .derby .photo-lbl.win {
-  fill: var(--green);
+  fill: var(--win);
 }
 
 /* Auto's result pill sits in the strip under the track. */
