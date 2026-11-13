@@ -11,18 +11,18 @@ export const HIDEABLE_GROUPS: readonly OddsGroup[] = ['ladder', 'paytable'];
 
 const groups: Record<OddsGroup, string[]> = {
   // The chance is what the player sets, or the whole point of the game.
-  input: ['dice', 'limbo', 'range-dice', 'drift', 'half-moon', 'lighthouse', 'line-cut', 'slice', 'needle', 'template', 'knight', 'overhang', 'pivot', 'snowball', 'records', 'prime-time'],
+  input: ['dice', 'limbo', 'range-dice', 'drift', 'half-moon', 'lighthouse', 'line-cut', 'slice', 'needle', 'template', 'knight', 'overhang', 'pivot', 'snowball', 'records', 'prime-time', 'polarizer', 'quadrant'],
   // The player picks between options whose odds differ.
   choice: [
     'back-to-back', 'bracket', 'break-point', 'cross', 'derby', 'derby-v2', 'full-set', 'homecoming', 'hot-potato', 'inning',
     'landing', 'last-slice', 'last-wicket', 'last-wicket-v2', 'majority', 'maze', 'pascal', 'penney', 'scales', 'seven-out',
     'shootout', 'showdown', 'shut', 'sixes', 'socks', 'stepladder', 'stepladder-v2', 'tally', 'thales', 'tumble', 'upsets',
-    'hilo', 'snake', 'banker', 'bank-it', 'card-duel',
+    'hilo', 'snake', 'banker', 'bank-it', 'card-duel', 'noughts', 'shells',
   ],
   // Shared, timed rounds: the number is tied to the target.
   timing: ['crash', 'crash-colours', 'leverage'],
   // Push-your-luck ladders: the rising multiplier encodes the odds.
-  ladder: ['mines', 'chicken', 'tower', 'pump', 'coin-flip', 'rps', 'snakes', 'chase-v2', 'convex', 'crocodile-dentist'],
+  ladder: ['mines', 'chicken', 'tower', 'pump', 'coin-flip', 'rps', 'snakes', 'chase-v2', 'convex', 'crocodile-dentist', 'shunt'],
   // One draw from a discrete paytable: per-outcome chances.
   paytable: ['plinko', 'booster', 'keno', 'wheel', 'diamonds', 'cases', 'darts', 'tarot', 'tile-pick', 'reels', 'respins'],
   // Land-casino layouts.
