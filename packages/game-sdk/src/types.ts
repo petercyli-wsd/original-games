@@ -97,9 +97,17 @@ export interface Rng {
   shuffle<T>(items: readonly T[]): T[];
 }
 
+/**
+ * Operator-set, not a player toggle. 'off' hides the explicit probability
+ * numbers (never the pictures or the prizes). The platform only sends 'off'
+ * to ladder and paytable games; absent means 'on'.
+ */
+export type OddsReadout = 'on' | 'off';
+
 export interface HostSettings {
   turbo: boolean;
   sound: boolean;
+  oddsReadout?: OddsReadout;
 }
 
 export type GameEvent =

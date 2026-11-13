@@ -9,9 +9,11 @@ import {
   type BetTicket,
   type HostContext,
   type HostSettings,
+  type ReadableStore,
   type Wallet,
 } from '@originals/game-sdk';
 import { BRAND } from '../brand';
+import { resolveOddsReadout } from '../oddsPolicy';
 import { persistedStore, safeStorage } from '../lib/storage';
 
 export const wallet = createDemoWallet({
@@ -84,11 +86,26 @@ function instrumentWallet(inner: Wallet, gameId: string): Wallet {
   };
 }
 
+/** The shared settings plus this game's resolved oddsReadout (the operator's choice, limited by oddsPolicy.ts). */
+function settingsFor(gameId: string): ReadableStore<HostSettings> {
+  const oddsReadout = resolveOddsReadout(gameId);
+  const cache = new WeakMap<HostSettings, HostSettings>();
+  return {
+    get() {
+      const s = settings.get();
+      let out = cache.get(s);
+      if (!out) cache.set(s, (out = { ...s, oddsReadout }));
+      return out;
+    },
+    subscribe: settings.subscribe,
+  };
+}
+
 export function createHost(gameId: string): HostContext {
   return {
     wallet: instrumentWallet(wallet, gameId),
     rng: createRng(),
-    settings,
+    settings: settingsFor(gameId),
     track(event) {
       if (event.type === 'checkpoint') updateStats(gameId, (s) => ({ checkpoints: s.checkpoints + 1 }));
       if (import.meta.env.DEV) console.debug(`[${gameId}]`, event);

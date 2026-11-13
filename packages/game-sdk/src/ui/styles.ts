@@ -281,6 +281,8 @@ export const kitStyles =
 /* A meter whose filled length is the probability: only when the board itself can't show it. */
 .og-chance { display: flex; flex-direction: column; gap: var(--sp-2); }
 .og-chance-head { display: flex; justify-content: space-between; font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
+.og-odds-off .og-readout.chance { display: none; }
+.og-odds-off .og-chance-head b { display: none; }
 .og-chance-head b { color: var(--text); font-variant-numeric: tabular-nums; }
 .og-chance-track { height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; }
 .og-chance-track i { display: block; height: 100%; background: var(--win); transition: width 0.3s var(--ease); }

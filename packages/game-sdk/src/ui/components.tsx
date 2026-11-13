@@ -5,10 +5,13 @@
 
 import { useEffect, useRef, type ButtonHTMLAttributes, type CSSProperties, type ReactNode } from 'react';
 import { formatAmount } from '../money';
-import { useBalance } from '../react';
+import { useBalance, useSettings } from '../react';
 import type { Volatility } from '../types';
 import { fmtChance, fmtMult } from './format';
 import type { BetInput, HistoryItem, TurboState } from './hooks';
+
+/** Root class of a game. 'og-odds-off' lets kit CSS hide the explicit probability numbers. */
+export const oddsClass = (oddsReadout?: 'on' | 'off') => 'og-game' + (oddsReadout === 'off' ? ' og-odds-off' : '');
 
 export function GameLayout({
   name,
@@ -23,9 +26,10 @@ export function GameLayout({
   panel: ReactNode;
   children: ReactNode;
 }) {
+  const { oddsReadout } = useSettings();
   return (
     <div className="og-shell">
-      <div className={'og-game' + (className ? ` ${className}` : '')} style={{ '--accent': accent } as CSSProperties}>
+      <div className={oddsClass(oddsReadout) + (className ? ` ${className}` : '')} style={{ '--accent': accent } as CSSProperties}>
         <aside className="og-panel" aria-label={`${name} controls`}>
           {panel}
         </aside>
