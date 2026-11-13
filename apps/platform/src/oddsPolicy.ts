@@ -17,7 +17,7 @@ const groups: Record<OddsGroup, string[]> = {
     'back-to-back', 'bracket', 'break-point', 'cross', 'derby', 'derby-v2', 'full-set', 'homecoming', 'hot-potato', 'inning',
     'landing', 'last-slice', 'last-wicket', 'last-wicket-v2', 'majority', 'maze', 'pascal', 'penney', 'scales', 'seven-out',
     'shootout', 'showdown', 'shut', 'sixes', 'socks', 'stepladder', 'stepladder-v2', 'tally', 'thales', 'tumble', 'upsets',
-    'hilo', 'snake', 'banker', 'bank-it',
+    'hilo', 'snake', 'banker', 'bank-it', 'card-duel',
   ],
   // Shared, timed rounds: the number is tied to the target.
   timing: ['crash', 'crash-colours', 'leverage'],
