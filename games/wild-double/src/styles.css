@@ -1,0 +1,378 @@
+/* Wild Double: a flat 5×3 slot with line markers and a paytable in How to play. Tokens only (docs/STYLE.md). */
+
+.wd-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+
+/* ---------- Panel ---------- */
+.wild-double .og-panel > * {
+  flex-shrink: 0;
+}
+.wd-lines-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.wd-step {
+  height: 34px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px solid var(--line) !important;
+  font-size: var(--fs-3);
+  font-weight: 600;
+  color: var(--muted);
+}
+.wd-step:not(:disabled):hover {
+  color: var(--text);
+  border-color: var(--line-strong) !important;
+}
+.wd-buy {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+}
+.wd-buy span {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wd-buy-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  font-size: var(--fs-2);
+  text-align: center;
+}
+.wd-buy-confirm > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-2);
+}
+.wd-buy-confirm .og-btn {
+  padding: 10px;
+  font-size: var(--fs-2);
+}
+.wd-auto-toggle {
+  padding: var(--sp-1) 0 2px;
+}
+
+/* ---------- Reels ---------- */
+.wd-board {
+  min-height: 0;
+  align-content: start;
+}
+.wd-cabinet {
+  position: relative;
+  width: min(100%, 560px);
+  margin: 0 auto;
+}
+
+.wd-machine {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 26px;
+  gap: var(--sp-1);
+}
+.wd-markers {
+  display: grid;
+  grid-template-rows: repeat(3, 1fr);
+  /* The tabs take the reels' height; they never stretch the reels. */
+  contain: size;
+  padding: var(--sp-1) 0;
+}
+.wd-marker-row {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  min-height: 0;
+}
+.wd-marker {
+  display: grid;
+  place-items: center;
+  flex: 0 1 15px;
+  min-height: 0;
+  line-height: 1;
+  border-radius: 2px;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+  cursor: pointer;
+  transition:
+    background var(--dur-ui) ease,
+    color var(--dur-ui) ease;
+}
+.wd-marker.on {
+  color: var(--muted);
+}
+.wd-marker.won {
+  color: var(--bg);
+  background: var(--win);
+}
+.wd-marker.pick {
+  color: var(--bg);
+  background: var(--accent);
+}
+
+.wd-window {
+  position: relative;
+  border-radius: var(--radius-lg);
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  overflow: hidden;
+}
+.wd-reels {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.wd-reel {
+  position: relative;
+  aspect-ratio: 1 / 3;
+  overflow: hidden;
+  border-right: 1px solid var(--line);
+}
+.wd-reel:last-child {
+  border-right: 0;
+}
+.wd-reel.anticip {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+.wd-strip {
+  position: absolute;
+  inset: 0 0 auto 0;
+  will-change: transform;
+}
+.wd-cell {
+  display: grid;
+  place-items: center;
+}
+.wd-sym {
+  display: block;
+  width: 82%;
+  height: 82%;
+  overflow: visible;
+}
+.wd-f {
+  fill: var(--text);
+}
+.wd-o {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 8;
+}
+.wd-b {
+  fill: var(--bg);
+}
+.wd-sym-text {
+  font-family: var(--og-font, system-ui, sans-serif);
+  font-weight: 700;
+  fill: var(--text);
+}
+.wd-sym-text.wd-inv {
+  fill: var(--bg);
+}
+.wd-cell.dim {
+  opacity: 0.4;
+}
+.wd-cell.win {
+  background: var(--hover);
+  outline: 2px solid var(--win);
+  outline-offset: -2px;
+}
+
+.wd-lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.wd-line-over {
+  fill: none;
+  stroke: var(--win);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.wd-line.pick .wd-line-over {
+  stroke: var(--accent);
+  stroke-dasharray: 6 5;
+}
+
+/* A partial return is neutral, never green. */
+.wd-cabinet.part .wd-cell.win {
+  outline-color: var(--text);
+}
+.wd-cabinet.part .wd-line-over {
+  stroke: var(--text);
+}
+.wd-cabinet.part .wd-marker.won {
+  background: var(--text);
+}
+
+/* ---------- Paytable: one flat row under the reels ---------- */
+.wd-paytable {
+  width: min(100%, 560px);
+  margin: var(--sp-2) auto 0;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.wd-pt-head {
+  margin-bottom: var(--sp-1);
+}
+.wd-pt-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: var(--sp-1);
+}
+.wd-pt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: var(--sp-1) 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+.wd-pt .wd-sym {
+  width: 22px;
+  height: 22px;
+}
+.wd-pt.on {
+  border-color: var(--text);
+  background: var(--hover);
+  color: var(--text);
+}
+.wd-pt-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+.wd-pt-note .on {
+  color: var(--text);
+}
+
+/* ---------- Banner (free-spin announcements) ---------- */
+.wd-banner {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: min(78%, 320px);
+  padding: var(--sp-4) var(--sp-5);
+  transform: translate(-50%, -50%);
+  text-align: center;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+}
+.wd-banner b {
+  font-size: var(--fs-5);
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.wd-banner span {
+  font-size: var(--fs-2);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* ---------- How to play ---------- */
+.wd-paylines {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(62px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.wd-paylines svg {
+  width: 100%;
+  height: auto;
+  opacity: 0.4;
+}
+.wd-paylines svg.on {
+  opacity: 1;
+}
+.wd-paylines rect {
+  fill: var(--hover);
+}
+.wd-paylines rect.hit {
+  fill: var(--text);
+}
+.wd-paylines text {
+  font-size: 0;
+}
+.wd-rtp-table,
+.wd-pt-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+}
+.wd-rtp-table th,
+.wd-rtp-table td,
+.wd-pt-table th,
+.wd-pt-table td {
+  padding: 5px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+}
+.wd-rtp-table th:first-child,
+.wd-rtp-table td:first-child,
+.wd-pt-table th:first-child,
+.wd-pt-table td:first-child {
+  text-align: left;
+}
+.wd-rtp-table tr.on td {
+  color: var(--text);
+  font-weight: 600;
+}
+.wd-pt-table td:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.wd-pt-table .wd-sym {
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+}
+.wd-sym.wd-inline {
+  display: inline-block;
+  width: 28px;
+  height: 28px;
+  vertical-align: middle;
+}
+
+/* ---------- Narrow frames ---------- */
+@container (max-width: 600px) {
+  .wd-machine {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wd-markers {
+    display: none;
+  }
+}
