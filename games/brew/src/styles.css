@@ -1,0 +1,159 @@
+/* Brew board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.bw-game .og-chips .og-chip {
+  font-size: var(--fs-2);
+  padding-inline: 0;
+}
+.bw-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+.bw-board > svg {
+  max-height: 72vh;
+}
+
+.bw text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.bw .head {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.bw .head.end {
+  text-anchor: end;
+}
+
+/* Heat: seven numbered notches. */
+.bw .notch rect {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.bw .notch text {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.bw .notch.lit rect {
+  fill: var(--text);
+  stroke: var(--text);
+}
+.bw .notch.lit text {
+  fill: var(--bg);
+}
+.bw .notch.hot rect {
+  fill: var(--lose);
+  stroke: var(--lose);
+}
+.bw .notch.hot text {
+  fill: var(--text);
+}
+.bw .redline {
+  stroke: var(--lose);
+  stroke-width: 3;
+}
+
+/* Potion slots. */
+.bw .slot {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.bw .slot.full {
+  fill: var(--win);
+  stroke: var(--win);
+}
+
+/* Chips. */
+.bw .chip .disc {
+  stroke-width: 2;
+}
+.bw .chip.green .disc {
+  fill: var(--win);
+  stroke: var(--win);
+}
+.bw .chip.white .disc {
+  fill: var(--text);
+  stroke: var(--text);
+}
+.bw .chip.white .num {
+  fill: var(--bg);
+}
+.bw .chip.red .disc {
+  fill: var(--lose);
+  stroke: var(--lose);
+}
+.bw .chip.red .num {
+  fill: var(--text);
+}
+.bw .chip .num {
+  font-size: var(--fs-4);
+  font-weight: 700;
+  text-anchor: middle;
+}
+.bw .chip.gone .disc {
+  fill: none;
+  stroke: var(--faint);
+  stroke-dasharray: 3 4;
+  opacity: 0.6;
+}
+.bw .chip.last .disc {
+  fill: var(--bg);
+}
+.bw .chip.last.white .num {
+  fill: var(--text);
+}
+.bw .ring {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 4;
+}
+.bw .scanring {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 4;
+}
+
+.bw .count {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+.bw .key {
+  font-size: var(--fs-2);
+  fill: var(--muted);
+}
+
+.bw .bar-bg {
+  fill: var(--lose);
+}
+.bw .bar-win {
+  fill: var(--win);
+}
+.bw .bar-label {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.bw .bar-label.end {
+  text-anchor: end;
+}
+.bw-board .og-instant {
+  top: 55%;
+}
+
+@container (max-width: 760px) {
+  .bw .key,
+  .bw .bar-label,
+  .bw .count {
+    font-size: var(--fs-4);
+  }
+  .bw .head {
+    font-size: var(--fs-3);
+  }
+}
