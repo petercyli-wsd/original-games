@@ -661,3 +661,17 @@ New replicas, archived (status `retired`) after failing the gate twice; playable
 | Holdfast | Stake Blue Samurai | 2.24 | 2.09 | Odds and simplicity 2, and a reskin of Reels |
 
 Not built: Roobet Striker (core rules unpublished), Roobet Towers' 8-floor variant (compounds the edge per floor, which the maths contract forbids), Slide and Drill (Limbo's mechanism), Roobet's reported Mines grid sizes (unconfirmed).
+
+## Back from the Archive (2026-11-13)
+
+The 2026-11-10 review run gave every never-reviewed game a v7 review. Five retired games passed the gate on a panel of 3. A game that passes the gate goes back in the lobby, but it must first meet `docs/STYLE.md`, because archived games were never restyled. The restyle changes code, so each game then got a fresh panel of 3.
+
+| Game | Panel before restyle | After restyle | Repair 1 | Repair 2 | Result |
+|---|---|---|---|---|---|
+| Noughts | 3.75 | 4.26 | | | Back (prototype) |
+| Polarizer | 3.59 | 3.63 | | | Back (prototype) |
+| Quadrant | 3.50 | 3.52 | | | Back (prototype) |
+| Shells | 3.63 | 3.44 | 3.00 | 3.31 | Stays retired. The chance bars must forecast the swaps still to come, so the cup that visibly holds the ball isn't the favourite. Adding readouts made it worse; taking them away wasn't enough. |
+| Shunt | 3.75 | 3.37 | 3.43 | 2.65 | Stays retired. The chance depends on how the siding splits the waiting cars into groups, which players didn't read, and the player has no decision to make. |
+
+Shells and Shunt keep their pre-restyle code, so their 2026-11-10 reviews stay current.

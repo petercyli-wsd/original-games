@@ -44,9 +44,10 @@ export interface BoardProps {
   roundKey: number;
   dropMs: number;
   turnMs: number;
+  emitMs: number;
 }
 
-export default function Board({ angle, delta, path, planned, shot, outcome, live, roundKey, dropMs, turnMs }: BoardProps) {
+export default function Board({ angle, delta, path, planned, shot, outcome, live, roundKey, dropMs, turnMs, emitMs }: BoardProps) {
   // The construction on display: the shot in flight (or the one that ended the round), else the next turn.
   const from = shot ? shot.from : angle;
   const d = shot ? shot.delta : delta;
@@ -112,7 +113,7 @@ export default function Board({ angle, delta, path, planned, shot, outcome, live
       )}
 
       {/* The photon's polarisation vector. */}
-      <g key={roundKey} className={`photon ${vecTone}` + (live ? ' emit' : '')}>
+      <g key={roundKey} className={`photon ${vecTone}` + (live ? ' emit' : '')} style={{ animationDuration: `${emitMs}ms` }}>
         <g className="rot" style={{ transform: `rotate(${-vecAngle}deg)`, transitionDuration: `${turnMs}ms` }}>
           <line x1={O.x} y1={O.y} x2={O.x + R - 12} y2={O.y} className="vec" />
           <path d={`M ${O.x + R + 4} ${O.y} l -20 -9 l 0 18 Z`} className="head" />
@@ -141,17 +142,14 @@ export default function Board({ angle, delta, path, planned, shot, outcome, live
       {/* The squared shadow as a bar: green passes, red absorbs. */}
       {p !== null && (
         <g className="bar">
-          <text x={BAR.x + BAR.w / 2} y={BAR.top - 30} className="bar-val">
-            {(p * 100).toFixed(1)}%
-          </text>
           <text x={BAR.x + BAR.w / 2} y={BAR.top - 14} className="bar-cap">
-            passes
+            cos²Δ
           </text>
           <rect x={BAR.x} y={BAR.top} width={BAR.w} height={R * (1 - p)} className="absorb" />
           <rect x={BAR.x} y={BAR.bottom - R * p} width={BAR.w} height={R * p} className="pass" />
           <rect x={BAR.x} y={BAR.top} width={BAR.w} height={R} className="frame" />
-          <text x={BAR.x + BAR.w / 2} y={BAR.bottom + 20} className="bar-cap">
-            cos²Δ
+          <text x={BAR.x + BAR.w} y={BAR.bottom + 40} className="bar-cap end">
+            Green: photon passes
           </text>
           {shot && (
             <g className={`marker ${markerTone}`} style={{ transform: `translateY(${markerY}px)`, transitionDuration: `${dropMs}ms` }}>

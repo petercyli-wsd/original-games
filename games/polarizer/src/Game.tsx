@@ -15,6 +15,7 @@ import {
   RoundOver,
   StageTop,
   VolBadge,
+  eventMs,
   fmtChance,
   fmtMult,
   useBetInput,
@@ -58,7 +59,8 @@ interface Round {
   outcome: Outcome | null;
 }
 
-const ACCENT = '#80ffdb';
+const ACCENT = '#5ec4e6';
+const RULE = 'Reach 90° before any polarizer absorbs the photon.';
 const OUTCOME_TITLE: Record<Outcome, string> = { absorbed: 'Absorbed', through: 'Through at 90°', cashed: 'Cashed out' };
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
@@ -104,10 +106,9 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const speed = turbo.turbo ? 0.25 : 1;
-  const emitMs = Math.round(450 * speed);
-  const dropMs = Math.round(700 * speed);
-  const turnMs = Math.round(600 * speed);
+  const emitMs = eventMs(turbo.turbo);
+  const dropMs = eventMs(turbo.turbo);
+  const turnMs = eventMs(turbo.turbo);
   const live = phase === 'emitting' || phase === 'firing' || phase === 'checkpoint';
 
   function finish(r: Round, outcome: Outcome, cash: number) {
@@ -240,12 +241,6 @@ export default function Game() {
               />
             </>
           )}
-          <dl className="og-stats">
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(live ? pPlan : p0)}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(live ? prize : RTP / p0)}</dd>
-          </dl>
 
           {phase === 'checkpoint' && round ? (
             <>
@@ -268,25 +263,20 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
+      <ChanceBar p={live || over ? pPlan : p0} label="Reach 90°" />
+
       <Readouts
         items={[
           {
-            label: 'Reach 90°',
-            value: fmtChance(live || over ? pPlan : p0),
-            sub: live && angle < GOAL ? `plan ${planLabel(angle, size)}` : over ? `photon at ${angle}°` : `plan ${planLabel(0, turn)}`,
-            tone: 'chance',
-          },
-          { label: 'Cash out now', value: live || over ? fmtMult(cash) : '—', sub: live || over ? formatAmount(stake * cash, 2) : 'after each polarizer', tone: 'cash' },
-          {
             label: 'Prize at 90°',
             value: round?.outcome === 'absorbed' ? '—' : fmtMult(live || over ? prize : RTP / p0),
-            sub: live ? 'for this plan' : round?.outcome === 'absorbed' ? 'absorbed' : formatAmount(stake * (over ? prize : RTP / p0), 2),
             tone: 'prize',
           },
         ]}
       />
 
-      <Board>
+
+      <Board className="polar-board">
         <Field
           angle={angle}
           delta={busy && shot ? shot.delta : delta}
@@ -298,6 +288,7 @@ export default function Game() {
           roundKey={round?.id ?? 0}
           dropMs={dropMs}
           turnMs={turnMs}
+          emitMs={emitMs}
         />
         {over && round?.outcome && (
           <RoundOver
@@ -314,25 +305,14 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={phase === 'emitting' ? passChance(nextTurn(0, pick)) : pNext}
-          label={`Next polarizer passes (+${delta ?? 0}°)`}
-          note="cos²Δ: the green shadow of the photon on the new axis, squared, is the green part of the bar."
-        />
-      ) : (
-        <Caption>
-          Malus: each polarizer passes the photon with chance cos²Δ. Quantum Zeno: {planLabel(0, turn)} gets through {fmtChance(p0)} of the time,{' '}
-          {turn === 5 ? `2 × 45° only ${fmtChance(zeno(2))}` : `18 × 5° gets through ${fmtChance(zeno(18))}`}, and one 90° polarizer never does. RTP{' '}
-          {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
+
 
       {infoOpen && (
         <InfoModal title="Polarizer" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              A photon leaves the source polarised at 0°. Turn its polarisation to <b style={{ color: 'var(--gold)' }}>90°</b> by sending it through
+              A photon leaves the source polarised at 0°. Turn its polarisation to <b style={{ color: 'var(--text)' }}>90°</b> by sending it through
               polarizers, each set a little further round. If one absorbs it, the round is lost.
             </p>
           </InfoSection>
@@ -349,8 +329,8 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The white arrow is the photon's polarisation. The <b style={{ color: ACCENT }}>dashed line</b> is the next polarizer's axis, Δ degrees further
-              round. Drop a perpendicular from the arrow's tip onto that axis: the <b style={{ color: 'var(--green)' }}>green shadow</b> has length cos Δ.
-              Its square is the chance the photon passes, drawn as the <b style={{ color: 'var(--green)' }}>green part of the bar</b>. When the polarizer
+              round. Drop a perpendicular from the arrow's tip onto that axis: the <b style={{ color: 'var(--win)' }}>green shadow</b> has length cos Δ.
+              Its square is the chance the photon passes, drawn as the <b style={{ color: 'var(--win)' }}>green part of the bar</b>. When the polarizer
               fires, a marker drops to a random height on the bar: on green the photon passes and turns to the new axis, on red it is absorbed.
             </p>
             <p>The hollow dots on the dial are the polarizers still to come in your plan; the readout above the board multiplies their chances.</p>

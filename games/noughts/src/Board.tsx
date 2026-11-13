@@ -132,7 +132,7 @@ export default function Board({ grid, side, slots, cells, base, odds, threats, l
   const label = `${SIDE_NAME[side]}: ${fmtChance(base)} this game`;
 
   return (
-    <svg viewBox={`${X0 - 8} 0 ${SPAN + 16} ${HEIGHT}`} className="nt" role="img" aria-label={label} style={{ ['--draw' as string]: `${drawMs}ms`, ['--fade' as string]: `${drawMs}ms` }}>
+    <svg viewBox={`${X0 - 8} 0 ${SPAN + 16} ${HEIGHT}`} className={`nt back-${side.toLowerCase()}`} role="img" aria-label={label} style={{ ['--draw' as string]: `${drawMs}ms`, ['--fade' as string]: `${drawMs}ms` }}>
       {/* Header: the series on the left, whose mark is next on the right. */}
       <g className="nt-head">
         {games > 1 ? (
@@ -248,13 +248,13 @@ export default function Board({ grid, side, slots, cells, base, odds, threats, l
             const x = i === 0 ? X0 : i === 1 ? X0 + SPAN / 2 : X0 + SPAN;
             return (
               <text key={`l${b.side}`} x={x} y={BAR_Y + BAR_H + 22} textAnchor={anchor} className={'nt-legend' + (b.side === side ? ' yours' : '')}>
-                {b.side === 'D' ? 'Draw' : `${b.side} wins`} <tspan className="nt-legend-p">{fmtChance(odds[b.side])}</tspan>
+                {b.side === 'D' ? 'Draw' : `${b.side} wins`}
               </text>
             );
           })}
           {cells && (
             <text x={X0 + SPAN / 2} y={BAR_Y + BAR_H + 46} className="nt-key">
-              Cell % = your chance if the next mark lands there
+              Cell: your chance if mark lands here
             </text>
           )}
         </g>

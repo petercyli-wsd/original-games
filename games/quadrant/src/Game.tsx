@@ -6,6 +6,7 @@ import {
   Caption,
   ChanceBar,
   Chips,
+  EVENT_MS,
   GameLayout,
   InfoModal,
   InfoSection,
@@ -27,21 +28,17 @@ import {
 } from '@originals/game-sdk/ui';
 import { formatAmount } from '@originals/game-sdk';
 import { useRef, useState } from 'react';
-import QuadrantBoard, { Glyph, PointStrip, fmtNum, useTween, type Anim, type PointPill, type Stage } from './Board';
+import QuadrantBoard, { Glyph, fmtNum, useTween, type Anim, type Stage } from './Board';
 import {
   POINTS,
   RTP,
-  SLICES,
   TARGET_LABEL,
   cashOut,
   drawX,
   drawY,
-  greenSlices,
   inTarget,
   pLandGivenX,
-  pPoint,
   pWin,
-  pWin0,
   prize,
   rhoOf,
   settles,
@@ -70,7 +67,8 @@ interface Round {
 }
 
 /** Reveal times in ms (turbo runs them at a quarter). */
-const MS = { x: 1000, y: 950, hold: 420 };
+const MS = { x: EVENT_MS, y: EVENT_MS, hold: 300 };
+const RULE = 'Win if each point lands in the green zone.';
 
 const fmtRho = (theta: number) => {
   const r = rhoOf(theta);
@@ -137,7 +135,7 @@ export default function Game() {
     const next: Round = { ...r, cur: { x, y }, cash, early };
     setRound(next);
     setPhase('revealing');
-    const ms = dur(early ? MS.y * 0.7 : MS.y);
+    const ms = dur(MS.y);
     animate(1, 2, ms);
     timers.after(ms + dur(MS.hold), () => {
       if (last) return finish(next, hit ? 'won' : 'lost', cash);
@@ -207,8 +205,6 @@ export default function Game() {
   // ---------- what the board and readouts show ----------
   const s = round?.s ?? settings;
   const stake = round?.stake ?? bet.value;
-  const p1 = pPoint(s.target, s.theta);
-  const k = greenSlices(s.target, s.theta);
   const full = prize(s);
   const drawTheta = useTween(s.theta, dur(280));
   const cur = round?.cur ?? null;
@@ -225,29 +221,7 @@ export default function Game() {
     else pNow = round.outcome === 'won' ? 1 : 0;
     cashNow = round.cash;
   }
-  const pThis = cur && curStage === 1 ? pLandGivenX(s.target, s.theta, cur.x) : p1;
-  const toGo = s.points - landedCount - (cur && curStage === 1 ? 1 : 0);
   const vol = volatilityOf(settings);
-  const word = TARGET_LABEL[s.target].toLowerCase();
-
-  // The per-point strip.
-  const pills: PointPill[] = Array.from({ length: s.points }, (_, i) => {
-    if (i < landedCount) {
-      const [lx, ly] = round!.landed[i];
-      return { state: 'in', value: '✓ in', note: `(${fmtNum(lx)}, ${fmtNum(ly)})` };
-    }
-    if (i === landedCount && cur && round) {
-      if (cur.y !== null && phase === 'over') {
-        return hit
-          ? { state: 'in', value: '✓ in', note: `(${fmtNum(cur.x)}, ${fmtNum(cur.y)})` }
-          : { state: 'out', value: '✗ out', note: `(${fmtNum(cur.x)}, ${fmtNum(cur.y)})` };
-      }
-      if (curStage >= 1) return { state: 'now', value: fmtChance(pThis), note: `x = ${fmtNum(cur.x)} · bell` };
-      return { state: 'now', value: fmtChance(p1), note: 'revealing x' };
-    }
-    if (i === landedCount && round && phase === 'checkpoint') return { state: 'now', value: fmtChance(p1), note: 'next · cloud' };
-    return { state: 'todo', value: fmtChance(p1), note: `${k} of ${SLICES} slices` };
-  });
 
   // Status and titles.
   const pointNo = Math.min(s.points, landedCount + 1);
@@ -262,31 +236,10 @@ export default function Game() {
   if (phase === 'over') status = title;
   const tone = phase === 'over' ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
-  // Readout notes.
-  let chanceSub = s.points > 1 ? `${fmtChance(p1)} per point` : 'green share of the cloud';
-  if (live && cur && curStage === 1) chanceSub = toGo > 0 ? `bell ${fmtChance(pThis)} × ${fmtChance(p1)}${toGo > 1 ? (toGo === 2 ? '²' : '³') : ''}` : 'green share of the bell';
-  else if (live && toGo < s.points) chanceSub = `${fmtChance(p1)} × ${plural(toGo, 'point')} to go`;
-  if (phase === 'over' && round?.outcome !== 'cashed') chanceSub = round?.outcome === 'won' ? 'landed' : 'missed';
-
-  let barNote = 'The green share of the cloud: each of the 36 slices holds 1/36 of the chance.';
-  if (cur && curStage === 1) barNote = 'The green share of the bell on the slice through x is this point’s chance.';
-  if (s.points > 1) barNote += ` All ${s.points} points must land.`;
-
-  const sheppardText =
-    s.target === 'corner' ? (
-      <>
-        P(top-right) = ¼ + arcsin(ρ)/2π = {k}/{SLICES}
-      </>
-    ) : (
-      <>
-        P(same sign) = ½ + arcsin(ρ)/π = {k}/{SLICES}
-      </>
-    );
-
   return (
     <GameLayout
       name="Quadrant"
-      accent="#a8dadc"
+      accent="#5ec4e6"
       panel={
         <>
           <BetField bet={bet} disabled={live} />
@@ -353,24 +306,13 @@ export default function Game() {
             onChange={(v) => change(() => setPoints(v as Points))}
           />
 
-          <dl className="og-stats">
-            <dt>Per point</dt>
-            <dd>
-              {greenSlices(target, theta)}/{SLICES} = {fmtChance(pPoint(target, theta))}
-            </dd>
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(pWin0(settings))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prize(settings))}</dd>
-          </dl>
-
           {phase === 'checkpoint' ? (
             <>
               <ActionButton kind="cash" onClick={cashOutNow}>
                 Cash out <span>{formatAmount(stake * cashNow, 2)}</span>
               </ActionButton>
               <ActionButton kind="secondary" onClick={next}>
-                {cur ? `Reveal y · ${fmtChance(pThis)} to land` : `Next point · ${fmtChance(p1)} to land`}
+                {cur ? 'Reveal y' : 'Next point'}
               </ActionButton>
             </>
           ) : (
@@ -387,9 +329,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          { label: 'Win chance', value: fmtChance(pNow), sub: chanceSub, tone: 'chance' },
-          { label: 'Cash out now', value: live || phase === 'over' ? fmtMult(cashNow) : '—', sub: formatAmount(stake * cashNow, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(full), sub: s.points > 1 ? `if all ${s.points} land ${word}` : `if it lands ${word}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(pNow), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(full), tone: 'prize' },
         ]}
       />
 
@@ -403,7 +344,6 @@ export default function Game() {
           anim={anim}
           hit={hit}
           speed={speed}
-          pointLabel={pointLabel}
         />
         {phase === 'over' && round?.outcome ? (
           <RoundOver
@@ -417,19 +357,12 @@ export default function Game() {
             onClear={clear}
             placement="inline"
           />
-        ) : (
-          <PointStrip pills={pills} />
-        )}
+        ) : null}
       </Board>
 
-      {live ? (
-        <ChanceBar p={pNow} label="Chance to win" note={barNote} />
-      ) : (
-        <Caption>
-          Sheppard: {sheppardText} = {fmtChance(p1)} at ρ = {fmtRho(s.theta)}
-          {s.points > 1 ? `; all ${s.points} points land ${fmtChance(pWin0(s))} of the time` : ''}. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <ChanceBar p={pNow} label="Win chance" />
+
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Quadrant" onClose={() => setInfoOpen(false)}>
