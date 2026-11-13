@@ -1,41 +1,31 @@
-// Cases (the case-opening format seen on Stake and the CS-style case sites).
+// Cases: one case per bet, drawn from a fixed weighted table (the Stake Cases mechanism).
 //
-// A case is a discrete prize distribution. Each of the four difficulties is a
-// list of items (payout multipliers) with INTEGER weights out of 100,000, so
-// every chance shown on screen is exact to the thousandth of a percent:
+// Each of the four difficulties is a list of items (payout multipliers) with
+// INTEGER weights out of 1,000,000, so every chance shown is exact:
 //
-//   P(item i) = w_i / 100,000,   RTP = Σ w_i · m_i / 100,000.
+//   P(item i) = w_i / 1,000,000,   RTP = Σ w_i · m_i / 1,000,000.
 //
-// Multipliers are whole hundredths (cents), so the RTP is checked with integer
-// arithmetic, not floats:  Σ w_i · cents_i = 99 · 100,000  for every case,
-// i.e. every case returns exactly 99.000%.
+// The tables are Stake's published ones, value for value (7 / 11 / 15 / 19
+// items for Easy / Medium / Hard / Expert). Multipliers are whole hundredths,
+// so the RTP is checked in integers: Σ w_i · cents_i = 98 · 1,000,000 for every
+// difficulty, i.e. every table returns exactly 98.000%. The four difficulties
+// share the RTP and differ only in volatility.
 //
-// Opening draws one uniform u ∈ [0, 1) from the host RNG; k = ⌊u · 100,000⌋
+// Opening draws one uniform u in [0, 1) from the host RNG; k = ⌊u · 1,000,000⌋
 // selects the item whose cumulative-weight interval contains k. The reel that
 // scrolls past is decoration: its other items come from a deterministic
 // generator seeded by u, never from the RNG, and only the item stopping under
-// the marker pays.
+// the marker pays. There is no cash-out and no choice during a round, so the
+// pricing is a single step from RTP to the drawn payout (a trivial martingale).
 //
-// "Cases per bet" (1–4) splits the stake evenly over n independent openings
-// of the same case. The payout multiplier is the average of the n items:
-//
-//   E[ (m_1 + … + m_n) / n ] = E[m] = 0.99,
-//
-// by linearity, so the case count only lowers the volatility (σ/√n), never
-// the RTP. Tests confirm it by exact enumeration of all n-tuples.
-//
-// Exact RTP: 99% for every difficulty and every case count. Max payout 1,000×
-// (Expert's top item; the average of n items can never exceed the top item).
+// Exact RTP: 98%. Max payout 10,000x (Expert's top item, weight 2 in 1,000,000).
 
-export const RTP = 0.99;
-export const WEIGHT_TOTAL = 100_000;
+export const RTP = 0.98;
+export const WEIGHT_TOTAL = 1_000_000;
 
 export type Difficulty = 'easy' | 'medium' | 'hard' | 'expert';
 export const DIFFICULTIES: readonly Difficulty[] = ['easy', 'medium', 'hard', 'expert'];
 export const DIFFICULTY_NAMES: Record<Difficulty, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard', expert: 'Expert' };
-
-export const CASE_COUNTS = [1, 2, 3, 4] as const;
-export type CaseCount = (typeof CASE_COUNTS)[number];
 
 export interface Item {
   /** Payout multiplier in hundredths (integer). */
@@ -48,47 +38,67 @@ export interface Item {
   p: number;
 }
 
-// [multiplier in cents, weight out of 100,000], lowest payout first.
+// [multiplier in cents, weight out of 1,000,000], lowest payout first.
 const TABLES: Record<Difficulty, readonly (readonly [number, number])[]> = {
   easy: [
-    [40, 9_600],
-    [70, 48_800],
-    [110, 25_000],
-    [140, 10_000],
-    [200, 4_000],
-    [300, 1_500],
-    [500, 800],
-    [1_000, 300],
+    [10, 410_000],
+    [40, 350_000],
+    [109, 100_000],
+    [200, 70_000],
+    [300, 40_000],
+    [1000, 20_000],
+    [2300, 10_000],
   ],
   medium: [
-    [20, 30_750],
-    [50, 35_900],
-    [120, 22_000],
-    [200, 7_000],
-    [400, 3_000],
-    [1_000, 1_000],
-    [2_500, 300],
-    [10_000, 50],
+    [0, 300_000],
+    [20, 270_000],
+    [40, 180_000],
+    [150, 130_000],
+    [200, 60_000],
+    [350, 30_000],
+    [750, 15_000],
+    [1000, 8_500],
+    [1500, 4_000],
+    [4100, 1_500],
+    [11500, 1_000],
   ],
   hard: [
-    [10, 44_776],
-    [60, 34_204],
-    [150, 14_000],
-    [300, 5_000],
-    [800, 1_500],
-    [2_500, 400],
-    [8_000, 100],
-    [40_000, 20],
+    [0, 350_000],
+    [20, 250_000],
+    [40, 120_000],
+    [80, 100_000],
+    [150, 100_000],
+    [300, 50_000],
+    [800, 20_000],
+    [1000, 4_000],
+    [1500, 3_000],
+    [3500, 2_000],
+    [5000, 400],
+    [10000, 300],
+    [25000, 150],
+    [49500, 100],
+    [100000, 50],
   ],
   expert: [
-    [0, 62_130],
-    [30, 23_000],
-    [200, 9_800],
-    [500, 3_500],
-    [1_500, 1_200],
-    [5_000, 300],
-    [20_000, 60],
-    [100_000, 10],
+    [0, 353_900],
+    [15, 200_000],
+    [30, 150_000],
+    [70, 150_000],
+    [150, 80_000],
+    [500, 30_000],
+    [700, 20_000],
+    [1000, 8_000],
+    [1500, 5_000],
+    [2000, 2_000],
+    [5000, 400],
+    [7500, 300],
+    [10000, 200],
+    [25000, 100],
+    [46000, 50],
+    [85000, 30],
+    [150000, 12],
+    [350000, 6],
+    [1000000, 2],
   ],
 };
 
@@ -118,79 +128,38 @@ export function itemIndex(u: number, d: Difficulty): number {
   return items.length - 1;
 }
 
-export interface Opening {
+export interface RoundResult {
   /** Uniform that decided this case (also seeds the decorative reel). */
   u: number;
   /** Index of the item won. */
   index: number;
-  mult: number;
-}
-
-export interface RoundResult {
-  openings: Opening[];
-  /** Payout multiplier on the whole stake: the average of the items won. */
+  /** Payout multiplier on the stake. */
   multiplier: number;
 }
 
-/** One bet: n openings of the same case, one RNG draw each. */
-export function playRound(next: () => number, d: Difficulty, n: number): RoundResult {
-  const openings: Opening[] = [];
-  let cents = 0;
-  for (let r = 0; r < n; r++) {
-    const u = next();
-    const index = itemIndex(u, d);
-    const it = CASES[d][index];
-    cents += it.cents;
-    openings.push({ u, index, mult: it.mult });
-  }
-  return { openings, multiplier: cents / (100 * n) };
-}
-
-/**
- * The exact distribution of the round's payout for n cases, by enumerating
- * every n-tuple of items (at most 8⁴ = 4,096). Keyed by the sum of cents.
- */
-const distCache = new Map<string, Map<number, number>>();
-export function roundDistribution(d: Difficulty, n: number): Map<number, number> {
-  const key = `${d}:${n}`;
-  const hit = distCache.get(key);
-  if (hit) return hit;
-  let dist = new Map<number, number>([[0, 1]]);
-  for (let r = 0; r < n; r++) {
-    const next = new Map<number, number>();
-    for (const [s, p] of dist) for (const it of CASES[d]) next.set(s + it.cents, (next.get(s + it.cents) ?? 0) + p * it.p);
-    dist = next;
-  }
-  distCache.set(key, dist);
-  return dist;
-}
-
-/** Exact RTP of a bet on n cases (enumerated, not assumed). */
-export function roundRtp(d: Difficulty, n: number): number {
-  let ev = 0;
-  for (const [s, p] of roundDistribution(d, n)) ev += p * (s / (100 * n));
-  return ev;
+/** One bet: one case, one RNG draw. */
+export function playRound(next: () => number, d: Difficulty): RoundResult {
+  const u = next();
+  const index = itemIndex(u, d);
+  return { u, index, multiplier: CASES[d][index].mult };
 }
 
 /** Exact chance the bet returns more than the stake. */
-export function profitChance(d: Difficulty, n: number): number {
-  let p = 0;
-  for (const [s, q] of roundDistribution(d, n)) if (s > 100 * n) p += q;
-  return p;
+export function profitChance(d: Difficulty): number {
+  return CASES[d].reduce((s, it) => s + (it.cents > 100 ? it.weight : 0), 0) / WEIGHT_TOTAL;
 }
 
-/** Standard deviation of the payout multiplier (σ of one case over √n). */
-export function stdDev(d: Difficulty, n: number): number {
+/** Standard deviation of the payout multiplier. */
+export function stdDev(d: Difficulty): number {
   const items = CASES[d];
   const m = items.reduce((s, it) => s + it.p * it.mult, 0);
-  const v = items.reduce((s, it) => s + it.p * (it.mult - m) ** 2, 0);
-  return Math.sqrt(v / n);
+  return Math.sqrt(items.reduce((s, it) => s + it.p * (it.mult - m) ** 2, 0));
 }
 
 export type Volatility = 'low' | 'medium' | 'high' | 'extreme';
-export function volatilityOf(d: Difficulty, n: number): Volatility {
-  const sd = stdDev(d, n);
-  return sd < 1.5 ? 'low' : sd < 5 ? 'medium' : sd < 9 ? 'high' : 'extreme';
+export function volatilityOf(d: Difficulty): Volatility {
+  const sd = stdDev(d);
+  return sd < 3.5 ? 'low' : sd < 7 ? 'medium' : sd < 12 ? 'high' : 'extreme';
 }
 
 // ---------- Rarity (presentation only) ----------

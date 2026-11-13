@@ -30,9 +30,6 @@
   gap: var(--sp-2);
   width: 100%;
 }
-.cs-reels.n2 { --card: 100px; --reel-h: 138px; --gap: 8px; }
-.cs-reels.n3,
-.cs-reels.n4 { --card: 76px; --reel-h: 98px; --gap: 6px; }
 
 .cs-reel {
   position: relative;
@@ -76,9 +73,6 @@
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.cs-reels.n2 .cs-item b { font-size: var(--fs-3); }
-.cs-reels.n3 .cs-item b,
-.cs-reels.n4 .cs-item b { font-size: var(--fs-2); }
 .cs-item.mystery b { color: var(--muted); }
 .cs-item.dim { opacity: 0.4; }
 /* The landed prize stays marked until the next open. */
@@ -154,16 +148,8 @@
 @container (max-width: 520px) {
   .cs-board { min-height: 220px; }
   .cs-reels { --card: 88px; --reel-h: 124px; --gap: 7px; }
-  .cs-reels.n2 { --card: 74px; --reel-h: 104px; --gap: 6px; }
-  .cs-reels.n3,
-  .cs-reels.n4 { --card: 62px; --reel-h: 86px; --gap: 5px; }
   .cs-reels.n1 .cs-item b { font-size: var(--fs-3); }
-  .cs-reels.n2 .cs-item b { font-size: var(--fs-2); }
-  .cs-reels.n3 .cs-item b,
-  .cs-reels.n4 .cs-item b { font-size: var(--fs-1); }
 }
-.cs-reels.n3 .cs-item,
-.cs-reels.n4 .cs-item { height: calc(var(--reel-h) - 20px); }
 
 /* The Auto panel is taller than the frame: scroll it rather than squashing rows. */
 .cs-game .og-panel > * { flex-shrink: 0; }
