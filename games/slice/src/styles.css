@@ -1,319 +1,64 @@
-/* Lives inside the game's shadow root: use :host, not :root. Colours, type and
-   spacing come from the kit's tokenStyles (docs/STYLE.md); this file only lays
-   out Slice's own panel and board. Flat: no gradients, glows or shadows. */
+/* Slice: a square board with a cut-down region and your circle. Layout, panel and readouts come from the kit. */
 
-:host {
-  display: block;
-  height: 100%;
+/* ---------- Panel ---------- */
+.og-panel > * {
+  flex-shrink: 0;
 }
-
-* {
-  box-sizing: border-box;
-}
-
-.slice {
-  --accent: #5ec4e6; /* ACCENTS.sky */
-
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  height: 100%;
-  min-height: 600px;
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  color-scheme: dark;
-}
-
-button,
-input {
-  font: inherit;
-  color: inherit;
-}
-button {
-  cursor: pointer;
-  border: 0;
-  border-radius: var(--radius);
-  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---------------------------------------------------------------- panel */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-4);
-  background: var(--raised);
-  border-right: 1px solid var(--line);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.label em {
-  font-style: normal;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-.bet-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px 48px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.bet-row input {
-  min-width: 0;
-  padding: 10px var(--sp-3);
-  font-size: var(--fs-3);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 0;
-  outline: none;
-}
-.bet-row button {
-  border-radius: 0;
-  border-left: 1px solid var(--line);
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-}
-.bet-row button:not(:disabled):hover {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.sizes {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.sizes button {
+.slice-size {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: var(--sp-2) 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--muted);
 }
-.sizes svg {
+.slice-size svg {
   width: 22px;
   height: 22px;
   margin-bottom: 2px;
 }
-.sizes rect {
+.slice-size rect {
   fill: none;
   stroke: currentColor;
   stroke-opacity: 0.5;
 }
-.sizes circle {
+.slice-size circle {
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
 }
-.sizes span {
+.slice-size span {
   font-size: var(--fs-1);
   font-weight: 600;
 }
-.sizes b {
+.slice-size b {
   font-size: var(--fs-2);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-.sizes button:not(:disabled):hover {
-  color: var(--text);
-}
-.sizes button.on {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.segmented button {
-  padding: 7px 0;
-  border-radius: 4px;
-  font-size: var(--fs-2);
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-}
-.segmented button.on {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.primary,
-.secondary {
-  padding: 13px var(--sp-3);
-  font-size: var(--fs-3);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.primary {
-  color: var(--bg);
-  background: var(--text);
-}
-.primary:not(:disabled):hover {
-  background: #ffffff;
-}
-.secondary {
-  margin-top: calc(-1 * var(--sp-2));
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-}
-.secondary:not(:disabled):hover {
-  background: var(--hover);
-}
-
-.toggles {
-  display: flex;
-  gap: var(--sp-4);
-}
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-2);
-  color: var(--muted);
-  cursor: pointer;
-  user-select: none;
-}
-.toggle input {
-  width: 16px;
-  height: 16px;
+.slice-blocked {
   margin: 0;
-  accent-color: var(--text);
-}
-.toggle input:checked ~ span {
-  color: var(--text);
-}
-
-.foot {
-  margin-top: auto;
-}
-.link {
-  padding: 7px 10px;
-  font-size: var(--fs-2);
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--line);
-}
-.link:hover {
-  color: var(--text);
-  border-color: var(--line-strong);
-}
-
-/* ---------------------------------------------------------------- stage */
-
-.stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--sp-4);
-  min-width: 0;
-  padding: var(--sp-5) clamp(var(--sp-4), 3vw, var(--sp-6));
-  background: var(--card);
-}
-
-.status {
-  align-self: stretch;
-  min-height: 22px;
-  font-size: var(--fs-2);
-  font-weight: 600;
-  color: var(--muted);
-}
-.status.live {
-  color: var(--text);
-}
-.status.win {
-  color: var(--win);
-}
-.status.lose {
+  font-size: var(--fs-1);
+  text-align: center;
   color: var(--lose);
 }
 
-/* One flat row: the one chance and the prize. */
-.readout {
-  display: flex;
-  gap: var(--sp-6);
-  width: min(460px, 100%);
+/* ---------- Board ---------- */
+.slice-board-area {
+  min-height: 0;
 }
-.readout > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-.readout .label {
-  justify-content: flex-start;
-}
-.readout b {
-  font-size: var(--fs-4);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-.chance.win b {
-  color: var(--win);
-}
-.chance.lose b {
-  color: var(--lose);
-}
-
-.board-wrap {
-  position: relative;
-  width: min(460px, 100%);
-}
-
-.board {
+.og-board > svg.slice-svg {
   display: block;
-  width: 100%;
+  width: min(100%, 540px, max(270px, calc(100vh - 340px)));
   height: auto;
+  aspect-ratio: 1;
+  max-height: none;
   touch-action: none;
   user-select: none;
   overflow: visible;
 }
-.board.editable {
+.slice-svg.editable {
   cursor: grab;
 }
-.board.editable:active {
+.slice-svg.editable:active {
   cursor: grabbing;
 }
 
@@ -423,143 +168,6 @@ input:focus-visible {
   }
 }
 
-.outcome {
-  align-self: stretch;
-  display: flex;
-  justify-content: center;
-}
-.outcome:empty {
-  display: none;
-}
-
-/* The one-sentence rule under the board. */
-.rule {
-  margin: 0;
-  font-size: var(--fs-2);
-  line-height: 1.5;
-  text-align: center;
-  color: var(--muted);
-}
-
-/* ---------------------------------------------------------------- modal */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: var(--sp-5) var(--sp-4);
-  background: rgb(0 0 0 / 0.6);
-  animation: slice-fade 0.15s ease;
-}
-@keyframes slice-fade {
-  from {
-    opacity: 0;
-  }
-}
-.modal {
-  display: flex;
-  flex-direction: column;
-  width: min(560px, 100%);
-  max-height: min(86vh, 820px);
-  background: var(--raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-}
-.modal-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--sp-4) var(--sp-5);
-  border-bottom: 1px solid var(--line);
-}
-.modal-head h2 {
-  margin: 0;
-  font-size: var(--fs-4);
-  font-weight: 600;
-}
-.close {
-  width: 32px;
-  height: 32px;
-  color: var(--muted);
-  background: transparent;
-  border: 1px solid var(--line);
-}
-.close:hover {
-  color: var(--text);
-}
-.modal-body {
-  overflow-y: auto;
-  padding: var(--sp-1) var(--sp-5) var(--sp-5);
-  font-size: var(--fs-2);
-  line-height: 1.55;
-  color: var(--text);
-}
-.modal-body h3 {
-  margin: var(--sp-4) 0 var(--sp-2);
-  font-size: var(--fs-1);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.modal-body p {
-  margin: 0 0 var(--sp-2);
-}
-.modal-body ol,
-.modal-body ul {
-  display: grid;
-  gap: 6px;
-  margin: 0;
-  padding-left: 20px;
-}
-.lede {
-  margin-top: var(--sp-3) !important;
-  font-size: var(--fs-3);
-}
-.t-win {
-  color: var(--win);
-}
-.t-lose {
-  color: var(--lose);
-}
-kbd {
-  padding: 1px 6px;
-  font: inherit;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  background: var(--hover);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-}
-
-/* ---------------------------------------------------------------- phone */
-
-@media (max-width: 760px) {
-  .slice {
-    grid-template-columns: minmax(0, 1fr);
-    min-height: 0;
-  }
-  .stage {
-    order: -1;
-    padding: var(--sp-4);
-    gap: var(--sp-3);
-  }
-  .panel {
-    padding: var(--sp-4);
-    border-right: 0;
-    border-top: 1px solid var(--line);
-  }
-  /* Keep the round's actions right under the board. */
-  .panel .primary,
-  .panel .secondary {
-    order: -1;
-  }
-  .board-wrap {
-    width: min(400px, 100%);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .piece,
