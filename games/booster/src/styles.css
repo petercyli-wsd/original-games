@@ -1,0 +1,101 @@
+/* Booster board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.pack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+}
+.pack-card {
+  width: 112px;
+  height: 148px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  background: var(--raised);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  text-align: center;
+}
+.pack-card b {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.pack-card b.back {
+  color: var(--faint);
+}
+.pack-card span {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.pack-card .pips {
+  font-style: normal;
+  font-size: var(--fs-1);
+  letter-spacing: 2px;
+  color: var(--muted);
+}
+.pack-card:not(.up):not(.flip) {
+  background: var(--bg);
+  border-style: dashed;
+  border-color: var(--line);
+}
+.pack-card.flip {
+  border-color: var(--accent);
+  animation: pack-flip var(--flip) ease-in-out;
+}
+.pack-card.up.pays {
+  border-color: var(--win);
+}
+.pack-card.up.newest {
+  border-color: var(--accent);
+}
+@keyframes pack-flip {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(0.6); }
+  100% { transform: scaleX(1); }
+}
+
+.pack-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--sp-1) var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.pack-tiers b {
+  font-weight: 600;
+  color: var(--text);
+}
+.pack-key {
+  text-align: center;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+
+.pack-odds {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+.pack-odds td {
+  padding: 2px var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+}
+.pack-odds td:nth-child(2) {
+  text-align: left;
+}
+
+.pack-tiers em {
+  font-style: normal;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
