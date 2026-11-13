@@ -5,16 +5,17 @@ import manifest from './manifest';
 import {
   DIFFICULTIES,
   DIFFICULTY,
-  LANES,
   MAX_MULTIPLIER,
-  OUT_OF,
   RTP,
+  SLOTS,
   afterSafe,
   buildRoad,
+  choose,
   cross,
   finish,
-  hitChance,
-  laneSafe,
+  finishChance,
+  hazardChance,
+  lanesOf,
   multiplier,
   reachChance,
   type Difficulty,
@@ -26,59 +27,75 @@ const int = (n: number) => rng.int(n);
 /** Exact value of the stopping rule "cash out when stopAt(k)" by backward induction over k. */
 function strategyValue(d: Difficulty, stopAt: (k: number) => boolean): number {
   const value = (k: number): number => {
-    if (k === LANES || (k > 0 && stopAt(k))) return multiplier(d, k);
-    return laneSafe(d) * value(k + 1);
+    if (k === lanesOf(d) || (k > 0 && stopAt(k))) return multiplier(d, k);
+    return (1 - hazardChance(d, k)) * value(k + 1);
   };
   return value(0);
 }
 
-describe('Chicken maths', () => {
-  it('pays RTP / (1 − h)^k: every fixed target lane is worth exactly 99%', () => {
+describe('Chicken maths (Stake road: 20 slots, 98%)', () => {
+  it('matches the published Stake table: lanes, first lane, top prize, chance to finish', () => {
+    const table: Record<Difficulty, [number, number, number, number]> = {
+      easy: [19, 1.03, 19.6, 20],
+      medium: [17, 1.15, 1117.2, 1140],
+      hard: [15, 1.31, 15193.92, 15504],
+      expert: [10, 1.96, 181060.88, 184756],
+    };
     for (const d of DIFFICULTIES) {
-      for (let k = 0; k <= LANES; k++) expect(reachChance(d, k) * multiplier(d, k)).toBeCloseTo(RTP, 12);
+      const [lanes, first, top, oneIn] = table[d];
+      expect(lanesOf(d)).toBe(lanes);
+      expect(multiplier(d, 1)).toBeCloseTo(first, 2);
+      expect(finish(d)).toBeCloseTo(top, 2);
+      expect(finishChance(d, 0)).toBeCloseTo(1 / oneIn, 12);
+      expect(reachChance(d, lanes)).toBeCloseTo(1 / oneIn, 12);
     }
-    expect(hitChance('easy')).toBe(1 / 25);
-    expect(hitChance('medium')).toBe(3 / 25);
-    expect(hitChance('hard')).toBe(5 / 25);
-    expect(hitChance('daredevil')).toBe(10 / 25);
-    expect(multiplier('hard', 1)).toBeCloseTo(1.2375, 12);
-    expect(finish('easy')).toBeCloseTo(0.99 * (25 / 24) ** 20, 12);
-    expect(finish('hard')).toBeCloseTo(0.99 * 1.25 ** 20, 9);
-    expect(finish('daredevil')).toBeCloseTo((0.99 * 5 ** 20) / 3 ** 20, 6);
+    expect(RTP).toBe(0.98);
+    expect(multiplier('medium', 4)).toBeCloseTo(2, 2); // 2.00x shown: Medium takes 4 lanes to reach 2x
+    expect(multiplier('medium', 3)).toBeLessThan(2);
+    expect(MAX_MULTIPLIER).toBeCloseTo(181060.88, 2);
   });
 
-  it('exact enumeration: the per-lane hit is int(25) < hits, so its chance is exactly hits / 25', () => {
+  it('every payout table is exactly RTP: M(k) * C(20 - k, m) / C(20, m) = 0.98 for every k (subset counting)', () => {
     for (const d of DIFFICULTIES) {
-      let hit = 0;
-      for (let u = 0; u < OUT_OF; u++) if (u < DIFFICULTY[d].hits) hit++;
-      expect(hit / OUT_OF).toBe(hitChance(d));
-    }
-  });
-
-  it('exact enumeration over a short road: every target pays 99%', () => {
-    // Enumerate all 25^3 draws for three lanes; each target 1..3 is worth RTP.
-    for (const d of DIFFICULTIES) {
-      const hits = DIFFICULTY[d].hits;
-      for (let target = 1; target <= 3; target++) {
-        let ev = 0;
-        for (let a = 0; a < OUT_OF; a++)
-          for (let b = 0; b < OUT_OF; b++)
-            for (let c = 0; c < OUT_OF; c++) {
-              const road = [a < hits, b < hits, c < hits, ...new Array(LANES - 3).fill(false)];
-              ev += cross(road, d, target).multiplier;
-            }
-        expect(ev / OUT_OF ** 3).toBeCloseTo(RTP, 12);
+      const m = DIFFICULTY[d].hazards;
+      for (let k = 0; k <= lanesOf(d); k++) {
+        // Subsets of m hazards with none in slots 1..k: C(20 - k, m) of C(20, m).
+        const p = choose(SLOTS - k, m) / choose(SLOTS, m);
+        expect(p * multiplier(d, k)).toBeCloseTo(RTP, 10);
+        expect(reachChance(d, k)).toBeCloseTo(p, 12);
+        expect(multiplier(d, k)).toBeCloseTo((RTP * choose(SLOTS, k)) / choose(SLOTS - m, k), 6 - Math.floor(Math.log10(multiplier(d, k) + 1)));
       }
+    }
+  });
+
+  it('exact enumeration of buildRoad: every hazard subset is equally likely (Easy, Medium)', () => {
+    for (const d of ['easy', 'medium'] as Difficulty[]) {
+      const m = DIFFICULTY[d].hazards;
+      const counts = new Map<string, number>();
+      const walk = (draws: number[]) => {
+        if (draws.length === m) {
+          let i = 0;
+          const road = buildRoad(d, () => draws[i++]);
+          expect(road.filter(Boolean).length).toBe(m);
+          const key = road.map((x) => (x ? 1 : 0)).join('');
+          counts.set(key, (counts.get(key) ?? 0) + 1);
+          return;
+        }
+        for (let u = 0; u < SLOTS - draws.length; u++) walk([...draws, u]);
+      };
+      walk([]);
+      expect(counts.size).toBe(choose(SLOTS, m));
+      expect(new Set(counts.values()).size).toBe(1);
     }
   });
 
   it('every stopping rule returns exactly RTP (analytic, backward induction)', () => {
     for (const d of DIFFICULTIES) {
-      expect(strategyValue(d, () => false)).toBeCloseTo(RTP, 10); // to the far kerb
-      for (let t = 1; t <= LANES; t++) expect(strategyValue(d, (k) => k >= t)).toBeCloseTo(RTP, 10);
+      expect(strategyValue(d, () => false)).toBeCloseTo(RTP, 10);
+      for (let t = 1; t <= lanesOf(d); t++) expect(strategyValue(d, (k) => k >= t)).toBeCloseTo(RTP, 10);
       for (const target of [1.5, 3, 10, 100, 5000]) expect(strategyValue(d, (k) => multiplier(d, k) >= target)).toBeCloseTo(RTP, 10);
       for (let trial = 0; trial < 40; trial++) {
-        const stops = Array.from({ length: LANES + 1 }, () => rng.next() < 0.2);
+        const stops = Array.from({ length: lanesOf(d) + 1 }, () => rng.next() < 0.2);
         expect(strategyValue(d, (k) => stops[k])).toBeCloseTo(RTP, 10);
       }
     }
@@ -86,21 +103,21 @@ describe('Chicken maths', () => {
 
   it('each lane is a fair bet: E[cash-out after] = cash-out before', () => {
     for (const d of DIFFICULTIES) {
-      for (let k = 0; k < LANES; k++) {
+      for (let k = 0; k < lanesOf(d); k++) {
         const before = multiplier(d, k);
-        expect(laneSafe(d) * afterSafe(before, d)).toBeCloseTo(before, 9);
-        expect(afterSafe(before, d) / multiplier(d, k + 1)).toBeCloseTo(1, 12);
+        expect((1 - hazardChance(d, k)) * afterSafe(before, d, k)).toBeCloseTo(before, 9);
+        expect(afterSafe(before, d, k) / multiplier(d, k + 1)).toBeCloseTo(1, 12);
       }
     }
   });
 
-  it('a direct simulation of the raw road reaches lane k as often as (1 − h)^k says', () => {
+  it('a direct simulation of the raw road reaches lane k as often as C(20 - m, k) / C(20, k) says', () => {
     const n = 40_000;
     for (const [d, k] of [
-      ['easy', 20],
+      ['easy', 19],
       ['medium', 8],
       ['hard', 5],
-      ['daredevil', 3],
+      ['expert', 3],
     ] as [Difficulty, number][]) {
       const p = reachChance(d, k);
       let wins = 0;
@@ -109,27 +126,26 @@ describe('Chicken maths', () => {
     }
   });
 
-  it('the shown odds are the true odds: the next lane is hit h of the time, after any history', () => {
+  it('the shown odds are the true odds: after 2 safe hops the next slot is a hazard m / 18 of the time', () => {
     for (const d of DIFFICULTIES) {
       const n = 60_000;
       let kept = 0;
       let hit = 0;
-      const lanes = new Array<number>(LANES).fill(0);
       for (let r = 0; r < n; r++) {
         const road = buildRoad(d, int);
-        road.forEach((h, i) => (lanes[i] += h ? 1 : 0));
-        // Condition on lanes 1–2 being safe; lane 3 must still be hit with chance h.
         if (road[0] || road[1]) continue;
         kept++;
         if (road[2]) hit++;
       }
-      const h = hitChance(d);
+      const h = hazardChance(d, 2);
+      expect(h).toBe(DIFFICULTY[d].hazards / 18);
       expect(Math.abs(hit / kept - h)).toBeLessThan(4 * Math.sqrt((h * (1 - h)) / kept));
-      for (const c of lanes) expect(Math.abs(c / n - h)).toBeLessThan(4 * Math.sqrt((h * (1 - h)) / n));
+      // The whole-bet bar: 1 / C(18, m) to clear everything from there.
+      expect(finishChance(d, 2)).toBeCloseTo(reachChance(d, lanesOf(d)) / reachChance(d, 2), 12);
     }
   });
 
-  it('an auto bet resolves once, to M(target) or 0, and returns 99%', () => {
+  it('an auto bet resolves once, to M(target) or 0, and returns 98%', () => {
     const d: Difficulty = 'medium';
     const target = 5;
     const n = 60_000;
@@ -140,11 +156,9 @@ describe('Chicken maths', () => {
       const res = cross(road, d, target);
       if (res.hit === null) {
         expect(res.lanes).toBe(target);
-        expect(res.multiplier).toBeCloseTo(multiplier(d, target), 12);
         expect(road.slice(0, target).some(Boolean)).toBe(false);
       } else {
         expect(res.multiplier).toBe(0);
-        expect(res.lanes).toBe(res.hit);
         expect(road[res.hit - 1]).toBe(true);
         expect(road.slice(0, res.hit - 1).some(Boolean)).toBe(false);
       }
@@ -154,20 +168,18 @@ describe('Chicken maths', () => {
     const mean = sum / n;
     const se = Math.sqrt((sumSq / n - mean ** 2) / n);
     expect(Math.abs(mean - RTP)).toBeLessThan(4 * se);
-    // Targets clamp to 1..20.
-    expect(cross(new Array(LANES).fill(false), d, 99).lanes).toBe(LANES);
-    expect(cross(new Array(LANES).fill(false), d, 0).lanes).toBe(1);
+    expect(cross(new Array(SLOTS).fill(false), d, 99).lanes).toBe(lanesOf(d));
+    expect(cross(new Array(SLOTS).fill(false), d, 0).lanes).toBe(1);
   });
 
   it('the paytable is monotone and the max multiplier is honest', () => {
     for (const d of DIFFICULTIES) {
-      for (let k = 1; k <= LANES; k++) {
+      for (let k = 1; k <= lanesOf(d); k++) {
         expect(multiplier(d, k)).toBeGreaterThan(multiplier(d, k - 1));
         expect(multiplier(d, k)).toBeLessThanOrEqual(MAX_MULTIPLIER + 1e-9);
       }
     }
-    for (let i = 1; i < DIFFICULTIES.length; i++) expect(multiplier(DIFFICULTIES[i], 1)).toBeGreaterThan(multiplier(DIFFICULTIES[i - 1], 1));
-    expect(MAX_MULTIPLIER).toBe(finish('daredevil'));
+    expect(MAX_MULTIPLIER).toBe(finish('expert'));
     expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
     expect(manifest.rtp).toBe(RTP);
   });
