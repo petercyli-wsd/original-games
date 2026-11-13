@@ -17,12 +17,12 @@
 // middle binomials carry factors such as 7 that no power of ten cancels), so
 // one value per table is solved for: the *centre plateau*, the run of equal
 // lowest-paying buckets around the middle (one or two buckets on low risk, up to
-// five 0.2× buckets on 16-row high). Every plateau bucket pays the same exact
+// five 0.2× buckets on 16-row high, five 0.1× buckets on 16-row expert). Every plateau bucket pays the same exact
 // rational
 //
 //     m* = (0.99 · 2ⁿ − Σ_{k ∉ plateau} C(n, k)·mₖ) / Σ_{k ∈ plateau} C(n, k),
 //
-// so Σₖ C(n,k)·mₖ = 0.99·2ⁿ exactly and RTP = 99.00% for all 27 tables. The
+// so Σₖ C(n,k)·mₖ = 0.99·2ⁿ exactly and RTP = 99.00% for all 36 tables. The
 // shift from the round base value is under 0.004× in every table (tests check
 // this and print each table's exact RTP); the edges and every other bucket
 // keep their round values. The tests re-derive the identity in exact integer
@@ -34,8 +34,8 @@
 
 export const RTP = 0.99;
 
-export type Risk = 'low' | 'medium' | 'high';
-export const RISKS: Risk[] = ['low', 'medium', 'high'];
+export type Risk = 'low' | 'medium' | 'high' | 'expert';
+export const RISKS: Risk[] = ['low', 'medium', 'high', 'expert'];
 export const MIN_ROWS = 8;
 export const MAX_ROWS = 16;
 export const ROWS = Array.from({ length: MAX_ROWS - MIN_ROWS + 1 }, (_, i) => MIN_ROWS + i);
@@ -77,6 +77,17 @@ const BASE: Record<Risk, Record<number, number[]>> = {
     14: [420, 56, 18, 5, 1.9, 0.3, 0.2, 0.2],
     15: [620, 83, 27, 8, 3, 0.5, 0.2, 0.2],
     16: [1000, 130, 26, 9, 4, 2, 0.2, 0.2, 0.2],
+  },
+  expert: {
+    8: [50, 4.6, 1.1, 0.1, 0.1],
+    9: [100, 7.8, 1.5, 0.2, 0.1],
+    10: [201, 11, 2, 0.6, 0.1, 0.1],
+    11: [324, 16, 4, 1.1, 0.2, 0.1],
+    12: [619, 30, 6, 1.5, 0.4, 0.1, 0.1],
+    13: [1012, 52, 10, 3, 0.6, 0.1, 0.1],
+    14: [2369, 80, 16, 3, 1.2, 0.2, 0.1, 0.1],
+    15: [5000, 125, 23, 6, 1.8, 0.2, 0.1, 0.1],
+    16: [10000, 216, 26, 7, 2.5, 1.1, 0.1, 0.1, 0.1],
   },
 };
 

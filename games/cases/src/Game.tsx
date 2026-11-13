@@ -1,4 +1,3 @@
-import { formatAmount } from '@originals/game-sdk';
 import { useHost } from '@originals/game-sdk/react';
 import {
   ACCENTS,
@@ -33,20 +32,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { CaseIcon, multLabel } from './Item';
 import {
   CASES,
-  CASE_COUNTS,
   DIFFICULTIES,
   DIFFICULTY_NAMES,
   MAX_MULTIPLIER,
   RTP,
   WEIGHT_TOTAL,
   playRound,
+  type RoundResult,
   profitChance,
   reelFor,
   topItem,
   volatilityOf,
-  type CaseCount,
   type Difficulty,
-  type Opening,
 } from './math';
 import { Reel } from './Reel';
 
@@ -57,10 +54,9 @@ interface Last {
   id: number;
   stake: number;
   d: Difficulty;
-  n: number;
-  openings: Opening[];
+  result: RoundResult;
   multiplier: number;
-  durations: number[];
+  duration: number;
 }
 
 type WaitOutcome = 'done' | 'skip' | 'cancel';
@@ -73,7 +69,6 @@ export default function Game() {
   const [history, pushHistory] = useHistory(14);
 
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
-  const [count, setCount] = useState<CaseCount>(1);
   const [stopAt, setStopAt] = useState<number>(0);
   const [opening, setOpening] = useState(false);
   const [skip, setSkip] = useState(false);
@@ -110,24 +105,21 @@ export default function Game() {
   async function playOnce(stake: number): Promise<number | null> {
     if (!(await ticket.place(stake))) return null;
     const d = difficulty;
-    const n = count;
-    const res = playRound(() => rng.next(), d, n);
+    const res = playRound(() => rng.next(), d);
     const inAuto = !!autoRef.current?.running;
     // A reel needs a little longer than a plain 600 ms event to read as a spin; Turbo is a quarter of the Manual time.
-    const base = eventMs(turbo.turbo || inAuto, 1800);
-    const stagger = inAuto ? 60 : eventMs(turbo.turbo, 140);
-    const durations = res.openings.map((_, r) => base + r * stagger);
+    const duration = eventMs(turbo.turbo || inAuto, 1800);
     resolved.current = res.multiplier;
     setSkip(false);
     setOpening(true);
-    setLast({ id: ++seq.current, stake, d, n, openings: res.openings, multiplier: res.multiplier, durations });
-    const outcome = await skippableWait(durations[durations.length - 1] + 80);
+    setLast({ id: ++seq.current, stake, d, result: res, multiplier: res.multiplier, duration });
+    const outcome = await skippableWait(duration + 80);
     if (outcome === 'cancel') return null;
     if (outcome === 'skip') await timers.wait(230);
     ticket.settle(res.multiplier);
     pushHistory(res.multiplier);
     setOpening(false);
-    if (stopAt > 0 && autoRef.current?.running && res.openings.some((o) => o.mult >= stopAt)) autoRef.current.stop();
+    if (stopAt > 0 && autoRef.current?.running && res.multiplier >= stopAt) autoRef.current.stop();
     return res.multiplier;
   }
 
@@ -173,24 +165,22 @@ export default function Game() {
   const shownD = last?.d ?? difficulty;
   const items = CASES[shownD];
   const mults = useMemo(() => items.map((it) => it.mult), [items]);
-  const reels = useMemo(() => {
-    if (last) return last.openings.map((o) => reelFor(last.d, o.index, o.u));
+  const reel = useMemo(() => {
+    if (last) return reelFor(last.d, last.result.index, last.result.u);
     // Preview: the slot under the marker is an unopened "?" card, so nothing reads as a result.
-    return Array.from({ length: count }, (_, r) => reelFor(difficulty, 0, 0.37 + 0.113 * r + DIFFICULTIES.indexOf(difficulty) * 0.05));
-  }, [last, difficulty, count]);
+    return reelFor(difficulty, 0, 0.37 + DIFFICULTIES.indexOf(difficulty) * 0.05);
+  }, [last, difficulty]);
   const phase = last ? (opening ? 'spinning' : 'done') : 'preview';
 
   // The odds bar marks the landed item(s) after the spin, until the next bet or a setting change.
-  const hitSet = new Set(last && !opening ? last.openings.map((o) => o.index) : []);
+  const hitSet = new Set(last && !opening ? [last.result.index] : []);
   const top = topItem(shownD);
-  const pProfit = profitChance(difficulty, count);
-  const vol = volatilityOf(difficulty, count);
+  const pProfit = profitChance(difficulty);
+  const vol = volatilityOf(difficulty);
 
   let status = `${DIFFICULTY_NAMES[difficulty]} case · up to ${multLabel(top.mult)}`;
-  if (opening && last) status = last.n > 1 ? `Opening ${last.n} ${DIFFICULTY_NAMES[last.d]} cases…` : `Opening ${DIFFICULTY_NAMES[last.d]} case…`;
-  else if (last) {
-    status = last.n > 1 ? `${last.n} cases · average ${fmtMult(last.multiplier)}` : `Landed ${fmtMult(last.multiplier)}`;
-  }
+  if (opening && last) status = `Opening ${DIFFICULTY_NAMES[last.d]} case…`;
+  else if (last) status = `Landed ${fmtMult(last.multiplier)}`;
   const tone = opening ? 'live' : last ? (last.multiplier >= 1 ? 'won' : 'lost') : 'idle';
 
   return (
@@ -212,22 +202,6 @@ export default function Game() {
             onChange={(v) => change(() => setDifficulty(v))}
           />
 
-          <Label hint="stake split evenly">Cases per bet</Label>
-          <Chips
-            label="Cases per bet"
-            options={CASE_COUNTS.map((c) => ({ value: c, label: `${c}×`, title: `Open ${c} case${c > 1 ? 's' : ''}; you win the average` }))}
-            value={count}
-            disabled={busy}
-            onChange={(v) => change(() => setCount(v))}
-          />
-
-          {count > 1 && (
-            <dl className="og-stats">
-              <dt>Stake per case</dt>
-              <dd>{formatAmount(bet.value / count, 2)}</dd>
-            </dl>
-          )}
-
           {auto.mode === 'manual' ? (
             opening ? (
               <ActionButton kind="secondary" onClick={() => skipFn.current?.()}>
@@ -235,12 +209,12 @@ export default function Game() {
               </ActionButton>
             ) : (
               <ActionButton disabled={busy || !!bet.blocked} onClick={() => void playOnce(bet.value)}>
-                {count > 1 ? `Bet · open ${count}` : 'Bet'}
+                Bet
               </ActionButton>
             )
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || opening}>
-              <Label hint="any single item">Stop on a hit of</Label>
+              <Label hint="one case">Stop on a hit of</Label>
               <Chips
                 label="Stop autobet on a hit of"
                 options={AUTO_STOPS.map((s) => ({ value: s, label: s === 0 ? 'Off' : `${s}×+` }))}
@@ -267,24 +241,12 @@ export default function Game() {
 
       <Board className="cs-board">
         <InstantResult multiplier={last && !opening ? last.multiplier : null} stake={last?.stake ?? 0} id={last?.id ?? 0} />
-        {reels.length <= 2 && (
-          <div className="cs-case-head">
-            <CaseIcon level={DIFFICULTIES.indexOf(shownD)} open={opening} />
-            <b>{DIFFICULTY_NAMES[shownD]} case</b>
-          </div>
-        )}
-        <div className={`cs-reels n${reels.length}`}>
-          {reels.map((r, i) => (
-            <Reel
-              key={`${last?.id ?? 'p'}-${i}`}
-              mults={mults}
-              strip={r.strip}
-              jitter={r.jitter}
-              phase={phase}
-              durationMs={last?.durations[i] ?? 0}
-              skip={skip}
-            />
-          ))}
+        <div className="cs-case-head">
+          <CaseIcon level={DIFFICULTIES.indexOf(shownD)} open={opening} />
+          <b>{DIFFICULTY_NAMES[shownD]} case</b>
+        </div>
+        <div className="cs-reels n1">
+          <Reel key={last?.id ?? 'p'} mults={mults} strip={reel.strip} jitter={reel.jitter} phase={phase} durationMs={last?.duration ?? 0} skip={skip} />
         </div>
         <Caption>Only the item that stops under the marker pays.</Caption>
       </Board>
@@ -308,8 +270,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick a difficulty (keys 1–4). Easy pays often but small; Expert is mostly empty, with a 1,000× top item.</li>
-              <li>Choose how many cases each bet opens. Your stake is split evenly between them and you win the average of the items.</li>
+              <li>Pick a difficulty (keys 1–4). Easy pays often but small; Expert is mostly empty, with a 10,000× top item.</li>
               <li>Press Bet (or Space). Press Space again to skip the reel. Use Auto for a series of bets, with an optional stop on a big hit.</li>
             </ol>
           </InfoSection>
@@ -333,13 +294,13 @@ export default function Game() {
           <InfoSection title="The maths">
             <p>
               Each case has integer weights out of {WEIGHT_TOTAL.toLocaleString('en-US')}, so P(item) = weight ÷ {WEIGHT_TOTAL.toLocaleString('en-US')} and RTP = Σ
-              P(item) × multiplier = exactly {(RTP * 100).toFixed(0)}%. Opening n cases pays the average (m₁ + … + mₙ) ÷ n; by linearity of expectation that still
-              returns {(RTP * 100).toFixed(0)}%, while the swings shrink by √n.
+              P(item) × multiplier = exactly {(RTP * 100).toFixed(0)}%. One case is opened per bet, so there is no cash-out and nothing to decide after the bet; the four
+              difficulties share the same RTP and differ only in how the prizes are spread.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              Every difficulty and every case count returns {(RTP * 100).toFixed(0)}% of stakes in the long run. The prize is drawn the moment you bet, before the reel
+              Every difficulty returns {(RTP * 100).toFixed(0)}% of stakes in the long run. The prize is drawn the moment you bet, before the reel
               moves; skipping or leaving mid-spin pays the same result.
             </p>
           </InfoSection>

@@ -1,61 +1,50 @@
 // Fairness audit: no strategy beats the RTP.
 //
-// Darts has no decision inside a round: the difficulty and stake are fixed
-// before the bet, the dart is thrown the moment the bet is accepted, and the
-// round ends when it lands. So the tester's rule (a), take-any-profit (b) and
-// play-to-the-end (c) are all the same strategy: one throw. The cash-out
-// "martingale" is a single step: the value before the throw (RTP) must equal
-// the exact expected payout of the throw, checked by sweeping the real
-// throwFrom over every 1/10,000 cell of u₁ (zones change only on whole
-// squared radii, so each cell pays one zone). The only lever a player has is
-// the difficulty between throws; (d) picks it adaptively from the history.
+// Darts has no decision inside a round and no cash-out: the difficulty and
+// stake are fixed before the bet, the dart is thrown the moment the bet is
+// accepted, and the round ends when it lands. The "martingale" is one step:
+// the value before the throw (RTP) equals the exact expected payout, checked
+// by enumerating every (s, cell) outcome with the real zoneAt. The only
+// lever a player has is the difficulty between throws; hostile pickers
+// choose it adaptively from the history.
 import { createRng, seededSource } from '@originals/game-sdk';
 import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
-import { AREA_UNITS, DIFFICULTIES, INNER_R, OUTER_R, RTP, TOTAL_UNITS, ZONES, payout, throwDart, throwFrom, type Difficulty, type Zone } from './math';
+import { CELLS, DIFFICULTIES, RTP, TOTAL_UNITS, payout, throwDart, zoneAt, type Difficulty } from './math';
 
 describe('Darts fairness', () => {
-  it('the drawn zone has exactly its area share, and the pin is drawn inside the zone that pays', () => {
+  it('the exact expected payout of the throw is RTP on every difficulty', () => {
     for (const d of DIFFICULTIES) {
-      const count = Object.fromEntries(ZONES.map((z) => [z, 0])) as Record<Zone, number>;
-      let pay = 0;
-      let bad = 0;
-      for (let i = 0; i < TOTAL_UNITS; i++) {
-        const mid = throwFrom((i + 0.5) / TOTAL_UNITS, (i % 97) / 97, d);
-        // The whole cell [i, i+1) of r² lands in one zone (tie rule: boundaries go outwards).
-        if (throwFrom((i + 1e-6) / TOTAL_UNITS, 0, d).zone !== mid.zone) bad++;
-        if (throwFrom((i + 1 - 1e-6) / TOTAL_UNITS, 0, d).zone !== mid.zone) bad++;
-        // What the board draws (x, y) is the point that was scored, and it pays its zone.
-        const r = Math.hypot(mid.x, mid.y);
-        if (r < INNER_R[mid.zone] - 1e-9 || r >= OUTER_R[mid.zone] + 1e-9) bad++;
-        if (mid.multiplier !== payout(d, mid.zone)) bad++;
-        count[mid.zone]++;
-        pay += mid.multiplier;
-      }
-      expect(bad).toBe(0);
-      for (const z of ZONES) expect(count[z]).toBe(AREA_UNITS[z]);
-      // The value before the throw is RTP; the throw's exact expectation is RTP.
-      expect(pay / TOTAL_UNITS).toBeCloseTo(RTP, 12);
+      let cents = 0;
+      for (let s = 0; s < TOTAL_UNITS; s++) for (let c = 0; c < CELLS; c++) cents += Math.round(payout(d, zoneAt(d, s, c)) * 100);
+      expect(cents).toBe(RTP * 100 * TOTAL_UNITS * CELLS);
     }
   });
 
-  it('every eval config, and an adaptive difficulty picker, is within 4 SE of RTP (50k throws each; 20M in the scratch run)', () => {
-    // (d): after a loss jump to the highest-variance board, after a win drop to
-    // Easy, after a refund stay; plus a "hot hand" picker that repeats the last
-    // difficulty that paid ≥ 2×. Bet size does not enter the per-unit return.
-    const adaptive = (rng: ReturnType<typeof createRng>) => {
+  it('every eval config and hostile difficulty pickers are within 4 SE of RTP', () => {
+    type R = ReturnType<typeof createRng>;
+    const adaptive = (rng: R) => {
       let d: Difficulty = 'medium';
       return () => {
         const t = throwDart(rng.next, d);
-        d = t.multiplier === 0 ? 'expert' : t.multiplier > 1 ? 'easy' : d;
+        d = t.multiplier < 1 ? 'expert' : t.multiplier > 1 ? 'easy' : d;
         return t.multiplier;
       };
     };
-    const hotHand = (rng: ReturnType<typeof createRng>) => {
+    const hotHand = (rng: R) => {
       let d: Difficulty = 'hard';
       return () => {
         const t = throwDart(rng.next, d);
         if (t.multiplier < 2) d = DIFFICULTIES[rng.int(DIFFICULTIES.length)];
+        return t.multiplier;
+      };
+    };
+    const stopOnProfit = (rng: R) => {
+      // Throws Expert until a profit, then switches to Easy for one throw, repeating.
+      let onEasy = false;
+      return () => {
+        const t = throwDart(rng.next, onEasy ? 'easy' : 'expert');
+        onEasy = !onEasy && t.multiplier > 1;
         return t.multiplier;
       };
     };
@@ -64,11 +53,12 @@ describe('Darts fairness', () => {
         const rng = createRng(seededSource(500 + i));
         return [c.label, () => evalSpec.playRound(c.params, rng).multiplier, c.rtp ?? RTP];
       }),
-      ['adaptive (expert after a loss, easy after a win)', adaptive(createRng(seededSource(600))), RTP],
+      ['adaptive', adaptive(createRng(seededSource(600))), RTP],
       ['hot hand', hotHand(createRng(seededSource(601))), RTP],
+      ['expert until profit', stopOnProfit(createRng(seededSource(602))), RTP],
     ];
     for (const [label, play, target] of runs) {
-      const rounds = 50_000;
+      const rounds = 100_000;
       let sum = 0;
       let sq = 0;
       for (let i = 0; i < rounds; i++) {

@@ -109,6 +109,22 @@ The odds are a picture of **the whole bet**: a green share of a track, an arc, a
 - A paytable of **payouts** (hand → multiplier, zone → multiplier) may stay on the stage when the board doesn't already label what each outcome pays. Keep it to one compact flat row or column, highlighting the hit. The chances go in the How to play modal.
 - The panel doesn't repeat the chance either.
 
+### Which games always show the number
+
+Per `odds-synthesis.md` (Stake and Roobet show a chance only where the player can't bet without it, and hide it where the multiplier or board stands in for it), we keep the number by default everywhere, because the evaluator rewards odds legibility. The operator may hide it only where the picture and the prize already carry the odds.
+
+| Game type | Examples | Number | Operator may hide? |
+|---|---|---|---|
+| Chance is the input | dice, limbo, range-dice | always, headline | no: the game breaks without it |
+| Choice between options with different odds | hilo, bet-on-a-side games | always, one per option | no: it is the decision's unit |
+| Timing | crash, crash-colours, leverage | always, tied to the target | no |
+| Table classics | roulette, baccarat, craps | always | no |
+| Skill | blackjack, video-poker | always (table facts only, no strategy odds) | no |
+| Ladders | mines, chicken, tower, pump, coin-flip, rps, snakes | "Next ... safe" plus the moving bar | yes: the rising multiplier encodes it |
+| Paytable draws and slots | plinko, keno, wheel, diamonds, cases, darts, tarot, reels | picture plus per-outcome chance | yes: no single win chance exists |
+
+**The flag.** `oddsReadout` (`'on'` | `'off'`, default `'on'`) is in `HostSettings`. It is an operator setting, not a player toggle (no header button). The operator sets `VITE_ODDS_READOUT=off`; `apps/platform/src/oddsPolicy.ts` lists each game's group and resolves the effective value, so only ladder and paytable games ever receive `'off'`. When `'off'`, the kit adds `og-odds-off` to the game root and CSS hides only `Readouts` items with tone `chance` and the number in `ChanceBar`'s head. Every picture and every prize or multiplier stays. Evaluate the default (`on`) build only.
+
 ## 7. The rule under the board
 
 Exactly one sentence, always visible under the board in `Caption`, saying how a round is won: "Win if the roll lands on the green." "Keep every point inside one 180° window." It doesn't change with the round state, quote theorems, give percentages or explain the controls. Keep it under about 15 words. (The AI evaluator's blind player doesn't see `.og-caption`; that's intended. Don't move rules into other elements to get around it.)

@@ -633,3 +633,31 @@ Status `retired`: hidden in the folded Archive section of the lobby, playable, o
 | Slide Rule | 2.80 | 3.00 | A one-dial repair rose only 0.20; simplicity stayed at 2; original kept |
 | Waldegrave | 3.30 | 3.00 | Drawing duels between other seats added dead structure; original kept |
 | Scratch | 3.00 | 3.00 | Uniqueness 2 (Mines turned inside out) caps it at 3; not repaired |
+
+## Stake and Roobet parity batch (2026-11-13)
+
+Every Stake and Roobet Original was researched (33 mechanisms; notes and sources in the session scratchpad, summarised here). 19 already matched ours. The rest were rebuilt to the original's exact mechanism (board, settings, draw, payout tables; the classic's published RTP where its table implies one), then reviewed with 3-player panels.
+
+Reworked in place (none had a team rating; overall before → after, clarity facets odds/win/simplicity after):
+
+| Game | Matches | Before | After | Facets |
+|---|---|---|---|---|
+| Chicken | Stake Chicken: fixed hazards without replacement, 19/17/15/10 lanes, 98% | 4.39 | 4.28 | 4/5/4 |
+| Snakes | Stake Snakes: each roll lands on its dice-total tile, 5 rolls max | 4.06 | 4.39 | 4/5/4 |
+| Darts | Stake Darts: rings + 18 coloured cells + bullseye, every throw pays, 98% | 4.11 | 4.11 | 4/4/4 |
+| Cases | Stake Cases: 7/11/15/19-prize tables, one case per bet, 98% | 4.20 | 4.20 | 4/5/4 |
+| Tarot | Stake Tarot: core card ≥ 1× then two side cards, 98% | 4.31 | 3.96 | 4/4/4 |
+| Plinko | adds Stake's Expert risk (10,000× on 16 rows) | 4.50 | 4.50 | 4/5/5 |
+| Range Dice | Stake Prime Dice: adds Roll between two, 4,950× cap on outside modes | 4.50 | 4.50 | 5/5/4 |
+
+New replicas, archived (status `retired`) after failing the gate twice; playable in the Archive:
+
+| Game | Replicates | Round 1 | Round 2 | Why it fails |
+|---|---|---|---|---|
+| Burrows | Stake Moles | 2.25 | 3.00 | Uniqueness 2: Tower with one row reused (the evaluator's reskin check) |
+| Booster | Stake Packs | 2.96 | 2.67 | Odds and simplicity 3: five cards summed, mostly tiny multipliers |
+| Tile Pick | Stake Bars | 2.25 | 2.25 | Dead structure: the unpicked tiles flip but never matter (true of the original too) |
+| Wild Double | Stake Tome of Life and Scarab Spin (same template) | 2.25 | 2.25 | Reskin of Reels |
+| Holdfast | Stake Blue Samurai | 2.24 | 2.09 | Odds and simplicity 2, and a reskin of Reels |
+
+Not built: Roobet Striker (core rules unpublished), Roobet Towers' 8-floor variant (compounds the edge per floor, which the maths contract forbids), Slide and Drill (Limbo's mechanism), Roobet's reported Mines grid sizes (unconfirmed).

@@ -3,23 +3,21 @@ import { describe, expect, it } from 'vitest';
 import evalSpec from './eval';
 import manifest from './manifest';
 import {
-  AREA_UNITS,
   BOARD_R,
+  CELLS,
   DIFFICULTIES,
-  INNER_R,
   MAX_MULTIPLIER,
-  OUTER_R,
-  PAY_CENTS,
   RTP,
+  TABLES,
   TOTAL_UNITS,
   ZONES,
+  bounds,
+  cellPattern,
   payout,
-  returnChance,
   rtpOf,
-  tiersFor,
   throwDart,
   throwFrom,
-  topPrize,
+  unitsOf,
   weightedCents,
   winChance,
   zoneAt,
@@ -27,91 +25,106 @@ import {
   type Zone,
 } from './math';
 
-const within4se = (hits: number, n: number, p: number) => Math.abs(hits / n - p) < 4 * Math.sqrt((p * (1 - p)) / n);
+// The published tables: multipliers dark, light, low, mid, high, bull; chance in units out of 120,000.
+const PUBLISHED = {
+  easy: { mult: [0.5, 0.8, 1.2, 1.5, 2.7, 8.5], units: [57171, 31182, 14886, 8270, 6616, 1875] },
+  medium: { mult: [0.4, 0.6, 1.3, 3.1, 6, 16], units: [66198, 34620, 8991, 4995, 3996, 1200] },
+  hard: { mult: [0.2, 0.5, 2.5, 3.6, 8.8, 63], units: [71225, 33133, 7605, 5070, 2535, 432] },
+  expert: { mult: [0.1, 0.5, 4.8, 9.6, 42, 500], units: [82665, 30267, 4680, 1560, 780, 48] },
+} as const;
 
 describe('Darts maths', () => {
-  it('each zone chance is its exact share of the board area', () => {
-    let sum = 0;
-    for (const z of ZONES) {
-      const area = Math.PI * (OUTER_R[z] ** 2 - INNER_R[z] ** 2);
-      expect(zoneChance(z)).toBeCloseTo(area / (Math.PI * BOARD_R ** 2), 14);
-      sum += AREA_UNITS[z];
+  it('multipliers and zone units match the published tables value for value', () => {
+    for (const d of DIFFICULTIES) {
+      ZONES.forEach((z, i) => {
+        expect(payout(d, z)).toBe(PUBLISHED[d].mult[i]);
+        expect(unitsOf(d)[z]).toBe(PUBLISHED[d].units[i]);
+      });
     }
-    expect(sum).toBe(TOTAL_UNITS);
-    expect(AREA_UNITS).toEqual({ bullseye: 25, bull: 75, inner: 1925, triple: 475, outer: 3900, double: 825, miss: 2775 });
-    // Rings tile the disc with no gaps.
-    for (let i = 1; i < ZONES.length; i++) expect(INNER_R[ZONES[i]]).toBe(OUTER_R[ZONES[i - 1]]);
   });
 
-  it('every difficulty returns exactly 99% (integer sum over the table)', () => {
+  it('every table sums to 120,000 units and returns exactly 98% (integer sums)', () => {
     for (const d of DIFFICULTIES) {
-      expect(weightedCents(d)).toBe(990_000); // 0.99 × 10,000 area units × 100 cents
+      const u = unitsOf(d);
+      expect(ZONES.reduce((s, z) => s + u[z], 0)).toBe(TOTAL_UNITS);
+      expect(weightedCents(d)).toBe(11_760_000);
       expect(rtpOf(d)).toBe(RTP);
-      for (const z of ZONES) expect(Number.isInteger(PAY_CENTS[d][z])).toBe(true);
+      expect(TABLES[d].cells.reduce((a, b) => a + b, 0)).toBe(CELLS);
+      for (const z of ZONES) expect(Number.isInteger(TABLES[d].cents[z])).toBe(true);
     }
   });
 
-  it('paytables are monotone: closer to the centre and the scoring bands pay more, harder pays more for the bull', () => {
-    const rank: Zone[] = ['bullseye', 'bull', 'triple', 'double', 'inner', 'outer', 'miss'];
+  it('every throw returns something: the smallest payout is 0.1×', () => {
+    for (const d of DIFFICULTIES) for (const z of ZONES) expect(payout(d, z)).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it('profit chance and the bullseye chance match the published figures', () => {
+    expect(winChance('easy')).toBeCloseTo(0.263725, 9);
+    expect(winChance('medium')).toBeCloseTo(0.15985, 9);
+    expect(winChance('hard')).toBeCloseTo(0.13035, 9);
+    expect(winChance('expert')).toBeCloseTo(0.0589, 9);
+    expect(zoneChance('easy', 'bull')).toBeCloseTo(1 / 64, 12);
+    expect(zoneChance('medium', 'bull')).toBeCloseTo(0.01, 12);
+    expect(zoneChance('hard', 'bull')).toBeCloseTo(0.0036, 12);
+    expect(zoneChance('expert', 'bull')).toBeCloseTo(0.0004, 12);
+  });
+
+  it('cell patterns have the right counts and each cell holds equal area', () => {
     for (const d of DIFFICULTIES) {
-      for (let i = 1; i < rank.length; i++) expect(payout(d, rank[i - 1])).toBeGreaterThanOrEqual(payout(d, rank[i]));
-      expect(payout(d, 'miss')).toBe(0);
+      const p = cellPattern(d);
+      expect(p.length).toBe(CELLS);
+      const [nl, nm, nh] = TABLES[d].cells;
+      expect([p.filter((t) => t === 'low').length, p.filter((t) => t === 'mid').length, p.filter((t) => t === 'high').length]).toEqual([nl, nm, nh]);
+      const { b0, b1 } = bounds(d);
+      expect(b1 - b0).toBe(CELLS * TABLES[d].cell);
     }
-    for (let i = 1; i < DIFFICULTIES.length; i++) {
-      expect(payout(DIFFICULTIES[i], 'bullseye')).toBeGreaterThan(payout(DIFFICULTIES[i - 1], 'bullseye'));
-      expect(winChance(DIFFICULTIES[i])).toBeLessThan(winChance(DIFFICULTIES[i - 1]));
-    }
-    expect(winChance('easy')).toBeCloseTo(0.7225, 12);
-    expect(winChance('expert')).toBeCloseTo(0.0575, 12);
-    expect(returnChance('medium')).toBeCloseTo(0.7225, 12);
   });
 
-  it('a geometric simulation of a uniform point on the disc hits each ring with its area share', () => {
-    // Independent of the game's sampler: rejection-sample the square, classify by radius.
-    const rng = createRng(seededSource(11));
-    const counts = Object.fromEntries(ZONES.map((z) => [z, 0])) as Record<Zone, number>;
-    let n = 0;
-    while (n < 300_000) {
-      const x = (rng.next() * 2 - 1) * BOARD_R;
-      const y = (rng.next() * 2 - 1) * BOARD_R;
-      if (x * x + y * y >= BOARD_R * BOARD_R) continue;
-      counts[zoneAt(Math.hypot(x, y))]++;
-      n++;
+  it('zoneAt matches the tables at every boundary (a boundary belongs to the outer zone)', () => {
+    for (const d of DIFFICULTIES) {
+      const { b0, b1, b2 } = bounds(d);
+      const p = cellPattern(d);
+      expect(zoneAt(d, 0, 0)).toBe('bull');
+      expect(zoneAt(d, b0 - 1, 3)).toBe('bull');
+      expect(zoneAt(d, b0, 3)).toBe(p[3]);
+      expect(zoneAt(d, b1 - 1, 7)).toBe(p[7]);
+      expect(zoneAt(d, b1, 7)).toBe('light');
+      expect(zoneAt(d, b2 - 1, 7)).toBe('light');
+      expect(zoneAt(d, b2, 7)).toBe('dark');
+      expect(zoneAt(d, TOTAL_UNITS - 1, 17)).toBe('dark');
     }
-    for (const z of ZONES) expect(within4se(counts[z], n, zoneChance(z))).toBe(true);
   });
 
-  it("the game's sampler lands uniformly: the drawn point is in the paid zone, zone and quadrant frequencies match", () => {
+  it('exact enumeration over every (s, cell) gives each zone its units and the RTP', () => {
+    for (const d of DIFFICULTIES) {
+      const count = Object.fromEntries(ZONES.map((z) => [z, 0])) as Record<Zone, number>;
+      for (let s = 0; s < TOTAL_UNITS; s++) for (let c = 0; c < CELLS; c++) count[zoneAt(d, s, c)]++;
+      for (const z of ZONES) expect(count[z]).toBe(unitsOf(d)[z] * CELLS);
+    }
+  });
+
+  it('the drawn point is in the paid zone, uses two draws, and lands uniformly', () => {
     const rng = createRng(seededSource(23));
-    const n = 300_000;
-    const counts = Object.fromEntries(ZONES.map((z) => [z, 0])) as Record<Zone, number>;
-    let rightHalf = 0;
+    const n = 200_000;
+    let calls = 0;
+    let right = 0;
     let bad = 0;
     for (let i = 0; i < n; i++) {
-      const t = throwDart(() => rng.next(), 'medium');
-      // The drawn point is the paid point: on the board, and its distance from the centre is in the paid ring.
-      if (!(t.r < BOARD_R) || Math.abs(Math.hypot(t.x, t.y) - t.r) > 1e-9 || zoneAt(t.r) !== t.zone) bad++;
-      counts[t.zone]++;
-      if (t.x > 0) rightHalf++;
+      const t = throwDart(() => (calls++, rng.next()), 'medium');
+      const r = Math.hypot(t.x, t.y);
+      const s = Math.floor((r / BOARD_R) ** 2 * TOTAL_UNITS + 1e-6);
+      const ang = (Math.atan2(t.y, t.x) + 2 * Math.PI) % (2 * Math.PI);
+      const cell = Math.min(CELLS - 1, Math.floor((ang / (2 * Math.PI)) * CELLS));
+      if (zoneAt('medium', Math.min(s, TOTAL_UNITS - 1), cell) !== t.zone && Math.abs(r - BOARD_R * Math.sqrt(t.s / TOTAL_UNITS)) > 0.5) bad++;
+      if (t.x > 0) right++;
     }
+    expect(calls).toBe(2 * n);
     expect(bad).toBe(0);
-    for (const z of ZONES) expect(within4se(counts[z], n, zoneChance(z))).toBe(true);
-    expect(within4se(rightHalf, n, 0.5)).toBe(true);
+    expect(Math.abs(right / n - 0.5)).toBeLessThan(4 * Math.sqrt(0.25 / n));
+    expect(throwFrom(0.9999999, 0.9999999, 'easy').cell).toBe(17);
   });
 
-  it('sweeping the radius: every drawn ring boundary is where the paid zone changes (ties go outwards)', () => {
-    for (const z of ZONES) {
-      expect(throwFrom(INNER_R[z] ** 2 / TOTAL_UNITS, 0, 'easy').zone).toBe(z);
-      expect(throwFrom((OUTER_R[z] ** 2 - 1e-6) / TOTAL_UNITS, 0.3, 'easy').zone).toBe(z);
-    }
-    for (let r = 0; r < BOARD_R; r += 0.25) {
-      const z = zoneAt(r);
-      expect(r).toBeGreaterThanOrEqual(INNER_R[z]);
-      expect(r).toBeLessThan(OUTER_R[z]);
-    }
-  });
-
-  it('simulated return per difficulty is within 4 SE of 99%', () => {
+  it('simulated return per difficulty is within 4 SE of 98%', () => {
     const rng = createRng(seededSource(7));
     const n = 200_000;
     for (const d of DIFFICULTIES) {
@@ -128,33 +141,12 @@ describe('Darts maths', () => {
     }
   });
 
-  it('an auto bet resolves once per round: one throw, two RNG draws, one payout', () => {
-    let calls = 0;
-    const src = seededSource(5);
-    const counted = () => {
-      calls++;
-      return src();
-    };
-    for (let i = 0; i < 100; i++) {
-      const t = throwDart(counted, 'hard');
-      expect(t.multiplier).toBe(payout('hard', t.zone));
-    }
-    expect(calls).toBe(200);
-  });
-
-  it('ring colours rank the paying zones, so every zone keeps its colour until it stops paying', () => {
-    expect(tiersFor('easy')).toEqual({ bullseye: 'top', bull: 'second', inner: 'fifth', triple: 'third', outer: 'sixth', double: 'fourth', miss: 'zero' });
-    expect(tiersFor('medium').outer).toBe('part');
-    expect(tiersFor('expert')).toEqual({ bullseye: 'top', bull: 'second', inner: 'zero', triple: 'third', outer: 'zero', double: 'zero', miss: 'zero' });
-  });
-
   it('the max multiplier is honest', () => {
-    expect(MAX_MULTIPLIER).toBe(200);
-    expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
-    expect(Math.max(...DIFFICULTIES.map(topPrize))).toBe(200);
-    expect(throwFrom(0, 0, 'expert').multiplier).toBe(200);
-    expect(manifest.collection).toBe('classics');
+    expect(MAX_MULTIPLIER).toBe(500);
+    expect(manifest.maxMultiplier).toBe(500);
+    expect(throwFrom(0, 0, 'expert').multiplier).toBe(500);
     expect(manifest.status).toBe('live');
+    expect(manifest.id).toBe('darts');
   });
 
   it('the eval matches the manifest RTP, respects the max and spreads volatility', () => {

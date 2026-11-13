@@ -1,28 +1,29 @@
 import { defineEval } from '@originals/game-sdk';
-import { LANES, buildRoad, cross, multiplier, reachableLane, type Difficulty } from './math';
+import { buildRoad, cross, lanesOf, multiplier, reachableLane, type Difficulty } from './math';
 
 // One config per difficulty (= volatility level). Each round samples one of
 // the ways players actually play:
-//   - Auto: a target lane, crossed in one go;
-//   - Manual with a plan: cross to a fixed lane, then cash out;
+//   - Auto: a target lane, hopped in one go;
+//   - Manual with a plan: hop to a fixed lane, then cash out;
 //   - Manual on feel: after each lane, cash out with a fixed chance;
-//   - Manual chasing a multiplier: cross until the cash-out reaches a target;
-//   - Manual all the way: go for the far kerb.
-// Every round crosses a real, independently drawn road. Targets stay where
-// P(reach) ≥ the level's floor so 100k rounds measure the RTP well; the RTP is
+//   - Manual chasing a multiplier: hop until the cash-out reaches a target;
+//   - Manual all the way: go for the finish.
+// Every round hops a real road drawn without replacement. Targets stay where
+// P(reach) >= the level's floor so 100k rounds measure the RTP well; the RTP is
 // exact for every stopping rule anyway (see math.ts).
 
 const LEVELS: { label: string; difficulty: Difficulty; floor: number }[] = [
-  { label: 'low (Easy, 1 in 25 hit)', difficulty: 'easy', floor: 0 },
-  { label: 'medium (Medium, 3 in 25)', difficulty: 'medium', floor: 0 },
-  { label: 'high (Hard, 5 in 25)', difficulty: 'hard', floor: 1 / 200 },
-  { label: 'extreme (Daredevil, 10 in 25)', difficulty: 'daredevil', floor: 1 / 1000 },
+  { label: 'low (Easy, 1 hazard)', difficulty: 'easy', floor: 0 },
+  { label: 'medium (Medium, 3 hazards)', difficulty: 'medium', floor: 0 },
+  { label: 'high (Hard, 5 hazards)', difficulty: 'hard', floor: 1 / 200 },
+  { label: 'extreme (Expert, 10 hazards)', difficulty: 'expert', floor: 1 / 1000 },
 ];
 
 export default defineEval<{ difficulty: Difficulty; floor: number }>({
   configs: LEVELS.map(({ label, difficulty, floor }) => ({ label, params: { difficulty, floor } })),
   playRound({ difficulty: d, floor }, rng) {
     const road = buildRoad(d, (n) => rng.int(n));
+    const lanes = lanesOf(d);
     const kMax = reachableLane(d, floor);
     const s = rng.next();
 
@@ -51,7 +52,7 @@ export default defineEval<{ difficulty: Difficulty; floor: number }>({
     do {
       if (road[k]) return { multiplier: 0, steps: k + 1 };
       k++;
-    } while (k < LANES && !stop(k));
+    } while (k < lanes && !stop(k));
     return { multiplier: multiplier(d, k), steps: k };
   },
 });

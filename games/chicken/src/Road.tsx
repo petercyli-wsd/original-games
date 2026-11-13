@@ -1,11 +1,11 @@
-// The road: a start kerb, 20 lanes and a finish kerb, scrolled so the token
+// The road: a start kerb, up to 19 lanes and a finish kerb, scrolled so the token
 // stays in view. Each lane carries a pad with the cash-out for reaching it.
-// Flat and geometric (docs/STYLE.md): the token is an accent dot, traffic is a
+// Flat and geometric (docs/STYLE.md): the token is an accent dot, a hazard is a
 // red block that drops into its lane, and nothing moves between events.
 
 import { fmtMult } from '@originals/game-sdk/ui';
 import { useEffect, useLayoutEffect, useRef, type CSSProperties } from 'react';
-import { LANES, multiplier, type Difficulty, type Road as RoadT } from './math';
+import { finish, lanesOf, multiplier, type Difficulty, type Road as RoadT } from './math';
 
 export interface RoadView {
   difficulty: Difficulty;
@@ -42,6 +42,7 @@ export function RoadBoard({
   slamMs: number;
 }) {
   const { difficulty: d, road, pos, moving, hit, showAll, won, live } = view;
+  const LANES = lanesOf(d);
   const reached = hit ?? pos;
   const finished = pos >= LANES && hit === null;
   // On the far kerb once the last lane is crossed.
@@ -118,12 +119,12 @@ export function RoadBoard({
 
         <div className={'ck-kerb finish' + (finished && won ? ' reached' : '') + (target === LANES ? ' targeted' : '')} data-lane={LANES + 1}>
           <span className="ck-kerb-label">Finish</span>
-          <b>{fmtMult(multiplier(d, LANES))}</b>
+          <b>{fmtMult(finish(d))}</b>
         </div>
 
         <i
           className={'ck-token' + (snap ? ' snap' : '') + (hit !== null ? ' hit' : '') + (won ? ' won' : '')}
-          style={{ left: tokenLeft(tokenLane) }}
+          style={{ left: tokenLeft(tokenLane, LANES) }}
           aria-hidden="true"
         />
       </div>
@@ -132,17 +133,17 @@ export function RoadBoard({
 }
 
 /** Centre of the start kerb (0), a lane (1–20) or the finish kerb (21). */
-function tokenLeft(p: number): string {
+function tokenLeft(p: number, LANES: number): string {
   if (p <= 0) return 'calc(var(--kw) / 2)';
   if (p > LANES) return `calc(var(--kw) * 1.5 + ${LANES} * var(--lw))`;
   return `calc(var(--kw) + ${p - 0.5} * var(--lw))`;
 }
 
 /** The progress strip under the road: one pip per lane. */
-export function Progress({ pos, hit, target, road, showAll }: { pos: number; hit: number | null; target: number | null; road: RoadT | null; showAll: boolean }) {
+export function Progress({ lanes: LANES, pos, hit, target, road, showAll }: { lanes: number; pos: number; hit: number | null; target: number | null; road: RoadT | null; showAll: boolean }) {
   const reached = hit ?? pos;
   return (
-    <div className="ck-progress" aria-hidden="true">
+    <div className="ck-progress" aria-hidden="true" style={{ gridTemplateColumns: `repeat(${LANES}, minmax(0, 1fr))` }}>
       {Array.from({ length: LANES }, (_, i) => {
         const lane = i + 1;
         const cls = [

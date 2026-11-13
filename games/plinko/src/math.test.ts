@@ -65,16 +65,19 @@ describe('Plinko paytables', () => {
 
   it('higher risk means a bigger top prize and more volatility at every row count', () => {
     for (const n of ROWS) {
-      const [l, m, h] = RISKS.map((r) => tableFor(n, r));
+      const [l, m, h, x] = RISKS.map((r) => tableFor(n, r));
       expect(l.max).toBeLessThan(m.max);
       expect(m.max).toBeLessThan(h.max);
       expect(l.stdDev).toBeLessThan(m.stdDev);
       expect(m.stdDev).toBeLessThan(h.stdDev);
+      expect(h.max).toBeLessThan(x.max);
+      expect(h.stdDev).toBeLessThan(x.stdDev);
     }
   });
 
   it('the max multiplier is honest', () => {
-    expect(MAX_MULTIPLIER).toBe(1000);
+    expect(MAX_MULTIPLIER).toBe(10000);
+    expect(tableFor(16, 'expert').mults[0]).toBe(10000);
     expect(tableFor(16, 'high').mults[0]).toBe(1000);
     expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
   });
@@ -105,6 +108,7 @@ describe('Plinko drops', () => {
       [8, 'low'],
       [12, 'medium'],
       [16, 'high'],
+      [16, 'expert'],
     ] as const) {
       const N = 200_000;
       let sum = 0;

@@ -1,148 +1,130 @@
 import { createRng, runEval, seededSource } from '@originals/game-sdk';
 import { describe, expect, it } from 'vitest';
-import evalSpec, { deepest } from './eval';
+import evalSpec from './eval';
 import manifest from './manifest';
 import {
+  CELL,
   DIFFICULTIES,
+  MAX_MULTIPLIER,
+  MAX_ROLLS,
   MAX_WIN,
-  PATTERNS,
   RTP,
-  SQUARES,
-  board,
+  TABLES,
   canRoll,
   drawDice,
   exactRuleValue,
-  expectedFactorFrom,
-  landingWays,
+  factorAt,
+  factorFor,
   maxFactor,
+  multiplierCount,
+  pitChance,
+  pitCount,
   resolveRoll,
-  safeFactors,
-  snakeChance,
-  snakeChanceFrom,
-  snakeCount,
+  safeWays,
   survival,
+  tileOf,
+  weightedSum,
+  ways,
 } from './math';
 import { runAutoRound } from './round';
 
 const rng = createRng(seededSource(11));
 
-describe('Snakes boards', () => {
-  it('every pattern averages exactly 1 (hundredths sum to 600), and opposite squares match', () => {
+describe('Snakes tables (match the original game)', () => {
+  it('Start plus 11 tiles; 1/3/5/7/9 snakes and 10/8/6/4/2 multiplier tiles', () => {
+    expect(CELL).toHaveLength(12);
+    expect(DIFFICULTIES.map(pitCount)).toEqual([1, 3, 5, 7, 9]);
+    expect(DIFFICULTIES.map(multiplierCount)).toEqual([10, 8, 6, 4, 2]);
+  });
+
+  it('published tables, value for value, symmetric about 7', () => {
+    expect(TABLES).toEqual({
+      easy: [200, 130, 120, 110, 108, 0],
+      medium: [400, 220, 160, 120, 0, 0],
+      hard: [750, 300, 150, 0, 0, 0],
+      expert: [1000, 400, 0, 0, 0, 0],
+      master: [1800, 0, 0, 0, 0, 0],
+    });
+    for (const d of DIFFICULTIES) for (let s = 2; s <= 12; s++) expect(factorFor(d, s)).toBe(factorFor(d, 14 - s));
+  });
+
+  it('every table has an expected factor of exactly 1: sum of ways(s) x f(s) = 3600 in integers', () => {
     for (const d of DIFFICULTIES) {
-      expect(PATTERNS[d]).toHaveLength(6);
-      expect(PATTERNS[d].reduce((a, b) => a + b, 0)).toBe(600);
-      const b = board(d);
-      for (let j = 0; j < 6; j++) expect(b[j]).toBe(b[j + 6]);
-      expect(b[0]).toBeGreaterThan(0); // Start is always safe
+      expect(weightedSum(d)).toBe(3600);
+      let e = 0;
+      for (let s = 2; s <= 12; s++) e += (ways(s) * factorFor(d, s)) / 36;
+      expect(e).toBeCloseTo(1, 12);
     }
   });
 
-  it('difficulty sets the snake count: 2, 4, 6, 8, 10', () => {
-    expect(DIFFICULTIES.map(snakeCount)).toEqual([2, 4, 6, 8, 10]);
+  it('safe chance per roll is 30, 20, 12, 6, 2 in 36 (what the bar shows is the true risk)', () => {
+    expect(DIFFICULTIES.map(safeWays)).toEqual([30, 20, 12, 6, 2]);
+    for (const d of DIFFICULTIES) {
+      let pit = 0;
+      for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) if (resolveRoll(d, 1, a, b).pit) pit += 1 / 36;
+      expect(pit).toBeCloseTo(pitChance(d), 12);
+    }
   });
 
-  it('harder boards bust more often and pay more on their best and average safe square', () => {
+  it('tile j holds the factor of total j + 1; tile 0 is Start', () => {
+    expect(tileOf(2)).toBe(1);
+    expect(tileOf(12)).toBe(11);
+    for (const d of DIFFICULTIES) for (let s = 2; s <= 12; s++) expect(factorAt(d, tileOf(s))).toBe(factorFor(d, s));
+  });
+
+  it('harder difficulties bust more and pay more at the top', () => {
     for (let i = 1; i < DIFFICULTIES.length; i++) {
       const [a, b] = [DIFFICULTIES[i - 1], DIFFICULTIES[i]];
-      expect(snakeChance(b)).toBeGreaterThan(snakeChance(a));
+      expect(pitChance(b)).toBeGreaterThan(pitChance(a));
       expect(maxFactor(b)).toBeGreaterThan(maxFactor(a));
-      const avg = (d: (typeof DIFFICULTIES)[number]) => safeFactors(d).reduce((x, y) => x + y, 0) / safeFactors(d).length;
-      expect(avg(b)).toBeGreaterThan(avg(a));
     }
   });
 });
 
 describe('Snakes maths', () => {
-  it('landing odds: 36 ways from every square, never the next square, opposite squares always total 6 ways', () => {
-    for (let p = 0; p < SQUARES; p++) {
-      let total = 0;
-      for (let j = 0; j < SQUARES; j++) total += landingWays(p, j);
-      expect(total).toBe(36);
-      expect(landingWays(p, (p + 1) % SQUARES)).toBe(0);
-      for (let j = 0; j < 6; j++) expect(landingWays(p, j) + landingWays(p, j + 6)).toBe(6);
-    }
-  });
-
-  it('every roll is fair from every square: enumerating the 36 dice outcomes gives an expected factor of exactly 1', () => {
-    for (const d of DIFFICULTIES) {
-      for (let p = 0; p < SQUARES; p++) {
-        let e = 0;
-        let bust = 0;
-        for (let a = 1; a <= 6; a++)
-          for (let b = 1; b <= 6; b++) {
-            const r = resolveRoll(d, p, 1, a, b);
-            e += r.factor / 36;
-            if (r.snake) bust += 1 / 36;
-          }
-        expect(e).toBeCloseTo(1, 12);
-        expect(expectedFactorFrom(d, p)).toBeCloseTo(1, 12);
-        // The bust chance drawn on the board (sum of landing odds on snake squares) is the true risk.
-        expect(bust).toBeCloseTo(snakeChance(d), 12);
-        expect(snakeChanceFrom(d, p)).toBeCloseTo(snakeChance(d), 12);
-      }
-    }
-  });
-
   it('martingale: at random reachable states, E[value after one roll] = value now', () => {
     for (const d of DIFFICULTIES) {
       for (let t = 0; t < 40; t++) {
-        const p = rng.int(SQUARES);
         const cash = RTP * (0.5 + 3 * rng.next());
         let e = 0;
-        for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) e += resolveRoll(d, p, cash, a, b).cash / 36;
+        for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) e += resolveRoll(d, cash, a, b).cash / 36;
         expect(e).toBeCloseTo(cash, 10);
       }
     }
   });
 
-  it('exact RTP by enumeration of every dice path: fixed-roll and target rules all return 99%', () => {
+  it('exact RTP by enumeration of every dice path: every fixed-roll and target rule returns 99%', () => {
     for (const d of DIFFICULTIES) {
-      for (const rolls of [1, 2, 3]) expect(exactRuleValue(d, { rolls, target: 0 })).toBeCloseTo(RTP, 12);
-      for (const target of [1.2, 2, 5]) expect(exactRuleValue(d, { rolls: 3, target })).toBeCloseTo(RTP, 12);
+      for (let rolls = 1; rolls <= MAX_ROLLS; rolls++) expect(exactRuleValue(d, { rolls, target: 0 })).toBeCloseTo(RTP, 12);
+      for (const target of [1.2, 2, 5, 50]) expect(exactRuleValue(d, { rolls: MAX_ROLLS, target })).toBeCloseTo(RTP, 12);
     }
   });
 
-  it('a target rule near the max-win cap is still exact (the cap is a stopping rule)', () => {
-    // Master: 0.99 · 6^5 = 7,698× is the last value that may roll again (×6 would pass 10,000×).
-    expect(canRoll('master', RTP * 6 ** 4)).toBe(true);
-    expect(canRoll('master', RTP * 6 ** 5)).toBe(false);
-    expect(exactRuleValue('master', { rolls: 8, target: 0 })).toBeCloseTo(RTP, 12);
-    expect(exactRuleValue('expert', { rolls: 5, target: 400 })).toBeCloseTo(RTP, 12);
+  it('five rolls cap the round: the best payout is 0.99 x 18^5 and the cap never binds', () => {
+    expect(MAX_MULTIPLIER).toBeCloseTo(RTP * 18 ** 5, 2);
+    expect(MAX_MULTIPLIER).toBeLessThanOrEqual(MAX_WIN);
+    for (const d of DIFFICULTIES) expect(canRoll(d, RTP * maxFactor(d) ** (MAX_ROLLS - 1))).toBe(true);
+    expect(exactRuleValue('master', { rolls: 9, target: 0 })).toBeCloseTo(RTP, 12);
   });
 
-  it('the raw dice process busts within n rolls as often as 1 − (1 − q)^n', () => {
+  it('the raw dice process busts within n rolls as often as 1 - (safe/36)^n', () => {
     for (const d of DIFFICULTIES) {
       const n = 3;
       const rounds = 40_000;
       let alive = 0;
       for (let r = 0; r < rounds; r++) {
-        let pos = 0;
         let ok = true;
-        for (let k = 0; k < n && ok; k++) {
-          const [a, b] = drawDice(rng);
-          const roll = resolveRoll(d, pos, 1, a, b);
-          ok = !roll.snake;
-          pos = roll.to;
-        }
+        for (let k = 0; k < n && ok; k++) ok = !resolveRoll(d, 1, ...drawDice(rng)).pit;
         if (ok) alive++;
       }
       const p = survival(d, n);
       expect(Math.abs(alive / rounds - p)).toBeLessThan(4 * Math.sqrt((p * (1 - p)) / rounds) + 1e-9);
     }
   });
-
-  it('the max win is honest: no roll is offered that could pass MAX_WIN', () => {
-    expect(manifest.maxMultiplier).toBe(MAX_WIN);
-    for (const d of DIFFICULTIES) {
-      let cash = RTP;
-      while (canRoll(d, cash)) cash *= maxFactor(d);
-      expect(cash).toBeLessThanOrEqual(MAX_WIN);
-    }
-  });
 });
 
 describe('Snakes auto-bet', () => {
-  it('play resolves once per round, with the settled multiplier', async () => {
+  it('play resolves once per round, with the settled multiplier, in at most 5 rolls', async () => {
     for (const d of DIFFICULTIES) {
       for (let t = 0; t < 200; t++) {
         let settles = 0;
@@ -150,7 +132,7 @@ describe('Snakes auto-bet', () => {
         let animations = 0;
         const result = await runAutoRound({
           d,
-          rule: { rolls: 1 + rng.int(6), target: rng.next() < 0.5 ? 0 : 1 + 4 * rng.next() },
+          rule: { rolls: 1 + rng.int(9), target: rng.next() < 0.5 ? 0 : 1 + 4 * rng.next() },
           dice: () => drawDice(rng),
           animate: async () => {
             animations++;
@@ -164,30 +146,24 @@ describe('Snakes auto-bet', () => {
         expect(settles).toBe(1);
         expect(result).toBe(settled);
         expect(animations).toBeGreaterThanOrEqual(1);
+        expect(animations).toBeLessThanOrEqual(MAX_ROLLS);
       }
     }
   });
 
   it('an interrupted round resolves null without settling', async () => {
     let settles = 0;
-    const result = await runAutoRound({
-      d: 'easy',
-      rule: { rolls: 5, target: 0 },
-      dice: () => [1, 1],
-      animate: async () => false,
-      settle: () => settles++,
-    });
+    const result = await runAutoRound({ d: 'easy', rule: { rolls: 5, target: 0 }, dice: () => [1, 1], animate: async () => false, settle: () => settles++ });
     expect(result).toBeNull();
     expect(settles).toBe(0);
   });
 
   it('auto with a fixed roll count returns 99% in simulation', async () => {
-    const d = 'medium';
     const rounds = 30_000;
     let sum = 0;
     let sumSq = 0;
     for (let r = 0; r < rounds; r++) {
-      const m = (await runAutoRound({ d, rule: { rolls: 3, target: 0 }, dice: () => drawDice(rng), animate: async () => true, settle: () => {} }))!;
+      const m = (await runAutoRound({ d: 'medium', rule: { rolls: 3, target: 0 }, dice: () => drawDice(rng), animate: async () => true, settle: () => {} }))!;
       sum += m;
       sumSq += m * m;
     }
@@ -198,11 +174,8 @@ describe('Snakes auto-bet', () => {
 });
 
 describe('Snakes eval', () => {
-  it('samples deep enough on every board', () => {
-    for (const d of DIFFICULTIES) expect(deepest(d)).toBeGreaterThanOrEqual(3);
-  });
-
   it('simulated RTP matches the manifest, and the max is within maxMultiplier', () => {
+    expect(manifest.maxMultiplier).toBe(MAX_MULTIPLIER);
     for (const r of runEval(evalSpec, { rounds: 60_000 })) {
       expect(Math.abs(r.rtp - manifest.rtp)).toBeLessThan(4 * r.stdError);
       expect(r.max).toBeLessThanOrEqual(manifest.maxMultiplier);

@@ -11,7 +11,7 @@
 // stop, i.e. betting systems on i.i.d. bets, each worth exactly RTP per unit.
 //
 // Checks:
-//  - Exact: every one of the 27 tables pays Σ C(n,k)·mₖ / 2ⁿ = RTP (rationals in
+//  - Exact: every one of the 36 tables pays Σ C(n,k)·mₖ / 2ⁿ = RTP (rationals in
 //    BigInt, plus the float table the game settles with), and E[pay | path so
 //    far] after every prefix of bounces averages back to RTP (the drop's
 //    value is a martingale over its bounces, so even a mid-flight settle at the
@@ -81,7 +81,7 @@ describe('Plinko fairness', () => {
     }
   });
 
-  it('martingale over the bounces: E[pay | path so far] averages back to RTP after every prefix, all 27 tables', () => {
+  it('martingale over the bounces: E[pay | path so far] averages back to RTP after every prefix, all 36 tables', () => {
     let states = 0;
     for (const { rows, risk } of ALL) {
       expect(condValue(rows, risk, 0, 0)).toBeCloseTo(RTP, 12);
@@ -116,13 +116,23 @@ describe('Plinko fairness', () => {
     // (a) and (b) have no in-round decision to act on and are the same as (c).
     const rows: string[] = [];
     evalSpec.configs.forEach(({ label, params }, ci) => {
-      const tables = params.risks.flatMap((risk) => params.rows.map((n) => tableFor(n, risk)));
+      // Simulation can only see prizes that come up in ROUNDS drops. Where the top prize is rarer than
+      // 1 in 4,096 (Expert, 13+ rows: up to 1 in 65,536 at 10,000x) the sampled mean is biased low by
+      // design, so those tables are checked exactly instead (every table, below) and simulated on <= 12 rows.
+      for (const risk of params.risks) {
+        for (const n of params.rows) {
+          const t = tableFor(n, risk);
+          expect(t.probs.reduce((a, p, k) => a + p * t.mults[k], 0)).toBeCloseTo(RTP, 12);
+        }
+      }
+      const simRows = params.rows.filter((n) => n <= 12 || !params.risks.includes('expert'));
+      const tables = params.risks.flatMap((risk) => simRows.map((n) => tableFor(n, risk)));
       const wildest = tables.reduce((a, b) => (b.stdDev > a.stdDev ? b : a));
       const calmest = tables.reduce((a, b) => (b.stdDev < a.stdDev ? b : a));
       const c = mcStaked(
         (rng) => {
           const risk = params.risks[rng.int(params.risks.length)];
-          const n = params.rows[rng.int(params.rows.length)];
+          const n = simRows[rng.int(simRows.length)];
           return { pay: resolveDrop(() => rng.next(), n, risk).multiplier, stake: 1 };
         },
         ROUNDS,

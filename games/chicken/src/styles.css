@@ -1,6 +1,6 @@
 /* Chicken: the road, the difficulty picker and panel bits. Layout, panel and
    readouts come from the kit; colours, type and spacing from its tokens
-   (docs/STYLE.md). Flat: no gradients, glows, shadows or idle animation. */
+   (docs/STYLE.md). Flat, with no idle animation. */
 
 /* ---------- Panel ---------- */
 .ck-game .og-panel > * {
@@ -47,16 +47,19 @@
   background: var(--hover);
 }
 
-/* The per-lane odds as a count: 25 cells, the red ones are lanes with traffic. */
+/* The hazards as a count: 20 cells, spent ones are crossed slots, the red ones are the hazards among the slots ahead. */
 .ck-odds {
   display: grid;
-  grid-template-columns: repeat(25, minmax(0, 1fr));
+  grid-template-columns: repeat(20, minmax(0, 1fr));
   gap: 2px;
 }
 .ck-odds i {
   height: 8px;
   border-radius: 1px;
   background: var(--hover);
+}
+.ck-odds i.s {
+  background: var(--faint);
 }
 .ck-odds i.h {
   background: var(--lose);

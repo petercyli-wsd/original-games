@@ -1,6 +1,6 @@
-import { CELL, SQUARES, factorAt, type Difficulty } from './math';
+import { CELL, TILES, factorAt, ways, type Difficulty } from './math';
 
-// A 4×4 frame of 12 squares round a centre panel holding the dice and the value.
+// A 4×4 frame of 12 tiles (Start, then dice totals 2-12) round a centre panel holding the dice and the value.
 const CS = 90; // cell size
 const GAP = 6;
 const M = (400 - (4 * CS + 3 * GAP)) / 2;
@@ -55,47 +55,54 @@ export default function Board({ d, token, mode, hopMs, dice, landed, value, valu
   const centreSize = 2 * CS + GAP;
 
   return (
-    <svg viewBox="0 0 400 400" className={`snk mode-${mode}`} role="img" aria-label={`Snakes board, token on square ${token}`}>
-      {Array.from({ length: SQUARES }, (_, j) => {
+    <svg viewBox="0 0 400 400" className={`snk mode-${mode}`} role="img" aria-label={`Dice ring, token on tile ${token}`}>
+      {Array.from({ length: TILES }, (_, j) => {
         const { x, y } = at(j);
         const f = factorAt(d, j);
-        const tone = f === 0 ? 'snake' : f >= 1 ? 'up' : 'down';
+        const pit = j > 0 && f === 0;
+        const tone = j === 0 ? 'start' : pit ? 'pit' : f >= 1 ? 'up' : 'down';
         const isLanded = landed?.square === j;
+        const w = j === 0 ? 0 : ways(j + 1);
         return (
           <g key={j} className={`sq ${tone}` + (isLanded ? ' landed' : '')}>
             <rect x={x} y={y} width={CS} height={CS} rx={8} className="sq-bg" />
-            {j === 0 && (
-              <text x={x + 8} y={y + 16} className="start">
-                Start
+            <text x={x + 8} y={y + 17} className="start">
+              {j === 0 ? 'Start' : j + 1}
+            </text>
+            {j > 0 && (
+              <text x={x + CS / 2} y={y + CS / 2 + 8} className="factor">
+                {pit ? 'Pit' : fmtFactor(f)}
               </text>
             )}
-            <text x={x + CS / 2} y={y + CS / 2 + 14} className="factor">
-              {f === 0 ? 'Snake' : fmtFactor(f)}
-            </text>
-            {/* No per-square landing dots: every opposite pair is hit exactly 1 in 6 from any square, so the dots
-                changed with position while carrying no risk information (the re-review read them as dead structure). */}
+            {/* Dots: how many of the 36 dice pairs make this total. */}
+            {Array.from({ length: w }, (_, i) => (
+              <circle key={i} cx={x + CS / 2 + (i - (w - 1) / 2) * 9} cy={y + CS - 16} r={3} className="way" />
+            ))}
             {isLanded && <rect x={x} y={y} width={CS} height={CS} rx={8} className="mark" />}
           </g>
         );
       })}
 
-      {/* The centre: value, dice and a line of context. */}
+      {/* The centre: value, dice and the unit key. */}
       <rect x={centre} y={centre} width={centreSize} height={centreSize} rx={8} className="centre" />
-      <text x={200} y={centre + 30} className="c-label">
+      <text x={200} y={centre + 26} className="c-label">
         {valueLabel}
       </text>
-      <text x={200} y={centre + 66} className="c-value">
+      <text x={200} y={centre + 60} className="c-value">
         {value >= 1000 ? Math.round(value).toLocaleString('en-US') : value.toFixed(2)}×
       </text>
-      <Die x={200 - 56} y={centre + 88} face={dice[0]} />
-      <Die x={200 + 6} y={centre + 88} face={dice[1]} />
-      <text x={200} y={centre + 166} className="c-foot">
+      <Die x={200 - 56} y={centre + 76} face={dice[0]} />
+      <Die x={200 + 6} y={centre + 76} face={dice[1]} />
+      <text x={200} y={centre + 150} className="c-foot">
+        Dots: ways out of 36
+      </text>
+      <text x={200} y={centre + 168} className="c-foot">
         {footer}
       </text>
 
       {/* The token: an accent dot that moves cell to cell. */}
       <g className="token" style={{ transform: `translate(${t.x}px, ${t.y}px)`, transitionDuration: `${Math.round(hopMs * 0.85)}ms` }}>
-        <circle cx={CS / 2} cy={28} r={12} className="token-puck" />
+        <circle cx={CS - 16} cy={16} r={8} className="token-puck" />
       </g>
     </svg>
   );

@@ -4,7 +4,6 @@ import evalSpec from './eval';
 import manifest from './manifest';
 import {
   CASES,
-  CASE_COUNTS,
   DIFFICULTIES,
   MAX_MULTIPLIER,
   REEL_LENGTH,
@@ -15,8 +14,6 @@ import {
   playRound,
   profitChance,
   reelFor,
-  roundDistribution,
-  roundRtp,
   rtpOf,
   stdDev,
   topItem,
@@ -24,24 +21,27 @@ import {
 } from './math';
 
 describe('Cases paytables', () => {
-  it('every case returns exactly 99% (integer arithmetic)', () => {
+  it('every table returns exactly 98% (integer arithmetic)', () => {
     for (const d of DIFFICULTIES) {
       const items = CASES[d];
       expect(items.reduce((s, it) => s + it.weight, 0)).toBe(WEIGHT_TOTAL);
       expect(items.every((it) => Number.isInteger(it.weight) && it.weight > 0 && Number.isInteger(it.cents))).toBe(true);
-      expect(weightedCents(d)).toBe(99 * WEIGHT_TOTAL);
+      expect(weightedCents(d)).toBe(98 * WEIGHT_TOTAL);
       expect(rtpOf(d)).toBeCloseTo(RTP, 14);
     }
     expect(manifest.rtp).toBe(RTP);
   });
 
-  it('every case count returns exactly 99% by enumeration of all n-tuples', () => {
-    for (const d of DIFFICULTIES)
-      for (const n of CASE_COUNTS) {
-        const dist = roundDistribution(d, n);
-        expect([...dist.values()].reduce((a, b) => a + b, 0)).toBeCloseTo(1, 12);
-        expect(roundRtp(d, n)).toBeCloseTo(RTP, 12);
-      }
+  it('matches the published Stake tables: 7 / 11 / 15 / 19 items, P(profit) 24 / 25 / 18 / 14.61%', () => {
+    expect(DIFFICULTIES.map((d) => CASES[d].length)).toEqual([7, 11, 15, 19]);
+    expect(DIFFICULTIES.map((d) => Math.round(profitChance(d) * 1e6) / 1e4)).toEqual([24, 25, 18, 14.61]);
+    expect(CASES.easy.map((i) => i.mult)).toEqual([0.1, 0.4, 1.09, 2, 3, 10, 23]);
+    expect(CASES.expert.at(-1)).toMatchObject({ mult: 10000, weight: 2 });
+    expect(topItem('hard').mult).toBe(1000);
+  });
+
+  it('the exact RTP by enumeration of items is 98% for every difficulty', () => {
+    for (const d of DIFFICULTIES) expect(CASES[d].reduce((s, it) => s + it.p * it.mult, 0)).toBeCloseTo(RTP, 12);
   });
 
   it('is shaped like a case: payouts rise, bigger prizes are rarer, harder cases are riskier', () => {
@@ -55,16 +55,15 @@ describe('Cases paytables', () => {
     for (let k = 1; k < DIFFICULTIES.length; k++) {
       const [a, b] = [DIFFICULTIES[k - 1], DIFFICULTIES[k]];
       expect(topItem(b).mult).toBeGreaterThan(topItem(a).mult);
-      expect(stdDev(b, 1)).toBeGreaterThan(stdDev(a, 1));
-      expect(profitChance(b, 1)).toBeLessThan(profitChance(a, 1));
+      expect(stdDev(b)).toBeGreaterThan(stdDev(a));
+      // Stake's Medium has a slightly higher profit chance (25%) than Easy (24%): only the volatility is monotone.
+      if (k > 1) expect(profitChance(b)).toBeLessThan(profitChance(a));
     }
     // Volatility spread across the knobs is well over 5x.
-    expect(stdDev('expert', 1) / stdDev('easy', 1)).toBeGreaterThan(5);
-    // More cases per bet lower the volatility and never the RTP.
-    for (const d of DIFFICULTIES) expect(stdDev(d, 4)).toBeCloseTo(stdDev(d, 1) / 2, 12);
+    expect(stdDev('expert') / stdDev('easy')).toBeGreaterThan(5);
   });
 
-  it('the chances shown are the true odds: the u → item map covers exactly w_i of the 100,000 slots', () => {
+  it('the chances shown are the true odds: the u → item map covers exactly w_i of the 1,000,000 slots', () => {
     for (const d of DIFFICULTIES) {
       const counts = new Array(CASES[d].length).fill(0);
       for (let k = 0; k < WEIGHT_TOTAL; k++) counts[itemIndex((k + 0.5) / WEIGHT_TOTAL, d)]++;
@@ -82,25 +81,21 @@ describe('Cases paytables', () => {
       const counts = new Array(CASES[d].length).fill(0);
       let sum = 0;
       for (let i = 0; i < n; i++) {
-        const r = playRound(() => rng.next(), d, 1);
-        counts[r.openings[0].index]++;
+        const r = playRound(() => rng.next(), d);
+        counts[r.index]++;
         sum += r.multiplier;
       }
       CASES[d].forEach((it, i) => expect(Math.abs(counts[i] / n - it.p)).toBeLessThan(4 * Math.sqrt((it.p * (1 - it.p)) / n) + 1e-9));
-      expect(Math.abs(sum / n - RTP)).toBeLessThan(4 * (stdDev(d, 1) / Math.sqrt(n)));
+      expect(Math.abs(sum / n - RTP)).toBeLessThan(4 * (stdDev(d) / Math.sqrt(n)));
     }
   });
 
-  it('one bet (manual or auto) resolves once, with one RNG draw per case, paying the average', () => {
-    for (const n of CASE_COUNTS) {
-      let draws = 0;
-      const rng = createRng(seededSource(5 + n));
-      const r = playRound(() => (draws++, rng.next()), 'medium', n);
-      expect(draws).toBe(n);
-      expect(r.openings).toHaveLength(n);
-      const avg = r.openings.reduce((s, o) => s + o.mult, 0) / n;
-      expect(r.multiplier).toBeCloseTo(avg, 12);
-    }
+  it('one bet resolves once, with exactly one RNG draw', () => {
+    let draws = 0;
+    const rng = createRng(seededSource(6));
+    const r = playRound(() => (draws++, rng.next()), 'medium');
+    expect(draws).toBe(1);
+    expect(r.multiplier).toBe(CASES.medium[r.index].mult);
   });
 
   it('the reel is decoration: the won item sits under the marker and the strip is deterministic', () => {
@@ -116,9 +111,9 @@ describe('Cases paytables', () => {
   });
 
   it('the max multiplier is honest', () => {
-    expect(MAX_MULTIPLIER).toBe(1000);
+    expect(MAX_MULTIPLIER).toBe(10_000);
     expect(manifest.maxMultiplier).toBe(Math.max(...DIFFICULTIES.flatMap((d) => CASES[d].map((it) => it.mult))));
-    for (const d of DIFFICULTIES) for (const n of CASE_COUNTS) for (const s of roundDistribution(d, n).keys()) expect(s / (100 * n)).toBeLessThanOrEqual(MAX_MULTIPLIER);
+    for (const d of DIFFICULTIES) for (const it of CASES[d]) expect(it.mult).toBeLessThanOrEqual(MAX_MULTIPLIER);
   });
 
   it('simulated RTP matches the manifest in every eval config', () => {

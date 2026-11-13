@@ -1,0 +1,102 @@
+/* Burrows board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.burrows {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+.burrows .hole circle:first-child {
+  fill: var(--hover);
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  transition: stroke var(--dur-ui);
+}
+.burrows .hole.click {
+  cursor: pointer;
+}
+.burrows .hole.click:hover circle:first-child,
+.burrows .hole.click:focus-visible circle:first-child {
+  stroke: var(--muted);
+}
+.burrows .hole.pending circle:first-child {
+  stroke: var(--accent);
+  stroke-width: 5;
+}
+.burrows .hole.found circle:first-child {
+  stroke: var(--win);
+  stroke-width: 5;
+}
+.burrows .hole.miss circle:first-child {
+  stroke: var(--lose);
+  stroke-width: 5;
+}
+.burrows .crit circle {
+  fill: var(--muted);
+}
+.burrows .crit.found circle {
+  fill: var(--win);
+}
+.burrows .crit circle.eye {
+  fill: var(--bg);
+}
+.burrows text {
+  text-anchor: middle;
+  fill: var(--text);
+  font-family: inherit;
+  pointer-events: none;
+}
+.burrows .count {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  fill: var(--accent);
+}
+.burrows .small {
+  font-size: var(--fs-2);
+  font-weight: 500;
+  fill: var(--muted);
+}
+.burrows .pip {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.burrows .pip.on {
+  fill: var(--text);
+  stroke: var(--text);
+}
+.bu-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--muted);
+}
+.burrows .step rect {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+}
+.burrows .step.got rect {
+  fill: var(--win);
+  stroke: var(--win);
+}
+.burrows .step.next rect {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.burrows .step.bad rect {
+  stroke: var(--lose);
+  stroke-width: 3;
+}
+.burrows .stepn {
+  font-size: var(--fs-1);
+  fill: var(--muted);
+}
+.burrows .stepv {
+  font-size: var(--fs-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.burrows .step.got text {
+  fill: var(--bg);
+}

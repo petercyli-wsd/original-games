@@ -1,4 +1,4 @@
-/* Snakes board: a 12-square loop round the dice. Layout, panel and readouts come from the kit. */
+/* Snakes board: Start plus 11 dice-total tiles round the dice. Layout, panel and readouts come from the kit. */
 
 .snk-blocked {
   margin: 0;
@@ -82,7 +82,7 @@
   stroke: var(--line-strong);
   stroke-width: 1;
 }
-.snk .sq.snake .sq-bg {
+.snk .sq.pit .sq-bg {
   fill: var(--lose);
   stroke: var(--lose);
 }
@@ -99,7 +99,7 @@
 .snk .sq.down .factor {
   fill: var(--muted);
 }
-.snk .sq.snake .factor {
+.snk .sq.pit .factor {
   fill: var(--bg);
 }
 /* Squares that pay more than the stake read as wins. */
@@ -108,6 +108,15 @@
 }
 .snk .sq.up .factor {
   fill: var(--win);
+}
+.snk .way {
+  fill: var(--muted);
+}
+.snk .sq.pit .way {
+  fill: var(--bg);
+}
+.snk .sq.pit .start {
+  fill: var(--bg);
 }
 .snk .start {
   text-anchor: start;
