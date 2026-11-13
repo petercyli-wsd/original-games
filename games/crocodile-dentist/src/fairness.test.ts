@@ -1,7 +1,7 @@
 // Fairness audit: no stopping rule, tooth choice, mid-round exit or setting beats the RTP.
 //
 // Everything goes through the game's own reducer and fairValue:
-//  1. The maths can't be changed by the player (the ⚙ Customise drawer used to
+//  1. The maths can't be changed by the player (the Customise drawer used to
 //     edit the RTP up to 100%, saved in localStorage).
 //  2. The traps are a uniform k-subset (pickTraps), so given any history the
 //     bad teeth are a uniform k-subset of the teeth still free.

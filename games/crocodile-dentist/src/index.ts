@@ -1,6 +1,6 @@
 import { defineReactGame } from '@originals/game-sdk/react';
-import { tokenStyles } from '@originals/game-sdk/ui';
-import App from './App';
+import { kitStyles } from '@originals/game-sdk/ui';
+import Game from './CrocGame';
 import styles from './styles.css?inline';
 
-export default defineReactGame(App, { styles: tokenStyles + styles });
+export default defineReactGame(Game, { styles: kitStyles + styles });
