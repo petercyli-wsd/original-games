@@ -1,0 +1,90 @@
+/* Tile Pick: a flat 5 x 6 grid of plain tiles. */
+
+.tp-blocked { margin: 0; font-size: var(--fs-1); text-align: center; color: var(--lose); }
+.tp-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+
+.tp-board {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: 56px var(--sp-3) var(--sp-1);
+}
+.tp-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: var(--sp-2);
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+}
+.tp-tile {
+  position: relative;
+  aspect-ratio: 1 / 0.82;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--hover);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color var(--dur-ui), background-color var(--dur-ui);
+}
+.tp-tile:hover:not(:disabled) { border-color: var(--line-strong); }
+.tp-tile:disabled { cursor: default; }
+.tp-tile.picked, .tp-tile.picked:hover:not(:disabled) { border: 2px solid var(--accent); }
+.tp-hidden { color: var(--muted); font-size: var(--fs-2); font-weight: 600; }
+.tp-tile.up { background: var(--raised); }
+.tp-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: var(--fs-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.tp-tile.win .tp-face { color: var(--win); }
+.tp-tile.top .tp-face { background: var(--win); color: var(--bg); }
+.tp-tile.dim .tp-face { opacity: 0.4; }
+.tp-tile.up.dim { border-color: var(--line); }
+
+/* All 30 flip at once: each face opens from its centre over the face-down tile. */
+.tp-tile.flip .tp-face { animation: tp-face var(--flip) ease-in-out both; }
+@keyframes tp-face { 0% { transform: scaleX(0); } 100% { transform: scaleX(1); } }
+
+/* The whole bet: grey pays less than the stake, neutral returns it, green is a profit. */
+.tp-oddsbar { display: flex; gap: 2px; height: 28px; border-radius: var(--radius); overflow: hidden; }
+.tp-oddsbar i {
+  flex-basis: 0;
+  min-width: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-style: normal;
+  font-size: var(--fs-1);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tp-oddsbar i.lose { background: var(--line-strong); color: var(--bg); }
+.tp-oddsbar i.even { background: var(--raised); color: var(--text); }
+.tp-oddsbar i.win { background: var(--win); color: var(--bg); }
+.tp-oddsbar i.hit { outline: 2px solid var(--text); outline-offset: -2px; }
+.tp-key { margin: 0; font-size: var(--fs-1); color: var(--muted); text-align: center; }
+
+.tp-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); margin: var(--sp-2) 0; padding: 0; list-style: none; }
+.tp-list li { display: flex; flex-direction: column; align-items: center; gap: var(--sp-1); padding: var(--sp-2); border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); }
+.tp-list li b { font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tp-list li span { font-size: var(--fs-1); font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+@container (max-width: 520px) {
+  .tp-board { padding: 56px 0 var(--sp-1); }
+  .tp-grid { gap: var(--sp-1); }
+  .tp-face { font-size: var(--fs-1); }
+}
+.tp-game .og-panel > * { flex-shrink: 0; }
