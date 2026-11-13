@@ -1,0 +1,164 @@
+/* Card Duel board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.cd-game .og-chips .og-chip {
+  font-size: var(--fs-1);
+  padding-inline: 0;
+}
+.cd-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+.cd-board > svg {
+  max-height: 70vh;
+}
+
+.cd text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cd .head {
+  font-size: var(--fs-1);
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.cd .head.start {
+  text-anchor: start;
+}
+.cd .head.end {
+  text-anchor: end;
+}
+.cd .card {
+  transition: transform var(--slide, 400ms) ease-in-out;
+}
+.cd .card-bg {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.cd .card-n {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  text-anchor: middle;
+}
+.cd .card.mine .card-n {
+  fill: var(--accent);
+}
+.cd .card.front .card-bg {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.cd .card.mine.front .card-bg {
+  stroke: var(--accent);
+}
+.cd .card.mark-win .card-bg {
+  stroke: var(--win);
+  stroke-width: 3;
+}
+.cd .card.mark-lose .card-bg {
+  stroke: var(--lose);
+  stroke-width: 3;
+}
+.cd .card.ghost {
+  opacity: 0.5;
+  transition: none;
+}
+.cd .card.ghost .card-bg {
+  stroke-dasharray: 4 3;
+  stroke-width: 2;
+}
+
+.cd .arc {
+  fill: none;
+  stroke-width: 22;
+}
+.cd .arc.you {
+  stroke: var(--win);
+}
+.cd .arc.house {
+  stroke: var(--lose);
+}
+.cd .hub {
+  fill: var(--card);
+}
+.cd .hub-n {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  text-anchor: middle;
+}
+.cd .pointer {
+  transform-box: view-box;
+  transform-origin: 120px 262px;
+  animation: cd-spin cubic-bezier(0.15, 0.6, 0.2, 1) both;
+}
+.cd .needle {
+  stroke: var(--text);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.cd .tip {
+  fill: var(--text);
+  stroke: var(--card);
+  stroke-width: 2;
+}
+.cd .tip.you {
+  stroke: var(--win);
+  stroke-width: 4;
+}
+.cd .tip.house {
+  stroke: var(--lose);
+  stroke-width: 4;
+}
+@keyframes cd-spin {
+  from {
+    transform: rotate(var(--from));
+  }
+  to {
+    transform: rotate(var(--to));
+  }
+}
+
+.cd .key {
+  font-size: var(--fs-3);
+  fill: var(--muted);
+}
+.cd .verdict {
+  font-size: var(--fs-4);
+  font-weight: 600;
+}
+.cd .verdict.you {
+  fill: var(--win);
+}
+.cd .verdict.house {
+  fill: var(--lose);
+}
+
+.cd .bar-bg {
+  fill: var(--lose);
+}
+.cd .bar-win {
+  fill: var(--win);
+}
+.cd .bar-label {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.cd .bar-label.end {
+  text-anchor: end;
+}
+.cd-board .og-instant {
+  top: 55%;
+}
+
+@container (max-width: 760px) {
+  .cd .key,
+  .cd .bar-label {
+    font-size: var(--fs-4);
+  }
+  .cd .head {
+    font-size: var(--fs-3);
+  }
+}
