@@ -1,0 +1,196 @@
+/* Holdfast board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.hf-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+
+.hf-board {
+  padding-top: 48px;
+}
+.hf-machine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(100%, 520px);
+  margin: 0 auto;
+}
+.hf-grid {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.hf-cell {
+  fill: var(--bg);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.hf-cell.win {
+  stroke: var(--win);
+  stroke-width: 3;
+}
+.hf-cell.fresh {
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.hf-dot {
+  fill: var(--faint);
+}
+.hf-sym.dim {
+  opacity: 0.35;
+}
+.hf-sym.blur {
+  opacity: 0.55;
+}
+
+/* Symbols: flat fills in neutral tones; the keystone is the accent. */
+.hf-sym .hi {
+  --tone: var(--text);
+}
+.hf-sym .muted {
+  --tone: var(--muted);
+}
+.hf-sym .faint {
+  --tone: var(--faint);
+}
+svg.hf-sym.hi {
+  --tone: var(--text);
+}
+svg.hf-sym.muted {
+  --tone: var(--muted);
+}
+svg.hf-sym.faint {
+  --tone: var(--faint);
+}
+.hf-f {
+  fill: var(--tone, var(--text));
+}
+.hf-o {
+  fill: none;
+  stroke: var(--tone, var(--text));
+  stroke-width: 9;
+}
+.hf-hi {
+  fill: var(--text);
+}
+.hf-key {
+  fill: var(--accent);
+}
+.hf-wild {
+  fill: var(--text);
+}
+.hf-wild-text {
+  fill: var(--bg);
+  font-size: 44px;
+  font-weight: 700;
+  font-family: inherit;
+}
+svg.hf-sym {
+  width: 22px;
+  height: 22px;
+  vertical-align: middle;
+}
+
+/* The lock track */
+.hf-track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+.hf-key-line {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.hf-boxes {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 3px;
+}
+.hf-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+.hf-box b {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  color: var(--muted);
+}
+.hf-box small {
+  font-size: 10px;
+  color: var(--faint);
+}
+.hf-box.lit {
+  background: var(--hover);
+}
+.hf-box.lit b,
+.hf-box.lit small {
+  color: var(--text);
+}
+.hf-box.now,
+.hf-box.final {
+  border-color: var(--accent);
+}
+.hf-bar {
+  display: flex;
+  align-items: flex-end;
+  width: 60%;
+  height: 22px;
+}
+.hf-bar i {
+  display: block;
+  width: 100%;
+  min-height: 1px;
+  background: var(--accent);
+}
+
+/* How to play: the paytable */
+.hf-pay {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+.hf-pay th,
+.hf-pay td {
+  padding: var(--sp-1) var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+}
+
+.hf-line {
+  fill: none;
+  stroke: var(--win);
+  stroke-width: 4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.hf-feat {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  font-size: var(--fs-1);
+  text-align: center;
+}
+.hf-feat span {
+  padding: 3px 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--muted);
+}
+.hf-feat span.on {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--hover);
+}
