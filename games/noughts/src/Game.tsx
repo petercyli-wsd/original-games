@@ -4,7 +4,6 @@ import {
   BetField,
   Board,
   Caption,
-  ChanceBar,
   Chips,
   GameLayout,
   InfoModal,
@@ -38,7 +37,6 @@ import {
   chances,
   completed,
   emptyCells,
-  gameChance,
   newSeries,
   outcome,
   perGame,
@@ -56,7 +54,8 @@ import {
   type Side,
 } from './math';
 
-const ACCENT = '#8ecae6';
+const ACCENT = '#5ec4e6';
+const RULE = 'Win if your backed result happens in every game.';
 
 type Phase = 'idle' | 'moving' | 'checkpoint' | 'over';
 type Outcome = 'won' | 'cashed' | 'lost' | 'dead';
@@ -89,8 +88,6 @@ function hopPath(free: number[], target: number, hops: number): number[] {
   const t = order.indexOf(target);
   return Array.from({ length: hops + 1 }, (_, k) => order[(((t - hops + k) % order.length) + order.length) % order.length]);
 }
-
-const sideLabel = (side: Side) => (side === 'D' ? 'a draw' : `${side} to win`);
 
 function outcomeTitle(r: Round): string {
   const s = r.series;
@@ -238,7 +235,6 @@ export default function Game() {
   const cells = over || result ? null : cellChances(grid, sd);
   const mover = over || result ? null : toMove(grid);
   const atBoundary = phase === 'checkpoint' && s.won > 0 && s.grid.every((m) => m === 0);
-  const marks = s.grid.filter((m) => m !== 0).length;
 
   const p = round ? (over ? (round.outcome === 'won' ? 1 : round.outcome === 'cashed' ? winChance(s) : 0) : winChance(s)) : startChance(sd, k);
   const cash = round ? (over ? round.cash : cashValue(s)) : RTP;
@@ -260,16 +256,14 @@ export default function Game() {
   else if (over && round?.outcome === 'dead') note = sd === 'D' ? 'No draw possible now' : `${sd} can no longer win`;
   else if (over) note = 'Round over';
 
-  const gamePrefix = k > 1 ? `Game ${Math.min(s.won + 1, k)} of ${k} · ` : '';
+  const gamePrefix = k > 1 ? `Game ${Math.min(s.won + 1, k)}/${k} · ` : '';
   let status = `Ready · back ${SIDE_NAME[sd]}${k > 1 ? `, ${k} in a row` : ''}`;
   if (phase === 'moving') status = result ? `${note}${result === sd ? ' · your way' : ''}` : `${gamePrefix}Next mark landing…`;
-  if (phase === 'checkpoint') status = atBoundary ? `Game ${s.won} won · checkpoint` : `${gamePrefix}Checkpoint · ${marks} mark${marks === 1 ? '' : 's'} down`;
+  if (phase === 'checkpoint') status = atBoundary ? `Game ${s.won} won · checkpoint` : `${gamePrefix}Checkpoint`;
   if (over && round) status = `${outcomeTitle(round)} · ${fmtMult(round.cash)}`;
   const tone = over ? (round && round.cash > 0 ? 'won' : 'lost') : live ? 'live' : 'idle';
 
   const nextName = toMove(s.grid) === 1 ? 'X' : 'O';
-  const after = k - s.won - 1;
-  const restNote = after === 0 ? '' : after === 1 ? ` × ${fmtChance(perGame(sd))} for the game after it` : ` × ${fmtChance(perGame(sd))} for each of the ${after} games after it`;
 
   return (
     <GameLayout
@@ -282,7 +276,7 @@ export default function Game() {
           <Label hint={<VolBadge level={vol} />}>Back</Label>
           <Chips
             label="Result to back"
-            options={(['X', 'O', 'D'] as const).map((v) => ({ value: v, label: SIDE_NAME[v], title: `${fmtChance(perGame(v))} per game` }))}
+            options={(['X', 'O', 'D'] as const).map((v) => ({ value: v, label: SIDE_NAME[v] }))}
             value={side}
             disabled={live}
             onChange={(v) => change(() => setSide(v))}
@@ -296,19 +290,6 @@ export default function Game() {
             disabled={live}
             onChange={(v) => change(() => setGames(v))}
           />
-          <dl className="og-stats">
-            {games > 1 && (
-              <>
-                <dt>Each game</dt>
-                <dd>{fmtChance(perGame(side))}</dd>
-              </>
-            )}
-            <dt>Chance to win</dt>
-            <dd>{fmtChance(startChance(side, games))}</dd>
-            <dt>Prize</dt>
-            <dd>{fmtMult(prizeFor(side, games))}</dd>
-          </dl>
-
           {phase === 'checkpoint' ? (
             <>
               <ActionButton kind="cash" onClick={cashOut}>
@@ -335,14 +316,8 @@ export default function Game() {
 
       <Readouts
         items={[
-          {
-            label: 'Win chance',
-            value: fmtChance(p),
-            sub: k > 1 ? `game ${Math.min(s.won + 1, k)} of ${k}` : `${sideLabel(sd)}`,
-            tone: 'chance',
-          },
-          { label: 'Cash out now', value: live || over ? fmtMult(cash) : '—', sub: formatAmount(stake * cash, 2), tone: 'cash' },
-          { label: 'Prize', value: fmtMult(prize), sub: k > 1 ? `${SIDE_NAME[sd]}, ${k} in a row` : `if ${SIDE_NAME[sd] === 'Draw' ? 'it is a draw' : SIDE_NAME[sd]}`, tone: 'prize' },
+          { label: 'Win chance', value: fmtChance(p), tone: 'chance' },
+          { label: 'Prize', value: fmtMult(prize), tone: 'prize' },
         ]}
       />
 
@@ -383,22 +358,7 @@ export default function Game() {
         )}
       </Board>
 
-      {live ? (
-        <ChanceBar
-          p={p}
-          label="Chance to win"
-          note={
-            atBoundary
-              ? `A fresh game: ${fmtChance(perGame(sd))} per game, ${k - s.won} still to play.`
-              : `This game ${fmtChance(gameChance(s))}${restNote}. The next mark lands on a random empty cell, so the cell numbers average to this game's chance.`
-          }
-        />
-      ) : (
-        <Caption>
-          X and O fill the board at random, X first. In random play X wins 737/1260 ({fmtChance(perGame('X'))}), O 121/420 ({fmtChance(perGame('O'))}) and a draw
-          is 8/63 ({fmtChance(perGame('D'))}). Each cell shows your chance if the first mark lands there. RTP {(RTP * 100).toFixed(0)}%.
-        </Caption>
-      )}
+      <Caption>{RULE}</Caption>
 
       {infoOpen && (
         <InfoModal title="Noughts" onClose={() => setInfoOpen(false)}>
@@ -417,13 +377,19 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              Every empty cell shows your chance this game <b>if the next mark lands there</b>. <b style={{ color: 'var(--green)' }}>Green</b> cells raise it,{' '}
-              <b style={{ color: 'var(--red)' }}>red</b> cells lower it, and 0% or 100% cells end the game. The next mark is equally likely to land on any empty
+              Every empty cell shows your chance this game <b>if the next mark lands there</b>. <b style={{ color: 'var(--win)' }}>Green</b> cells raise it,{' '}
+              <b style={{ color: 'var(--lose)' }}>red</b> cells lower it, and 0% or 100% cells end the game. The next mark is equally likely to land on any empty
               cell, so your chance right now is exactly the <b>average of the cell numbers</b>.
             </p>
             <p>
               Dotted lines are threats: two marks of one kind with the third cell open. The bar under the board splits this game into X wins, draw and O wins; its
               green length is your chance. With several games in a row, multiply by the per-game chance for each game still to come.
+            </p>
+          </InfoSection>
+          <InfoSection title="Random-play odds">
+            <p>
+              From the empty board X wins {fmtChance(perGame('X'))}, O wins {fmtChance(perGame('O'))} and a draw is {fmtChance(perGame('D'))}. With several games in
+              a row the chances multiply. RTP {(RTP * 100).toFixed(0)}%.
             </p>
           </InfoSection>
           <InfoSection title="The maths">

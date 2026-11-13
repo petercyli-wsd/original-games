@@ -1,10 +1,17 @@
 /* Noughts board. Layout, panel and readouts come from the kit. */
 
 .nt {
-  --x: var(--accent);
-  --o: #f1edff;
+  /* The backed side is drawn in the accent, the other side in plain text. */
+  --x: var(--text);
+  --o: var(--text);
   --draw: 280ms;
   --fade: 280ms;
+}
+.nt.back-x {
+  --x: var(--accent);
+}
+.nt.back-o {
+  --o: var(--accent);
 }
 .nt text {
   font-family: inherit;
@@ -14,20 +21,19 @@
 /* Header */
 .nt-head-text {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   fill: var(--muted) !important;
-  letter-spacing: 0.02em;
 }
 .nt-head-text.end {
   text-anchor: end;
 }
 .nt-x-text {
   fill: var(--x) !important;
-  font-weight: 800;
+  font-weight: 700;
 }
 .nt-o-text {
   fill: var(--o) !important;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 /* Series strip */
@@ -39,15 +45,12 @@
 .nt-mini.live rect {
   stroke: var(--accent);
   stroke-width: 2;
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
 }
 .nt-mini.won rect {
-  stroke: var(--green);
-  fill: color-mix(in srgb, var(--green) 10%, var(--bg));
+  stroke: var(--win);
 }
 .nt-mini.lost rect {
-  stroke: var(--red);
-  fill: color-mix(in srgb, var(--red) 12%, var(--bg));
+  stroke: var(--lose);
 }
 .nt-mini.next rect {
   stroke-dasharray: 3 3;
@@ -63,16 +66,16 @@
   stroke-width: 1.6;
 }
 .nt-mini-line {
-  stroke: var(--green);
+  stroke: var(--win);
   stroke-width: 2.4;
   stroke-linecap: round;
 }
 .nt-mini.lost .nt-mini-line {
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .nt-mini-q {
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 700;
   text-anchor: middle;
   dominant-baseline: central;
   fill: var(--muted) !important;
@@ -80,7 +83,7 @@
 
 /* Cells */
 .nt-cell {
-  fill: color-mix(in srgb, var(--bg) 82%, var(--card));
+  fill: var(--bg);
   stroke: var(--line);
   stroke-width: 1.5;
 }
@@ -88,14 +91,14 @@
   transition: opacity var(--fade) ease;
 }
 .nt-tint.up {
-  fill: var(--green);
+  fill: var(--win);
 }
 .nt-tint.down {
-  fill: var(--red);
+  fill: var(--lose);
 }
 .nt-val {
   font-size: 22px;
-  font-weight: 800;
+  font-weight: 700;
   text-anchor: middle;
   dominant-baseline: central;
   font-variant-numeric: tabular-nums;
@@ -105,19 +108,17 @@
   stroke-linejoin: round;
 }
 .nt-val.up {
-  fill: color-mix(in srgb, var(--green) 80%, #fff);
+  fill: var(--win);
 }
 .nt-val.down {
-  fill: color-mix(in srgb, var(--red) 70%, #fff);
+  fill: var(--lose);
 }
 .nt-val.even {
   fill: var(--text);
 }
 .nt-ends {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 600;
   text-anchor: middle;
   dominant-baseline: central;
   paint-order: stroke;
@@ -125,13 +126,10 @@
   stroke-width: 3px;
 }
 .nt-ends.up {
-  fill: var(--green);
+  fill: var(--win);
 }
 .nt-ends.down {
-  fill: color-mix(in srgb, var(--red) 75%, #fff);
-}
-.nt-val-g {
-  animation: nt-fade var(--fade) ease both;
+  fill: var(--lose);
 }
 
 /* Marks */
@@ -162,8 +160,6 @@
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 2 9;
-  opacity: 0.75;
-  animation: nt-fade var(--fade) ease both;
 }
 .nt-threat.x {
   stroke: var(--x);
@@ -174,11 +170,10 @@
 
 /* Scanner */
 .nt-cursor {
-  fill: color-mix(in srgb, var(--accent) 14%, transparent);
+  fill: none;
   stroke: var(--accent);
   stroke-width: 3;
   transition: transform 70ms ease-out;
-  filter: drop-shadow(0 0 8px color-mix(in srgb, var(--accent) 70%, transparent));
 }
 
 /* Result */
@@ -189,53 +184,42 @@
   animation: nt-draw calc(var(--fade) * 1.2) ease-out both;
 }
 .nt-winline.yours {
-  stroke: var(--green);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--green) 60%, transparent));
+  stroke: var(--win);
 }
 .nt-winline.theirs {
-  stroke: var(--red);
-  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--red) 60%, transparent));
+  stroke: var(--lose);
 }
 .nt-drawn rect {
-  fill: color-mix(in srgb, var(--bg) 88%, transparent);
+  fill: var(--bg);
   stroke-width: 2;
 }
 .nt-drawn.yours rect {
-  stroke: var(--green);
+  stroke: var(--win);
 }
 .nt-drawn.theirs rect {
-  stroke: var(--red);
+  stroke: var(--lose);
 }
 .nt-drawn text {
   font-size: 22px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-weight: 700;
   text-anchor: middle;
   dominant-baseline: central;
 }
 .nt-drawn.yours text {
-  fill: var(--green);
+  fill: var(--win);
 }
 .nt-drawn.theirs text {
-  fill: var(--red);
-}
-.nt-drawn {
-  animation: nt-fade var(--fade) ease both;
+  fill: var(--lose);
 }
 
 /* Outcome bar */
 .nt-bar-title {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
   fill: var(--muted) !important;
 }
 .nt-bar-title.end {
   text-anchor: end;
-  letter-spacing: 0.04em;
-  text-transform: none;
 }
 .nt-bar-track {
   fill: var(--hover);
@@ -243,16 +227,13 @@
 .nt-seg {
   transition: x var(--fade) ease, width var(--fade) ease;
   stroke: var(--card);
-  stroke-width: 1.5;
+  stroke-width: 2;
 }
 .nt-seg.yours {
-  fill: var(--green);
+  fill: var(--win);
 }
 .nt-seg.theirs {
-  fill: color-mix(in srgb, var(--red) 55%, var(--bg));
-}
-.nt-seg.theirs.s-D {
-  fill: color-mix(in srgb, var(--red) 32%, var(--bg));
+  fill: var(--lose);
 }
 .nt-key {
   font-size: 11.5px;
@@ -261,18 +242,11 @@
 }
 .nt-legend {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   fill: var(--muted) !important;
 }
-.nt-legend .nt-legend-p {
-  font-variant-numeric: tabular-nums;
-  fill: var(--text);
-}
 .nt-legend.yours {
-  fill: var(--green) !important;
-}
-.nt-legend.yours .nt-legend-p {
-  fill: var(--green);
+  fill: var(--win) !important;
 }
 
 @keyframes nt-draw {
@@ -281,11 +255,6 @@
   }
   to {
     stroke-dashoffset: 0;
-  }
-}
-@keyframes nt-fade {
-  from {
-    opacity: 0;
   }
 }
 
