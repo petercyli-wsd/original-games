@@ -1,10 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { fmtMult } from '@originals/game-sdk/ui';
-import { BOARD_R, INNER_R, OUTER_R, ZONES, ZONE_NAMES, payout, type Difficulty, type Zone } from './math';
+import { BOARD_R, CELLS, ZONE_NAMES, bounds, cellPattern, payout, radiusAt, type Difficulty, type Zone } from './math';
 
-// The dartboard: seven flat concentric rings, drawn to scale (each ring's area
-// share is its exact chance), so the picture is the odds. Each ring's
-// multiplier is written at the end of a thin leader line beside the board.
+// The dartboard, drawn to scale: area is chance. Centre outwards: bullseye, a
+// band of 18 equal wedge cells (low, mid, high), a light ring, a dark ring.
+// Each zone's multiplier sits at the end of a thin leader line beside the board.
+
+const pt = (r: number, a: number) => `${(r * Math.cos(a)).toFixed(3)} ${(r * Math.sin(a)).toFixed(3)}`;
+
+/** An annular sector between radii r0 and r1 and angles a0..a1 (clockwise on screen). */
+function sector(r0: number, r1: number, a0: number, a1: number) {
+  return `M ${pt(r1, a0)} A ${r1} ${r1} 0 0 1 ${pt(r1, a1)} L ${pt(r0, a1)} A ${r0} ${r0} 0 0 0 ${pt(r0, a0)} Z`;
+}
 
 /** A full ring (or disc when r0 = 0), filled with the even-odd rule. */
 function annulus(r0: number, r1: number) {
@@ -12,24 +19,29 @@ function annulus(r0: number, r1: number) {
   return r0 > 0 ? `${circle(r1)} ${circle(r0)}` : circle(r1);
 }
 
-// Flat fill by outcome: pays 1x or more = win, pays something under 1x = neutral,
-// pays nothing = lose (dimmed). Area is chance, so the coloured area is the odds.
-function zoneFill(m: number): string {
-  if (m >= 1) return 'var(--win)';
-  if (m > 0) return 'var(--line-strong)';
-  return 'color-mix(in srgb, var(--lose) 60%, var(--bg))';
-}
+// Flat fills: rings below 1× are neutral, paying cells are green (deeper = more).
+const FILL: Record<Zone, string> = {
+  dark: 'var(--hover)',
+  light: 'var(--line-strong)',
+  low: 'color-mix(in srgb, var(--win) 35%, var(--bg))',
+  mid: 'color-mix(in srgb, var(--win) 62%, var(--bg))',
+  high: 'color-mix(in srgb, var(--win) 85%, var(--bg))',
+  bull: 'var(--win)',
+};
 
-// Leader lines fan out to the right, one per ring, bullseye at the top.
+// Leader lines fan out to the right, top to bottom in this order.
+const LABEL_ORDER: Zone[] = ['bull', 'high', 'mid', 'low', 'light', 'dark'];
 const LABEL_R = 122;
 const FAN_STEP = 17;
-const leaderAngle = (i: number) => ((i - (ZONES.length - 1) / 2) * FAN_STEP * Math.PI) / 180;
+const leaderAngle = (i: number) => ((i - (LABEL_ORDER.length - 1) / 2) * FAN_STEP * Math.PI) / 180;
+const cellAngle = (k: number) => ((k + 0.5) * 2 * Math.PI) / CELLS;
 
 export interface Mark {
   id: number;
   x: number;
   y: number;
   zone: Zone;
+  cell: number;
   multiplier: number;
 }
 
@@ -44,6 +56,11 @@ export interface DartBoardProps {
 
 export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBoardProps) {
   const dartRef = useRef<SVGGElement>(null);
+  const { b0, b1, b2 } = bounds(difficulty);
+  const r0 = radiusAt(b0);
+  const r1 = radiusAt(b1);
+  const r2 = radiusAt(b2);
+  const pattern = cellPattern(difficulty);
 
   // Fly the dot in from below the board, straight up the line of the (already decided)
   // landing point, so it visibly heads to where it lands.
@@ -57,40 +74,52 @@ export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBo
     return () => anim.cancel();
   }, [dart?.id, flying]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hit = dart && !flying ? dart.zone : null;
-  const outcome = dart ? (dart.multiplier > 1 ? 'win' : dart.multiplier < 1 ? 'lose' : 'even') : 'even';
-  const outcomeColor = outcome === 'win' ? 'var(--win)' : outcome === 'lose' ? 'var(--lose)' : 'var(--text)';
+  const hit = dart && !flying ? dart : null;
+  const outcomeColor = !hit ? 'var(--text)' : hit.multiplier > 1 ? 'var(--win)' : 'var(--text)';
 
   return (
-    <svg className="dt-svg" viewBox="-150 -112 300 224" role="img" aria-label={hit ? `Dart in the ${ZONE_NAMES[hit]}` : 'Dartboard'}>
-      {ZONES.map((z) => (
-        <path key={z} className="dt-zone" fill={zoneFill(payout(difficulty, z))} d={annulus(INNER_R[z], OUTER_R[z])} fillRule="evenodd" />
+    <svg className="dt-svg" viewBox="-150 -118 300 236" role="img" aria-label={hit ? `Dart in the ${ZONE_NAMES[hit.zone]}` : 'Dartboard'}>
+      <path className="dt-zone" fill={FILL.dark} d={annulus(r2, BOARD_R)} fillRule="evenodd" />
+      <path className="dt-zone" fill={FILL.light} d={annulus(r1, r2)} fillRule="evenodd" />
+      {pattern.map((tier, k) => (
+        <path
+          key={k}
+          className={hit && hit.zone === tier && hit.cell === k ? 'dt-zone dt-cell-hit' : 'dt-zone dt-cell'}
+          fill={FILL[tier]}
+          d={sector(r0, r1, (k * 2 * Math.PI) / CELLS, ((k + 1) * 2 * Math.PI) / CELLS)}
+        />
       ))}
-
-      {/* Ring boundaries. */}
-      <g className="dt-wire">
-        {ZONES.slice(0, -1).map((z) => (
-          <circle key={z} r={OUTER_R[z]} />
-        ))}
-      </g>
+      <circle r={r0} fill={FILL.bull} className="dt-bull" />
       <circle r={BOARD_R} className="dt-edge" />
 
-      {/* One multiplier per ring, on a leader line. */}
+      {/* One multiplier per zone, on a leader line. */}
       <g className="dt-labels">
-        {ZONES.map((z, i) => {
+        {LABEL_ORDER.map((z, i) => {
           const a = leaderAngle(i);
-          const mid = (INNER_R[z] + OUTER_R[z]) / 2;
-          const x1 = mid * Math.cos(a);
-          const y1 = mid * Math.sin(a);
+          let ang = a;
+          let rad: number;
+          if (z === 'bull') rad = r0 / 2;
+          else if (z === 'light') rad = (r1 + r2) / 2;
+          else if (z === 'dark') rad = (r2 + BOARD_R) / 2;
+          else {
+            // The cell of this tier nearest the leader's angle.
+            const ks = pattern.map((t, k) => (t === z ? k : -1)).filter((k) => k >= 0);
+            const wrap = (x: number) => Math.abs(Math.atan2(Math.sin(x), Math.cos(x)));
+            const k = ks.reduce((best, c) => (wrap(cellAngle(c) - a) < wrap(cellAngle(best) - a) ? c : best), ks[0]);
+            ang = cellAngle(k);
+            rad = (r0 + r1) / 2;
+          }
+          const x1 = rad * Math.cos(ang);
+          const y1 = rad * Math.sin(ang);
           const x2 = LABEL_R * Math.cos(a);
           const y2 = LABEL_R * Math.sin(a);
-          const isHit = hit === z;
-          const color = isHit ? outcomeColor : undefined;
+          const isHit = hit?.zone === z;
+          const style = isHit ? { fill: outcomeColor } : undefined;
           return (
             <g key={z} className={isHit ? 'dt-label hit' : 'dt-label'}>
-              <line x1={x1} y1={y1} x2={x2} y2={y2} style={color ? { stroke: color } : undefined} />
-              <circle cx={x1} cy={y1} r={1.2} style={color ? { fill: color } : undefined} />
-              <text x={x2 + 4} y={y2} dominantBaseline="central" style={color ? { fill: color } : undefined}>
+              <line x1={x1} y1={y1} x2={x2} y2={y2} style={isHit ? { stroke: outcomeColor } : undefined} />
+              <circle cx={x1} cy={y1} r={1.2} style={style} />
+              <text x={x2 + 4} y={y2} dominantBaseline="central" style={style}>
                 {fmtMult(payout(difficulty, z))}
               </text>
             </g>
@@ -98,12 +127,16 @@ export default function DartBoard({ difficulty, dart, flying, flightMs }: DartBo
         })}
       </g>
 
-      {/* The dart: the accent while flying, then a dot in the outcome colour until the next throw. */}
+      {/* The dart: the accent while flying, then a dot until the next throw. */}
       {dart && (
         <g key={dart.id} ref={dartRef} className="dt-dart" style={{ transform: `translate(${dart.x}px, ${dart.y}px)` }}>
           <circle r={3} fill={flying ? 'var(--accent)' : 'var(--text)'} className="dt-dot" />
         </g>
       )}
+
+      <text className="dt-key" x={146} y={112} textAnchor="end">
+        Area is chance; label is payout
+      </text>
     </svg>
   );
 }

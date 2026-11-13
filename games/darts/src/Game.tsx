@@ -30,12 +30,9 @@ import {
 import { useEffect, useRef, useState } from "react";
 import DartBoard, { type Mark } from "./Board";
 import {
-  AREA_UNITS,
   DIFFICULTIES,
   DIFFICULTY_NAMES,
   DIFFICULTY_VOL,
-  INNER_R,
-  OUTER_R,
   RTP,
   ZONES,
   ZONE_NAMES,
@@ -44,13 +41,14 @@ import {
   topPrize,
   winChance,
   zoneChance,
+  TOTAL_UNITS,
+  CELLS,
   type Difficulty,
 } from "./math";
 
 const ACCENT = ACCENTS.amber;
 
-// Every chance on this board is a whole number of 1/10,000ths, so show it exactly
-// (19.25%, not 19.3%): two decimals at most, trailing zeros dropped.
+// Every chance is a whole number of 1/120,000ths: two decimals, trailing zeros dropped.
 const fmtChance = (p: number) => `${parseFloat((p * 100).toFixed(2))}%`;
 
 interface Last extends Mark {
@@ -94,6 +92,7 @@ export default function Game() {
       x: t.x,
       y: t.y,
       zone: t.zone,
+      cell: t.cell,
       multiplier: t.multiplier,
       stake,
     });
@@ -159,9 +158,9 @@ export default function Game() {
     status = "Dart in the air…";
     tone = "live";
   } else if (shown) {
-    status = `${ZONE_NAMES[shown.zone]} · ${fmtMult(shown.multiplier)}`;
+    status = `${ZONE_NAMES[shown.zone]}: ${fmtMult(shown.multiplier)}`;
     tone = shown.multiplier >= 1 ? "won" : "lost";
-  } else status = `${DIFFICULTY_NAMES[difficulty]} board · area is the odds`;
+  } else status = `${DIFFICULTY_NAMES[difficulty]} board, throw a dart`;
 
   return (
     <GameLayout
@@ -236,27 +235,28 @@ export default function Game() {
         )}
       </Board>
 
-      <Caption>The dart lands anywhere on the board; its ring pays that multiplier.</Caption>
+      <Caption>The dart never misses: the zone it lands in pays its multiplier.</Caption>
 
       {infoOpen && (
         <InfoModal title="Darts" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
             <p>
-              Throw one dart. It lands at a random point on the board, and the
-              ring it lands in pays that ring's multiplier of your bet.
+              Throw one dart. It never misses: it lands at a random point on the
+              board, and the zone it lands in pays that zone's multiplier of
+              your bet. Every zone pays something back.
             </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
               <li>
                 Set your bet and pick a difficulty: Easy, Medium, Hard or Expert
-                (keys 1–4). The multiplier written beside each ring changes with it.
+                (keys 1–4). The board and the multiplier beside each zone change
+                with it.
               </li>
               <li>
-                Press Bet (or Space). The dart flies in and lands as a white dot.
-                Rings are green where you profit, grey where you get back part
-                of your bet and red where you lose it. The ring it hit has its
-                multiplier marked. The result also appears in the history.
+                Press Bet (or Space). The dart flies in and lands as a white
+                dot. The zone it hit keeps its label marked, and the result
+                appears in the history.
               </li>
               <li>
                 The dot stays until your next throw. Clear board (or Esc)
@@ -271,34 +271,37 @@ export default function Game() {
           <InfoSection title="Reading the odds">
             <p>
               The board is drawn to scale. Every point of the board is equally
-              likely, so a ring's share of the board's area is exactly its
-              chance:
+              likely, so a zone's share of the area is exactly its chance. The
+              coloured band has 18 equal cells, so each cell of a kind has the
+              same chance; darker green pays more.
             </p>
             <div className="dt-info-scroll">
               <table className="dt-info-table">
                 <thead>
                   <tr>
-                    <th>Ring</th>
-                    <th>Radii</th>
-                    <th>Chance</th>
+                    <th>Zone</th>
                     {DIFFICULTIES.map((d) => (
                       <th key={d}>{DIFFICULTY_NAMES[d]}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {ZONES.map((z) => (
+                  {[...ZONES].reverse().map((z) => (
                     <tr key={z}>
                       <td>{ZONE_NAMES[z]}</td>
-                      <td>
-                        {INNER_R[z]}–{OUTER_R[z]}
-                      </td>
-                      <td>{fmtChance(zoneChance(z))}</td>
                       {DIFFICULTIES.map((d) => (
-                        <td key={d}>{fmtMult(payout(d, z))}</td>
+                        <td key={d}>
+                          {fmtMult(payout(d, z))} ({fmtChance(zoneChance(d, z))})
+                        </td>
                       ))}
                     </tr>
                   ))}
+                  <tr>
+                    <td>Profit chance</td>
+                    {DIFFICULTIES.map((d) => (
+                      <td key={d}>{fmtChance(winChance(d))}</td>
+                    ))}
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -306,24 +309,23 @@ export default function Game() {
           <InfoSection title="The maths">
             <p>
               For a point uniform on a disc of radius R, P(distance &lt; ρ) =
-              ρ²/R², so a ring between radii a and b is hit with chance (b² −
-              a²)/R², its share of the area. The dart is placed at distance R·√u
-              and angle 2π·v from two uniform numbers u and v, which is exactly
-              uniform on the disc. With R = 100 every ring's area is a whole
-              number of 1/10,000ths of the board: the triple band (45–50) is
-              (2500 − 2025)/10,000 = {(AREA_UNITS.triple / 100).toFixed(2)}%.
+              ρ²/R², so a zone's chance is its share of the area. The board is{" "}
+              {TOTAL_UNITS.toLocaleString("en-US")} equal units. The dart's
+              squared distance is drawn as a whole unit s from one uniform
+              number, and its angle, which picks one of the {CELLS} cells, from
+              another. Zones are ranges of s, so every chance is a whole number
+              of units over {TOTAL_UNITS.toLocaleString("en-US")}.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              The return of a difficulty is Σ chance × multiplier. Each table is
-              set in whole cents so this sum is exactly {(RTP * 100).toFixed(0)}
-              % (for Medium: 0.25%×20 + 0.75%×8 + 19.25%×1.5 + 4.75%×4 + 39%×0.5
-              + 8.25%×2.5 = 0.99). Difficulty only changes how results are
-              spread: Easy pays {fmtChance(winChance("easy"))} of throws a
-              profit, Expert pays {fmtChance(winChance("expert"))} but up to{" "}
-              {fmtMult(topPrize("expert"))}. A point exactly on a wire counts as
-              the outer ring.
+              The return of a difficulty is Σ chance × multiplier. Each table
+              is built from whole units and whole cents, so this sum is exactly{" "}
+              {(RTP * 100).toFixed(0)}% on every difficulty. Difficulty spreads
+              the results: Easy pays {fmtChance(winChance("easy"))} of throws a
+              profit, Expert only {fmtChance(winChance("expert"))} but up to{" "}
+              {fmtMult(topPrize("expert"))}. A point exactly on a boundary
+              counts as the outer zone.
             </p>
           </InfoSection>
         </InfoModal>

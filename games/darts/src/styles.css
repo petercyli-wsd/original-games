@@ -24,10 +24,21 @@
   overflow: visible;
 }
 
-.dt-wire {
-  fill: none;
-  stroke: var(--line-strong);
+.dt-cell {
+  stroke: var(--bg);
   stroke-width: 0.5;
+}
+.dt-cell-hit {
+  stroke: var(--text);
+  stroke-width: 1.2;
+}
+.dt-bull {
+  stroke: var(--bg);
+  stroke-width: 0.5;
+}
+.dt-key {
+  fill: var(--muted);
+  font-size: 7px;
 }
 .dt-edge {
   fill: none;
@@ -76,6 +87,8 @@
 
 /* ---------- Info table ---------- */
 .dt-info-scroll {
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -92,7 +105,7 @@
   padding: var(--sp-1) var(--sp-2);
   text-align: right;
   border-bottom: 1px solid var(--line);
-  white-space: nowrap;
+  white-space: normal;
 }
 .dt-info-table th:first-child,
 .dt-info-table td:first-child {

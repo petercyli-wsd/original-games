@@ -3,9 +3,8 @@ import { DIFFICULTIES, rtpOf, throwDart, type Difficulty } from './math';
 
 // Darts has no choices inside a round, so the player's only decision is the
 // difficulty. One config per difficulty, plus a session that switches
-// difficulty at random between throws (a player tinkering with the knob).
-// Every table returns exactly 99%; each config still declares its own exact
-// RTP from the integer table sum.
+// difficulty at random between throws. Every table returns exactly 98%; each
+// config declares its exact RTP from the integer table sum.
 type Params = { difficulty: Difficulty | 'mixed' };
 
 export default defineEval<Params>({
