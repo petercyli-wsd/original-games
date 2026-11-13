@@ -29,26 +29,26 @@ import {
 } from '@originals/game-sdk/ui';
 import { useEffect, useRef, useState } from 'react';
 import {
-  DEFAULT_RANGE,
+  DEFAULT_CONFIG,
   MAX_CHANCE,
   MAX_MULTIPLIER,
-  MIN_CHANCE,
-  PRESETS,
   RTP,
   SIZE,
   chanceOf,
-  flip,
+  maxMultiplierOf,
   multiplierForWins,
   multiplierOf,
+  nextMode,
   playBet,
   setEnd,
+  setMode,
   volatilityOf,
-  winCount,
   winsForChance,
   winsForMultiplier,
   withWins,
-  type Direction,
-  type Range,
+  type Config,
+  type EndKey,
+  type Mode,
 } from './math';
 import RangeTrack, { fmtN, type Ghost, type Marker } from './RangeTrack';
 
@@ -111,7 +111,7 @@ export default function Game() {
   const timers = useTimers();
   const [history, pushHistory] = useHistory(14);
 
-  const [range, setRange] = useState<Range>(DEFAULT_RANGE);
+  const [range, setRange] = useState<Config>(DEFAULT_CONFIG);
   const [rolling, setRolling] = useState(false);
   const [last, setLast] = useState<Last | null>(null);
   const [marker, setMarker] = useState<Marker | null>(null);
@@ -129,7 +129,6 @@ export default function Game() {
   const resolved = useRef(0);
   const ticket = useTicket(() => resolved.current);
 
-  const wins = winCount(range);
   const chance = chanceOf(range);
   const multiplier = multiplierOf(range);
   const level = volatilityOf(chance);
@@ -178,7 +177,7 @@ export default function Game() {
   const busy = rolling || auto.running;
 
   /** Any settings change clears the last result off the board. */
-  function update(next: Range) {
+  function update(next: Config) {
     if (busy) return;
     setRange(next);
     if (last || marker || ghosts.length) {
@@ -188,16 +187,14 @@ export default function Game() {
       markerPos.current = SIZE / 2;
     }
   }
-  const setDir = (dir: Direction) => {
-    if (dir !== range.dir) update(flip(range));
-  };
+  const setDir = (mode: Mode) => update(setMode(range, mode));
 
   const canBet = auto.mode === 'manual' && !busy && !bet.blocked;
   useHotkeys({ space: () => (canBet ? void playOnce(bet.value) : undefined) }, !infoOpen);
 
-  // X flips Roll in / Roll out (ignored while typing).
+  // X cycles Roll in / Roll out / Roll between two (ignored while typing).
   const flipRef = useRef(() => {});
-  flipRef.current = () => update(flip(range));
+  flipRef.current = () => update(setMode(range, nextMode(range.mode)));
   useEffect(() => {
     if (infoOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -210,8 +207,18 @@ export default function Game() {
     return () => window.removeEventListener('keydown', onKey);
   }, [infoOpen]);
 
-  const presetOn = PRESETS.find((m) => wins === winsForMultiplier(m));
-  const rangeText = `${fmtN(range.low)}–${fmtN(range.high)}`;
+  const rangeText =
+    `${fmtN(range.low)}–${fmtN(range.high)}` + (range.mode === 'two' ? `, ${fmtN(range.low2)}–${fmtN(range.high2)}` : '');
+  const modeWord = range.mode === 'in' ? 'inside' : range.mode === 'out' ? 'outside' : 'in';
+  const fieldOf = (k: EndKey, label: string) => (
+    <LinkedInput
+      key={k}
+      label={label}
+      value={fmtN(range[k])}
+      disabled={busy}
+      onCommit={(v) => update(setEnd(range, k, Math.round(v * 100)))}
+    />
+  );
 
   return (
     <GameLayout
@@ -224,46 +231,50 @@ export default function Game() {
           <Label hint={`${fmtMult(multiplier)} payout`}>Profit on win</Label>
           <div className="rd-profit">+{formatAmount(Math.max(0, bet.value * multiplier - bet.value), 2)}</div>
 
-          <Label hint="X to swap">Roll</Label>
-          <Chips<Direction>
-            label="Roll in or out of the range"
-            value={range.dir}
+          <Label hint={<VolBadge level={level} />}>Roll (X to swap)</Label>
+          <Chips<Mode>
+            label="Roll in, out, or between two ranges"
+            wrap
+            value={range.mode}
             disabled={busy}
             onChange={setDir}
             options={[
               { value: 'in', label: 'Roll in', title: 'Win when the number lands inside the range' },
               { value: 'out', label: 'Roll out', title: 'Win when the number lands outside the range' },
+              { value: 'two', label: 'Between two', title: 'Win when the number lands inside either of two ranges' },
             ]}
           />
-          <div className="rd-pair">
-            <LinkedInput label="Low" value={fmtN(range.low)} disabled={busy} onCommit={(v) => update(setEnd(range, 'low', v))} />
-            <LinkedInput label="High" value={fmtN(range.high)} disabled={busy} onCommit={(v) => update(setEnd(range, 'high', v))} />
-          </div>
+          {range.mode === 'two' ? (
+            <>
+              <div className="rd-pair">
+                {fieldOf('low', 'Low 1')}
+                {fieldOf('high', 'High 1')}
+              </div>
+              <div className="rd-pair">
+                {fieldOf('low2', 'Low 2')}
+                {fieldOf('high2', 'High 2')}
+              </div>
+            </>
+          ) : (
+            <div className="rd-pair">
+              {fieldOf('low', 'Low')}
+              {fieldOf('high', 'High')}
+            </div>
+          )}
           <div className="rd-pair">
             <LinkedInput
               label="Multiplier"
               value={multiplier.toFixed(4)}
               suffix="×"
               disabled={busy}
-              onCommit={(m) => m > 0 && update(withWins(range, winsForMultiplier(m)))}
+              onCommit={(m) => m > 0 && update(withWins(range, winsForMultiplier(range.mode, m)))}
             />
             <LinkedInput
               label="Win chance"
               value={(chance * 100).toFixed(2)}
               suffix="%"
               disabled={busy}
-              onCommit={(c) => update(withWins(range, winsForChance(c)))}
-            />
-          </div>
-          <Label hint={<VolBadge level={level} />}>Quick payout</Label>
-          <div className="rd-presets">
-            <Chips<number>
-              label="Quick payout"
-              wrap
-              value={presetOn ?? -1}
-              disabled={busy}
-              onChange={(m) => update(withWins(range, winsForMultiplier(m)))}
-              options={PRESETS.map((m) => ({ value: m, label: `${m}×` }))}
+              onCommit={(c) => update(withWins(range, winsForChance(range.mode, c)))}
             />
           </div>
 
@@ -274,7 +285,7 @@ export default function Game() {
           ) : (
             <AutoBetControls auto={auto} disabled={!!bet.blocked || rolling}>
               <p className="rd-auto-note">
-                Each bet rolls {range.dir} {rangeText} at {fmtMult(multiplier)}.
+                {`Each bet: ${modeWord} ${rangeText}`}
               </p>
             </AutoBetControls>
           )}
@@ -289,8 +300,8 @@ export default function Game() {
           rolling
             ? 'Rolling…'
             : last
-              ? `Rolled ${fmtN(last.result)} · ${last.win ? 'win' : 'loss'}`
-              : `Roll ${range.dir === 'in' ? 'inside' : 'outside'} ${rangeText}`
+              ? `Rolled ${fmtN(last.result)}, ${last.win ? 'win' : 'loss'}`
+              : `Roll ${modeWord} ${rangeText}`
         }
         tone={rolling ? 'live' : last ? (last.win ? 'won' : 'lost') : 'idle'}
         history={history}
@@ -307,13 +318,16 @@ export default function Game() {
       {infoOpen && (
         <InfoModal title="Range Dice" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
-            <p>A number from 0000 to 9999 is rolled. Bet that it lands inside your range (Roll in) or outside it (Roll out).</p>
+            <p>
+              A number from 0.00 to 99.99 is rolled. Bet that it lands inside your range (Roll in), outside it (Roll out), or inside either of two
+              separate ranges (Roll between two).
+            </p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Drag the two handles to set the range, or drag the band between them to slide it. Arrow keys nudge a focused handle (Shift for 100).</li>
-              <li>Or type Low, High, a multiplier or a win chance: the others follow, keeping the range centred.</li>
-              <li>Pick Roll in or Roll out (X swaps). The range stays put; the win zone flips.</li>
+              <li>Drag the handles (two, or four in Roll between two) to set the ranges, or drag a band to slide it. Arrow keys nudge a focused handle (Shift for 100).</li>
+              <li>Or type a Low, a High, a multiplier or a win chance: the others follow, keeping the ranges centred.</li>
+              <li>Pick Roll in, Roll out or Roll between two (X cycles). The first range stays put; the win zone changes.</li>
               <li>Press Bet (or Space). Auto runs a series of bets on the same range with your stop rules.</li>
             </ol>
           </InfoSection>
@@ -326,14 +340,14 @@ export default function Game() {
           <InfoSection title="The maths">
             <p>
               With W winning numbers, the chance is P = W ÷ 10,000 and a win pays {RTP} ÷ P = 9,900 ÷ W. Roll in: W = high − low + 1. Roll out: W =
-              10,000 − (high − low + 1). The expected return is P × {RTP} ÷ P = {RTP} for every range and direction.
+              10,000 − (high − low + 1). Roll between two: W = the two range sizes added. The expected return is P × {RTP} ÷ P = {RTP} for every range and direction.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              Every bet returns {(RTP * 100).toFixed(0)}% of stakes in the long run; the range only sets how often you win and how much. Chance runs from{' '}
-              {MIN_CHANCE.toFixed(2)}% ({MAX_MULTIPLIER.toLocaleString('en-US')}×) to {MAX_CHANCE}% ({fmtMult(multiplierForWins(9800))}), the payout is not
-              rounded, and the number is drawn before the marker moves.
+              Every bet returns {(RTP * 100).toFixed(0)}% of stakes in the long run; the range only sets how often you win and how much. Chance runs from 0.01% ({MAX_MULTIPLIER.toLocaleString('en-US')}×, Roll in)
+              or 0.02% ({maxMultiplierOf('out').toLocaleString('en-US')}×, Roll out and Roll between two) up to {MAX_CHANCE}% ({fmtMult(multiplierForWins(9800))}).
+              The payout is not rounded, and the number is drawn before the marker moves.
             </p>
           </InfoSection>
         </InfoModal>
