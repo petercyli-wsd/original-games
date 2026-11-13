@@ -124,12 +124,12 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 - **Badges:** New and Improved, from `revision`.
 - **Forking:** team-reviewed games are forked rather than edited, so their reviews stay attached to the version reviewed.
 
-## Current state (2026-11-11; update this section as it changes)
+## Current state (2026-11-13; update this section as it changes)
 
 | Branch / checkout | State |
 |---|---|
-| `main` | The November revamp (v7, gate, Archive), plus the fairness audit (PR #2, all 114 games) and the restyle (PR #3: 67 games flattened to `docs/STYLE.md`), both merged 2026-11-11, plus the search loop's games. |
-| `restyle` (worktree `../original-games-restyle`, merged) | Restyle result: every game that passed the gate before still passes (drift and cross fail only on their team ratings, as before). Mean clarity over the 29 regressed games is 3.977 vs 3.954 before; over all 67 it is 4.060 vs 3.970 live. STYLE.md §6 gained the unit-key rule (≤ 2 lines, < 9 tokens) and the numbered next-step cells exception (Tumble). All 67 local reviews match the merged code and sit in that worktree's `.evaluator/_pending.json`, **not submitted**: `submit --pending` from there only when Peter says so. |
+| `main` | The November revamp (v7, gate, Archive), plus the fairness audit (PR #2), the restyle (PR #3), the next-step button above Cash out (PR #4) and the search loop's games. |
+| worktree `../original-games-restyle` | Restyle: 66 of 67 lobby reviews submitted 2026-11-12 (maze held: 3.00 on a designer uniqueness call). Stake/Roobet parity batch (branch `originals-parity`, 2026-11-13): chicken, snakes, darts, cases, tarot, plinko and range-dice now match the originals (all pass the gate); five new replicas (burrows, booster, tile-pick, wild-double, holdfast) failed it twice and are archived. Their reviews are queued locally only. Operator odds flag `VITE_ODDS_READOUT` + `apps/platform/src/oddsPolicy.ts` (STYLE.md §6). |
 | `search` (main checkout) | The `/search-games` loop. 2 cycles kept Derby v2, Back to Back and Stepladder (all unrated by the team). Ledger in `.evaluator/_search/ledger.md`. |
 
 Open items:

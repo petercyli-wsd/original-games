@@ -29,7 +29,7 @@ Proven formats from the big crypto casinos (Stake, Roobet, BC.Game, Shuffle, Rol
 | id | Name | Seen at | Mechanic | RTP | Flow |
 |---|---|---|---|---|---|
 | dice | Dice | Stake, BC.Game, Roobet, Shuffle, Rainbet, Betfury | dice | 99% | instant (**built: reference**) |
-| range-dice | Range Dice | BC.Game (Ultimate Dice) | dice | 99% | instant |
+| range-dice | Range Dice | Stake (Prime Dice), Roobet (Dice ranges), BC.Game (Ultimate Dice) | dice | 99% | instant |
 | limbo | Limbo | Stake, BC.Game, Shuffle, Rainbet | crash | 99% | instant |
 | crash | Crash | Stake, Roobet, BC.Game, Rollbit, Shuffle | crash | 99% | live (cash-out) |
 | crash-colours | Crash Colours | BC.Game (Trenball) | crash | 99% | instant |
@@ -38,7 +38,7 @@ Proven formats from the big crypto casinos (Stake, Roobet, BC.Game, Shuffle, Rol
 | keno | Keno | Stake, BC.Game, Shuffle, Rainbet | other | 99% | instant |
 | hilo | HiLo | Stake, BC.Game, Shuffle | table | 99% | multi-step |
 | tower | Tower | Stake (Dragon Tower), Roobet (Towers), BC.Game (Tower Legend) | mines | 99% | multi-step |
-| chicken | Chicken | Roobet (Mission Uncrossable), Stake (Chicken) | mines | 99% | multi-step |
+| chicken | Chicken | Stake (Chicken), Roobet (Mission Uncrossable) | mines | 98% | multi-step |
 | pump | Pump | Stake | mines | 99% | multi-step |
 | blackjack | Blackjack | Stake, Roobet, BC.Game, Shuffle | table | ≈99.5% (exact, basic strategy) | multi-step |
 | baccarat | Baccarat | Stake, BC.Game | table | Banker 98.94%, Player 98.76%, Tie 85.64% (8-deck) | instant |
@@ -49,10 +49,10 @@ Proven formats from the big crypto casinos (Stake, Roobet, BC.Game, Shuffle, Rol
 | video-poker | Video Poker | Stake, BC.Game | table | 99.54% (9/6 Jacks or Better, optimal play) | multi-step |
 | coin-flip | Coin Flip | Stake (Flip), Roobet, BC.Game | other | 99% | multi-step |
 | rps | Rock Paper Scissors | Stake | duel | 99% | multi-step |
-| darts | Darts | Stake | geometry | 99% | instant |
-| cases | Cases | Stake | other | 99% | instant |
+| darts | Darts | Stake | geometry | 98% | instant |
+| cases | Cases | Stake | other | 98% | instant |
 | snakes | Snakes | Stake | other | 99% | multi-step |
-| tarot | Tarot | Stake | other | 99% | instant (staged reveal) |
+| tarot | Tarot | Stake | other | 98% | instant (staged reveal) |
 | reels | Reels | Stake Originals slots, BC.Game slots | slots | 97% (exact) | instant |
 | sic-bo | Sic Bo | Stake, BC.Game (RNG table) | table | per bet (Big/Small 97.22%) | instant |
 | dragon-tiger | Dragon Tiger | BC.Game, Stake (RNG table) | table | per bet (Dragon/Tiger 96.27%) | instant |
@@ -63,7 +63,7 @@ Proven formats from the big crypto casinos (Stake, Roobet, BC.Game, Shuffle, Rol
 
 ### range-dice
 **Range Dice** · accent `#06b6d4`
-A number from 0 to 9999 (uniform). A dual-handle slider picks a range [a, b]. Bet **In** (win if the result is in [a, b], P = (b−a+1)/10000) or **Out** (the complement). Payout = 0.99/P, with chance limited to 0.01%–98%. Inputs: low, high, win chance and multiplier, all linked. Instant, with the result marker on the track.
+Matches Stake Prime Dice. A number from 0 to 9999 (uniform). Three modes: **Roll in** (win inside one range [a, b]), **Roll out** (win outside it) and **Roll between two** (two separate ranges; a roll in either wins). Payout = 0.99/P, chance 0.01%–98% for Roll in, and at least 0.02% (max 4,950×) for Roll out and Roll between two, as on Prime Dice. Inputs: the handles, win chance and multiplier, all linked. Instant, with the result marker on the track. Plain over/under stays in Dice.
 
 ### limbo
 **Limbo** · accent `#a855f7`
@@ -83,7 +83,7 @@ A 5×5 grid with 1–24 mines. Reveal tiles; after k safe reveals the multiplier
 
 ### plinko
 **Plinko** · accent `#ec4899`
-Rows 8–16 and risk Low/Medium/High; the ball makes fair left/right bounces into binomial slots. Use multiplier tables with Stake's familiar shape for each (rows, risk). Then normalise them exactly so RTP = 0.99, adjusting the middle slots minimally and keeping the edges round, and print each table's exact RTP in the tests. Animate balls along the pegs following the drawn path; allow several balls in flight. Slot buckets flash and the history shows multipliers.
+Rows 8–16 and risk Low/Medium/High/Expert (Expert as in Stake's 2026 remaster, 10,000× top on 16 rows); the ball makes fair left/right bounces into binomial slots. Stake's multiplier tables for each (rows, risk), normalised exactly so RTP = 0.99 by adjusting the middle slots minimally and keeping the edges round; the tests print each table's exact RTP. Animate balls along the pegs following the drawn path; allow several balls in flight. Slot buckets flash and the history shows multipliers.
 
 ### keno
 **Keno** · accent `#eab308`
@@ -99,7 +99,7 @@ Infinite deck: ranks A–K uniform, suits cosmetic. From the current card, guess
 
 ### chicken
 **Chicken** · accent `#facc15`
-A token crosses up to 20 lanes. Difficulty sets the per-lane hit chance: Easy 1/25, Medium 3/25, Hard 5/25, Daredevil 10/25. The multiplier after k lanes = 0.99/(1−h)^k. Cash out between lanes. Auto: a target lane. Geometric road with lanes and moving blocks; the next lane's multiplier is shown on the lane.
+Matches Stake Chicken. A road of 20 slots hides a fixed number of hazards without replacement: Easy 1, Medium 3, Hard 5, Expert 10, so the road has 19/17/15/10 lanes. After k safe lanes the multiplier is 0.98 × C(20,k)/C(20−m,k) (first lanes 1.03/1.15/1.31/1.96; tops 19.60×, 1,117.20×, 15,193.92×, 181,060.88×). RTP 98%, the value Stake's table implies. Cash out after any safe lane; crossing the last lane pays the top prize. Auto: a target lane.
 
 ### pump
 **Pump** · accent `#38bdf8`
@@ -143,19 +143,19 @@ Each round you pick, the house picks uniformly. A win multiplies by 1.98, a draw
 
 ### darts
 **Darts** · accent `#84cc16`
-A dartboard whose rings (bull, inner, triple band, outer, miss) have probabilities equal to their area share under a uniform landing on the board disc, so the area is the odds. Difficulty Easy/Medium/Hard/Expert sets the ring multipliers, each normalised to exactly 99%. The dart flies to a sampled point; the ring lights.
+Matches Stake Darts. The dart never misses: a uniform point on the board lands in a dark ring, a light ring, one of 18 equal angular cells (three colours) or the bullseye, and that zone pays its multiplier for the chosen difficulty (Easy/Medium/Hard/Expert, Stake's tables, every throw returns something, max 500× on Expert). Area is the chance. RTP 98%, as published.
 
 ### cases
 **Cases** · accent `#f472b6`
-Difficulty Easy/Medium/Hard/Expert, each a case with a discrete multiplier distribution (e.g. Easy 0.5×–10×, Expert 0×–1000×) normalised to exactly 99%. Opening scrolls a reel of items that stops on the drawn one (the reel's neighbours are cosmetic). Show the case contents with chances.
+Matches Stake Cases. One case per bet. Difficulty Easy/Medium/Hard/Expert opens a fixed weighted table of 7/11/15/19 prizes (Stake's values and chances, up to 10,000× on Expert). A conveyor stops on the drawn prize. RTP 98%, as published.
 
 ### snakes
 **Snakes** · accent `#4ade80`
-A 12-square loop board; each roll of two dice moves the token by the sum. Squares hold multipliers (×) or snakes (bust). Difficulty sets the snake count. Every roll is priced fair: the probability-weighted factor over the reachable squares is 1, with RTP 99% applied once. The value accumulates; cash out between rolls.
+Matches Stake Snakes. A Start tile plus 11 tiles, one per two-dice total 2–12; each roll lands on the tile for its total (chance ways/36). Difficulty Easy/Medium/Hard/Expert/Master puts 1/3/5/7/9 pit tiles on the common middle totals and multipliers on the rest (Master 18×). At most 5 rolls; the tile factors multiply; cash out after any safe roll. Each table is fair per roll, with RTP 99% applied once (Stake applies 98%).
 
 ### tarot
 **Tarot** · accent `#c084fc`
-Three cards are drawn and revealed left to right; each shows a multiplier, and the payout is their product. Risk Low/Medium/High sets each card's distribution, chosen so E[card]³ = 0.99 exactly. Dramatic staged reveal; no cash-out (instant).
+Matches Stake Tarot. A core card from a table that is never below 1× is turned first, then a left and a right card from a shared side table that can be 0×; the payout is core × left × right, and the reveal stops on a 0× side card. Difficulty Easy/Medium/Hard/Expert sets the two tables (Stake's values; max 20×/160×/1,176×/5,000×). RTP 98%, as published. No cash-out.
 
 ### reels
 **Reels** · accent `#f97316`
