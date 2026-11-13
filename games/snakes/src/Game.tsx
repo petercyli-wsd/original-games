@@ -36,29 +36,30 @@ import SnakeBoard, { type BoardMode } from './Board';
 import {
   DIFFICULTIES,
   DIFFICULTY_LABEL,
+  MAX_MULTIPLIER,
+  MAX_ROLLS,
   MAX_WIN,
-  PATTERNS,
   RTP,
+  TABLES,
   VOLATILITY_OF,
   canRoll,
   drawDice,
   maxFactor,
+  pitChance,
+  pitCount,
   resolveRoll,
-  snakeChance,
-  snakeCount,
+  safeWays,
   type Difficulty,
   type Roll,
 } from './math';
 import { runAutoRound, type AutoOutcome } from './round';
 
 type Phase = 'idle' | 'rolling' | 'checkpoint' | 'over';
-type Outcome = 'bitten' | 'cashed' | 'max';
+type Outcome = 'pit' | 'cashed' | 'max' | 'last';
 
 interface Round {
   d: Difficulty;
   stake: number;
-  /** Square the token rests on. */
-  pos: number;
   cash: number;
   rolls: Roll[];
   outcome: Outcome | null;
@@ -71,9 +72,9 @@ interface LastAuto {
   stake: number;
 }
 
-const OUTCOME_TITLE: Record<Outcome, string> = { bitten: 'Snake bite!', cashed: 'Cashed out', max: 'Max win reached' };
-const AUTO_OUTCOME: Record<AutoOutcome, Outcome> = { bitten: 'bitten', rolls: 'cashed', target: 'cashed', max: 'max' };
-const MAX_AUTO_ROLLS = 10;
+const OUTCOME_TITLE: Record<Outcome, string> = { pit: 'Pit hit', cashed: 'Cashed out', max: 'Max win reached', last: 'Five rolls done' };
+const AUTO_OUTCOME: Record<AutoOutcome, Outcome> = { pit: 'pit', rolls: 'last', target: 'cashed', max: 'max' };
+
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
 
 export default function Game() {
@@ -126,6 +127,8 @@ export default function Game() {
     fair.current = roll.cash;
     setPhase('rolling');
     setLanded(null);
+    // The token returns to Start between rolls, then hops tile by tile to the landed one.
+    setToken(0);
     const frames = 4;
     for (let f = 0; f < frames; f++) {
       // Cosmetic faces while the dice tumble; the last frame shows the real roll.
@@ -135,18 +138,18 @@ export default function Game() {
     }
     setDice(roll.dice);
     setTumble((t) => ({ on: false, frame: t.frame }));
-    for (let i = 1; i <= roll.sum; i++) {
-      setToken((roll.from + i) % 12);
+    for (let i = 1; i <= roll.to; i++) {
+      setToken(i);
       if (!(await timers.wait(hopMs))) return false;
     }
     const r = roundRef.current!;
-    setRound({ ...r, pos: roll.to, cash: roll.snake ? r.cash : roll.cash, rolls: [...r.rolls, roll] });
+    setRound({ ...r, cash: roll.pit ? r.cash : roll.cash, rolls: [...r.rolls, roll] });
     setLanded({ square: roll.to, id: ++seq.current });
     return timers.wait(landMs);
   }
 
   function newRound(stake: number, auto: boolean): Round {
-    const r: Round = { d: difficulty, stake, pos: 0, cash: RTP, rolls: [], outcome: null, auto };
+    const r: Round = { d: difficulty, stake, cash: RTP, rolls: [], outcome: null, auto };
     timers.clearAll();
     fair.current = RTP;
     setLastAuto(null);
@@ -162,15 +165,16 @@ export default function Game() {
     if (!r || busy.current || r.outcome) return;
     busy.current = true;
     const [a, b] = drawDice(rng);
-    const roll = resolveRoll(r.d, r.pos, r.cash, a, b);
+    const roll = resolveRoll(r.d, r.cash, a, b);
     const ok = await animate(roll, r.rolls.length);
     busy.current = false;
     if (!ok) return;
     const now = roundRef.current!;
-    if (roll.snake) return finish(now, 'bitten', 0);
+    if (roll.pit) return finish(now, 'pit', 0);
+    if (now.rolls.length >= MAX_ROLLS) return finish(now, 'last', now.cash);
     if (!canRoll(now.d, now.cash)) return finish(now, 'max', now.cash);
     setPhase('checkpoint');
-    track({ type: 'checkpoint', multiplier: now.cash, winChance: 1 - snakeChance(now.d) });
+    track({ type: 'checkpoint', multiplier: now.cash, winChance: 1 - pitChance(now.d) });
   }
 
   /** Bet: places the stake and makes the first roll. */
@@ -247,29 +251,30 @@ export default function Game() {
 
   // What the board shows: the live or finished round, else a preview of the settings.
   const d = round?.d ?? difficulty;
-  const q = snakeChance(d);
+  const q = pitChance(d);
   const cash = round?.cash ?? RTP;
   const stake = round?.stake ?? bet.value;
   const rolls = round?.rolls ?? [];
   const outcome = round?.outcome ?? null;
   const lastRoll = rolls[rolls.length - 1];
-  // A snake shows the moment the token lands on it, not only once the round settles.
-  const bitten = outcome === 'bitten' || (phase === 'rolling' && !!landed && !!lastRoll?.snake);
+  // A pit shows the moment the token lands on it, not only once the round settles.
+  const bitten = outcome === 'pit' || (phase === 'rolling' && !!landed && !!lastRoll?.pit);
   const top = maxFactor(d);
-  const n = snakeCount(d);
+  const n = pitCount(d);
 
   const mode: BoardMode = bitten ? 'bitten' : outcome ? (cash > 1 ? 'cashed' : 'returned') : live ? 'live' : 'idle';
   const valueLabel =
-    bitten ? 'Bitten' : outcome ? 'Cashed out' : phase === 'checkpoint' ? 'Value' : phase === 'rolling' ? 'Rolling' : 'Starts at';
-  let footer = 'Roll to move round';
-  if (rolls.length > 0) footer = `Roll ${rolls.length} · rolled ${lastRoll.sum}`;
-  if (phase === 'rolling' && !landed) footer = tumble.on ? 'Rolling…' : `Moving ${dice[0] + dice[1]} squares`;
+    bitten ? 'Pit hit' : outcome ? 'Cashed out' : phase === 'checkpoint' ? 'Value' : phase === 'rolling' ? 'Rolling' : 'Starts at';
+  let footer = 'Roll two dice';
+  if (rolls.length > 0) footer = `Roll ${rolls.length} of ${MAX_ROLLS}: ${lastRoll.sum}`;
+  if (phase === 'rolling' && !landed) footer = tumble.on ? 'Rolling…' : `Total ${dice[0] + dice[1]}`;
 
-  let status = `Ready · ${plural(n, 'snake')} on 12 squares`;
-  if (phase === 'rolling') status = landed ? (bitten ? `Snake on roll ${rolls.length}!` : `Roll ${rolls.length} · ${fmtMult(cash)}`) : `Roll ${rolls.length + 1}…`;
+  let status = `Ready · ${plural(n, 'pit')} of 11 tiles`;
+  if (phase === 'rolling') status = landed ? (bitten ? `Pit on roll ${rolls.length}!` : `Roll ${rolls.length} · ${fmtMult(cash)}`) : `Roll ${rolls.length + 1}…`;
   if (phase === 'checkpoint') status = `Roll ${rolls.length} survived · ${fmtMult(cash)}`;
-  if (phase === 'over' && outcome === 'bitten') status = `Bitten on roll ${rolls.length}`;
+  if (phase === 'over' && outcome === 'pit') status = `Pit on roll ${rolls.length}`;
   if (phase === 'over' && outcome === 'cashed') status = `Cashed out after ${plural(rolls.length, 'roll')}`;
+  if (phase === 'over' && outcome === 'last') status = `All ${MAX_ROLLS} rolls · ${fmtMult(cash)}`;
   if (phase === 'over' && outcome === 'max') status = `Max win · ${plural(rolls.length, 'roll')}`;
   const tone = phase === 'over' || bitten ? (cash > 0 && !bitten ? 'won' : 'lost') : live ? 'live' : 'idle';
 
@@ -287,7 +292,7 @@ export default function Game() {
           <Label hint={<VolBadge level={VOLATILITY_OF[difficulty]} />}>Difficulty</Label>
           <Chips
             label="Difficulty"
-            options={DIFFICULTIES.map((x) => ({ value: x, label: DIFFICULTY_LABEL[x], title: `${plural(snakeCount(x), 'snake')} on 12 squares` }))}
+            options={DIFFICULTIES.map((x) => ({ value: x, label: DIFFICULTY_LABEL[x], title: `${plural(pitCount(x), 'snake')} among 11 tiles` }))}
             value={difficulty}
             disabled={locked}
             onChange={(v) => change(() => setDifficulty(v))}
@@ -295,7 +300,7 @@ export default function Game() {
           {auto.mode === 'manual' && (
             <dl className="og-stats">
               <dt>Max win</dt>
-              <dd>{fmtMult(MAX_WIN)}</dd>
+              <dd>{fmtMult(MAX_MULTIPLIER)}</dd>
             </dl>
           )}
 
@@ -325,11 +330,11 @@ export default function Game() {
                 <button type="button" aria-label="One roll fewer" disabled={auto.running || autoRolls <= 1} onClick={() => change(() => setAutoRolls(autoRolls - 1))}>
                   −
                 </button>
-                <Slider label="Rolls per bet" min={1} max={MAX_AUTO_ROLLS} value={autoRolls} disabled={auto.running} onChange={(v) => change(() => setAutoRolls(v))} />
+                <Slider label="Rolls per bet" min={1} max={MAX_ROLLS} value={autoRolls} disabled={auto.running} onChange={(v) => change(() => setAutoRolls(v))} />
                 <button
                   type="button"
                   aria-label="One roll more"
-                  disabled={auto.running || autoRolls >= MAX_AUTO_ROLLS}
+                  disabled={auto.running || autoRolls >= MAX_ROLLS}
                   onClick={() => change(() => setAutoRolls(autoRolls + 1))}
                 >
                   +
@@ -364,10 +369,10 @@ export default function Game() {
     >
       <StageTop status={status} tone={tone} history={history} />
 
-      {/* The cause of the chance (snakes on the ring) and the dots' unit, each under the blind evaluator's 9-token cut-off. */}
-      <ChanceBar p={bitten ? 0 : 1 - q} label={`Next roll safe · ${Math.round(q * 12)} snakes of 12`} />
+      {/* The chance of the next roll; the dots on the tiles are its unit (ways of 36). */}
+      <ChanceBar p={bitten ? 0 : 1 - q} label={`Next roll safe · ${safeWays(d)} in 36`} />
 
-      <Readouts items={[{ label: 'Value if best square', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
+      <Readouts items={[{ label: 'Value on best tile', value: phase === 'over' ? fmtMult(top) : fmtMult(cash * top), tone: 'prize' }]} />
 
       <Board className={'snk-board' + (auto.mode === 'auto' ? ' auto' : '')}>
         {auto.mode === 'auto' && lastAuto && <InstantResult multiplier={lastAuto.multiplier} stake={lastAuto.stake} id={lastAuto.id} />}
@@ -399,48 +404,45 @@ export default function Game() {
         )}
       </Board>
 
-      <Caption>Each safe square multiplies your value; land on a snake and lose it.</Caption>
+      <Caption>Each roll lands on its total's tile; a pit loses.</Caption>
 
       {infoOpen && (
         <InfoModal title="Snakes" onClose={() => setInfoOpen(false)}>
           <InfoSection title="Goal">
-            <p>Roll two dice to move round a 12-square loop. Every square you land on multiplies your value; land on a snake and the round is lost. Cash out whenever you like between rolls.</p>
+            <p>Roll two dice. Each roll lands on the tile for its total, 2 to 12, and multiplies your value by that tile. A pit tile loses the round. Cash out after any safe roll; a round lasts at most {MAX_ROLLS} rolls.</p>
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Pick a difficulty: Easy has 2 snakes, Medium 4, Hard 6, Expert 8, Master 10. More snakes, bigger squares.</li>
+              <li>Pick a difficulty: Easy has 1 snake tile, Medium 3, Hard 5, Expert 7, Master 9. More pits, bigger tiles.</li>
               <li>Press Bet (or Space). Your value starts at {RTP.toFixed(2)}× and the first roll happens straight away.</li>
-              <li>The token moves forward by the dice total and your value is multiplied by the square it lands on.</li>
-              <li>After each safe roll, press Roll dice (Space) to go on, or Cash out (C) to take the value shown.</li>
-              <li>Auto plays a series of bets, each rolling a set number of times (or until your cash-out target) and cashing out. Space starts or stops it.</li>
+              <li>The token hops from Start to the tile for the dice total, and your value is multiplied by that tile.</li>
+              <li>After each safe roll, press Roll dice (Space) to go on, or Cash out (C) to take the value shown. After roll {MAX_ROLLS} you are cashed out.</li>
+              <li>Auto plays a series of bets, each rolling 1 to {MAX_ROLLS} times (or until your cash-out target) and cashing out. Space starts or stops it.</li>
               <li>After a round, Bet again (Space) replays it and Clear board (Esc) resets the board. Changing the difficulty also clears it.</li>
             </ol>
           </InfoSection>
           <InfoSection title="Reading the odds">
             <p>
-              The six dots on each square count how many of the 36 dice combinations land there from where the token stands; the square right after the
-              token can never be hit. Opposite squares always hold the same thing and their dots always add up to 6, so each pair is hit exactly 1 time in 6.
-              The chance of a snake on the next roll is the number of snake pairs ÷ 6, wherever you are.
+              The dots on each tile count how many of the 36 dice pairs make its total (1 to 6), so 7 comes up six times as often as 2 or 12. Every roll is
+              independent: the same tiles with the same chances, whatever came before. The pits sit on the common middle totals and the big multipliers on
+              the rare edges. The bar shows the chance the next roll is safe.
             </p>
           </InfoSection>
           <InfoSection title="The maths">
             <p>
-              One die is uniform modulo 6, so the total of two dice is uniform modulo 6 too: from any square, each pair of opposite squares (i and i + 6) is
-              reached with chance exactly 1/6. Each board is six values averaging 1, repeated round the loop, so every roll has an expected factor of exactly
-              1. (This is also the only way a fixed 12-square board can be fair from every square: the circulant system Σ P(s)·f(p + s) = 1 forces opposite
-              squares to match.)
+              For each difficulty the tile factors satisfy Σ ways(s) · f(s) = 3600 over the totals s = 2…12, so one roll has an expected factor of exactly 1.
+              The value is a martingale started at {RTP}×, so by optional stopping every way of playing, cashing out after any safe roll, returns the same.
             </p>
           </InfoSection>
           <InfoSection title="Payouts and fairness">
             <p>
-              The round starts at {RTP}× and is multiplied by each square you land on, so your cash-out is a martingale: whenever and however you stop, the
-              round returns {(RTP * 100).toFixed(0)}% of your stake. The edge is applied once, not per roll. A roll is only offered while its best square keeps
-              you within {fmtMult(MAX_WIN)}; past that the round cashes out by itself.
+              The round returns {(RTP * 100).toFixed(0)}% of your stake whenever and however you stop. The edge is applied once, not per roll. The best possible
+              round is {MAX_ROLLS} edge tiles in a row: {fmtMult(MAX_MULTIPLIER)}. Multipliers for totals 2 to 7 (14 minus the total is the same):
             </p>
             <p className="snk-boards">
               {DIFFICULTIES.map((x) => (
                 <span key={x}>
-                  <b>{DIFFICULTY_LABEL[x]}</b> {PATTERNS[x].map((v) => (v === 0 ? 'snake' : (v / 100).toFixed(2) + '×')).join(' · ')}
+                  <b>{DIFFICULTY_LABEL[x]}</b> {TABLES[x].map((v) => (v === 0 ? 'pit' : (v / 100).toFixed(2) + '×')).join(' · ')}
                 </span>
               ))}
             </p>

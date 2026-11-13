@@ -5,10 +5,10 @@
 
 import { RTP, resolveRoll, stopReason, type Difficulty, type Roll, type StopReason, type StopRule } from './math';
 
-export type AutoOutcome = 'bitten' | StopReason;
+export type AutoOutcome = 'pit' | StopReason;
 
 /**
- * Rolls until a snake or the stop rule fires. Calls `settle` exactly once and
+ * Rolls until a pit or the stop rule fires. Calls `settle` exactly once and
  * resolves to the payout multiplier, or null if the round was interrupted (the
  * ticket then settles at its fair value).
  */
@@ -25,7 +25,6 @@ export async function runAutoRound({
   animate: (roll: Roll, index: number) => Promise<boolean>;
   settle: (multiplier: number, outcome: AutoOutcome) => void;
 }): Promise<number | null> {
-  let pos = 0;
   let cash = RTP;
   for (let done = 0; ; done++) {
     const reason = stopReason(d, cash, done, { rolls: Math.max(1, rule.rolls), target: rule.target });
@@ -34,13 +33,12 @@ export async function runAutoRound({
       return cash;
     }
     const [a, b] = dice();
-    const roll = resolveRoll(d, pos, cash, a, b);
+    const roll = resolveRoll(d, cash, a, b);
     if (!(await animate(roll, done))) return null;
-    if (roll.snake) {
-      settle(0, 'bitten');
+    if (roll.pit) {
+      settle(0, 'pit');
       return 0;
     }
-    pos = roll.to;
     cash = roll.cash;
   }
 }
