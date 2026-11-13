@@ -17,12 +17,12 @@ const groups: Record<OddsGroup, string[]> = {
     'back-to-back', 'bracket', 'break-point', 'cross', 'derby', 'derby-v2', 'full-set', 'homecoming', 'hot-potato', 'inning',
     'landing', 'last-slice', 'last-wicket', 'last-wicket-v2', 'majority', 'maze', 'pascal', 'penney', 'scales', 'seven-out',
     'shootout', 'showdown', 'shut', 'sixes', 'socks', 'stepladder', 'stepladder-v2', 'tally', 'thales', 'tumble', 'upsets',
-    'hilo', 'snake', 'banker', 'bank-it', 'card-duel', 'noughts', 'shells',
+    'hilo', 'snake', 'banker', 'bank-it', 'card-duel', 'noughts',
   ],
   // Shared, timed rounds: the number is tied to the target.
   timing: ['crash', 'crash-colours', 'leverage'],
   // Push-your-luck ladders: the rising multiplier encodes the odds.
-  ladder: ['mines', 'chicken', 'tower', 'pump', 'coin-flip', 'rps', 'snakes', 'chase-v2', 'convex', 'crocodile-dentist', 'shunt'],
+  ladder: ['mines', 'chicken', 'tower', 'pump', 'coin-flip', 'rps', 'snakes', 'chase-v2', 'convex', 'crocodile-dentist'],
   // One draw from a discrete paytable: per-outcome chances.
   paytable: ['plinko', 'booster', 'keno', 'wheel', 'diamonds', 'cases', 'darts', 'tarot', 'tile-pick', 'reels', 'respins'],
   // Land-casino layouts.
