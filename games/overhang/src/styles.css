@@ -1,322 +1,49 @@
-/* Lives inside the game's shadow root: use :host, not :root. Colours, type and
-   spacing come from the kit's tokenStyles (docs/STYLE.md); this file only lays
-   out Overhang's own panel and board. Flat: no gradients, glows or shadows. */
+/* Overhang: the tower board and the auto cash-out field. Layout, panel and readouts come from the kit. */
 
-:host {
-  display: block;
-  height: 100%;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-.ovh {
-  --accent: #e6b450; /* ACCENTS.amber */
-
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  height: 100%;
-  min-height: 600px;
-  background: var(--card);
-  border-radius: var(--radius-lg);
+.ovh-board {
+  min-height: 360px;
   overflow: hidden;
-  color-scheme: dark;
 }
-
-button,
-input {
-  font: inherit;
-  color: inherit;
-}
-button {
-  cursor: pointer;
-  border: 0;
+.og-game .ovh-auto {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  transition: background var(--dur-ui) ease, color var(--dur-ui) ease, border-color var(--dur-ui) ease;
+  background: var(--bg);
+  overflow: hidden;
 }
-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* ---------- Control panel ---------- */
-
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-4);
-  background: var(--raised);
-  border-right: 1px solid var(--line);
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-2);
-}
-.field-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.field-head em {
-  font-style: normal;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-
-input {
+.ovh-auto input {
+  flex: 1;
   min-width: 0;
+  padding: 10px var(--sp-3);
+  border: 0;
+  outline: none;
+  background: transparent;
   font-size: var(--fs-3);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  background: transparent;
-  border: 0;
-  outline: none;
 }
-
-.bet-row,
-.auto-row {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-.bet-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px 48px;
-}
-.bet-row input,
-.auto-row input {
-  padding: 10px var(--sp-3);
-}
-.bet-row button {
-  border-radius: 0;
-  border-left: 1px solid var(--line);
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-}
-.bet-row button:not(:disabled):hover {
-  color: var(--text);
-  background: var(--hover);
-}
-.input:disabled,
-input:disabled {
+.ovh-auto input:disabled {
   opacity: 0.4;
 }
-
-.auto-row {
-  display: flex;
-  align-items: center;
-}
-.auto-row input {
-  flex: 1;
-}
-.auto-row span {
+.ovh-auto span {
   padding-right: var(--sp-3);
   font-size: var(--fs-2);
   color: var(--muted);
 }
-
-.segmented {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 2px;
-  padding: 2px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-}
-.segmented button {
-  padding: 7px 0;
-  border-radius: 4px;
-  font-size: var(--fs-2);
-  font-weight: 600;
-  color: var(--muted);
-  background: transparent;
-}
-.segmented button:not(:disabled):hover {
-  color: var(--text);
-}
-.segmented button.on {
-  color: var(--text);
-  background: var(--hover);
-}
-
-.primary,
-.secondary {
-  padding: 13px var(--sp-3);
-  font-size: var(--fs-3);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.primary {
-  color: var(--bg);
-  background: var(--text);
-}
-.primary b {
-  font-weight: 600;
-}
-.primary:not(:disabled):hover {
-  background: var(--muted);
-}
-.secondary {
-  margin-top: calc(-1 * var(--sp-2));
-  color: var(--text);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-}
-.secondary:not(:disabled):hover {
-  background: var(--hover);
-}
-
-.toggle {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  font-size: var(--fs-2);
-  color: var(--muted);
-  cursor: pointer;
-  user-select: none;
-}
-.toggle input {
-  width: 16px;
-  height: 16px;
+.ovh-blocked {
   margin: 0;
-  accent-color: var(--text);
-}
-.toggle input:checked ~ span {
-  color: var(--text);
-}
-
-.stats {
-  margin: auto 0 0;
-  display: grid;
-  gap: var(--sp-2);
-  font-size: var(--fs-2);
-}
-.stats div {
-  display: flex;
-  justify-content: space-between;
-}
-.stats dt {
-  color: var(--muted);
-}
-.stats dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ---------- Stage ---------- */
-
-.stage {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--card);
-}
-
-.hud {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5) 0;
-}
-.hud-height span {
-  display: block;
   font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.hud-height b {
-  font-size: var(--fs-4);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.hud-height small {
-  font-size: var(--fs-2);
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.history {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--sp-1);
-  max-height: 56px;
-  overflow: hidden;
-}
-.history span {
-  padding: 4px var(--sp-2);
-  font-size: var(--fs-1);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  border-radius: var(--radius);
-  background: var(--raised);
-  color: var(--muted);
-}
-.history span.w {
-  color: var(--win);
-}
-.history span.l {
+  text-align: center;
   color: var(--lose);
-}
-.history span:first-child {
-  border: 1px solid var(--line-strong);
-}
-
-/* One flat row: the one chance and the prize. */
-.readout {
-  display: flex;
-  gap: var(--sp-6);
-  padding: var(--sp-3) var(--sp-5) 0;
-}
-.readout > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.readout span {
-  font-size: var(--fs-1);
-  font-weight: 600;
-  color: var(--muted);
-}
-.readout b {
-  font-size: var(--fs-4);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.readout b.win {
-  color: var(--win);
-}
-
-.tower-wrap {
-  position: relative;
-  flex: 1;
-  min-height: 300px;
-  overflow: hidden;
 }
 
 .ovh-tower {
   position: absolute;
-  inset: var(--sp-2) var(--sp-3) 0;
-  width: calc(100% - 24px);
-  height: calc(100% - 8px);
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
   overflow: visible;
 }
 
@@ -392,40 +119,8 @@ input:disabled {
   fill: var(--muted);
 }
 
-/* The one rule sentence under the board. */
-.og-caption {
-  margin: 0;
-  padding: var(--sp-3) var(--sp-5) var(--sp-4);
-  font-size: var(--fs-2);
-  line-height: 1.5;
-  text-align: center;
-  color: var(--muted);
-}
-
-@media (max-width: 760px) {
-  .ovh {
-    grid-template-columns: minmax(0, 1fr);
-    height: auto;
-    min-height: 0;
-  }
-  .panel {
-    padding: var(--sp-4);
-    border-right: 0;
-    border-top: 1px solid var(--line);
-  }
-  .stage {
-    order: -1;
-  }
-  .tower-wrap {
+@container (max-width: 760px) {
+  .ovh-board {
     min-height: 420px;
-  }
-  .hud {
-    padding: var(--sp-3) var(--sp-4) 0;
-  }
-  .readout {
-    padding: var(--sp-3) var(--sp-4) 0;
-  }
-  .og-caption {
-    padding: var(--sp-3) var(--sp-4);
   }
 }
