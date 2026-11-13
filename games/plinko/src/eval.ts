@@ -10,6 +10,7 @@ const LEVELS: { label: string; risks: Risk[]; rows: number[] }[] = [
   { label: 'medium (Medium risk, 8–16 rows)', risks: ['medium'], rows: [8, 9, 10, 11, 12, 13, 14, 15, 16] },
   { label: 'high (High risk, 8–12 rows)', risks: ['high'], rows: [8, 9, 10, 11, 12] },
   { label: 'extreme (High risk, 13–16 rows)', risks: ['high'], rows: [13, 14, 15, 16] },
+  { label: 'extreme (Expert risk, 8–16 rows)', risks: ['expert'], rows: [8, 9, 10, 11, 12, 13, 14, 15, 16] },
 ];
 
 export default defineEval<{ risks: Risk[]; rows: number[] }>({

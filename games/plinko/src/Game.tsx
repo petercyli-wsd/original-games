@@ -30,13 +30,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PlinkoBoard, { type BoardRefs } from './Board';
 import { along, layoutFor, waypoints, type Waypoint } from './geometry';
-import { MAX_ROWS, MIN_ROWS, RTP, exactLabel, resolveDrop, tableFor, volatilityOf, type Risk } from './math';
+import { MAX_MULTIPLIER, MAX_ROWS, MIN_ROWS, RISKS, RTP, exactLabel, resolveDrop, tableFor, volatilityOf, type Risk } from './math';
 import { useTickets } from './tickets';
 
 const RISK_LABEL: Record<Risk, string> = {
   low: 'Low',
   medium: 'Medium',
   high: 'High',
+  expert: 'Expert',
 };
 /** Balls allowed in flight at once. */
 const MAX_IN_FLIGHT = 30;
@@ -221,7 +222,7 @@ export default function Game() {
             value={risk}
             disabled={settingsLocked}
             onChange={changeRisk}
-            options={(['low', 'medium', 'high'] as const).map((r) => ({
+            options={RISKS.map((r) => ({
               value: r,
               label: RISK_LABEL[r],
               title: `Top prize ${fmtMult(tableFor(rows, r).max)}`,
@@ -292,7 +293,7 @@ export default function Game() {
           </InfoSection>
           <InfoSection title="How to play">
             <ol>
-              <li>Set your bet, a risk level (Low, Medium, High) and the number of rows (8 to 16).</li>
+              <li>Set your bet, a risk level (Low, Medium, High, Expert) and the number of rows (8 to 16).</li>
               <li>Press Bet or Space to drop a ball. You can drop more while others are still falling; each ball is its own bet.</li>
               <li>Use Auto for a series of drops with stop-on-profit, stop-on-loss and on-win / on-loss stake changes. Space starts and stops it.</li>
               <li>Turbo speeds the balls up. Risk and rows lock while balls are in flight.</li>
@@ -341,7 +342,7 @@ export default function Game() {
             </table>
             <p>
               Every risk and row setting returns exactly {(RTP * 100).toFixed(2)}% of stakes in the long run; the settings change only the spread. The largest
-              prize is 1,000× (16 rows, High risk). Each ball's path is drawn when it is dropped and the animation follows it peg by peg; if you leave mid-drop
+              prize is {fmtMult(MAX_MULTIPLIER)} (16 rows, Expert risk). Each ball's path is drawn when it is dropped and the animation follows it peg by peg; if you leave mid-drop
               the ball still settles at that result.
             </p>
           </InfoSection>
