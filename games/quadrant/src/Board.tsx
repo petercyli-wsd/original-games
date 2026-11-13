@@ -5,14 +5,10 @@ import {
   SLICE_DEG,
   bell,
   cloudPoint,
-  cosDeg,
   fan,
   greenSlices,
   missWedges,
   needSign,
-  pLandGivenX,
-  quadrantChances,
-  sinDeg,
   targetWedges,
   type Pt,
   type Target,
@@ -43,8 +39,6 @@ export interface BoardProps {
   hit: boolean | null;
   /** 1, or 0.25 in turbo: scales the CSS transitions. */
   speed: number;
-  /** "Point 2 of 3", when there is more than one. */
-  pointLabel: string | null;
 }
 
 // ---------- animation helpers ----------
@@ -135,18 +129,9 @@ export const fmtNum = (v: number, d = 2) => {
   return (v < 0 && Number(s) !== 0 ? '−' : '') + s;
 };
 
-const QUADS = [
-  { name: 'top-right', x: PX1 - 12, y: PY0 + 24, anchor: 'end' },
-  { name: 'top-left', x: PX0 + 12, y: PY0 + 24, anchor: 'start' },
-  { name: 'bottom-left', x: PX0 + 12, y: PY1 - 22, anchor: 'start' },
-  { name: 'bottom-right', x: PX1 - 12, y: PY1 - 22, anchor: 'end' },
-] as const;
-
-const isTargetQuad = (target: Target, q: number) => q === 0 || (target === 'same' && q === 2);
-
 // ---------- the board ----------
 
-export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, anim, hit, speed, pointLabel }: BoardProps) {
+export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, anim, hit, speed }: BoardProps) {
   const p = useProgress(anim.key, anim.ms);
   const stage: Stage = cur ? anim.to : 0;
   const from: Stage = cur ? anim.from : 0;
@@ -157,10 +142,9 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
   const red = missWedges(target, theta).map(([a, b]) => path(fan(a, b, theta, R_PIE)));
   const spokes = Array.from({ length: SLICES }, (_, k) => cloudPoint(k * SLICE_DEG, theta, R_PIE));
   const ring = (R: number) => path(Array.from({ length: 121 }, (_, i) => cloudPoint(i * 3, theta, R)));
-  const cos = cosDeg(theta);
-  const sin = sinDeg(theta);
-  // Maps the round frame onto the screen, for the density glow.
-  const glow = `matrix(${S} ${-S * cos} 0 ${-S * sin} ${CX} ${CY})`;
+  // Flat density bands: the cloud is densest at the centre, so the nested
+  // 1, 2 and 3 sigma ellipses are filled darker towards the middle.
+  const bands = [3, 2, 1].map((R) => ring(R));
   const k = greenSlices(target, thetaExact);
   const pPoint = k / SLICES;
   const dim = stage >= 1;
@@ -179,7 +163,6 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
     }
   }
   const xKnown = cur !== null && (stage === 2 || (stage === 1 && settled));
-  const pLand = cur ? pLandGivenX(target, thetaExact, x) : 0;
 
   // The bell bulges away from the centre when there is room, else inwards.
   const room = (LIM - Math.abs(x)) * S;
@@ -187,29 +170,14 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
   const want = cur ? needSign(target, x) : 0;
   let bellGreen = '';
   let bellRed = '';
-  let labelG: { y: number; x: number } | null = null;
-  let labelR: { y: number; x: number } | null = null;
   if (cur && sliceX !== null && grow > 0) {
     const samples = bell(x, theta);
     const x0 = sx(x);
     const part = (keep: (y: number) => boolean) => {
       const pts = samples.filter((s) => keep(s.y));
-      if (pts.length < 2) return { d: '', mid: null as null | { x: number; y: number } };
+      if (pts.length < 2) return { d: '' };
       const poly: [number, number][] = [[x0, sy(pts[0].y)], ...pts.map((s) => [x0 + dir * BELL_W * grow * s.h, sy(s.y)] as [number, number]), [x0, sy(pts[pts.length - 1].y)]];
-      // Label at the part's mass median.
-      let total = 0;
-      for (let i = 1; i < pts.length; i++) total += ((pts[i].h + pts[i - 1].h) / 2) * (pts[i].y - pts[i - 1].y);
-      let acc = 0;
-      let mid = pts[0];
-      for (let i = 1; i < pts.length; i++) {
-        acc += ((pts[i].h + pts[i - 1].h) / 2) * (pts[i].y - pts[i - 1].y);
-        if (acc >= total / 2) {
-          mid = pts[i];
-          break;
-        }
-      }
-      const maxH = Math.max(...pts.map((s) => s.h));
-      return { d: pxPath(poly), mid: { x: x0 + dir * (BELL_W * grow * maxH + 8), y: Math.max(PY0 + 14, Math.min(PY1 - 30, sy(mid.y) + 4)) } };
+      return { d: pxPath(poly) };
     };
     const up = part((y) => y >= 0);
     const down = part((y) => y <= 0);
@@ -218,19 +186,9 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
     if (g) {
       bellGreen = g.d;
       bellRed = r?.d ?? '';
-      labelG = g.mid;
-      labelR = r?.mid ?? null;
     } else {
       // No y can win: the whole bell is red.
       bellRed = [up.d, down.d].filter(Boolean).join(' ');
-      labelR = (up.d ? up.mid : down.mid) ?? null;
-    }
-    // Keep the two labels apart.
-    if (labelG && labelR && Math.abs(labelG.y - labelR.y) < 18) {
-      const sgn = labelG.y <= labelR.y ? -1 : 1;
-      const m = (labelG.y + labelR.y) / 2;
-      labelG = { ...labelG, y: m + sgn * 9 };
-      labelR = { ...labelR, y: m - sgn * 9 };
     }
   }
 
@@ -242,11 +200,10 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
   const landedNow = stage === 2 && (from !== 1 || p >= 0.82);
   const showResult = landedNow && hit !== null;
 
-  // ----- captions -----
-  const pct = (v: number) => fmtChance(v);
+  // ----- the unit key under the plot (short: the blind player hides 9+ words) -----
   let caption = (
     <>
-      Green share of the cloud: <tspan className="em-g">{k}</tspan> of {SLICES} equal-chance slices = <tspan className="em-g">{pct(pPoint)}</tspan>
+      Green: <tspan className="em-g">{k}</tspan> of {SLICES} equal-chance slices
     </>
   );
   if (cur && stage === 1 && from === 0 && !settled) caption = <>Revealing x…</>;
@@ -254,24 +211,27 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
     caption =
       want === 0 ? (
         <>
-          x = {fmtNum(x)} {target === 'corner' ? 'is left of the y-axis' : 'is on the axis'}: <tspan className="em-r">no y can win</tspan>
+          {target === 'corner' ? 'x < 0' : 'x = 0'}: <tspan className="em-r">no y can win</tspan>
         </>
       ) : (
         <>
-          Green share of the bell on the slice x = {fmtNum(x)}: <tspan className="em-g">{pct(pLand)}</tspan>
+          Bell: <tspan className="em-g">green</tspan> share lands in target
         </>
       );
   } else if (cur && stage === 2 && !landedNow) caption = <>Revealing y…</>;
   else if (cur && stage === 2 && cur.y !== null) {
-    caption = (
+    caption = hit ? (
       <>
-        Landed at ({fmtNum(cur.x)}, {fmtNum(cur.y)}):{' '}
-        {hit ? <tspan className="em-g">in the green</tspan> : <tspan className="em-r">outside the green</tspan>}
+        Landed <tspan className="em-g">in the green</tspan>
+      </>
+    ) : (
+      <>
+        Landed <tspan className="em-r">outside the green</tspan>
       </>
     );
   }
 
-  const quadP = quadrantChances(thetaExact);
+  const pct = (v: number) => fmtChance(v);
   const style = { '--quad-ms': `${Math.round(380 * speed)}ms` } as CSSProperties;
 
   return (
@@ -286,11 +246,6 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
         <clipPath id="quad-plot">
           <rect x={PX0} y={PY0} width={PX1 - PX0} height={PY1 - PY0} rx={14} />
         </clipPath>
-        <radialGradient id="quad-glow" gradientUnits="userSpaceOnUse" cx={0} cy={0} r={3.2} gradientTransform={glow}>
-          {[0, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1].map((t) => (
-            <stop key={t} offset={t} stopColor="var(--accent)" stopOpacity={Math.exp(-0.5 * (3.2 * t) ** 2)} />
-          ))}
-        </radialGradient>
       </defs>
 
       <rect x={PX0} y={PY0} width={PX1 - PX0} height={PY1 - PY0} rx={14} className="plot-bg" />
@@ -306,7 +261,10 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
           </g>
         ))}
 
-        <rect x={PX0} y={PY0} width={PX1 - PX0} height={PY1 - PY0} fill="url(#quad-glow)" className="glow" />
+        {/* Density of the cloud, as flat bands: darker is denser. */}
+        {bands.map((d, i) => (
+          <path key={i} d={d} className={'band b' + i} />
+        ))}
 
         <g className={'cloud' + (dim ? ' dim' : '')}>
           {red.map((d, i) => (
@@ -315,8 +273,6 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
           {green.map((d, i) => (
             <path key={'g' + i} d={d} className="slice win" />
           ))}
-          <path d={ring(1)} className="contour" />
-          <path d={ring(2)} className="contour" />
           {spokes.map(([px, py], i) => (
             <line key={i} x1={CX} y1={CY} x2={f1(CX + px * S)} y2={f1(CY - py * S)} className="spoke" />
           ))}
@@ -359,16 +315,6 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
             <line x1={sx(sliceX)} x2={sx(sliceX)} y1={PY0} y2={PY1} className="slice-line" />
             {bellRed && <path d={bellRed} className={'bell miss' + (landedNow ? ' faded' : '')} />}
             {bellGreen && <path d={bellGreen} className={'bell win' + (landedNow ? ' faded' : '')} />}
-            {grow > 0.85 && !landedNow && labelG && (
-              <text x={labelG.x} y={labelG.y} className={'bell-label win ' + (dir > 0 ? 'start' : 'end')}>
-                {pct(pLand)}
-              </text>
-            )}
-            {grow > 0.85 && !landedNow && labelR && (
-              <text x={labelR.x} y={labelR.y} className={'bell-label miss ' + (dir > 0 ? 'start' : 'end')}>
-                {pct(1 - pLand)}
-              </text>
-            )}
           </g>
         )}
 
@@ -379,18 +325,6 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
           </g>
         )}
       </g>
-
-      {/* Each quadrant's chance (Sheppard). */}
-      {QUADS.map((q, i) => (
-        <g key={q.name} className={'quad-label' + (isTargetQuad(target, i) ? ' win' : '') + (dim ? ' dim' : '')}>
-          <text x={q.x} y={q.y} className={q.anchor}>
-            {pct(quadP[i])}
-          </text>
-          <text x={q.x} y={q.y + 13} className={'sub ' + q.anchor}>
-            {q.name}
-          </text>
-        </g>
-      ))}
 
       {/* x and y once known. */}
       {cur && xKnown && (
@@ -403,7 +337,7 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
       )}
       {cur && cur.y !== null && landedNow && pointY !== null && (
         <text
-          x={sx(cur.x) + (dir > 0 ? -16 : 16)}
+          x={sx(cur.x) + (dir > 0 ? -22 : 22)}
           y={Math.max(PY0 + 14, Math.min(PY1 - 8, sy(pointY) + 4))}
           className={'y-label ' + (dir > 0 ? 'end' : 'start') + (hit ? ' win' : ' miss')}
         >
@@ -412,32 +346,9 @@ export default function QuadrantBoard({ target, theta, thetaExact, landed, cur, 
       )}
 
       <text x={VW / 2} y={VH - 12} className="caption">
-        {pointLabel && <tspan className="em">{pointLabel} · </tspan>}
         {caption}
       </text>
     </svg>
-  );
-}
-
-// ---------- the per-point strip under the board ----------
-
-export interface PointPill {
-  state: 'todo' | 'now' | 'in' | 'out';
-  value: string;
-  note: string;
-}
-
-export function PointStrip({ pills }: { pills: PointPill[] }) {
-  return (
-    <ol className={'quad-points n' + pills.length} aria-label="Points to land">
-      {pills.map((pill, i) => (
-        <li key={i} className={'pill ' + pill.state}>
-          <span>{pills.length > 1 ? `Point ${i + 1}` : 'Your point'}</span>
-          <b>{pill.value}</b>
-          <small>{pill.note}</small>
-        </li>
-      ))}
-    </ol>
   );
 }
 
