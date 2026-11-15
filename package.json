@@ -18,7 +18,11 @@
     "evidence": "tsx scripts/evidence.ts",
     "evaluator": "tsx scripts/evaluator.ts",
     "new-game": "node scripts/new-game.mjs",
-    "check": "npm run typecheck && npm test && npm run eval -- --rounds 50000"
+    "check": "npm run typecheck && npm test && npm run eval -- --rounds 50000",
+    "slots:oracle": "node scripts/slots/oracle.mjs",
+    "slots:eval": "tsx scripts/slots/eval.ts",
+    "slots:tune": "tsx scripts/slots/tune.ts",
+    "slots:review": "tsx scripts/slots/review.ts"
   },
   "devDependencies": {
     "@types/node": "22.10.1",
