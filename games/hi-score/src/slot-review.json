@@ -1,39 +1,39 @@
 {
   "version": 2,
-  "overall": 3,
+  "overall": 3.12,
   "scores": {
     "theme": 3,
     "readability": 4,
     "feature_clarity": 4,
     "excitement": 3,
     "fun": 3,
-    "creativity": 2,
+    "creativity": 3,
     "maths_fit": 3,
     "uniqueness": 2,
     "polish": 3
   },
   "gate": false,
   "gateReasons": [
-    "overall 3.00 < 3.5"
+    "overall 3.12 < 3.5"
   ],
-  "verdict": "A tidy, fully in-band Fire Joker-style 3×3 classic in arcade costume that players understand easily, but its theme and mechanism don't need each other and the bonus is just base spins with a bigger multiplier, so it is competent and forgettable.",
+  "verdict": "Hi-Score is a tidy, correctly balanced 3x3 that the player fully understood, but its parts are stock: a Fire Joker-style multiplier reel with a rising free-spin multiplier our catalogue already has. Its bonus pays too little and its top symbol doesn't read as a 7, so it is competent and forgettable as it stands.",
   "pros": [
-    "Every measured band is in, RTP is exact at 96.00%, and the declared medium volatility matches the measured SD of 7.6.",
-    "Very readable for a player: the panel player understood the top pay, the trigger, the wild and the feature correctly, and the win labels ('Marquee ×3 · +4.98') make each payout checkable.",
-    "The pixel lows are distinct by colour and shape at size, and the Glitch block wild and Golden token scatter stand out from the paying symbols."
+    "All measured bands pass, with exact RTP and a hit rate that fits a classic 3x3. The base game has a steady 1 in 4 rhythm, and the marquee can turn a small line into a real win (x5 made the player's 20.6x win).",
+    "The rising multiplier gives the bonus a reason to watch the last spins. The header shows the spin count, the feature total and the current multiplier at all times.",
+    "Win presentation is clear: boxed symbols, a drawn line, and a caption such as 'Line 2 · Lightning bolt x3 = 2.47' plus 'Marquee x5'. The player understood every rule correctly."
   ],
   "cons": [
-    "Give the feature an arcade action instead of a richer multiplier table: e.g. a 'Hi-Score' meter that banks each free-spin win and raises the Marquee floor one step per paying spin, or 'extra life' retriggers, so the bonus is the theme's climax rather than base spins with a bigger number.",
-    "Redraw the Neon seven as the loudest icon on the board (larger multicolour seven-segment digit with a glow and a gold plate) so the 83× premium reads above the rocket at a glance.",
-    "Only animate or light the Marquee on spins with a line win (or grey it out on dead spins): today ×10 and ×25 light up on losing spins, which reads as a win and then deflates.",
-    "Move the Bonus stage start card off the grid (or below it) and hold the triggering board for a beat in Turbo too, so all three Golden tokens are seen before 'Free spin 1 of 10'; make the BIG WIN panel opaque and hold it until dismissed."
+    "Redraw the Neon seven so it reads as a 7 at a glance: a big segmented '7' in one neon colour on the gold plate, with no colour-split bars that echo the glitch-block wild. Make the premiums visibly larger or framed so they outrank the lows, and redraw the joystick so it does not look like a tree.",
+    "Move RTP from the base game into the Bonus stage so the level-up feels like a climax. For example, start the multiplier at x3 or step it by 2, and lower base pays or marquee weights to match. Aim for a feature share around 35–45% and an average bonus of 40–60x, so that reaching 2,500x is plausible rather than 1 in 6e8.",
+    "Make the Marquee a lit cabinet marquee, not grey kit chips. In the bonus, replace it with a label such as 'Marquee off · Level x5' so the player knows it no longer applies. Bring the CRT scanlines and invader backdrop forward in the base game.",
+    "Quote pays at the precision the engine uses (0.2475x, not 0.25x), or set them to round values, so that line x multiplier matches the shown amount (0.25 x 5 shown as 1.24 made the player doubt the maths). Add an honest tease when 2 tokens are down and the last reel can still complete the trigger."
   ],
   "confusions": [
-    "The natural bonus in Turbo started without my seeing the trigger board or the Start card; the screen just jumped to 'Bonus stage, Free spin 1 of 10', with only two tokens visible.",
-    "On the forced trigger, the start card covered the middle cell, so only two of the three golden tokens were visible.",
-    "The paytable says 'Match 3 on a line' but heart pairs pay 0.25× (two hearts listed separately); a heart + glitch pair also paid as 2 hearts."
+    "The bonus intro says 'Level up: ×2, ×3, ×4 each spin', but the first bonus spin I caught was already ×3 on 'spin 2 of 10'. It was consistent with 'starts ×2, +1 per spin' once I read the paytable.",
+    "During the bonus the Marquee multiplier strip shrinks to a single ×1. It's unclear whether the Marquee multiplier still applies in free spins.",
+    "Some amounts were a cent off simple maths (heart pair 0.25 × Marquee ×5 shown as 1.24; 0.25 × ×11 shown as 2.72; a 1.90 win left the balance 1 cent short)."
   ],
   "players": 1,
-  "codeHash": "276370ae1ead1fd5",
+  "codeHash": "a00a29a5b9018e56",
   "date": "2026-11-16"
 }
