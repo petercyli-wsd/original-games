@@ -3,19 +3,21 @@
 // each seed equals the pack's canonical spin: object for object on the first `fullSeeds` seeds and
 // byte for byte (sha256 of the canonical JSON) on all 2,000 seeds.
 //
-// Regenerate a fixture: npm run slots:oracle -- --example <name> --out packages/slots/src/engine/fixtures/<name>.json --full-seeds 500
+// Fixtures are gzipped JSON (100 full spins + a hash per seed). Regenerate one:
+//   npm run slots:oracle -- --example <name> --out packages/slots/src/engine/fixtures/<name>.json.gz --full-seeds 100 --no-analytics
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { checkParity, type OracleFixture } from './parity';
 import { canonicalSpin, portedMechanics } from './index';
 import { Mulberry32 } from './rng';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
-const files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
-const load = (f: string) => JSON.parse(readFileSync(join(dir, f), 'utf8')) as OracleFixture;
+const files = readdirSync(dir).filter((f) => f.endsWith('.json.gz')).sort();
+const load = (f: string) => JSON.parse(gunzipSync(readFileSync(join(dir, f))).toString('utf8')) as OracleFixture;
 
 describe('Mulberry32 matches slotlab.rng', () => {
   it('u32 streams', () => {
@@ -51,7 +53,7 @@ describe('parity with the engine pack', () => {
   });
 
   for (const f of files) {
-    it(`${f.replace(/\.json$/, '')}: 2,000 seeds identical`, () => {
+    it(`${f.replace(/\.json\.gz$/, '')}: 2,000 seeds identical`, () => {
       const fx = load(f);
       expect(fx.spinHashes.length).toBe(2000);
       const r = checkParity(fx);
@@ -61,7 +63,7 @@ describe('parity with the engine pack', () => {
   }
 
   it('canonicalSpin(spec, seed) returns the pack spin object', () => {
-    const fx = load('plain-line-eval-no-modifier.json');
-    for (const seed of [0, 7, 499]) expect(canonicalSpin(fx.spec, seed)).toEqual(fx.spins[seed]);
+    const fx = load('plain-line-eval-no-modifier.json.gz');
+    for (const seed of [0, 7, 99]) expect(canonicalSpin(fx.spec, seed)).toEqual(fx.spins[seed]);
   });
 });

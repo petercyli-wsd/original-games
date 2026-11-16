@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { award, multiplierAt, type FreeSpinsConfig } from './analytics/config';
 import { createSlot, triggerScatters, type SlotSpec } from './index';
@@ -11,7 +12,7 @@ import type { OracleFixture } from './parity';
 import { Mulberry32 } from './rng';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), 'fixtures');
-const fixture = (name: string) => JSON.parse(readFileSync(join(dir, `${name}.json`), 'utf8')) as OracleFixture;
+const fixture = (name: string) => JSON.parse(gunzipSync(readFileSync(join(dir, `${name}.json.gz`))).toString('utf8')) as OracleFixture;
 const base = fixture('plain-line-eval-no-modifier');
 const spec = base.spec;
 

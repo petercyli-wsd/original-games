@@ -16,6 +16,7 @@ Options:
   --seeds N          seeds 0..N-1 (default 2000)
   --no-analytics     skip base.analytics (faster; fixtures for parity only)
   --full-seeds N     keep full spins for seeds 0..N-1 only; spinHashes still pin every seed
+  --out x.json.gz    writes gzipped JSON (the committed parity fixtures use --full-seeds 100 + .json.gz)
   --only a,b,c       with --all-examples: only these example names
 
 Every spec is normalised to sorted keys before it is built (a JSON round trip with sort_keys), so
@@ -119,9 +120,13 @@ def oracle_entry(spec: dict, *, seeds: int, with_analytics: bool, slug: str,
 
 
 def _write(path: Path, doc: dict) -> None:
+    """Compact JSON; gzipped (deterministic bytes, mtime 0) when the path ends in .gz."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(doc, separators=(",", ":"), ensure_ascii=True, allow_nan=False) + "\n",
-                    encoding="utf-8")
+    blob = (json.dumps(doc, separators=(",", ":"), ensure_ascii=True, allow_nan=False) + "\n").encode()
+    if path.name.endswith(".gz"):
+        import gzip
+        blob = gzip.compress(blob, compresslevel=9, mtime=0)
+    path.write_bytes(blob)
 
 
 def run_game(game_id: str, seeds: int, with_analytics: bool) -> int:
