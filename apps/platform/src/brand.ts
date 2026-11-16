@@ -2,7 +2,7 @@
 export const BRAND = {
   name: 'Octane',
   product: 'Originals',
-  tagline: 'Fast, simple, provably fair. Every game is pure geometry and probability, and every one pays 99% whatever you do.',
+  tagline: 'Fast, simple, provably fair. Originals pay 99% whatever you do, slots pay 96%, and every RTP is computed exactly.',
   currency: 'DEMO',
   startingBalance: 1000,
 };
