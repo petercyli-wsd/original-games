@@ -213,20 +213,19 @@ function designerShots(id: string, aliases: string[]): string[] {
     const runs = readdirSync(ui).filter((r) => r.startsWith('run-')).sort((a, b) => Number(a.slice(4)) - Number(b.slice(4)));
     const log = readPlayLog(join(BLIND, alias));
     const files = (run: string) => (existsSync(join(ui, run)) ? readdirSync(join(ui, run)).sort() : []);
+    // In order of use for polish: base play, the feature, the paytable, the first screen, the feature's end.
+    const sheets = (run: string) => files(run).filter((f) => /^sheet-\d+\.png$/.test(f));
+    const featureRuns = log.filter((e) => e.feature).map((e) => `run-${e.run}`);
     const want: [string, string][] = [];
+    const baseRun = runs.find((r) => !featureRuns.includes(r) && sheets(r).length);
+    if (baseRun) want.push([baseRun, sheets(baseRun)[0]]);
+    const featureRun = featureRuns.find((r) => sheets(r).length);
+    if (featureRun) want.push([featureRun, sheets(featureRun)[0]]);
+    const paytableRun = runs.find((r) => files(r).some((f) => /-paytable(-1)?\.png$/.test(f)));
+    if (paytableRun) want.push([paytableRun, files(paytableRun).find((f) => /-paytable(-1)?\.png$/.test(f))!]);
     const first = runs[0] && files(runs[0]).find((f) => /^\d+-.*\.png$/.test(f));
     if (first) want.push([runs[0], first]);
-    for (const run of runs) {
-      const p = files(run).find((f) => /-paytable(-1)?\.png$/.test(f));
-      if (p) {
-        want.push([run, p]);
-        break;
-      }
-    }
-    const featureRuns = log.filter((e) => e.feature).map((e) => `run-${e.run}`);
-    for (const run of featureRuns) for (const f of files(run).filter((f) => /^sheet-\d+\.png$/.test(f))) want.push([run, f]);
-    const lastSheetRun = [...runs].reverse().find((r) => !featureRuns.includes(r) && files(r).some((f) => f.startsWith('sheet-')));
-    if (lastSheetRun) want.push([lastSheetRun, files(lastSheetRun).filter((f) => f.startsWith('sheet-'))[0]]);
+    if (featureRun && sheets(featureRun).length > 1) want.push([featureRun, sheets(featureRun).at(-1)!]);
     for (const [run, f] of want.slice(0, per)) {
       const dest = join(out, `${panelLabel(i)}-${run}-${f}`);
       copyFileSync(join(ui, run, f), dest);

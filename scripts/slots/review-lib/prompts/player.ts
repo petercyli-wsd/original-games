@@ -88,8 +88,8 @@ Play a whole session, as a real player would. Use at least 60 spins in total, an
 3. **The paytable, once** (\`paytable\`, then \`close\`). Check what you guessed against it: what pays most, what the wild does, and how the feature starts.
 4. **About 20 more spins** at normal speed, watching for near-misses and how wins are shown.
 5. **Turbo.** Use the \`turbo\` step, then about 20 spins (\`turbo;spin×20\`).
-6. **Autoplay.** Use the \`autoplay\` step, then watch it run with \`watch×N\` (screenshots at intervals). Stop it with \`text:Stop\` if a stop button appears.
-7. **The feature.** Use the \`feature\` step. It makes the next spin trigger the bonus feature. This is a test hook: in real play the feature comes much more rarely, perhaps once in 100–300 spins, so don't expect one in normal play. Spin once, then follow the whole feature with \`watch×N\` or more spins until it ends and the total is shown. You may run it twice if the first time was unclear.
+6. **Autoplay.** Use the \`autoplay\` step, then watch it run with \`watch×N\` (screenshots at intervals). Stop it with \`text:Stop autoplay\` (the full label: a shorter one can hit a setting instead).
+7. **The feature.** Use the \`feature\` step. It makes the next spin trigger the bonus feature. This is a test hook: in real play the feature comes much more rarely, perhaps once in 100–300 spins, so don't expect one in normal play. Spin once and take a screenshot. A feature usually opens with a card that waits for a button (Start, Continue): press it with \`text:<its label>\`, and press any later card the same way. Then follow the whole feature with \`watch×N\` until it ends and the total is shown. Run it once: the test hook replays the same feature each time.
 8. Write down what you understood, answer the checks, and only then score.
 
 Each play call starts a fresh session, so the balance may reset. Keep to about 12 play calls. Read the contact sheets for the spins, and open single screenshots only when you need detail.
@@ -113,8 +113,8 @@ export const PLAY_TOOL = (alias: string) =>
 Steps are separated by ";" and run in order on a fresh page each call (include every step from the start):
 - spin: press ${LABELS.spin}, wait for the reels and the win count, and take a screenshot. spin×N does it N times (at most ${MAX_SPINS_PER_CALL} per call); spin×N@ms sets the wait after each press.
 - turbo: switch Turbo on (or off again). Later spins in the same call wait less.
-- autoplay: open the ${LABELS.autoplayTab} tab and press ${LABELS.autoplayStart}. Then watch×N takes N screenshots ${WATCH_WAIT / 1000} s apart while it runs (watch×N@ms changes the gap). Before starting, you can pick the number of spins with text:<number>. Stop it with text:Stop, and go back to single spins with text:Manual.
-- feature: the next spin triggers the bonus feature (a test hook). When a card with a button appears (for example Continue), press it with text:<its label>.
+- autoplay: open the ${LABELS.autoplayTab} tab and press ${LABELS.autoplayStart}. Then watch×N takes N screenshots ${WATCH_WAIT / 1000} s apart while it runs (watch×N@ms changes the gap). Before starting, you can pick the number of spins with text:<number>. Stop it with text:Stop autoplay, and go back to single spins with text:Manual.
+- feature: the next spin triggers the bonus feature (a test hook). A card that waits for a button (Start, Continue) needs text:<its label>; nothing moves until you press it.
 - paytable: open the paytable and take three screenshots down it. scroll: one more page. close: close it (Escape).
 - shot:<name> (screenshot), text:<label> (click the first enabled button or toggle whose visible text contains <label>), mouse:<x>,<y> (click at screen coordinates, 1280×800), key:<Enter|Escape|letter>, wait:<ms>.
 Don't press Space: it skips the presentation.
