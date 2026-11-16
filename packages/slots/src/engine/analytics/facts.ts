@@ -10,11 +10,15 @@
 //   volatility     the band word the measured SD falls in: low | medium | high | extreme
 //   volatilitySd   SD of the round win in stakes (uncapped)
 //   maxWin         the declared cap in stakes
-//   featureFreq    N of "1 in N" rounds (null without a feature)
-//   featureShare   fraction of the RTP from the feature (0 for a pure base game)
+//   featureFreq    N of "1 in N" rounds: the free-spins feature when there is one, else the modifier
+//                  feature (config.modifierFeature); null without either
+//   featureShare   fraction of the RTP from that feature (0 for a pure base game)
 // Also top level, in the names scripts/slots/review-lib/facts.ts reads: winOverStakeRate,
 // avgFeatureWin, pWin100, pMaxWin (+ pMaxWinBounds), dryStreakP95, sessionMedian. Then the full §3
-// table under `stats` (one row per measure: value, display, tier, se, n, band, pass, gate, method),
+// table under `stats` (one row per measure: value, display, tier, se, n, band, pass, withinNoise when
+// an mc miss is within 3 SE, gate, method), `withinNoise` (those row keys), the `modifierFeature` block
+// (name, mechanic, method, freq, share, avgWin, their SEs and tiers), the `mc` run (n per stream, stop
+// reason, workers),
 // volatilityDeclared, rtpUncapped, capLoss, rtpSplit, the feature summary, bandsPassed / bandsFailed /
 // gateFailed, the oracle check and the specHash (sha256 of `canonicalJson(spec text)`, the hash the
 // oracle records). Deterministic: no timestamps.
@@ -84,7 +88,7 @@ export interface SlotFacts {
   rtpUncappedTier: Tier;
   rtpUncappedSe?: number;
   capLoss: CapLoss;
-  rtpSplit: { base: number; baseTier: Tier; feature: number; capLoss: number };
+  rtpSplit: { base: number; baseTier: Tier; feature: number; featureTier: Tier; capLoss: number; mechanicFree?: number; modifier?: number; modifierSe?: number };
   feature: null | {
     kind: 'free_spins';
     spec: string;
@@ -103,13 +107,33 @@ export interface SlotFacts {
     buyPriceStakes: number | null;
     byK: { k: number; pK: number; spins: number; expectedSpins: number; averageWinStakes: number; pZero: number }[];
   };
+  modifierFeature: null | {
+    name: string;
+    mechanic: string;
+    /** 'conditional' (trigger-conditional split, exact frequency) or 'detect' (plain Monte Carlo). */
+    method: 'conditional' | 'detect';
+    /** 'free_spins' (no free spins: judged on the free-spins bands) or 'smaller' (next to free spins). */
+    role: 'free_spins' | 'smaller';
+    pTrigger: number;
+    freq: number | null;
+    freqSe?: number;
+    share: number;
+    shareSe?: number;
+    avgWin: number;
+    avgWinSe?: number;
+    rtpContribution: number;
+    rtpContributionSe?: number;
+    n: number;
+    tiers: { freq: Tier; share: Tier; avgWin: Tier };
+  };
   stats: SlotFactsRow[];
   bandsPassed: string[];
   bandsFailed: string[];
   gateFailed: string[];
+  withinNoise: string[];
   oracle: OracleCheck;
   distributions: SlotStats['distributions'];
-  mc: SlotStats['mc'];
+  mc: SlotStats['mc'] & Record<string, unknown>;
 }
 
 const finite = (x: number | null | undefined): number | null => (x === null || x === undefined || !Number.isFinite(x) ? null : x);
@@ -122,9 +146,12 @@ export function buildSlotFacts(args: {
   stats: SlotStats;
   oracle: OracleCheck;
   generatedBy?: string;
+  /** The Monte-Carlo run (eval.ts: n per stream, stop reason, workers, seconds). */
+  run?: Record<string, unknown>;
 }): SlotFacts {
   const { stats: s, config } = args;
   const f = s.feature;
+  const m = s.modifier;
   const cfg = config.feature ?? null;
   return {
     schema: FACTS_SCHEMA,
@@ -141,12 +168,12 @@ export function buildSlotFacts(args: {
     volatility: s.volatilityMeasured,
     volatilitySd: s.sdStakes,
     maxWin: s.maxWinStakes,
-    featureFreq: f ? finite(f.frequency) : null,
-    featureShare: f ? f.share : 0,
+    featureFreq: f ? finite(f.frequency) : m ? finite(m.frequency) : null,
+    featureShare: f ? f.share : m ? m.share : 0,
 
     volatilityDeclared: s.volatilityDeclared,
     winOverStakeRate: s.winOverStake.value,
-    avgFeatureWin: f ? f.averageWinStakes : null,
+    avgFeatureWin: f ? f.averageWinStakes : m ? m.averageWinStakes : null,
     pWin100: s.pWin100.value,
     pMaxWin: s.reach.best,
     pMaxWinBounds: { lower: s.reach.lowerBound, upper: s.reach.upperBound, tier: s.reach.boundTier },
@@ -158,7 +185,14 @@ export function buildSlotFacts(args: {
     rtpUncappedTier: s.rtpUncappedTier,
     ...(s.rtpUncappedSe !== undefined ? { rtpUncappedSe: s.rtpUncappedSe } : {}),
     capLoss: s.capLoss,
-    rtpSplit: { base: s.baseRtp, baseTier: s.baseRtpTier, feature: s.featureRtp, capLoss: s.rtpUncapped - s.rtp },
+    rtpSplit: {
+      base: s.baseRtp,
+      baseTier: s.baseRtpTier,
+      feature: s.featureRtp,
+      featureTier: s.featureRtpTier,
+      capLoss: s.rtpUncapped - s.rtp,
+      ...(s.baseSplit ? { mechanicFree: s.baseSplit.mechanicFree, modifier: s.baseSplit.modifier, modifierSe: s.baseSplit.modifierSe } : {}),
+    },
     feature:
       f && cfg
         ? {
@@ -180,13 +214,33 @@ export function buildSlotFacts(args: {
             byK: f.byK,
           }
         : null,
+    modifierFeature: m
+      ? {
+          name: m.name,
+          mechanic: m.mechanic,
+          method: m.method,
+          role: m.role,
+          pTrigger: m.pTrigger,
+          freq: finite(m.frequency),
+          ...(m.frequencySe !== undefined ? { freqSe: m.frequencySe } : {}),
+          share: m.share,
+          ...(m.shareSe !== undefined ? { shareSe: m.shareSe } : {}),
+          avgWin: m.averageWinStakes,
+          ...(m.averageWinSe !== undefined ? { avgWinSe: m.averageWinSe } : {}),
+          rtpContribution: m.rtpContribution,
+          ...(m.rtpContributionSe !== undefined ? { rtpContributionSe: m.rtpContributionSe } : {}),
+          n: m.n,
+          tiers: { freq: m.frequencyTier, share: m.tier, avgWin: m.tier },
+        }
+      : null,
     stats: s.rows.map((r) => ({ ...r, value: finite(r.value), band: r.band ? { lo: r.band.lo, hi: finite(r.band.hi), text: r.band.text } : null })),
     bandsPassed: s.bandsPassed,
     bandsFailed: s.bandsFailed,
     gateFailed: s.gateFailed,
+    withinNoise: s.withinNoise,
     oracle: args.oracle,
     distributions: s.distributions,
-    mc: s.mc,
+    mc: { ...s.mc, ...(args.run ?? {}) },
   };
 }
 

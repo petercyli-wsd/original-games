@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { SlotSpec, SpinResult } from '../types';
 import { exactRtp } from './exact';
-import { distMean, distScatter } from './distribution';
-import { distRtpReport, mcRtp, mcSpinDistribution, spinScatterCount, spinSeeds, type SpinFn } from './mc';
+import { distMean, distScatter, empiricalDist } from './distribution';
+import { chunkSeed, countsToDist, distRtpReport, mcRtp, mcSpinDistribution, mergeCounts, spinChunk, spinScatterCount, spinSeeds, type SpinFn } from './mc';
+import { Mulberry32 } from '../rng';
 import { boardAt, boardCoins, buildModel } from './model';
 import { mulberry32 } from './rng';
 import pack from './fixtures/pack-analytics.json';
@@ -148,4 +149,41 @@ describe('mc.ts through the engine port (canonicalSpin) vs the pack on its mc ex
       expect(Math.abs(r.rtp - c.rtp)).toBeLessThan(1e-12);
     }, 60_000);
   }
+});
+
+describe('chunked Monte Carlo (the worker chunks)', () => {
+  it('chunk seeds are distinct per (stream, chunk) and stable; counts merge order-independently into the same SpinDist', async () => {
+    const seeds = new Set<number>();
+    for (const s of [0, 1, 2]) for (let i = 0; i < 300; i++) seeds.add(chunkSeed(20261116, s, i));
+    expect(seeds.size).toBe(900);
+    expect(chunkSeed(5, 1, 7)).toBe(chunkSeed(5, 1, 7));
+    const { SlotEngine, triggerScatters } = await import('../index');
+    const spec = mcCases[0].spec as SlotSpec;
+    const eng = new SlotEngine(spec);
+    const opts = { scatters: (r: SpinResult) => triggerScatters(eng, r) };
+    const run = (i: number) => spinChunk(spec, (rng) => eng.spinRaw(rng), 3000, chunkSeed(1, 0, i), opts);
+    const parts = [0, 1, 2].map(run);
+    expect(run(1)).toEqual(parts[1]);
+    const a = new Map<number, number>();
+    const b = new Map<number, number>();
+    let n = 0;
+    for (const p of parts) n += mergeCounts(a, p);
+    for (const p of [...parts].reverse()) mergeCounts(b, p);
+    const da = countsToDist(a, n, 'a');
+    expect(countsToDist(b, n, 'a')).toEqual(da);
+    expect(da.p.reduce((x, y) => x + y, 0)).toBeCloseTo(1, 12);
+    // the same spins one by one through canonicalSpin give the same law
+    const samples: { coins: number; k: number }[] = [];
+    for (let i = 0; i < 3; i++) {
+      const g = new Mulberry32(chunkSeed(1, 0, i));
+      for (let j = 0; j < 3000; j++) {
+        const r = eng.spin(g.u32());
+        samples.push({ coins: r.totalCoins, k: spinScatterCount(spec, r, opts) });
+      }
+    }
+    const e = empiricalDist(samples, 'a');
+    expect(da.coins).toEqual(e.coins);
+    expect(da.k).toEqual(e.k);
+    da.p.forEach((p, i) => expect(p).toBeCloseTo(e.p[i], 12));
+  });
 });

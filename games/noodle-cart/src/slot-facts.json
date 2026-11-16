@@ -43,6 +43,7 @@
     "base": 0.6205693948186486,
     "baseTier": "exact_mixture",
     "feature": 0.3395475209460335,
+    "featureTier": "exact_mixture",
     "capLoss": 3.915101427498513e-7
   },
   "feature": {
@@ -78,6 +79,7 @@
       }
     ]
   },
+  "modifierFeature": null,
   "stats": [
     {
       "key": "rtp",
@@ -94,7 +96,7 @@
       },
       "pass": true,
       "gate": true,
-      "method": "uncapped 96.0117% (exact_mixture) = base 62.057% + feature 33.955% − cap 0.0000%. Base: exact_mixture closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the exact feature distribution. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 7.377e-3, 200,000 rounds sampled from the exact distributions, 1 above the cap); exact upper bound 0.05594% (Cauchy–Schwarz with the exact second moments and the reach upper bound)."
+      "method": "uncapped 96.0117% (exact_mixture) = base 62.057% + feature 33.955% − cap 0.0000%. Base: exact_mixture closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the exact feature distribution and the exact trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 7.377e-3, 200,000 rounds sampled from the exact distributions, 1 above the cap); exact upper bound 0.05594% (Cauchy–Schwarz with the exact second moments and the reach upper bound)."
     },
     {
       "key": "hitRate",
@@ -280,6 +282,7 @@
   ],
   "bandsFailed": [],
   "gateFailed": [],
+  "withinNoise": [],
   "oracle": {
     "status": "pass",
     "detail": "oracle.json matches the current specs and the pack RTP",
@@ -329,6 +332,7 @@
   "mc": {
     "rounds": 200000,
     "sessions": 20000,
-    "seed": 20261116
+    "seed": 20261116,
+    "stop": "no Monte Carlo of spins needed (closed forms)"
   }
 }

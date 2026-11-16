@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { SlotSpec } from '../types';
 import { award, multiplierAt, type FreeSpinsConfig, type SlotConfig } from './config';
 import { distMean, distProb, distSecondMoment, exactSpinDistribution, type SpinDist } from './distribution';
-import { exactRtp } from './exact';
+import { exactRtp, triggerProbability } from './exact';
 import { buildSlotFacts, canonicalJson, pyFloatRepr, type OracleCheck } from './facts';
 import { boardAt, boardCoins, buildModel, type SlotModel } from './model';
 import { mulberry32 } from './rng';
-import { computeSlotStats, dryStreakQuantile, featureTailBounds, longestRunCdf, type SlotStats } from './stats';
+import { computeSlotStats, dryStreakQuantile, featureTailBounds, flatFeatureAnchor, flatTables, longestRunCdf, type SlotStats } from './stats';
 import { normaliseFacts } from '../../../../../scripts/slots/review-lib/facts';
 import pack from './fixtures/pack-analytics.json';
 import sampleSpec from './fixtures/sample-game/slot.spec.json';
@@ -365,5 +365,70 @@ describe('slot-facts.json', () => {
     expect(pyFloatRepr(5e-324)).toBe('5e-324');
     expect(pyFloatRepr(1.7976931348623157e308)).toBe('1.7976931348623157e+308');
     expect(pyFloatRepr(0.1 + 0.2)).toBe('0.30000000000000004');
+  });
+});
+
+// --------------------------------------------------------------------------- noise and anchors
+
+describe('Monte-Carlo noise never fails a band', () => {
+  const c = cases.find((x) => x.panel === 'panel-plain-ways-substitution-no-overlay')!;
+  const spec = c.spec as SlotSpec;
+  const bet = spec.bet.coins;
+  const d = exactSpinDistribution(spec);
+  const cfg: SlotConfig = { maxWinStakes: 5000, volatility: 'medium', targetRtp: 0.96 };
+
+  it('an mc RTP outside the band by ≤ 3 SE passes within noise; by more it fails the gate', () => {
+    // whiteout at 10M spins read 95.43% ± 0.34%: 0.07 below the band = 0.2 SE
+    const near = computeSlotStats({ spec, config: cfg, baseDist: d, baseRtp: { rtp: 0.9543, tier: 'mc', se: 0.0034, n: 10_000_000 }, mc: { sessions: 200 } });
+    expect(row(near, 'rtp')).toMatchObject({ tier: 'mc', pass: true, withinNoise: true, gate: true });
+    expect(near.gateFailed).not.toContain('rtp');
+    expect(near.withinNoise).toContain('rtp');
+    const far = computeSlotStats({ spec, config: cfg, baseDist: d, baseRtp: { rtp: 0.9543, tier: 'mc', se: 0.0001, n: 10_000_000 }, mc: { sessions: 200 } });
+    expect(row(far, 'rtp').pass).toBe(false);
+    expect(row(far, 'rtp').withinNoise).toBeUndefined();
+    expect(far.gateFailed).toContain('rtp');
+    // the facts row carries it
+    const oracle: OracleCheck = { status: 'pass', detail: '', checks: [] };
+    const facts = buildSlotFacts({ game: 't', specHash: 'x', config: cfg, stats: near, oracle });
+    expect(facts.stats.find((r) => r.key === 'rtp')).toMatchObject({ pass: true, withinNoise: true });
+    expect(facts.withinNoise).toEqual(['rtp']);
+  });
+
+  it('the dry-streak p95 (a step in the hit rate) is within noise when hit rate ± 3 SE crosses the step', () => {
+    // the hit rate where p95 steps from 21 to 20 (medium's limit is 20)
+    let lo = 0.2;
+    let hi = 0.3;
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2;
+      if (dryStreakQuantile(mid) > 20) lo = mid;
+      else hi = mid;
+    }
+    const h = hi - 0.002;
+    expect(dryStreakQuantile(h)).toBe(21);
+    const dist = (n: number): SpinDist => ({ coins: [0, 5 * bet], k: [0, 0], p: [1 - h, h], tier: 'mc', n, method: 'synthetic' });
+    const noisy = computeSlotStats({ spec, config: cfg, baseDist: dist(100_000), mc: { sessions: 200 } });
+    expect(row(noisy, 'dryStreakP95')).toMatchObject({ value: 21, pass: true, withinNoise: true });
+    const sure = computeSlotStats({ spec, config: cfg, baseDist: dist(10_000_000), mc: { sessions: 200 } });
+    expect(row(sure, 'dryStreakP95')).toMatchObject({ value: 21, pass: false });
+    expect(sure.gateFailed).toContain('dryStreakP95');
+  });
+});
+
+describe('flat award tables: the exact feature anchor', () => {
+  it('P(trigger)·Σ_j E[m_j 1{N ≥ j}]·E[W] equals the full algebra when every K awards the same', () => {
+    const cfg: SlotConfig = { ...CFG, feature: { ...CFG.feature!, awards: { '3': 10 }, retrigger: { '3': 5 }, maxSpins: 40 } };
+    const ft = flatTables(BASE, FEAT, cfg.feature!);
+    expect(ft).toMatchObject({ flat: true, rmin: 3, smin: Number(BASE.trigger!.scatter_min) });
+    expect(flatTables(BASE, FEAT, CFG.feature!).why).toContain('awards differ by K');
+    const s = computeSlotStats({ spec: BASE, featureSpec: FEAT, config: cfg, mc: { rounds: 2000, sessions: 200 } });
+    const fd = exactSpinDistribution(FEAT);
+    const bet = BASE.bet.coins;
+    const a = flatFeatureAnchor(cfg.feature!, ft.smin, ft.rmin, triggerProbability(BASE), exactRtp(FEAT).rtp * bet, distProb(fd, (_c, k) => k >= 3), bet, 'test');
+    expect(a.featureRtp).toBeCloseTo(s.featureRtp, 12);
+    expect(a.averageWinStakes).toBeCloseTo(s.feature!.averageWinStakes, 10);
+    // and the stats take it as given
+    const anchored = computeSlotStats({ spec: BASE, featureSpec: FEAT, config: cfg, featureAnchor: { ...a, featureRtp: a.featureRtp + 0.01 }, mc: { rounds: 2000, sessions: 200 } });
+    expect(anchored.featureRtp).toBeCloseTo(s.featureRtp + 0.01, 12);
+    expect(anchored.featureRtpTier).toBe('exact');
   });
 });

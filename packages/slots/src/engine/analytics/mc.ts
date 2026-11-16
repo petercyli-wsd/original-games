@@ -30,6 +30,7 @@
 import type { RtpReport, SlotSpec, SpinResult } from '../types';
 import { empiricalDist, type SpinDist } from './distribution';
 import { mulberry32 } from './rng';
+import { Mulberry32 } from '../rng';
 
 export type SpinFn = (spec: SlotSpec, seed: number) => SpinResult;
 
@@ -113,4 +114,76 @@ export function distRtpReport(d: SpinDist, betCoins: number): RtpReport {
 /** Monte-Carlo RTP of n engine spins: {rtp, tier 'mc', se, n}. */
 export function mcRtp(spec: SlotSpec, spin: SpinFn, n: number, seed: number, opts: McOptions = {}): RtpReport {
   return distRtpReport(mcSpinDistribution(spec, spin, n, seed, opts), spec.bet.coins);
+}
+
+// --------------------------------------------------------------------------- chunked Monte Carlo
+//
+// The parallel Monte Carlo (scripts/slots/eval.ts + eval-worker.ts) runs in chunks. Chunk i of a
+// stream s runs on its own seed `chunkSeed(seed, s, i)`, and spin j of the chunk on the j-th u32
+// of Mulberry32(that seed). A chunk's result is integer counts, so merging is order-independent:
+// the same flags and the same number of completed chunks per stream reproduce the same numbers.
+
+/** The seed of chunk i of stream s (a Mulberry32 hash of seed, s and i). */
+export function chunkSeed(seed: number, stream: number, i: number): number {
+  const g = new Mulberry32((Math.imul((seed >>> 0) ^ 0x9e3779b9, 0x85ebca6b) ^ Math.imul(stream + 1, 0xc2b2ae35) ^ Math.imul(i + 1, 0x27d4eb2f)) >>> 0);
+  g.u32();
+  return g.u32();
+}
+
+/** Counts key: coins · COUNT_KMUL + K (K < COUNT_KMUL). */
+export const COUNT_KMUL = 256;
+
+/** The (coins, K) counts of a chunk of spins. */
+export interface SpinCounts {
+  n: number;
+  keys: number[];
+  counts: number[];
+}
+
+/** The fields of an engine spin (SlotEngine.spinRaw's RawSpin, or a SpinResult) a chunk reads. */
+export type SpinResultLike = Pick<SpinResult, 'totalCoins' | 'steps' | 'finalBoard' | 'extras' | 'trigger'>;
+
+/**
+ * n engine spins on seeds from Mulberry32(seed): their (coins, K) counts. `onSpin` sees every spin
+ * with its seed (modifier tallies).
+ */
+export function spinChunk<R extends SpinResultLike>(
+  spec: SlotSpec,
+  spinRaw: (rng: Mulberry32) => R,
+  n: number,
+  seed: number,
+  opts: McOptions = {},
+  onSpin?: (r: R, spinSeed: number) => void,
+): SpinCounts {
+  const g = new Mulberry32(seed >>> 0);
+  const acc = new Map<number, number>();
+  for (let i = 0; i < n; i++) {
+    const s = g.u32();
+    const r = spinRaw(new Mulberry32(s));
+    const k = spinScatterCount(spec, r as unknown as SpinResult, opts);
+    if (k >= COUNT_KMUL) throw new Error(`spinChunk: scatter count ${k} ≥ ${COUNT_KMUL}`);
+    const key = r.totalCoins * COUNT_KMUL + k;
+    acc.set(key, (acc.get(key) ?? 0) + 1);
+    if (onSpin) onSpin(r, s);
+  }
+  return { n, keys: [...acc.keys()], counts: [...acc.values()] };
+}
+
+/** Merge chunk counts into a running map; returns the added n. */
+export function mergeCounts(into: Map<number, number>, part: SpinCounts): number {
+  for (let i = 0; i < part.keys.length; i++) into.set(part.keys[i], (into.get(part.keys[i]) ?? 0) + part.counts[i]);
+  return part.n;
+}
+
+/** The empirical SpinDist of merged counts (tier mc, n), entries sorted by (coins, K). */
+export function countsToDist(counts: Map<number, number>, n: number, method: string): SpinDist {
+  const keys = [...counts.keys()].sort((a, b) => a - b);
+  const out: SpinDist = { coins: new Array(keys.length), k: new Array(keys.length), p: new Array(keys.length), tier: 'mc', n, method };
+  keys.forEach((key, i) => {
+    const k = key % COUNT_KMUL;
+    out.coins[i] = (key - k) / COUNT_KMUL;
+    out.k[i] = k;
+    out.p[i] = counts.get(key)! / n;
+  });
+  return out;
 }

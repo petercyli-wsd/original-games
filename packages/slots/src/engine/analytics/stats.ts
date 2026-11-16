@@ -58,12 +58,41 @@
 // G·g ≥ cap lumped in the top bin). Hence P(B + F ≥ cap) ≥ P(S_g ≥ cap − B) = P(S_g/g ≥ ⌈(cap−B)/g⌉),
 // and P(X ≥ cap) ≥ P(B ≥ cap) + Σ_{triggered, B<cap} p_i · P(S_g ≥ cap − B_i). Retriggered spins are
 // ignored, which only lowers the bound.
+//
+// ------------------------------------------------------------------------------ noise (band verdicts)
+// A Monte-Carlo stat never fails a band on noise. For a row of tier mc with SE se: inside the band
+// → PASS; outside by at most 3·se → PASS with `withinNoise: true` ("PASS (within noise)"); further
+// → FAIL. The dry-streak p95 is a step function of the hit rate: it is recomputed at hit rate ± 3 SE
+// and when the verdict differs across that interval a miss is "within noise". `withinNoise` lists
+// the keys, so slots:eval can run more rounds to resolve the gate rows.
+//
+// ------------------------------------------------------------------------------ the modifier split
+// `input.split` (conditional.ts): the base round of a modifier-feature spec is
+//   the exact (B0, K) law of the mechanic-free spec  +  per paired conditional sample j (count c_j
+//   of n): +P(T)·c_j/n at (X_j, K_j) and −P(T)·c_j/n at (B0_j, K0_j).
+// The entries are SIGNED; every statistic above that is linear in the base law (RTP, hit rate,
+// the moments of the SD, the exact parts of the tails, the cap loss, the scatter law) reads them
+// as they are, which is exactly E[g(B0)] + P(T)·E[g(X) − g(B0) | T]. Its SE is the paired one,
+// P(T)·sd(g(X) − g(B0) | T)/√n (`seOf`). What must SAMPLE the base (the session, the free-spins
+// tails) samples a clamped copy (negative net masses set to 0, renormalised): an approximation,
+// used only for informational rows. With `input.modifier` the modifier feature is reported:
+// frequency 1/P(T) (exact under the split; else 1/p̂ from the detect tally), average win
+// E[X − B0 | T] / bet and share P(T)·E[X − B0 | T] / rtpUncapped. Without a free-spins feature it
+// takes the free-spins bands (1 in 80–300, 25–55%, 15–150×) in the feature rows; next to one it is
+// a smaller feature (1 in 40–120; share and average win informational) in its own rows.
+//
+// ------------------------------------------------------------------------------ anchors
+// `input.baseRtp` overrides the base RTP (eval.ts: the pack's exact RTP when the TS model has no
+// closed form, or the pack's mc when its SE is smaller than ours). `input.featureAnchor` overrides
+// the feature RTP, trigger probability and average win (eval.ts: the pack's exact feature-spin RTP
+// and trigger law when the award tables are flat), so the feature rows and the RTP can be exact
+// while the distributions (hit rate, SD, tails) still come from the Monte Carlo.
 
 import type { RtpReport, SlotSpec } from '../types';
 import { award, multiplierAt, VOLATILITY_BANDS, type FreeSpinsConfig, type SlotConfig, type Volatility } from './config';
 import { distScatter, spinDistribution, type SpinDist } from './distribution';
 import { exactRtp, scatterCountDist } from './exact';
-import { featureValues, freeSpinsAnalytics, sampleSpinIndex, simulateFeature, type FreeSpinsAnalytics } from './features';
+import { featureProfile, featureValues, freeSpinsAnalytics, sampleSpinIndex, simulateFeature, type FreeSpinsAnalytics } from './features';
 import { distRtpReport } from './mc';
 import { buildModel } from './model';
 import { mulberry32 } from './rng';
@@ -89,10 +118,71 @@ export interface StatRow {
   se?: number;
   n?: number;
   band: Band | null;
-  /** null = informational (no band applies). */
+  /** null = informational (no band applies). A miss within 3 SE of an mc row passes (withinNoise). */
   pass: boolean | null;
+  /** Outside the band but within 3 SE (mc only): counts as a pass. */
+  withinNoise?: boolean;
   /** Part of the §5 gate (RTP, hit rate, dry streak, max-win reachability). */
   gate: boolean;
+  method: string;
+}
+
+/** The modifier feature (config.modifierFeature), reported by the split or by the detect tally. */
+export interface ModifierSummary {
+  name: string;
+  mechanic: string;
+  /** 'conditional': trigger-conditional split (exact P(T)); 'detect': plain Monte Carlo of the detect signal. */
+  method: 'conditional' | 'detect';
+  /** P(the feature runs) per round. */
+  pTrigger: number;
+  /** N of "1 in N". */
+  frequency: number;
+  frequencySe?: number;
+  frequencyTier: Tier;
+  /** E[X − B0 | feature] / bet. */
+  averageWinStakes: number;
+  averageWinSe?: number;
+  /** P(T)·E[X − B0 | T] / rtpUncapped. */
+  share: number;
+  shareSe?: number;
+  /** Tier of the average win and the share. */
+  tier: Tier;
+  /** P(T)·E[X − B0 | T] / bet: the modifier's part of the RTP. */
+  rtpContribution: number;
+  rtpContributionSe?: number;
+  /** Samples behind the mc values (conditional samples, or spins for 'detect'). */
+  n: number;
+  /** 'free_spins': no free-spins feature, the free-spins bands apply; 'smaller': next to free spins. */
+  role: 'free_spins' | 'smaller';
+}
+
+/** Trigger-conditional split of a modifier feature (header, conditional.ts). */
+export interface SplitInput {
+  /** The exact (B0, K) distribution of the mechanic-free spec. */
+  exactDist: SpinDist;
+  /** P(T), exact. */
+  pT: number;
+  /** The paired conditional sample: (X, B0, K of the spin, K0 of the mechanic-free board) → count. */
+  cond: { n: number; x: number[]; b0: number[]; k: number[]; k0?: number[]; count: number[] };
+  method: string;
+}
+
+/** Plain Monte-Carlo tally of a modifier feature's detect signal over n base spins. */
+export interface ModifierDetectTally {
+  n: number;
+  detected: number;
+  /** Σ (X − B0) over the detected spins, coins, and Σ of its square. */
+  sumD: number;
+  sumD2: number;
+}
+
+/** An exact (or pack) feature value that overrides the algebra over sampled distributions (header, anchors). */
+export interface FeatureAnchor {
+  featureRtp: number;
+  triggerP: number;
+  /** E[F | trigger] / bet. */
+  averageWinStakes: number;
+  tier: Tier;
   method: string;
 }
 
@@ -172,12 +262,18 @@ export interface SlotStats {
   rtpUncapped: number;
   rtpUncappedTier: Tier;
   rtpUncappedSe?: number;
+  /** The parts of rtpUncappedSe: the base sample (with the trigger law it carries) and the feature sample. */
+  rtpSeParts: { base: number; feature: number };
   capLoss: CapLoss;
   baseRtp: number;
   baseRtpTier: Tier;
   baseRtpSe?: number;
+  /** With the modifier split: E[B0] (exact) and the modifier's P(T)·E[X − B0 | T], in RTP units. */
+  baseSplit: { mechanicFree: number; modifier: number; modifierSe: number } | null;
   featureRtp: number;
+  featureRtpTier: Tier;
   feature: FeatureSummary | null;
+  modifier: ModifierSummary | null;
   hitRate: number;
   winOverStake: McEstimate;
   sdStakes: number;
@@ -190,6 +286,8 @@ export interface SlotStats {
   bandsPassed: string[];
   bandsFailed: string[];
   gateFailed: string[];
+  /** Rows that pass only within noise (mc, outside the band by ≤ 3 SE). */
+  withinNoise: string[];
 }
 
 export interface SlotStatsInput {
@@ -201,6 +299,14 @@ export interface SlotStatsInput {
   featureDist?: SpinDist;
   /** Base RTP. Default: exactRtp(spec) when the spec has a closed form, else the base SpinDist's mean (mc). */
   baseRtp?: RtpReport;
+  /** Where an overriding baseRtp comes from (the RTP row's method). */
+  baseRtpMethod?: string;
+  /** Modifier-feature split (replaces baseDist / baseRtp; header). */
+  split?: SplitInput;
+  /** Report this modifier feature (the split, or a detect tally from the base Monte Carlo). */
+  modifier?: { name: string; mechanic: string; detect?: ModifierDetectTally };
+  /** Overrides the free-spins feature's RTP, trigger probability and average win (header, anchors). */
+  featureAnchor?: FeatureAnchor;
   mc?: { rounds?: number; sessions?: number; sessionRounds?: number; startStakes?: number; seed?: number };
 }
 
@@ -359,6 +465,52 @@ export function featureTailBounds(featureDist: SpinDist, cfg: FreeSpinsConfig, s
   return { g, top, lower: (n0, t) => at(lo, n0, t), upper: (n0, t) => at(hi, n0, t) };
 }
 
+// --------------------------------------------------------------------------- flat award tables (anchors)
+
+/**
+ * Are the award tables flat (header, anchors)? award(k) the same for every k ≥ scatter_min, the
+ * retrigger award the same for every k ≥ its smallest key, and (when the feature spin's retrigger
+ * probability is to come from its own trigger law) the feature spec's scatter_min = that key.
+ */
+export function flatTables(spec: SlotSpec, featureSpec: SlotSpec, cfg: FreeSpinsConfig): { flat: boolean; why: string[]; rmin: number | null; smin: number } {
+  const why: string[] = [];
+  const smin = Number(spec.trigger?.scatter_min);
+  const maxK = spec.geometry.rows.reduce((a, b) => a + b, 0);
+  const aw = Array.from({ length: Math.max(1, maxK - smin + 1) }, (_, i) => award(cfg.awards, smin + i));
+  if (!aw.every((v) => v === aw[0])) why.push('awards differ by K');
+  const rKeys = cfg.retrigger ? Object.entries(cfg.retrigger).filter(([, v]) => v > 0).map(([k]) => Number(k)) : [];
+  const rmin = rKeys.length ? Math.min(...rKeys) : null;
+  if (rmin !== null) {
+    const fMaxK = featureSpec.geometry.rows.reduce((a, b) => a + b, 0);
+    const ra = Array.from({ length: Math.max(1, fMaxK - rmin + 1) }, (_, i) => award(cfg.retrigger, rmin + i));
+    if (!ra.every((v) => v === ra[0])) why.push('retrigger awards differ by K');
+  }
+  return { flat: why.length === 0, why, rmin, smin };
+}
+
+/**
+ * The exact free-spins value under flat tables: every trigger starts n0 = min(award, maxSpins)
+ * spins, each spin retriggers with probability pRetrigger (K ≥ rmin), independent of the spin's
+ * own index, so E[F] = Σ_j E[m_j 1{N ≥ j}]·E[W] (features.ts, first moment) and
+ * featureRtp = P(trigger)·E[F] / bet. `ewCoins` = E[W] of one feature spin in base coins.
+ */
+export function flatFeatureAnchor(cfg: FreeSpinsConfig, smin: number, rmin: number | null, pTrigger: number, ewCoins: number, pRetrigger: number, bet: number, method: string): FeatureAnchor {
+  const n0 = Math.min(award(cfg.awards, smin), cfg.maxSpins);
+  const law: SpinDist =
+    rmin === null
+      ? { coins: [0], k: [0], p: [1], tier: 'exact', method: 'no retrigger' }
+      : { coins: [0, 0], k: [0, rmin], p: [1 - pRetrigger, pRetrigger], tier: 'exact', method: 'retrigger law' };
+  const M = featureProfile(law, cfg, n0).expectedMultiplierSum;
+  const eF = M * ewCoins;
+  return {
+    featureRtp: (pTrigger * eF) / bet,
+    triggerP: pTrigger,
+    averageWinStakes: eF / bet,
+    tier: 'exact',
+    method: `${method}; Σ_j E[m_j 1{N ≥ j}] = ${M.toFixed(6)} (${n0} spins, retrigger p ${pRetrigger.toPrecision(6)})`,
+  };
+}
+
 // --------------------------------------------------------------------------- main
 
 export function computeSlotStats(input: SlotStatsInput): SlotStats {
@@ -372,26 +524,44 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   const seed = (input.mc?.seed ?? 20261116) >>> 0;
 
   const model = buildModel(spec);
-  const closed = model.closedFormRefusal === null;
-  const baseDist = input.baseDist ?? spinDistribution(spec);
-  const baseMc = baseDist.tier === 'mc';
+  const split = input.split ?? null;
+  if (split && split.exactDist.tier !== 'exact') throw new Error('split.exactDist must be the exact distribution of the mechanic-free spec');
+  if (split && !(split.cond.n > 0)) throw new Error('split.cond needs a sample (n > 0)');
+  const closed = model.closedFormRefusal === null && !split;
+  const baseDist = split ? split.exactDist : input.baseDist ?? spinDistribution(spec);
+  const baseMc = !split && baseDist.tier === 'mc';
   const nBase = baseDist.n ?? 0;
   if (baseMc && !(nBase > 0)) throw new Error('a sampled base SpinDist needs its sample size n');
+  /** The base law carries sampling noise (a sampled SpinDist, or the split's conditional sample). */
+  const sampled = baseMc || !!split;
+  const nSample = split ? split.cond.n : nBase;
+  // the split's pairs keep K0 (the mechanic-free board's scatter count) next to the spin's K
+  const k0Of = (j: number) => (split!.cond.k0 ? split!.cond.k0[j] : split!.cond.k[j]);
+  const splitKSame = !!split && split.cond.k.every((k, j) => k === k0Of(j));
 
-  // base RTP and the scatter law: exact from the closed forms whenever the spec has one (even
-  // when the joint distribution had to be sampled), else from the sampled distribution
-  let baseRtp: RtpReport;
-  if (input.baseRtp) baseRtp = input.baseRtp;
-  else if (closed) {
-    const ex = exactRtp(spec);
-    baseRtp = { rtp: ex.rtp, tier: ex.tier };
-  } else baseRtp = distRtpReport(baseDist, bet);
-  const exactTier: Tier = baseRtp.tier === 'exact_mixture' ? 'exact_mixture' : 'exact';
-  const scatterDist = closed ? scatterCountDist(spec) : distScatter(baseDist);
-  const scatterExact = closed;
+  // the scatter law: exact from the closed forms whenever the spec has one (even when the joint
+  // distribution had to be sampled), exact under the split when the mechanic never moves K, else
+  // from the (signed) sampled law
+  let scatterDist: number[];
+  if (closed) scatterDist = scatterCountDist(spec);
+  else if (split) {
+    scatterDist = distScatter(split.exactDist);
+    if (!splitKSame) {
+      const w = split.pT / split.cond.n;
+      split.cond.count.forEach((c, j) => {
+        const k = split.cond.k[j];
+        const k0 = k0Of(j);
+        while (scatterDist.length <= Math.max(k, k0)) scatterDist.push(0);
+        scatterDist[k] += w * c;
+        scatterDist[k0] -= w * c;
+      });
+    }
+  } else scatterDist = distScatter(baseDist);
+  const scatterExact = closed || splitKSame;
 
   // ---- the feature
   const cfg = config.feature ?? null;
+  const anchor = cfg ? input.featureAnchor ?? null : null;
   let fa: FreeSpinsAnalytics | null = null;
   let featureDist: SpinDist | null = null;
   let scale = 1;
@@ -404,10 +574,10 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     scale = bet / fBet;
     if (spec.trigger?.scatter_min == null) throw new Error('config.feature is set but the base spec has no trigger.scatter_min');
     smin = Number(spec.trigger.scatter_min);
+    // the feature's own analytics only (the base RTP and its tier are combined below)
     fa = freeSpinsAnalytics({
-      baseRtp: baseRtp.rtp,
-      baseTier: baseRtp.tier,
-      baseRtpSe: baseRtp.se,
+      baseRtp: 0,
+      baseTier: 'exact',
       betCoins: bet,
       featureBetCoins: fBet,
       scatterDist,
@@ -417,42 +587,111 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     });
   }
   const featureMc = featureDist?.tier === 'mc';
-  /** Tier of a quantity read off the joint distributions with no simulation. */
-  const jointTier: Tier = baseMc || featureMc ? 'mc' : exactTier;
 
   // per-entry feature moments (base coins), by initial award
   const spinsOf = (k: number) => (cfg && k >= smin ? Math.min(award(cfg.awards, k), cfg.maxSpins) : 0);
   const awardsNeeded = new Set<number>();
   for (let i = 0; i < baseDist.p.length; i++) awardsNeeded.add(spinsOf(baseDist.k[i]));
+  if (split) for (let j = 0; j < split.cond.k.length; j++) awardsNeeded.add(spinsOf(split.cond.k[j])).add(spinsOf(k0Of(j)));
   const fvBySpins = new Map<number, { ef: number; ef2: number; pz: number }>();
   if (cfg && featureDist) {
     const list = [...awardsNeeded].filter((s) => s > 0);
     const vals = featureValues(featureDist, cfg, list);
     list.forEach((s, j) => fvBySpins.set(s, { ef: vals[j].expectedWinCoins * scale, ef2: vals[j].secondMomentCoins * scale * scale, pz: vals[j].pZero }));
   }
-  const es: Entry[] = [];
-  for (let i = 0; i < baseDist.p.length; i++) {
-    const spins = spinsOf(baseDist.k[i]);
+  const mkEntry = (B: number, K: number, p: number): Entry => {
+    const spins = spinsOf(K);
     const fv = spins > 0 ? fvBySpins.get(spins)! : { ef: 0, ef2: 0, pz: 1 };
-    es.push({ B: baseDist.coins[i], K: baseDist.k[i], p: baseDist.p[i], spins, ef: fv.ef, ef2: fv.ef2, pz: fv.pz });
+    return { B, K, p, spins, ef: fv.ef, ef2: fv.ef2, pz: fv.pz };
+  };
+  // es: the base law's entries, SIGNED under the split (header); pairs: the split's paired sample
+  const es: Entry[] = [];
+  for (let i = 0; i < baseDist.p.length; i++) es.push(mkEntry(baseDist.coins[i], baseDist.k[i], baseDist.p[i]));
+  const pairs: { x: Entry; b: Entry; c: number }[] = [];
+  if (split) {
+    const w = split.pT / split.cond.n;
+    split.cond.count.forEach((c, j) => {
+      const x = mkEntry(split.cond.x[j], split.cond.k[j], w * c);
+      const b = mkEntry(split.cond.b0[j], k0Of(j), -w * c);
+      es.push(x, b);
+      pairs.push({ x, b, c });
+    });
+  }
+  // what must SAMPLE the base law samples a non-negative copy (header: clamped under the split)
+  let sampEs = es;
+  let sampDist = baseDist;
+  if (split) {
+    const net = new Map<string, Entry>();
+    for (const e of es) {
+      const key = `${e.B},${e.K}`;
+      const cur = net.get(key);
+      if (cur) cur.p += e.p;
+      else net.set(key, { ...e });
+    }
+    sampEs = [...net.values()].filter((e) => e.p > 0);
+    const tot = sampEs.reduce((a, e) => a + e.p, 0);
+    sampEs = sampEs.map((e) => ({ ...e, p: e.p / tot }));
+    sampDist = { coins: sampEs.map((e) => e.B), k: sampEs.map((e) => e.K), p: sampEs.map((e) => e.p), tier: 'mc', n: nSample, method: 'the split base law, clamped at 0 (sampling only)' };
   }
   const trig = (e: Entry) => e.spins > 0;
-  const baseSe = (v: number) => (baseMc ? Math.sqrt(v / nBase) : 0);
+  /** SE of Σ p·g over the base law: the sampled base's, or the split's paired one; 0 when exact. */
+  const seOf = (g: (e: Entry) => number): number => {
+    if (baseMc) return Math.sqrt(wVar(es, g).v / nBase);
+    if (split) {
+      let s1 = 0;
+      let s2 = 0;
+      for (const q of pairs) {
+        const d = g(q.x) - g(q.b);
+        s1 += q.c * d;
+        s2 += q.c * d * d;
+      }
+      const n = split.cond.n;
+      const mu = s1 / n;
+      return split.pT * Math.sqrt((Math.max(0, s2 / n - mu * mu) * (n / Math.max(1, n - 1))) / n);
+    }
+    return 0;
+  };
+
+  // ---- base RTP: the split's exact part + conditional mean; an override; exact; else the sample
+  let baseRtp: RtpReport;
+  let baseFromSample = false;
+  let baseSplit: SlotStats['baseSplit'] = null;
+  if (split) {
+    const mean = es.reduce((a, e) => a + e.p * e.B, 0);
+    const se = seOf((e) => e.B) / bet;
+    const free = split.exactDist.coins.reduce((a, c, i) => a + c * split.exactDist.p[i], 0) / bet;
+    baseSplit = { mechanicFree: free, modifier: mean / bet - free, modifierSe: se };
+    if (input.baseRtp) baseRtp = input.baseRtp;
+    else {
+      baseRtp = { rtp: mean / bet, tier: 'mc', se, n: split.cond.n };
+      baseFromSample = true;
+    }
+  } else if (input.baseRtp) baseRtp = input.baseRtp;
+  else if (closed) {
+    const ex = exactRtp(spec);
+    baseRtp = { rtp: ex.rtp, tier: ex.tier };
+  } else {
+    baseRtp = distRtpReport(baseDist, bet);
+    baseFromSample = true;
+  }
+  const exactTier: Tier = baseRtp.tier === 'exact_mixture' ? 'exact_mixture' : 'exact';
+  /** Tier of a quantity read off the joint distributions with no simulation. */
+  const jointTier: Tier = sampled || featureMc ? 'mc' : exactTier;
 
   // ---- RTP (uncapped)
-  const featureRtp = fa ? fa.featureRtp : 0;
+  const featureRtp = anchor ? anchor.featureRtp : fa ? fa.featureRtp : 0;
+  const featureRtpTier: Tier = !cfg ? exactTier : anchor ? anchor.tier : scatterExact && !featureMc ? exactTier : 'mc';
   const rtpUncapped = baseRtp.rtp + featureRtp;
-  let rtpUncappedTier: Tier = baseRtp.tier === 'mc' || featureMc ? 'mc' : exactTier;
+  let rtpUncappedTier: Tier = baseRtp.tier === 'mc' || featureRtpTier === 'mc' ? 'mc' : exactTier;
   let rtpUncappedSe: number | undefined;
-  if (rtpUncappedTier === 'mc') {
-    let seBase2 = 0;
-    if (baseRtp.tier === 'mc') {
-      // base RTP and the trigger law both come from the base sample: the SE of the round mean over it
-      const h = wVar(es, (e) => (e.B + (trig(e) ? e.ef : 0)) / bet);
-      seBase2 = h.v / (baseRtp.n ?? nBase);
-    }
-    rtpUncappedSe = Math.sqrt(seBase2 + (fa?.featureRtpSe ?? 0) ** 2);
-  }
+  // the base part: the base sample carries the base RTP (when read off it) and the trigger law
+  // (when the feature value isn't anchored); an overriding mc base RTP brings its own SE
+  const kLawSampled = !!cfg && !anchor && !scatterExact;
+  let seBase: number;
+  if (baseFromSample) seBase = seOf((e) => (e.B + (trig(e) && !anchor ? e.ef : 0)) / bet);
+  else seBase = Math.sqrt((baseRtp.tier === 'mc' ? baseRtp.se ?? 0 : 0) ** 2 + (kLawSampled ? seOf((e) => (trig(e) ? e.ef / bet : 0)) : 0) ** 2);
+  const seFeature = !anchor && featureMc ? fa?.featureRtpSe ?? 0 : 0;
+  if (rtpUncappedTier === 'mc') rtpUncappedSe = Math.sqrt(seBase ** 2 + seFeature ** 2);
   if (!Number.isFinite(rtpUncapped)) rtpUncappedTier = 'mc';
 
   // ---- hit rate (2)
@@ -460,7 +699,7 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   const hitW = wVar(es, hitG);
   const hitRate = hitW.mean;
   const hitTier = jointTier;
-  const hitSe = baseMc ? baseSe(hitW.v) : undefined;
+  const hitSe = sampled ? seOf(hitG) : undefined;
 
   // ---- SD (4), uncapped
   const h1 = (e: Entry) => e.B + (trig(e) ? e.ef : 0);
@@ -474,7 +713,7 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   const sdCoins = Math.sqrt(Math.max(0, m2 - m1 * m1));
   const sdStakes = sdCoins / bet;
   let sdSe: number | undefined;
-  if (baseMc && sdCoins > 0) sdSe = baseSe(wVar(es, (e) => (h2(e) - 2 * m1 * h1(e)) / (2 * sdCoins)).v) / bet;
+  if (sampled && sdCoins > 0) sdSe = seOf((e) => (h2(e) - 2 * m1 * h1(e)) / (2 * sdCoins)) / bet;
 
   // ---- the conditional Monte Carlo of the triggered entries
   let streams = 0;
@@ -484,20 +723,22 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   ): { mass: number; n: number; mean: number[]; sd: number[] } | null => {
     const idx: number[] = [];
     let mass = 0;
-    es.forEach((e, i) => {
+    sampEs.forEach((e, i) => {
       if (trig(e) && pop(e)) {
         idx.push(i);
         mass += e.p;
       }
     });
+    // under the split the mass is the signed law's (the clamped copy only picks the entries)
+    if (split) mass = es.reduce((a, e) => a + (trig(e) && pop(e) ? e.p : 0), 0);
     const stream = streams++;
-    if (!idx.length || mass === 0 || !cfg || !featureDist) return null;
-    const d = sub(baseDist, idx);
+    if (!idx.length || !(mass > 0) || !cfg || !featureDist) return null;
+    const d = sub(sampDist, idx);
     const rng = mulberry32(streamSeed(seed, stream));
     const s1 = new Float64Array(fns.length);
     const s2 = new Float64Array(fns.length);
     for (let r = 0; r < mcRounds; r++) {
-      const e = es[idx[sampleSpinIndex(d, rng)]];
+      const e = sampEs[idx[sampleSpinIndex(d, rng)]];
       const F = simulateFeature(featureDist, cfg, e.spins, rng).coins * scale;
       const x = e.B + F;
       for (let f = 0; f < fns.length; f++) {
@@ -519,14 +760,15 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       streams++;
       return { value: 0, tier: exactTier, exactPart: 0, mcMass: 0, method: `the cap (${fmtNum(config.maxWinStakes)}×) is below ${label}: impossible` };
     }
-    const exact = wVar(es, (e) => (pred(e.B) ? 1 : 0));
+    const exactG = (e: Entry) => (pred(e.B) ? 1 : 0);
+    const exact = wVar(es, exactG);
     const sim = conditional((e) => !pred(e.B), [(x) => (pred(x) ? 1 : 0)]);
     if (!sim) {
       return {
         value: exact.mean,
         tier: jointTier,
-        se: baseMc ? baseSe(exact.v) : undefined,
-        n: baseMc ? nBase : undefined,
+        se: sampled ? seOf(exactG) : undefined,
+        n: sampled ? nSample : undefined,
         exactPart: exact.mean,
         mcMass: 0,
         method: `exact over the base distribution: every round that can reach ${label} does so on the base spin (F ≥ 0)`,
@@ -534,8 +776,7 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     }
     const value = exact.mean + sim.mass * sim.mean[0];
     const seInner = (sim.mass * sim.sd[0]) / Math.sqrt(sim.n);
-    const g = wVar(es, (e) => (pred(e.B) ? 1 : trig(e) ? sim.mean[0] : 0));
-    const se = Math.sqrt(seInner ** 2 + baseSe(g.v) ** 2);
+    const se = Math.sqrt(seInner ** 2 + seOf((e) => (pred(e.B) ? 1 : trig(e) ? sim.mean[0] : 0)) ** 2);
     const hits = Math.round(sim.mean[0] * sim.n);
     return {
       value,
@@ -571,12 +812,13 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     const sim = conditional((e) => e.B < capCoins, [(x) => Math.max(0, x - capCoins), (x) => (x >= capCoins ? 1 : 0), (x) => (x > capCoins ? 1 : 0)]);
     if (!sim) {
       const anyAbove = es.some((e) => e.B > capCoins && e.p > 0);
+      const splitHits = split ? split.cond.count.reduce((a, c, j) => a + (split.cond.x[j] > capCoins ? c : 0), 0) : 0;
       capLoss = {
         value: exactLoss.mean / bet,
         tier: jointTier,
-        se: baseMc ? baseSe(exactLoss.v) / bet : undefined,
-        n: baseMc ? nBase : undefined,
-        hits: baseMc ? Math.round(nBase * es.reduce((a, e) => a + (e.B > capCoins ? e.p : 0), 0)) : undefined,
+        se: sampled ? seOf(lossG) / bet : undefined,
+        n: sampled ? nSample : undefined,
+        hits: baseMc ? Math.round(nBase * es.reduce((a, e) => a + (e.B > capCoins ? e.p : 0), 0)) : split ? splitHits : undefined,
         exactPart: exactLoss.mean / bet,
         method: cfg
           ? 'exact over the base distribution (no triggered round below the cap)'
@@ -585,13 +827,12 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       lowerBound = exactReach.mean;
       upperBound = exactReach.mean;
       reachMethod = cfg ? 'exact: P(B ≥ cap) over the base distribution' : 'exact: P(B ≥ cap) over the base distribution (no feature)';
-      if (baseMc) lowerBoundTier = 'mc';
+      if (sampled) lowerBoundTier = 'mc';
     } else {
       const hitsAbove = Math.round(sim.mean[2] * sim.n);
       const lossMean = exactLoss.mean + sim.mass * sim.mean[0];
       const seInner = (sim.mass * sim.sd[0]) / Math.sqrt(sim.n);
-      const g = wVar(es, (e) => (e.B >= capCoins ? lossG(e) : trig(e) ? sim.mean[0] : 0));
-      const se = Math.sqrt(seInner ** 2 + baseSe(g.v) ** 2) / bet;
+      const se = Math.sqrt(seInner ** 2 + seOf((e) => (e.B >= capCoins ? lossG(e) : trig(e) ? sim.mean[0] : 0)) ** 2) / bet;
       capLoss = {
         value: lossMean / bet,
         tier: 'mc',
@@ -651,10 +892,14 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   if (capObserved && capLoss.tier === 'mc') rtpTier = 'mc';
   let rtpSe: number | undefined;
   if (rtpTier === 'mc') rtpSe = Math.sqrt((rtpUncappedSe ?? 0) ** 2 + (capObserved ? capLoss.se ?? 0 : 0) ** 2);
-  const rtpN = rtpTier === 'mc' ? (baseRtp.tier === 'mc' ? baseRtp.n ?? nBase : featureMc ? featureDist!.n : capLoss.n) : undefined;
+  const rtpN = rtpTier === 'mc' ? (baseRtp.tier === 'mc' ? baseRtp.n ?? nSample : sampled ? nSample : featureMc ? featureDist!.n : capLoss.n) : undefined;
 
-  // ---- dry streak (8)
+  // ---- dry streak (8), and its range over hit rate ± 3 SE (header, noise)
   const dry = dryStreakQuantile(hitRate);
+  const dryRange: [number, number] | null =
+    hitTier === 'mc' && hitSe !== undefined && hitSe > 0
+      ? [dryStreakQuantile(Math.min(1, hitRate + 3 * hitSe)), dryStreakQuantile(Math.max(0, hitRate - 3 * hitSe))]
+      : null;
 
   // ---- session (9)
   const session = (() => {
@@ -668,7 +913,7 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       for (; r < sessionRounds; r++) {
         if (bal < bet) break;
         bal -= bet;
-        const e = es[sampleSpinIndex(baseDist, rng)];
+        const e = sampEs[sampleSpinIndex(sampDist, rng)];
         let x = e.B;
         if (x < capCoins && trig(e)) x += simulateFeature(featureDist!, cfg!, e.spins, rng).coins * scale;
         bal += Math.min(x, capCoins);
@@ -697,7 +942,7 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       seBust: Math.sqrt((pBust * (1 - pBust)) / n),
       meanStakes: sum / n,
       method:
-        `${n.toLocaleString('en-US')} sessions of ${sessionRounds} rounds at 1 stake from ${startStakes} stakes, rounds sampled from the ${baseDist.tier} base ` +
+        `${n.toLocaleString('en-US')} sessions of ${sessionRounds} rounds at 1 stake from ${startStakes} stakes, rounds sampled from the ${split ? 'split (clamped)' : baseDist.tier} base ` +
         `${featureDist ? `and ${featureDist.tier} feature ` : ''}distributions, capped per round; a player whose balance is below 1 stake stops (bust); ` +
         'median with a distribution-free order-statistic 95% CI',
     } satisfies SessionStats;
@@ -706,17 +951,17 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   // ---- the feature summary (6)
   let feature: FeatureSummary | null = null;
   if (fa && cfg) {
-    const fTier: Tier = fa.tier === 'mc' ? 'mc' : exactTier;
+    const triggerP = anchor ? anchor.triggerP : fa.triggerP;
     feature = {
       kind: 'free_spins',
-      tier: fTier,
-      triggerP: fa.triggerP,
-      frequency: fa.featureFrequency,
-      featureRtp: fa.featureRtp,
-      featureRtpSe: fa.featureRtpSe,
-      share: rtpUncapped !== 0 ? fa.featureRtp / rtpUncapped : 0,
+      tier: featureRtpTier,
+      triggerP,
+      frequency: triggerP > 0 ? 1 / triggerP : Infinity,
+      featureRtp,
+      featureRtpSe: anchor ? undefined : featureRtpTier === 'mc' ? Math.sqrt((kLawSampled ? seOf((e) => (trig(e) ? e.ef / bet : 0)) : 0) ** 2 + seFeature ** 2) : undefined,
+      share: rtpUncapped !== 0 ? featureRtp / rtpUncapped : 0,
       expectedSpins: fa.expectedSpinsGivenTrigger,
-      averageWinStakes: fa.averageFeatureWinStakes,
+      averageWinStakes: anchor ? anchor.averageWinStakes : fa.averageFeatureWinStakes,
       sdWinStakes: fa.sdWinGivenTriggerCoins / bet,
       pZero: fa.pZeroGivenTrigger,
       buyPriceStakes: cfg.buy ? fa.buyPriceStakes(config.targetRtp) : null,
@@ -731,6 +976,69 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     };
   }
 
+  // ---- the modifier feature (header, the modifier split)
+  let modifier: ModifierSummary | null = null;
+  if (input.modifier) {
+    const mi = input.modifier;
+    const role: ModifierSummary['role'] = feature ? 'smaller' : 'free_spins';
+    const rtpCoins = rtpUncapped * bet;
+    if (split) {
+      let s1 = 0;
+      let s2 = 0;
+      split.cond.count.forEach((c, j) => {
+        const d = split.cond.x[j] - split.cond.b0[j];
+        s1 += c * d;
+        s2 += c * d * d;
+      });
+      const n = split.cond.n;
+      const mean = s1 / n;
+      const seMean = Math.sqrt((Math.max(0, s2 / n - mean * mean) * (n / Math.max(1, n - 1))) / n);
+      modifier = {
+        name: mi.name,
+        mechanic: mi.mechanic,
+        method: 'conditional',
+        pTrigger: split.pT,
+        frequency: split.pT > 0 ? 1 / split.pT : Infinity,
+        frequencyTier: 'exact',
+        averageWinStakes: mean / bet,
+        averageWinSe: seMean / bet,
+        share: rtpCoins !== 0 ? (split.pT * mean) / rtpCoins : 0,
+        shareSe: rtpCoins !== 0 ? (split.pT * seMean) / rtpCoins : undefined,
+        tier: 'mc',
+        rtpContribution: (split.pT * mean) / bet,
+        rtpContributionSe: (split.pT * seMean) / bet,
+        n,
+        role,
+      };
+    } else if (mi.detect && mi.detect.n > 0) {
+      const t = mi.detect;
+      const p = t.detected / t.n;
+      const seP = Math.sqrt((p * (1 - p)) / t.n);
+      const meanDet = t.detected > 0 ? t.sumD / t.detected : 0;
+      const varDet = t.detected > 1 ? Math.max(0, t.sumD2 / t.detected - meanDet * meanDet) : 0;
+      const perSpin = t.sumD / t.n;
+      const varSpin = Math.max(0, t.sumD2 / t.n - perSpin * perSpin);
+      modifier = {
+        name: mi.name,
+        mechanic: mi.mechanic,
+        method: 'detect',
+        pTrigger: p,
+        frequency: p > 0 ? 1 / p : Infinity,
+        frequencySe: p > 0 ? seP / (p * p) : undefined,
+        frequencyTier: 'mc',
+        averageWinStakes: meanDet / bet,
+        averageWinSe: t.detected > 0 ? Math.sqrt(varDet / t.detected) / bet : undefined,
+        share: rtpCoins !== 0 ? perSpin / rtpCoins : 0,
+        shareSe: rtpCoins !== 0 ? Math.sqrt(varSpin / t.n) / rtpCoins : undefined,
+        tier: 'mc',
+        rtpContribution: perSpin / bet,
+        rtpContributionSe: Math.sqrt(varSpin / t.n) / bet,
+        n: t.n,
+        role,
+      };
+    }
+  }
+
   // ---- the rows
   const rows: StatRow[] = [];
   const declared = config.volatility;
@@ -739,7 +1047,14 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
 
   {
     const band: Band = { lo: 0.955, hi: 0.965, text: '95.5–96.5%' };
-    const split = `base ${pct(baseRtp.rtp, 3)} + feature ${pct(featureRtp, 3)} − cap ${pct(capLoss.value, 4)}`;
+    const splitTxt = `base ${pct(baseRtp.rtp, 3)} + feature ${pct(featureRtp, 3)} − cap ${pct(capLoss.value, 4)}`;
+    const baseTxt = split
+      ? `trigger-conditional split: E[B0] ${pct(baseSplit!.mechanicFree, 4)} exact (the spec without the modifier mechanic) + P(T)·E[X − B0 | T] ${pct(baseSplit!.modifier, 4)} ± ${pct(baseSplit!.modifierSe, 4)} (P(T) exact, n ${split.cond.n.toLocaleString('en-US')} triggering boards)`
+      : input.baseRtpMethod
+        ? input.baseRtpMethod
+        : baseRtp.tier === 'mc'
+          ? `Monte Carlo (n ${baseRtp.n})`
+          : `${baseRtp.tier} closed form (exact.ts)`;
     rows.push({
       key: 'rtp',
       label: 'RTP',
@@ -752,9 +1067,13 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       pass: inBand(rtp, band),
       gate: true,
       method:
-        `uncapped ${pct(rtpUncapped, 4)} (${rtpUncappedTier}${rtpUncappedSe !== undefined ? ` ± ${pct(rtpUncappedSe, 4)}` : ''}) = ${split}. ` +
-        `Base: ${baseRtp.tier === 'mc' ? `Monte Carlo (n ${baseRtp.n})` : `${baseRtp.tier} closed form (exact.ts)`}; ` +
-        `feature: exact free-spins algebra (features.ts) over the ${featureDist?.tier ?? '—'} feature distribution. ` +
+        `uncapped ${pct(rtpUncapped, 4)} (${rtpUncappedTier}${rtpUncappedSe !== undefined ? ` ± ${pct(rtpUncappedSe, 4)}` : ''}) = ${splitTxt}. ` +
+        `Base: ${baseTxt}; ` +
+        (cfg
+          ? anchor
+            ? `feature: ${anchor.method}. `
+            : `feature: exact free-spins algebra (features.ts) over the ${featureDist?.tier ?? '—'} feature distribution and the ${scatterExact ? 'exact' : 'sampled'} trigger law. `
+          : '') +
         `Cap loss: ${capLoss.method}.` +
         (capObserved ? '' : ' No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier.'),
     });
@@ -765,14 +1084,16 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       key: 'hitRate',
       label: 'Hit rate',
       value: hitRate,
-      display: `${pct(hitRate, 2)}${tierTag(hitTier, hitSe, baseMc ? nBase : undefined)}`,
+      display: `${pct(hitRate, 2)}${tierTag(hitTier, hitSe, sampled ? nSample : undefined)}`,
       tier: hitTier,
       se: hitSe,
-      n: baseMc ? nBase : undefined,
+      n: sampled ? nSample : undefined,
       band,
       pass: inBand(hitRate, band),
       gate: true,
-      method: 'P(B > 0) + Σ_k P(B = 0, K = k)·(1 − P(F = 0 | k)) over the base distribution, P(F = 0) from the feature DP',
+      method:
+        'P(B > 0) + Σ_k P(B = 0, K = k)·(1 − P(F = 0 | k)) over the base distribution, P(F = 0) from the feature DP' +
+        (split ? '; the base law is the trigger-conditional split (exact outside the trigger, paired conditional sample inside)' : ''),
     });
   }
   {
@@ -798,57 +1119,114 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       key: 'volatility',
       label: 'Volatility (SD per round, stakes)',
       value: sdStakes,
-      display: `${sdStakes.toFixed(2)} (${measured})${tierTag(jointTier, sdSe, baseMc ? nBase : undefined, (x) => x.toFixed(3))}`,
+      display: `${sdStakes.toFixed(2)} (${measured})${tierTag(jointTier, sdSe, sampled ? nSample : undefined, (x) => x.toFixed(3))}`,
       tier: jointTier,
       se: sdSe,
-      n: baseMc ? nBase : undefined,
+      n: sampled ? nSample : undefined,
       band,
       pass: inBand(sdStakes, band),
       gate: false,
       method: 'UNCAPPED: √(E[X²] − E[X]²), E[X²] = E[B²] + 2Σ_k E[B·1{K=k}]·E[F|k] + Σ_k P(K=k)·E[F²|k] (B ⟂ F given K), exact moments from the feature DP; the cap only lowers it',
     });
   }
+  // the modifier feature's three rows (header): in the feature rows without free spins, else its own
+  const modifierRows = (keys: [string, string, string], fBand: Band, judged: boolean): void => {
+    const m = modifier!;
+    const lbl = (what: string) => `${what} (${m.name})`;
+    rows.push({
+      key: keys[0],
+      label: lbl(judged ? 'Feature frequency' : 'Smaller-feature frequency'),
+      value: m.frequency,
+      display: `1 in ${fmtNum(m.frequency)}${tierTag(m.frequencyTier, m.frequencySe, m.frequencyTier === 'mc' ? m.n : undefined, fmtNum)}`,
+      tier: m.frequencyTier,
+      se: m.frequencySe,
+      n: m.frequencyTier === 'mc' ? m.n : undefined,
+      band: fBand,
+      pass: inBand(m.frequency, fBand),
+      gate: false,
+      method:
+        m.method === 'conditional'
+          ? `1 / P(T), P(T) = P(≥ ${config.modifierFeature?.trigger?.minCount} of symbols ${JSON.stringify(config.modifierFeature?.trigger?.symbols)} on the initial board): exact count convolution over the reel windows`
+          : `1 / p̂, p̂ = spins on which ${m.mechanic} ran (detect signal) in ${m.n.toLocaleString('en-US')} engine spins`,
+    });
+    const sb: Band | null = judged ? { lo: 0.25, hi: 0.55, text: '25–55%' } : { lo: 0, hi: 1, text: 'informational (smaller feature)' };
+    rows.push({
+      key: keys[1],
+      label: lbl(judged ? 'Feature share of RTP' : 'Smaller-feature share of RTP'),
+      value: m.share,
+      display: `${pct(m.share, 1)}${tierTag(m.tier, m.shareSe, m.n, (x) => pct(x, 2))}`,
+      tier: m.tier,
+      se: m.shareSe,
+      n: m.n,
+      band: sb,
+      pass: judged ? inBand(m.share, sb) : null,
+      gate: false,
+      method: `P(T)·E[X − B0 | T] / rtpUncapped: X the spin's coins, B0 the same initial board's pay without ${m.mechanic}${m.method === 'conditional' ? ' (trigger-conditional Monte Carlo)' : ' (plain Monte Carlo)'}`,
+    });
+    const ab: Band = judged ? { lo: 15, hi: 150, text: '15–150×' } : { lo: 0, hi: Infinity, text: 'informational (smaller feature)' };
+    rows.push({
+      key: keys[2],
+      label: lbl(judged ? 'Average feature win' : 'Smaller-feature average win'),
+      value: m.averageWinStakes,
+      display: `${fmtNum(m.averageWinStakes)}×${tierTag(m.tier, m.averageWinSe, m.method === 'conditional' ? m.n : undefined, (x) => x.toFixed(2))}`,
+      tier: m.tier,
+      se: m.averageWinSe,
+      n: m.n,
+      band: ab,
+      pass: judged ? inBand(m.averageWinStakes, ab) : null,
+      gate: false,
+      method: `E[X − B0 | the feature ran] / bet`,
+    });
+  };
   if (feature) {
     const fb: Band = { lo: 80, hi: 300, text: '1 in 80–300 (free spins)' };
-    const fTier: Tier = scatterExact ? exactTier : 'mc';
-    const pSe = scatterExact ? undefined : Math.sqrt((feature.triggerP * (1 - feature.triggerP)) / nBase);
+    const fExact = scatterExact || (!!anchor && anchor.tier !== 'mc');
+    const fTier: Tier = fExact ? exactTier : 'mc';
+    const pSe = fExact ? undefined : Math.sqrt((feature.triggerP * (1 - feature.triggerP)) / nSample);
     rows.push({
       key: 'featureFrequency',
       label: 'Feature frequency',
       value: feature.frequency,
-      display: `1 in ${fmtNum(feature.frequency)}${tierTag(fTier, pSe !== undefined ? pSe / feature.triggerP ** 2 : undefined, scatterExact ? undefined : nBase, fmtNum)}`,
+      display: `1 in ${fmtNum(feature.frequency)}${tierTag(fTier, pSe !== undefined ? pSe / feature.triggerP ** 2 : undefined, fExact ? undefined : nSample, fmtNum)}`,
       tier: fTier,
       se: pSe !== undefined ? pSe / feature.triggerP ** 2 : undefined,
-      n: scatterExact ? undefined : nBase,
+      n: fExact ? undefined : nSample,
       band: fb,
       pass: inBand(feature.frequency, fb),
       gate: false,
-      method: `1 / P(K ≥ ${smin}), P from ${scatterExact ? 'the exact scatter-count convolution' : 'the sampled base distribution'}`,
+      method: `1 / P(K ≥ ${smin}), P from ${scatterExact ? 'the exact scatter-count convolution' : anchor && anchor.tier !== 'mc' ? `the pack (${anchor.method})` : 'the sampled base distribution'}`,
     });
     const sb: Band = { lo: 0.25, hi: 0.55, text: '25–55%' };
+    const shareSe = feature.featureRtpSe !== undefined && rtpUncapped ? feature.featureRtpSe / rtpUncapped : undefined;
     rows.push({
       key: 'featureShare',
       label: 'Feature share of RTP',
       value: feature.share,
-      display: `${pct(feature.share, 1)}${tierTag(feature.tier)}`,
+      display: `${pct(feature.share, 1)}${tierTag(feature.tier, shareSe, feature.tier === 'mc' ? nSample : undefined, (x) => pct(x, 2))}`,
       tier: feature.tier,
+      se: shareSe,
       band: sb,
       pass: inBand(feature.share, sb),
       gate: false,
-      method: 'featureRtp / rtpUncapped (exact free-spins algebra)',
+      method: `featureRtp / rtpUncapped (${anchor ? anchor.method : 'exact free-spins algebra'})`,
     });
     const ab: Band = { lo: 15, hi: 150, text: '15–150×' };
+    const avgSe = feature.featureRtpSe !== undefined && feature.triggerP > 0 ? feature.featureRtpSe / feature.triggerP : undefined;
     rows.push({
       key: 'averageFeatureWin',
       label: 'Average feature win',
       value: feature.averageWinStakes,
-      display: `${fmtNum(feature.averageWinStakes)}×${tierTag(feature.tier)}`,
+      display: `${fmtNum(feature.averageWinStakes)}×${tierTag(feature.tier, avgSe, feature.tier === 'mc' ? nSample : undefined, (x) => x.toFixed(2))}`,
       tier: feature.tier,
+      se: avgSe,
       band: ab,
       pass: inBand(feature.averageWinStakes, ab),
       gate: false,
-      method: 'E[F | trigger] / bet, uncapped (exact free-spins algebra)',
+      method: `E[F | trigger] / bet, uncapped (${anchor ? anchor.method : 'exact free-spins algebra'})`,
     });
+    if (modifier) modifierRows(['modifierFrequency', 'modifierShare', 'modifierAverageWin'], { lo: 40, hi: 120, text: '1 in 40–120 (smaller feature)' }, false);
+  } else if (modifier) {
+    modifierRows(['featureFrequency', 'featureShare', 'averageFeatureWin'], { lo: 80, hi: 300, text: '1 in 80–300 (free-spins bands)' }, true);
   } else {
     rows.push({ key: 'featureFrequency', label: 'Feature frequency', value: null, display: '— (no feature)', tier: null, band: null, pass: null, gate: false, method: 'pure base game' });
     rows.push({
@@ -918,12 +1296,12 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
         (isBound
           ? `1 in ${(1 / upperBound).toExponential(2)} to ${lowerBound > 0 ? (1 / lowerBound).toExponential(2) : '∞'} (${lowerBoundTier} bounds)`
           : lowerBound === 0 && lowerBoundTier === 'mc'
-            ? `none in ${nBase.toLocaleString('en-US')} sampled base spins (mc; no evidence the cap is reachable)`
+            ? `none in ${nSample.toLocaleString('en-US')} sampled ${split ? 'triggering boards' : 'base spins'} (mc; no evidence the cap is reachable)`
             : `${oneInSci(lowerBound)} ${lowerBoundTier}`) +
         (reachMc ? `; MC ${reachMc.hits ? oneInSci(reachMc.value) : '0'} (${reachMc.hits} hits / ${reachMc.n?.toLocaleString('en-US')})` : ''),
       tier: reachTier,
-      se: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.se : Math.sqrt((best * (1 - best)) / nBase),
-      n: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.n : nBase,
+      se: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.se : split ? seOf((e) => (e.B >= capCoins ? 1 : 0)) : Math.sqrt((best * (1 - best)) / nSample),
+      n: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.n : nSample,
       band: { lo: 1e-9, hi: 1, text: '> 1 in 10⁹' },
       // pass on the best evidence: the exact lower bound, or the MC estimate when it saw hits
       pass: best > 1e-9,
@@ -937,14 +1315,16 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       key: 'dryStreakP95',
       label: 'Dry streak p95 (longest miss run in 100)',
       value: dry,
-      display: `${dry} rounds${tierTag(hitTier)}`,
+      display: `${dry} rounds${tierTag(hitTier)}${dryRange && dryRange[0] !== dryRange[1] ? ` (${dryRange[0]}–${dryRange[1]} at hit rate ± 3 SE)` : ''}`,
       tier: hitTier,
       se: undefined,
-      n: hitTier === 'mc' ? nBase : undefined,
+      n: hitTier === 'mc' ? nSample : undefined,
       band: { lo: 0, hi: max, text: `≤ ${max} (${declared})` },
       pass: dry <= max,
       gate: true,
-      method: `exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = ${(1 - hitRate).toFixed(6)}; p95 = smallest L with P(longest ≤ L) ≥ 0.95`,
+      method:
+        `exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = ${(1 - hitRate).toFixed(6)}; p95 = smallest L with P(longest ≤ L) ≥ 0.95` +
+        (dryRange ? `; at hit rate ± 3 SE it is ${dryRange[0]}–${dryRange[1]}` : ''),
     });
   }
   rows.push({
@@ -960,6 +1340,27 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     gate: false,
     method: session.method,
   });
+
+  // ---- noise (header): an mc miss within 3 SE passes, within noise
+  for (const r of rows) {
+    if (r.pass !== false || r.tier !== 'mc' || !r.band || r.value === null) continue;
+    if (r.key === 'dryStreakP95') {
+      // a step function of the hit rate: within noise when the verdict differs across hit rate ± 3 SE
+      if (dryRange && Math.min(dryRange[0], dryRange[1]) <= r.band.hi) {
+        r.pass = true;
+        r.withinNoise = true;
+      }
+      continue;
+    }
+    const se = r.se;
+    if (!(se !== undefined && se > 0)) continue;
+    const miss = r.value < r.band.lo ? r.band.lo - r.value : r.value > r.band.hi ? r.value - r.band.hi : 0;
+    if (miss <= 3 * se) {
+      r.pass = true;
+      r.withinNoise = true;
+      r.method += `; outside the band by ${(miss / se).toFixed(2)} SE (≤ 3): within noise`;
+    }
+  }
 
   const bandsPassed = rows.filter((r) => r.pass === true).map((r) => r.key);
   const bandsFailed = rows.filter((r) => r.pass === false).map((r) => r.key);
@@ -980,12 +1381,16 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     rtpUncapped,
     rtpUncappedTier,
     rtpUncappedSe,
+    rtpSeParts: { base: seBase, feature: seFeature },
     capLoss,
     baseRtp: baseRtp.rtp,
     baseRtpTier: baseRtp.tier,
     baseRtpSe: baseRtp.se,
+    baseSplit,
     featureRtp,
+    featureRtpTier,
     feature,
+    modifier,
     hitRate,
     winOverStake,
     sdStakes,
@@ -1000,10 +1405,14 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
     },
     dryStreakP95: dry,
     session,
-    distributions: { base: summary(baseDist), feature: featureDist ? summary(featureDist) : null },
+    distributions: {
+      base: split ? { tier: 'mc', n: split.cond.n, entries: baseDist.p.length + pairs.length, method: split.method } : summary(baseDist),
+      feature: featureDist ? summary(featureDist) : null,
+    },
     mc: { rounds: mcRounds, sessions: nSessions, seed },
     bandsPassed,
     bandsFailed,
     gateFailed,
+    withinNoise: rows.filter((r) => r.withinNoise).map((r) => r.key),
   };
 }
