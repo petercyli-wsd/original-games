@@ -105,7 +105,10 @@ export interface SlotRound {
 
 export interface FeatureRound {
   kind: string; // e.g. 'free_spins'
-  spins: { result: SpinResult; multiplier: number; coins: number; retrigger: number }[];
+  /** One entry per free spin played: its seed (replayable by the pack), the spin, its multiplier,
+   *  coins paid (result.totalCoins × multiplier, cut at the max-win cap) and spins it added.
+   *  `seed` is always set by createSlot().playRound. */
+  spins: { seed?: number; result: SpinResult; multiplier: number; coins: number; retrigger: number }[];
   totalCoins: number;
 }
 
