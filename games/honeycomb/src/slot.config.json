@@ -1,5 +1,15 @@
 {
   "maxWinStakes": 2000,
   "volatility": "high",
-  "targetRtp": 0.96
+  "targetRtp": 0.96,
+  "modifierFeature": {
+    "name": "Honey Harvest",
+    "mechanic": "hold_and_spin_lock_respin",
+    "trigger": {
+      "symbols": [
+        11
+      ],
+      "minCount": 6
+    }
+  }
 }
