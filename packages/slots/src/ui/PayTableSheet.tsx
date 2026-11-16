@@ -176,7 +176,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
 
       {feature && (
         <InfoSection title={featureName}>
-          {featureRules(feature, featureName, scatterWord).map((t, i) => (
+          {featureRules(feature, featureName, scatterWord, copy?.featureSpins, symbols[idsWithRole(spec, 'scatter')[0]]?.name?.toLowerCase()).map((t, i) => (
             <p key={i}>{t}</p>
           ))}
         </InfoSection>

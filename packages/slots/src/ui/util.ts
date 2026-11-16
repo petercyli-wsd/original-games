@@ -202,15 +202,22 @@ export const wordCount = (line: string) => line.trim().split(/\s+/).filter(Boole
  * The feature's rules as short lines (each under 9 words, so a blind player can read them), generated from the
  * law the engine runs: "3 scatters: 8 free spins", "Every win ×2", "Retrigger: 3 scatters, +4 spins".
  */
-export function featureRules(f: FeatureConfig, name = 'free spins', scatterName = 'scatters'): string[] {
+export function featureRules(f: FeatureConfig, name = 'free spins', scatterName = 'scatters', spinsNoun?: string, scatterSingular?: string): string[] {
   const out: string[] = [];
-  const nm = name.toLowerCase();
+  const spins = spinsNounFor(name, spinsNoun);
+  const sc = (n: number) => countNoun(n, scatterName, scatterSingular);
   const keys = sortedKeys(f.awards);
-  keys.forEach((k, i) => out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${scatterName}: ${f.awards[String(k)]} ${nm}`));
+  keys.forEach((k, i) => {
+    const n = f.awards[String(k)];
+    out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${sc(k)}: ${n} ${countNoun(n, spins)}`);
+  });
   const note = multiplierNote(f);
   if (note) out.push(note);
   const rk = sortedKeys(f.retrigger);
-  rk.forEach((k) => out.push(`Retrigger: ${k} ${scatterName}, +${f.retrigger![String(k)]} spins`));
+  rk.forEach((k) => {
+    const n = f.retrigger![String(k)];
+    out.push(`Retrigger: ${k} ${sc(k)}, +${n} ${countNoun(n, 'spins')}`);
+  });
   // Say what the config says: retriggers yes or no, and the cap only where it can bind.
   if (!rk.length) {
     out.push('No retriggers');
@@ -218,6 +225,18 @@ export function featureRules(f: FeatureConfig, name = 'free spins', scatterName 
     if (f.maxSpins < top) out.push(`At most ${f.maxSpins} spins`);
   } else out.push(`At most ${f.maxSpins} spins in total`);
   return out;
+}
+
+/** The noun for a feature's spins: the name if it already ends in "spins" ("Tide spins"), else `copy.featureSpins`, else "free spins". */
+export function spinsNounFor(featureName: string, featureSpins?: string): string {
+  return /spins?$/i.test(featureName.trim()) ? featureName.trim().toLowerCase() : (featureSpins ?? 'free spins').toLowerCase();
+}
+
+/** "1 order ticket", "3 order tickets": the singular for one, the plural otherwise (a plural noun with its trailing "s" dropped, unless a singular is given). */
+export function countNoun(n: number, plural: string, singular?: string): string {
+  if (n !== 1) return plural;
+  if (singular) return singular.toLowerCase();
+  return /ies$/.test(plural) ? plural.slice(0, -3) + 'y' : /(ch|sh|x|z|s)es$/.test(plural) ? plural.slice(0, -2) : plural.replace(/s$/, '');
 }
 
 /** The "how to win" lines, short. */
@@ -241,10 +260,10 @@ export function scatterLines(min: number, featureName: string | null, copy?: Slo
 }
 
 /** Feature intro card lines. */
-export const introLines = (scatters: number, note: string, scatterName = 'scatters') => [`${scatters} ${scatterName}`, ...(note ? [note] : [])];
+export const introLines = (scatters: number, note: string, scatterName = 'scatters', scatterSingular?: string) => [`${scatters} ${countNoun(scatters, scatterName, scatterSingular)}`, ...(note ? [note] : [])];
 
 /** Feature outro card lines. */
-export const outroLines = (spins: number, stakes: number, capped: boolean) => [`${spins} free spins`, `${fmtX(stakes)} your bet`, ...(capped ? ['Max win reached'] : [])];
+export const outroLines = (spins: number, stakes: number, capped: boolean, spinsNoun = 'free spins') => [`${spins} ${countNoun(spins, spinsNoun)}`, `${fmtX(stakes)} your bet`, ...(capped ? ['Max win reached'] : [])];
 
 /** Free spins given at the start: derived from the spins played unless the cap cut the feature short, then from the awards table. */
 export function initialSpins(f: FeatureConfig, spinsPlayed: number, retriggered: number, capped: boolean, scatters: number): number {
@@ -671,9 +690,10 @@ export function checkCopy(copy: SlotCopy | undefined): { field: string; text: st
 }
 
 /** "Sun" → "suns", "Treasure chest" → "treasure chests": the scatter's name as the rules say it. Falls back to "scatters". */
-export function pluralOf(name: string | undefined): string {
+export function pluralOf(name: string | undefined, count?: number): string {
   const n = name?.trim().toLowerCase();
-  if (!n) return 'scatters';
+  if (!n) return count === 1 ? 'scatter' : 'scatters';
+  if (count === 1) return n;
   return /(s|x|z|ch|sh)$/.test(n) ? n + (/s$/.test(n) ? '' : 'es') : /[^aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's';
 }
 

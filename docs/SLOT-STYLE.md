@@ -193,6 +193,8 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Mystery reveal pacing.** The reels settle showing the folded squares outlined, hold 0.3 s, then flip one reel at a time; a small folded corner stays on those cells through the wins. Turbo also shows the per-win list under the summary. Wild symbols carry a small "WILD" tag the kit draws over the art (`copy.wildTag`: a string renames it, `false` hides it).
 
+**Rule lines read as sentences.** The feature's spins use a noun, not the feature's name: `copy.featureSpins` ("rush spins", default "free spins"), or the name itself when it ends in "spins" ("Tide spins"). The scatter is named as the game does and counted: "3 order tickets: 5 rush spins", "Retrigger: 1 order ticket, +1 spin".
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

@@ -86,6 +86,8 @@ export interface SlotTheme {
 export interface SlotCopy {
   /** The feature's name on its cards and in the paytable, e.g. "Tide spins". Default "Free spins". */
   featureName?: string;
+  /** The noun for the feature's spins, for the rules and cards: "rush spins". Default "free spins"; a `featureName` that already ends in "spins" is used as it is. */
+  featureSpins?: string;
   /** A line under the intro's spin count, e.g. "Every win pays double". Default: generated from the multiplier law. */
   introNote?: string;
   /** The one sentence under the board. Default: generated from the evaluation kind. */

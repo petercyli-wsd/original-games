@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -435,11 +435,46 @@ describe('round 9: a paying win is never shown as zero', () => {
 describe('round 10: rules from the config', () => {
   const f = (o: object) => ({ kind: 'free_spins', spec: 'x', awards: { '3': 5 }, maxSpins: 5, multiplier: { kind: 'constant', value: 1 }, ...o }) as never;
   it('says "No retriggers" and shows the cap only where it can bind', () => {
-    expect(featureRules(f({}), 'Free folds')).toEqual(['3 scatters: 5 free folds', 'No retriggers']);
-    expect(featureRules(f({ maxSpins: 4 }), 'Free folds')).toContain('At most 4 spins');
-    const withRetrigger = featureRules(f({ retrigger: { '3': 2 } }), 'Free folds');
+    expect(featureRules(f({}), 'Free folds', 'scatters', 'free folds')).toEqual(['3 scatters: 5 free folds', 'No retriggers']);
+    expect(featureRules(f({ maxSpins: 4 }), 'Free folds', 'scatters', 'free folds')).toContain('At most 4 spins');
+    const withRetrigger = featureRules(f({ retrigger: { '3': 2 } }), 'Free folds', 'scatters', 'free folds');
     expect(withRetrigger).toContain('Retrigger: 3 scatters, +2 spins');
     expect(withRetrigger).toContain('At most 5 spins in total');
     expect(withRetrigger).not.toContain('No retriggers');
+  });
+});
+
+describe('round 11: rule lines read as sentences', () => {
+  // Noodle Cart: the scatter is "Order ticket", the feature "Dinner rush" with its own spins noun.
+  const noodle = { kind: 'free_spins', spec: 'feature.spec.json', awards: { '3': 5 }, retrigger: { '1': 1 }, maxSpins: 20, multiplier: { kind: 'per_retrigger', start: 1, step: 1 } } as never;
+  it('uses the spins noun, and pluralises the symbol and the spins by count', () => {
+    expect(featureRules(noodle, 'Dinner rush', pluralOf('Order ticket'), 'rush spins', 'order ticket')).toEqual([
+      '3 order tickets: 5 rush spins',
+      'Multiplier starts ×1, +1 per retrigger',
+      'Retrigger: 1 order ticket, +1 spin',
+      'At most 20 spins in total',
+    ]);
+    // without the copy noun it falls back to "free spins"
+    expect(featureRules(noodle, 'Dinner rush', 'order tickets', undefined, 'order ticket')[0]).toBe('3 order tickets: 5 free spins');
+  });
+  it('a feature name that already ends in "spins" is used as it is', () => {
+    expect(spinsNounFor('Tide spins')).toBe('tide spins');
+    expect(spinsNounFor('Dinner rush')).toBe('free spins');
+    expect(spinsNounFor('Dinner rush', 'rush spins')).toBe('rush spins');
+    expect(featureRules(reefDemo().config.feature!, 'Tide spins')[0]).toBe('3 scatters: 8 tide spins');
+  });
+  it('countNoun and pluralOf pick singular for one', () => {
+    expect([1, 2].map((n) => countNoun(n, 'spins'))).toEqual(['spin', 'spins']);
+    expect(countNoun(1, 'berries')).toBe('berry');
+    expect(countNoun(1, 'foxes')).toBe('fox');
+    expect(countNoun(1, 'order tickets', 'order ticket')).toBe('order ticket');
+    expect(pluralOf('Order ticket', 1)).toBe('order ticket');
+    expect(pluralOf('Order ticket', 3)).toBe('order tickets');
+    expect(pluralOf(undefined, 1)).toBe('scatter');
+  });
+  it('the cards count the same way', () => {
+    expect(introLines(1, '', 'order tickets', 'order ticket')[0]).toBe('1 order ticket');
+    expect(introLines(3, '', 'order tickets', 'order ticket')[0]).toBe('3 order tickets');
+    expect(outroLines(1, 5, false, 'rush spins')[0]).toBe('1 rush spin');
   });
 });

@@ -68,6 +68,8 @@ import {
   stepMults,
   waysOf,
   initialSpins as initialSpins_,
+  countNoun,
+  spinsNounFor,
   pluralOf,
   introLines,
   maxRowsOf,
@@ -156,6 +158,7 @@ export function SlotGame(props: SlotGameProps) {
   const scatterMin = spec.trigger?.scatter_min ?? 3;
   const scatterIds = useMemo(() => idsWithRole(spec, 'scatter'), [spec]);
   const featureName = copy?.featureName ?? 'Free spins';
+  const spinsNoun = spinsNounFor(featureName, copy?.featureSpins);
   // What triggers the feature: scatters (free spins), or the coin symbol of a hold-and-spin mechanic (its entry count).
   const triggerTarget = useMemo(() => {
     if (config.feature && scatterIds.length) return { ids: scatterIds, min: scatterMin };
@@ -681,7 +684,7 @@ export function SlotGame(props: SlotGameProps) {
     setLine(null);
     await wait(fastNow() ? 600 : 1000);
     await showCard(
-      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote, pluralOf(symbols[scatterIds[0]]?.name)), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
+      { kicker: name, title: `${initialSpins} ${countNoun(initialSpins, spinsNoun)}`, lines: introLines(nScatter, introNote, pluralOf(symbols[scatterIds[0]]?.name), symbols[scatterIds[0]]?.name?.toLowerCase()), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
       { autoMs: autoAdvance() ? T(1600) : null },
     );
     if (!alive.current) return;
@@ -716,7 +719,7 @@ export function SlotGame(props: SlotGameProps) {
         title: tier ? undefined : 'Total win',
         // One total for the amount and the "× your bet" line: the feature and the spin that triggered it.
         amount: money((round.totalCoins / bc) * stake),
-        lines: [...outroLines(fr.spins.length, round.totalCoins / bc, round.capped), ...(baseCoins > 0 ? [`Feature ${money((Math.min(fcoins, limit) / bc) * stake)} + trigger spin ${money((baseCoins / bc) * stake)}`] : [])],
+        lines: [...outroLines(fr.spins.length, round.totalCoins / bc, round.capped, spinsNoun), ...(baseCoins > 0 ? [`Feature ${money((Math.min(fcoins, limit) / bc) * stake)} + trigger spin ${money((baseCoins / bc) * stake)}`] : [])],
         button: 'Collect',
       },
       { autoMs: autoAdvance() ? T(2000) : null },
