@@ -106,3 +106,35 @@ describe('bands', () => {
     expect(rows.find((r) => r.key === 'featureOneIn')!.status).toBe('in');
   });
 });
+
+describe('slot_facts_v1 (scripts/slots/eval.ts)', () => {
+  it('reads the fields slots:eval writes', () => {
+    const { facts, missing } = normaliseFacts({
+      schema: 'slot_facts_v1',
+      rtp: 0.9603,
+      rtpTier: 'exact',
+      rtpSe: 0,
+      hitRate: 0.342,
+      volatility: 'high',
+      volatilitySd: 14.1,
+      maxWin: 5000,
+      featureFreq: 171.4,
+      featureShare: 0.39,
+      volatilityDeclared: 'high',
+      winOverStakeRate: 0.12,
+      avgFeatureWin: 64.2,
+      pWin100: 0.0009,
+      pMaxWin: 3e-8,
+      dryStreakP95: 15,
+      sessionMedian: 78,
+      feature: { kind: 'free_spins', triggerP: 0.005834, averageWinStakes: 64.2 },
+      stats: [{ key: 'rtp', value: 0.9603 }],
+    });
+    expect(missing).toEqual([]);
+    expect(facts).toMatchObject({ rtp: 0.9603, hitRate: 0.342, sd: 14.1, maxWin: 5000, featureShare: 0.39, avgFeatureWin: 64.2, dryStreakP95: 15, sessionMedian: 78 });
+    expect(facts.featureOneIn).toBeCloseTo(171.4, 0);
+    expect(facts.bigWinOneIn).toBeCloseTo(1111, 0);
+    expect(facts.maxWinOneIn).toBeCloseTo(3.33e7, -5);
+    expect(facts.rtpSe).toBe(0);
+  });
+});

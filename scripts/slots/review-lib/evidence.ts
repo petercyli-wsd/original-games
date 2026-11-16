@@ -239,6 +239,21 @@ export function themeSources(id: string): { path: string; content: string; trunc
   return out.sort((a, b) => a.path.localeCompare(b.path));
 }
 
+/**
+ * What slots:eval itself found about the oracle (slot_facts_v1 records its parity check), and
+ * whether the facts were measured from the spec the oracle holds. Gate failures; empty when fine
+ * or when the facts file doesn't say.
+ */
+export function factsIntegrity(factsRaw: Json | undefined, oracle: OracleSummary): string[] {
+  if (!factsRaw) return [];
+  const out: string[] = [];
+  const check = isObj(factsRaw.oracle) ? factsRaw.oracle : undefined;
+  if (check && typeof check.status === 'string' && check.status !== 'pass') out.push(`oracle check ${check.status} in slots:eval${typeof check.detail === 'string' && check.detail ? `: ${check.detail}` : ''}`);
+  if (typeof factsRaw.specHash === 'string' && oracle.specHash && factsRaw.specHash !== oracle.specHash)
+    out.push('slot-facts.json and oracle.json were made from different specs (rerun npm run slots:oracle and slots:eval)');
+  return out;
+}
+
 export interface SlotEvidence {
   id: string;
   manifest: Manifest;
@@ -282,6 +297,8 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
   const oracle = summariseOracle(readJsonFile(join(src, 'oracle.json')));
   if (oracle.present && spec && oracle.seeds !== undefined && oracle.seeds < 2000) warnings.push(`oracle.json records ${oracle.seeds} seeds (< 2000)`);
   const declared = declaredOf(manifest, spec, config);
+  const fv = factsRaw?.volatilityDeclared;
+  if (!declared.volatility && typeof fv === 'string' && ['low', 'medium', 'high', 'extreme'].includes(fv)) declared.volatility = fv as Volatility;
   if (!declared.volatility) warnings.push('no declared volatility (slot.config.json volatility, or a single manifest volatility)');
   const featureFamilies = oracle.features.flatMap((f) => f.families);
   const signature = signatureOf(spec, oracle, declared, featureFamilies, config);
@@ -306,7 +323,7 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
     signature,
     bands,
     wideMisses: wideMisses(bands),
-    factFailures: factGateFailures(bands),
+    factFailures: [...factGateFailures(bands), ...factsIntegrity(factsRaw, oracle)],
     rtp,
     rtpSource,
     hasFeature,

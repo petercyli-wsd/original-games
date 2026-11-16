@@ -56,6 +56,7 @@ The declared volatility comes from `slot.config.json` (or a single-entry manifes
    - overall ≥ 3.5;
    - readability ≥ 3 and feature clarity ≥ 3;
    - `oracle.json` present, and RTP in 95.5–96.5%. The RTP is the game's total RTP from `slot-facts.json`, or the oracle's base RTP for a pure base game;
+   - the oracle reproduced: the parity check that `slots:eval` records in `slot-facts.json` (`oracle.status`) passed, and the facts were measured from the spec the oracle holds (the same `specHash`);
    - hit rate in band, dry-streak p95 within its volatility's limit, and P(max win) above 1 in 10⁹. A measure that wasn't measured fails;
    - not a reskin;
    - no trademarked mechanic name;
