@@ -20,18 +20,28 @@ describe('expandSteps', () => {
     expect(e.counts.turbo).toBe(true);
   });
 
-  it('feature sets the dev query and adds no step', () => {
-    const e = expandSteps('feature;spin');
-    expect(e.query).toBe('feature=1');
-    expect(e.steps[0]).toBe(`text:${LABELS.spin}`);
+  it('feature calls the kit dev hook at its place in the run', () => {
+    const e = expandSteps('spin;feature;spin');
+    expect(e.steps.slice(3, 5)).toEqual(['key:SlotFeature', 'wait:300']);
+    expect(e.counts.feature).toBe(true);
+    expect(() => expandSteps('key:SlotScroll')).toThrow(/not allowed/);
   });
 
   it('opens the paytable and watches autoplay', () => {
-    const e = expandSteps('paytable;close;autoplay;watch×2@1000');
+    const e = expandSteps('paytable;scroll;close;autoplay;watch×2@1000');
     expect(e.steps).toEqual([
       `text:${LABELS.paytable}`,
       'wait:700',
-      'shot:paytable',
+      'shot:paytable-1',
+      'key:SlotScroll',
+      'wait:300',
+      'shot:paytable-2',
+      'key:SlotScroll',
+      'wait:300',
+      'shot:paytable-3',
+      'key:SlotScroll',
+      'wait:300',
+      'shot:paytable-4',
       'key:Escape',
       'wait:300',
       `text:${LABELS.autoplayTab}`,

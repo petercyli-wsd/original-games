@@ -93,6 +93,7 @@ describe('gate', () => {
     expect(gateReasons({ ...passing, rtp: 0.9651 })[0]).toMatch(/outside/);
     expect(gateReasons({ ...passing, factFailures: ['Dry streak p95 18 outside ≤ 15'] })).toEqual(['Dry streak p95 18 outside ≤ 15']);
     expect(gateReasons({ ...passing, reskinOf: ['tide-spins'] })).toEqual(['reskin of tide-spins']);
+    expect(gateReasons({ ...passing, trademarks: ['Megaways in Game.tsx'] })).toEqual(['trademarked mechanic name: Megaways in Game.tsx']);
   });
 
   it('includes the RTP band edges', () => {

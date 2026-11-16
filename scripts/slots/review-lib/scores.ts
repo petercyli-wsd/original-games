@@ -131,6 +131,8 @@ export interface GateInput {
   reskinOf: string[];
   /** Blind plays merged into the review. */
   players: number;
+  /** Trademarked mechanic names the slot uses (code scan + designer), e.g. "Megaways in Game.tsx" (§4). */
+  trademarks?: string[];
 }
 
 export function panelNeeded(overall: number, players: number): boolean {
@@ -148,6 +150,7 @@ export function gateReasons(g: GateInput): string[] {
   else if (g.rtp < GATE.rtp[0] - 1e-12 || g.rtp > GATE.rtp[1] + 1e-12) r.push(`RTP ${(g.rtp * 100).toFixed(2)}% outside 95.5–96.5%`);
   r.push(...g.factFailures);
   if (g.reskinOf.length) r.push(`reskin of ${g.reskinOf.join(', ')}`);
+  if (g.trademarks?.length) r.push(`trademarked mechanic name: ${g.trademarks.join('; ')}`);
   if (panelNeeded(g.overall, g.players)) r.push(`panel needed: overall ${g.overall.toFixed(2)} is in ${PANEL_BAND[0]}–${PANEL_BAND[1]} with ${g.players} blind player(s); run ${PANEL_SIZE - g.players} more`);
   return r;
 }

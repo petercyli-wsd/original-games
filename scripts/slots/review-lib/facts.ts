@@ -15,6 +15,9 @@ export const VOLATILITY_BANDS: Record<Volatility, [number, number]> = {
   extreme: [20, Infinity],
 };
 
+/** §3: the dry-streak p95 limit (longest losing run in 100 spins) by declared volatility. */
+export const DRY_STREAK_MAX: Record<Volatility, number> = { low: 12, medium: 20, high: 26, extreme: 32 };
+
 export interface SlotFactsN {
   rtp?: number; // fraction
   rtpTier?: string;
@@ -184,8 +187,13 @@ export function bandRows(f: SlotFactsN, d: Declared): BandRow[] {
   add('maxWin', 'Max win (cap)', maxWin, maxWin === undefined ? '—' : `${fmtN(maxWin)}×`, 1000, 25000, 24000, '1,000–25,000×');
   // Reachability: P(cap) > 1 in 10^9, as "1 in N" ≤ 10^9. One-sided; width taken as the bound.
   add('maxWinOneIn', 'P(max win) per spin', f.maxWinOneIn, f.maxWinOneIn === undefined ? '—' : `1 in ${f.maxWinOneIn.toExponential(2)}`, 0, 1e9, 1e9, '> 1 in 10⁹');
-  // One-sided ≤ 15; width taken as the bound (a p95 over 30 caps maths fit).
-  add('dryStreakP95', 'Dry streak p95 (per 100 spins)', f.dryStreakP95, fmtN(f.dryStreakP95), 0, 15, 15, '≤ 15');
+  // One-sided, by the declared volatility (§3); width taken as the bound (a p95 over twice the limit caps maths fit).
+  if (d.volatility) {
+    const max = DRY_STREAK_MAX[d.volatility];
+    add('dryStreakP95', 'Dry streak p95 (per 100 spins)', f.dryStreakP95, fmtN(f.dryStreakP95), 0, max, max, `≤ ${max} (${d.volatility})`);
+  } else {
+    rows.push({ key: 'dryStreakP95', label: 'Dry streak p95 (per 100 spins)', value: f.dryStreakP95, shown: fmtN(f.dryStreakP95), lo: 0, hi: Infinity, width: 0, band: 'set by the declared volatility, and none is declared', miss: 0, status: 'missing' });
+  }
   rows.push({ key: 'sessionMedian', label: 'Session median (200 spins from 100)', value: f.sessionMedian, shown: fmtN(f.sessionMedian), lo: -Infinity, hi: Infinity, width: 0, band: 'no band (how it feels)', miss: 0, status: f.sessionMedian === undefined ? 'missing' : 'advisory', advisory: true });
   return rows;
 }
@@ -193,12 +201,13 @@ export function bandRows(f: SlotFactsN, d: Declared): BandRow[] {
 /** The §3 misses that cap maths fit at 2: any band missed by more than its width. */
 export const wideMisses = (rows: BandRow[]) => rows.filter((r) => r.status === 'wide').map((r) => `${r.label} ${r.shown} vs ${r.band}`);
 
-/** The gated facts (§5): hit rate in band, dry streak p95 ≤ 15, max win reachable. Missing measures fail. */
+/** The gated facts (§5): hit rate in band, dry streak p95 within its volatility's limit, max win reachable. Missing measures fail. */
 export function factGateFailures(rows: BandRow[]): string[] {
   const out: string[] = [];
   for (const key of ['hitRate', 'dryStreakP95', 'maxWinOneIn'] as const) {
     const r = rows.find((x) => x.key === key);
-    if (!r || r.status === 'missing') out.push(`${r?.label ?? key} not measured (rerun npm run slots:eval)`);
+    if (r && r.status === 'missing' && r.value !== undefined) out.push(`${r.label} ${r.shown}: no declared volatility to judge it by (set volatility in slot.config.json)`);
+    else if (!r || r.status === 'missing') out.push(`${r?.label ?? key} not measured (rerun npm run slots:eval)`);
     else if (r.status !== 'in') out.push(`${r.label} ${r.shown} outside ${r.band}`);
   }
   return out;

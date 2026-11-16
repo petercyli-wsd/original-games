@@ -78,8 +78,18 @@ describe('bands', () => {
   });
 
   it('gates the dry streak and max-win reachability, and fails when they are not measured', () => {
-    const dry = bandRows(normaliseFacts({ ...good, dryStreakP95: 17 }).facts, declared);
-    expect(factGateFailures(dry)).toEqual([expect.stringMatching(/^Dry streak p95 .* 17 outside/)]);
+    // The dry-streak limit follows the declared volatility: low 12, medium 20, high 26, extreme 32.
+    expect(factGateFailures(bandRows(normaliseFacts({ ...good, dryStreakP95: 26 }).facts, declared))).toEqual([]);
+    const dry = bandRows(normaliseFacts({ ...good, dryStreakP95: 27 }).facts, declared);
+    expect(factGateFailures(dry)).toEqual([expect.stringMatching(/^Dry streak p95 .* 27 outside ≤ 26 \(high\)/)]);
+    const low = bandRows(normaliseFacts({ ...good, dryStreakP95: 13 }).facts, { ...declared, volatility: 'low' });
+    expect(factGateFailures(low)).toEqual([expect.stringMatching(/13 outside ≤ 12 \(low\)/)]);
+    expect(factGateFailures(bandRows(normaliseFacts({ ...good, dryStreakP95: 32 }).facts, { ...declared, volatility: 'extreme' }))).toEqual([]);
+    // Over twice the limit caps maths fit.
+    expect(wideMisses(bandRows(normaliseFacts({ ...good, dryStreakP95: 25 }).facts, { ...declared, volatility: 'low' }))).toContainEqual(expect.stringMatching(/^Dry streak/));
+    // No declared volatility: the dry streak can't be judged, and the gate says why.
+    const undeclared = bandRows(normaliseFacts(good).facts, { ...declared, volatility: undefined });
+    expect(factGateFailures(undeclared)).toEqual([expect.stringMatching(/no declared volatility/)]);
     const unreachable = bandRows(normaliseFacts({ ...good, pMaxWin: 1e-11 }).facts, declared);
     expect(factGateFailures(unreachable)).toEqual([expect.stringMatching(/^P\(max win\)/)]);
     const unmeasured = bandRows(normaliseFacts({ rtp: 0.96, hitRate: 0.3 }).facts, declared);

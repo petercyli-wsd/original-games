@@ -65,7 +65,7 @@ Be candid and consistent. Most new slots are competent and forgettable, and a 5 
   - feature: free spins 1 in 80–300 spins, smaller features 1 in 40–120;
   - feature share of the RTP 25–55%, and its average win 15–150×;
   - max win 1,000–25,000×, reachable (P > 1 in 10⁹);
-  - dry streak p95 ≤ 15.
+  - dry streak p95 (the longest losing run in 100 spins) by the declared volatility: low ≤ 12, medium ≤ 20, high ≤ 26, extreme ≤ 32.
 
   The facts table marks each measure. When any band is missed by more than its width, code caps maths fit at 2. Score maths fit on its merits anyway.
 - **Features usually carry 30–50% of the RTP,** so the base game alone returns 55–65% and feels tight. That is normal; judge whether the feature is worth it.
@@ -84,6 +84,9 @@ For each panel player (A, B, C...), compare their checks (what pays most, how th
 
 A misreading is the slot's fault, not the player's: it shows what the screen fails to say. Look at the card's long_text: lines of 9 or more words that the blind sandbox hid. A slot that explains its rules only in long sentences has failed to explain them. Code caps readability and feature clarity at 2 when the panel's median grade is "misread".
 
+## Trademarked mechanic names
+"Megaways" (Big Time Gaming), "Hold & Win" and "Cash Collect" are trademarks. A slot may use the mechanic (variable rows, coins that lock and respin, a collector), but it must not use these names, or a near spelling of them, anywhere a player sees them: the game's name, the feature's name, symbol names, the paytable or any on-screen text. List every such use in trademarks, from the rules card and the screenshots. The code also scans the source; any use fails the gate.
+
 ## Reskin
 Set duplicate_of to a catalogue slot's id only when the two share all three of:
 - the evaluation law (payline, ways, cluster or scatter pays, on the same board law);
@@ -93,7 +96,7 @@ Set duplicate_of to a catalogue slot's id only when the two share all three of:
 A different theme on the same three is still a reskin. The catalogue lists each slot's signature, and code flags exact signature matches itself. Set duplicate_of when two signatures name the same mechanics differently. Otherwise leave it empty. Sharing a mechanism family with a famous market slot is not a reskin, but it is a uniqueness matter.
 
 ## Output
-Return the four criteria once each, the comprehension grade of every panel player, duplicate_of, the closest existing slot (catalogue or market), and one line on the theme's promise and whether the maths keeps it. Then give two to four pros and two to four cons. Make the cons concrete, fixable instructions a builder could act on, such as "the scatter reads as a low symbol at 48 px: give it a frame". Finish with a one-sentence verdict and a recommendation:
+Return the four criteria once each, the comprehension grade of every panel player, trademarks, duplicate_of, the closest existing slot (catalogue or market), and one line on the theme's promise and whether the maths keeps it. Then give two to four pros and two to four cons. Make the cons concrete, fixable instructions a builder could act on, such as "the scatter reads as a low symbol at 48 px: give it a frame". Finish with a one-sentence verdict and a recommendation:
 - **keep:** strong as it is;
 - **repair:** promising, fix the cons;
 - **drop:** not worth more work.`;
@@ -108,12 +111,14 @@ export function judgeUser(args: {
   catalogue: string;
   shots: string[];
   warnings: string[];
+  trademarks: string[];
 }): string {
   return `Rules card:
 ${JSON.stringify(args.card, null, 2)}
 
 Mechanism signature: ${args.signature}
 ${args.twins.length ? `Code found catalogue slots with the same signature: ${args.twins.join(', ')}.` : 'Code found no catalogue slot with the same signature.'}
+${args.trademarks.length ? `Code found trademarked mechanic names in the source: ${args.trademarks.join('; ')}.` : 'Code found no trademarked mechanic name in the source.'}
 
 Measured facts (npm run slots:eval; computed, not opinion):
 ${args.facts}
@@ -136,7 +141,7 @@ const s = (description: string) => ({ type: 'string', description });
 export const judgeSchema = (labels: string[]) => ({
   type: 'object',
   additionalProperties: false,
-  required: ['criteria', 'comprehension', 'duplicate_of', 'closest_existing', 'theme_promise', 'pros', 'cons', 'verdict', 'recommendation'],
+  required: ['criteria', 'comprehension', 'trademarks', 'duplicate_of', 'closest_existing', 'theme_promise', 'pros', 'cons', 'verdict', 'recommendation'],
   properties: {
     criteria: {
       type: 'array',
@@ -165,6 +170,7 @@ export const judgeSchema = (labels: string[]) => ({
         },
       },
     },
+    trademarks: { type: 'array', items: { type: 'string' }, description: 'Each use of a trademarked mechanic name (Megaways, Hold & Win, Cash Collect) a player would see, with where it appears; empty if none.' },
     duplicate_of: s('A catalogue slot id this reskins, or empty.'),
     closest_existing: s('The closest catalogue or market slot, and the difference.'),
     theme_promise: s('What the theme promises and whether the maths keeps it, in one line.'),
@@ -178,6 +184,7 @@ export const judgeSchema = (labels: string[]) => ({
 export interface DesignerReview {
   criteria: { key: DesignerKey; reasoning: string; score: number }[];
   comprehension: { player: string; grade: 'correct' | 'partial' | 'misread'; reasoning: string }[];
+  trademarks: string[];
   duplicate_of: string;
   closest_existing: string;
   theme_promise: string;

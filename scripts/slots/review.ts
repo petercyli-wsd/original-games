@@ -217,7 +217,7 @@ function designerShots(id: string, aliases: string[]): string[] {
     const first = runs[0] && files(runs[0]).find((f) => /^\d+-.*\.png$/.test(f));
     if (first) want.push([runs[0], first]);
     for (const run of runs) {
-      const p = files(run).find((f) => /-paytable\.png$/.test(f));
+      const p = files(run).find((f) => /-paytable(-1)?\.png$/.test(f));
       if (p) {
         want.push([run, p]);
         break;
@@ -263,6 +263,7 @@ async function judgePrompt() {
       catalogue: await catalogueText(id, entries),
       shots: designerShots(id, aliases),
       warnings: e.warnings,
+      trademarks: e.trademarks,
     });
     write(join(d, 'panel.json'), merged);
     write(join(d, 'review.schema.json'), judgeSchema(merged.labels));
@@ -286,6 +287,7 @@ function designerProblems(r: DesignerReview, labels: string[]): string[] {
     else if (!['correct', 'partial', 'misread'].includes(g.grade)) out.push(`player ${l} grade ${g.grade} is not correct/partial/misread`);
   }
   if (typeof r.verdict !== 'string') out.push('missing verdict');
+  if (!Array.isArray(r.trademarks)) out.push('missing trademarks (an array, empty if none)');
   return out;
 }
 
@@ -320,6 +322,7 @@ async function score() {
       factFailures: e.factFailures,
       reskinOf,
       players: merged.players,
+      trademarks: [...e.trademarks, ...(Array.isArray(review.trademarks) ? review.trademarks.filter((t) => typeof t === 'string' && t.trim()).map((t) => `${t} (designer)`) : [])],
     });
     const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a))));
     const misreads = review.comprehension.filter((c) => c.grade !== 'correct').map((c) => `Player ${c.player} ${c.grade}: ${c.reasoning}`);

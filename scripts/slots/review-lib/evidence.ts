@@ -193,6 +193,29 @@ export const sameSignature = (a: Signature, b: Signature) =>
 
 export const signatureText = (s: Signature) => `${s.law}; modifiers: ${s.modifiers.length ? s.modifiers.join(', ') : 'none'}; volatility: ${s.band}`;
 
+/**
+ * Trademarked mechanic names (docs/SLOTS.md §4): the mechanic is fine, the word is not. Pack family
+ * ids such as megaways_collector_terminal are identifiers, not names, so a match must not touch
+ * another word character.
+ */
+export const TRADEMARKS: { name: string; re: RegExp }[] = [
+  { name: 'Megaways', re: /(?<!\w)mega[\s-]?ways(?!\w)/i },
+  { name: 'Hold & Win', re: /(?<!\w)hold\s*(?:&|and|'n'|n|'n)\s*win(?!\w)/i },
+  { name: 'Cash Collect', re: /(?<!\w)cash[\s-]?collect(?!\w)/i },
+];
+
+const stripComments = (code: string) => code.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
+
+/** Trademarked names in the game's code (comments left out) and manifest: "Megaways in Game.tsx". */
+export function trademarkHits(id: string): string[] {
+  const hits: string[] = [];
+  for (const f of srcFiles(id).filter((f) => /\.(tsx?|html)$/.test(f) && !/\.test\.tsx?$/.test(f))) {
+    const text = stripComments(readFileSync(join(srcDir(id), f), 'utf8'));
+    for (const t of TRADEMARKS) if (t.re.test(text)) hits.push(`${t.name} in ${f}`);
+  }
+  return hits;
+}
+
 /** Source files worth showing the rules-card writer: code, JSON (not the oracle's spins), CSS, SVG. */
 const SHOW = /\.(tsx?|json|css|svg)$/;
 const HIDE = /(^|\/)(oracle\.json|slot-review\.json|slot-facts\.json)$|\.test\.tsx?$/;
@@ -236,6 +259,8 @@ export interface SlotEvidence {
   rtp: number | null;
   rtpSource: string;
   hasFeature: boolean;
+  /** Trademarked mechanic names found in the code (§4): a gate fail. */
+  trademarks: string[];
   warnings: string[];
 }
 
@@ -285,6 +310,7 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
     rtp,
     rtpSource,
     hasFeature,
+    trademarks: trademarkHits(id),
     warnings,
   };
 }

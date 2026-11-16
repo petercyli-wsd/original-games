@@ -1,7 +1,7 @@
 // The blind slot player's tool: `npm run slots:review -- play <alias> "<steps>"`.
 // Expands the slot helper steps into scripts/play.mjs steps, runs play.mjs in
-// --blind mode on the aliased game (with the dev query and the slot sandbox
-// from play-hook.mjs), then lays the spin screenshots out as contact sheets so
+// --blind mode on the aliased game (with the slot sandbox and the feature and
+// scroll helpers from play-hook.mjs), then lays the spin screenshots out as contact sheets so
 // a player can look at 60 spins without opening 60 images.
 
 import { spawnSync } from 'node:child_process';
@@ -24,8 +24,6 @@ export const SHEET = { cols: 2, rows: 3, thumbW: 640, thumbH: 400 };
 export interface Expanded {
   /** play.mjs steps. */
   steps: string[];
-  /** The dev query for this call ("feature=1" or ""). */
-  query: string;
   /** For each `text:` step in order, what it was for (to count presses from play.mjs's output). */
   textTags: ('spin' | 'turbo' | 'autoplay' | 'paytable' | 'close' | 'other')[];
   counts: { spins: number; watches: number; turbo: boolean; autoplay: boolean; feature: boolean; paytable: boolean };
@@ -39,8 +37,9 @@ export function expandSteps(input: string): Expanded {
     .split(';')
     .map((s) => s.trim())
     .filter(Boolean);
-  const out: Expanded = { steps: [], query: '', textTags: [], counts: { spins: 0, watches: 0, turbo: false, autoplay: false, feature: false, paytable: false } };
+  const out: Expanded = { steps: [], textTags: [], counts: { spins: 0, watches: 0, turbo: false, autoplay: false, feature: false, paytable: false } };
   let turbo = false;
+  let pages = 0;
   const text = (label: string, tag: Expanded['textTags'][number]) => {
     out.steps.push(`text:${label}`);
     out.textTags.push(tag);
@@ -83,12 +82,22 @@ export function expandSteps(input: string): Expanded {
       text(LABELS.autoplayStart, 'autoplay');
       out.steps.push('wait:400');
     } else if (lower === 'feature') {
-      out.query = 'feature=1';
+      // The kit's dev hook (window.__slotDev.feature(), the same as ?feature=1): the next spin triggers
+      // the feature. play-hook.mjs turns this virtual key into that one call. It can search for up to 4 s.
       out.counts.feature = true;
+      out.steps.push('key:SlotFeature', 'wait:300');
     } else if (lower === 'paytable') {
+      // Open it and take three pages of it (the sheet scrolls).
       out.counts.paytable = true;
       text(LABELS.paytable, 'paytable');
-      out.steps.push('wait:700', 'shot:paytable');
+      out.steps.push('wait:700', 'shot:paytable-1');
+      for (const n of [2, 3]) out.steps.push('key:SlotScroll', 'wait:300', `shot:paytable-${n}`);
+      pages = 3;
+    } else if (lower === 'scroll') {
+      pages++;
+      out.steps.push('key:SlotScroll', 'wait:300', `shot:paytable-${pages}`);
+    } else if (/^key:slot/i.test(step)) {
+      throw new Error(`Step "${step}" is not allowed; use feature or scroll.`);
     } else if (lower === 'close') {
       out.steps.push('key:Escape', 'wait:300');
     } else if (/^(shot|mouse|key|wait)(:|$)/i.test(step)) {
@@ -97,7 +106,7 @@ export function expandSteps(input: string): Expanded {
       out.steps.push(step);
       out.textTags.push('other');
     } else {
-      throw new Error(`Step "${step}" is not allowed. Use spin, spin×N, turbo, autoplay, watch×N, feature, paytable, close, shot:<name>, text:<label>, mouse:<x>,<y>, key:<key> or wait:<ms>.`);
+      throw new Error(`Step "${step}" is not allowed. Use spin, spin×N, turbo, autoplay, watch×N, feature, paytable, scroll, close, shot:<name>, text:<label>, mouse:<x>,<y>, key:<key> or wait:<ms>.`);
     }
   }
   return out;
@@ -196,12 +205,22 @@ export function runPlay(gameId: string, aliasDir: string, input: string, errorLo
   const run = readdirSync(uiDir).filter((f) => f.startsWith('run-')).length + 1;
   const out = join(uiDir, `run-${run}`);
   const hook = pathToFileURL(join(import.meta.dirname, 'play-hook.mjs')).href;
-  const r = spawnSync(process.execPath, ['--import', hook, PLAY_MJS, gameId, '--blind', '--size', '1280x800', '--out', out, '--steps', ex.steps.join(';')], {
-    cwd: ROOT,
-    encoding: 'utf8',
-    env: { ...process.env, SLOT_PLAY_QUERY: ex.query, SLOT_PLAY_SANDBOX: 'slot' },
-    maxBuffer: 32 * 1024 * 1024,
-  });
+  const once = () =>
+    spawnSync(process.execPath, ['--import', hook, PLAY_MJS, gameId, '--blind', '--size', '1280x800', '--out', out, '--steps', ex.steps.join(';')], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: { ...process.env, SLOT_PLAY_SANDBOX: 'slot' },
+      maxBuffer: 32 * 1024 * 1024,
+    });
+  const crashedIn = (x: ReturnType<typeof once>) => `${x.stdout ?? ''}${x.stderr ?? ''}`.split('\n').some((l) => /^(Error|TypeError|ReferenceError)\b|^\s+at /.test(l));
+  let r = once();
+  // The first load of a game can reload the page once (Vite re-optimising its dependencies),
+  // which wipes the tool's helpers mid-run. Retry such a run once, from a clean folder.
+  if (crashedIn(r)) {
+    if (errorLog) writeFileSync(errorLog, `${new Date().toISOString()} run ${run} (retried)\n${r.stdout ?? ''}${r.stderr ?? ''}\n`, { flag: 'a' });
+    rmSync(out, { recursive: true, force: true });
+    r = once();
+  }
   const lines = `${r.stdout ?? ''}${r.stderr ?? ''}`.split('\n');
   const textLines = lines.filter((l) => /^text\s/.test(l.trim()));
   const worked = (tag: Expanded['textTags'][number]) => textLines.filter((l, i) => ex.textTags[i] === tag && l.includes('✓')).length;
@@ -236,7 +255,7 @@ export function runPlay(gameId: string, aliasDir: string, input: string, errorLo
   writeFileSync(join(aliasDir, 'plays.json'), `${JSON.stringify(log, null, 2)}\n`);
   const t = playTotals(log);
   const summary = [
-    `Run ${run}${ex.query ? ' (feature forced: the next spin triggers the bonus feature)' : ''}: ${ex.counts.spins ? `${spinsOk} of ${ex.counts.spins} spin presses worked. ` : ''}`,
+    `Run ${run}${ex.counts.feature ? ' (feature forced: the spin after the feature step triggers the bonus feature)' : ''}: ${ex.counts.spins ? `${spinsOk} of ${ex.counts.spins} spin presses worked. ` : ''}`,
     ...shown,
     ...(sheets.length ? [`Contact sheets (the spin and watch screenshots of this run, 6 per image, in order):`, ...sheets.map((s) => `sheet: ${s.replaceAll('\\', '/')}`)] : []),
     `Session so far: ${t.calls} calls, ${t.spins} spins pressed, ${t.watches} autoplay watch shots, Turbo ${t.turbo ? 'yes' : 'no'}, Autoplay ${t.autoplay ? 'yes' : 'no'}, feature ${t.feature ? 'yes' : 'no'}, paytable ${t.paytable ? 'yes' : 'no'}.`,
