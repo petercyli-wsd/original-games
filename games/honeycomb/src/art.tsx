@@ -81,7 +81,7 @@ export const honeycombSymbols: SlotSymbols = {
           <ellipse cx="66" cy="30" rx="26" ry="15" transform="rotate(24 66 30)" fill={C.lavender} />
           <ellipse cx="38" cy="36" rx="17" ry="10" transform="rotate(-20 38 36)" fill={C.cream} />
           <ellipse cx="62" cy="36" rx="17" ry="10" transform="rotate(20 62 36)" fill={C.cream} />
-          <ellipse cx="50" cy="66" rx="26" ry="20" fill={C.gold} />
+          <ellipse cx="50" cy="66" rx="26" ry="20" fill={C.cream} />
           <path d="M42 48 V84 M58 48 V84" stroke={C.bg} strokeWidth="7" strokeLinecap="round" fill="none" />
           <circle cx="50" cy="50" r="10" fill={C.bg} />
         </>,

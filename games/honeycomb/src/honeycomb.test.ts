@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { createSlot, type SlotSpec } from '@originals/slots';
 import { exactRtp } from '../../../packages/slots/src/engine/analytics/exact';
 import { checkParity, type OracleFixture } from '../../../packages/slots/src/engine/parity';
+import { checkCopy } from '@originals/slots/ui';
+import { copy } from './copy';
 import { featureStats } from './maths';
 import config from './slot.config.json';
 import specJson from './slot.spec.json';
@@ -121,9 +123,15 @@ describe('spin flow', () => {
     expect(play.indexOf('await ticket.place(')).toBeLessThan(play.indexOf('seeds.next()'));
     expect(play.indexOf('seeds.next()')).toBeLessThan(play.indexOf('engine.playRound('));
     expect(play).toContain('if (busyRef.current) return null;');
-    const game = readFileSync(join(here, 'Game.tsx'), 'utf8');
+    const game = readFileSync(join(here, 'copy.ts'), 'utf8');
     expect(game).not.toContain('engine=');
     expect(game).toContain('extrasLabels');
     expect(game).not.toMatch(/useHost|Math\.random/);
+  });
+});
+
+describe('copy', () => {
+  it('every line is under 9 words', () => {
+    expect(checkCopy(copy)).toEqual([]);
   });
 });
