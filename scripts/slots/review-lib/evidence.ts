@@ -374,7 +374,7 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
   const baseOnly = !declared.feature;
   const rtp = facts.rtp ?? (baseOnly && oracle.baseRtp !== undefined ? oracle.baseRtp : null);
   const rtpSource = facts.rtp !== undefined ? 'slot-facts.json' : rtp != null ? 'oracle.json (base game, no free spins)' : 'none';
-  if (facts.rtp !== undefined && baseOnly && oracle.baseRtp !== undefined && Math.abs(facts.rtp - oracle.baseRtp) > Math.max(1e-6, 4 * (facts.rtpSe ?? 0)))
+  if (facts.rtp !== undefined && baseOnly && oracle.baseRtp !== undefined && Math.abs(facts.rtp - oracle.baseRtp) > Math.max(1e-6, 4 * Math.hypot(facts.rtpSe ?? 0, oracle.baseSe ?? 0)))
     warnings.push(`slot-facts RTP ${facts.rtp} differs from the pack's ${oracle.baseRtp} for a pure base game`);
   return {
     id,
