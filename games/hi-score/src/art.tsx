@@ -20,6 +20,34 @@ export const ARCADE = {
 const C = ARCADE;
 
 // Backdrops: flat shapes a shade off the window tone, so the tiles stay the loudest thing on screen.
+// A 11x8 space-invader silhouette as flat pixel rects.
+const INVADER = ['..#.....#..', '...#...#...', '..#######..', '.##.###.##.', '###########', '#.#######.#', '#.#.....#.#', '...##.##...'];
+function invader(x: number, y: number, u: number, fill: string, key: string) {
+  return (
+    <g key={key} fill={fill}>
+      {INVADER.flatMap((row, r) => [...row].map((ch, c) => (ch === '#' ? <rect key={`${r}-${c}`} x={x + c * u} y={y + r * u} width={u} height={u} /> : null)))}
+    </g>
+  );
+}
+function scanlines(w: number, h: number, color: string) {
+  const out: ReactElement[] = [];
+  for (let y = 6; y < h; y += 8) out.push(<rect key={y} x={0} y={y} width={w} height={2} fill={color} />);
+  return out;
+}
+function brackets(w: number, h: number, u: number, color: string) {
+  const L = u * 5;
+  const t = u;
+  const o = u * 2;
+  return (
+    <g fill={color}>
+      <rect x={o} y={o} width={L} height={t} /><rect x={o} y={o} width={t} height={L} />
+      <rect x={w - o - L} y={o} width={L} height={t} /><rect x={w - o - t} y={o} width={t} height={L} />
+      <rect x={o} y={h - o - t} width={L} height={t} /><rect x={o} y={h - o - L} width={t} height={L} />
+      <rect x={w - o - L} y={h - o - t} width={L} height={t} /><rect x={w - o - t} y={h - o - L} width={t} height={L} />
+    </g>
+  );
+}
+
 function cabinetScene(w: number, h: number, tones: { line: string; px: string; px2: string; bezel: string }) {
   const u = Math.max(4, Math.round(Math.min(w, h) / 40)); // one "pixel"
   const horizon = Math.round(h * 0.55);
@@ -38,6 +66,10 @@ function cabinetScene(w: number, h: number, tones: { line: string; px: string; p
   return (
     <g>
       <rect x={u} y={u} width={w - 2 * u} height={h - 2 * u} fill="none" stroke={tones.bezel} strokeWidth={u / 2} />
+      {scanlines(w, h, '#10102A')}
+      {brackets(w, h, u, tones.px2)}
+      {invader(Math.round(w * 0.06), Math.round(h * 0.2), Math.max(2, u / 2), tones.px, 'i1')}
+      {invader(Math.round(w * 0.8), Math.round(h * 0.34), Math.max(2, u / 2), tones.px, 'i2')}
       {stars.map(([fx, fy, n], i) => (
         <rect key={i} x={Math.round(fx * w)} y={Math.round(fy * h)} width={u * n} height={u * n} fill={i % 2 ? tones.px : tones.px2} />
       ))}
@@ -67,6 +99,10 @@ function bonusScene(w: number, h: number) {
   return (
     <g>
       <rect x={u} y={u} width={w - 2 * u} height={h - 2 * u} fill="none" stroke="#4A1A55" strokeWidth={u / 2} />
+      {scanlines(w, h, '#240A2C')}
+      {brackets(w, h, u, '#5A1E5E')}
+      {invader(Math.round(w * 0.05), Math.round(h * 0.55), Math.max(2, u / 2), '#4A1A55', 'i1')}
+      {invader(Math.round(w * 0.82), Math.round(h * 0.2), Math.max(2, u / 2), '#4A1A55', 'i2')}
       <circle cx={cx} cy={sunY} r={r} fill="#3A1040" />
       {bands}
       {bursts.map(([fx, fy], i) => (

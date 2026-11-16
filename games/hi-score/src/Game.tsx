@@ -12,9 +12,14 @@ const facts = parseSlotFacts(factsRaw);
 
 const copy: SlotCopy = {
   featureName: 'Bonus stage',
-  introNote: 'Marquee starts at ×2',
+  introNote: 'Bonus marquee: ×2 to ×25',
   rule: 'Match 3 on a line. Marquee multiplies wins.',
-  wildText: 'Glitch block on reel 2 stands in.',
+  wildText: 'Glitch block on reel 2 is wild',
+  extrasLabels: (raw) => {
+    if (/scatter/i.test(raw)) return 'Scatter pay';
+    const m = /\bx\s*(\d+)/i.exec(raw);
+    return m ? `Marquee ×${m[1]}` : 'Marquee total';
+  },
   multiplierReel: { label: 'Marquee' },
   scatterText: '3 golden tokens start the bonus stage.',
 };
