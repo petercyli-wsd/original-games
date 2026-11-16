@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
 import { factsIntegrity, TRADEMARKS } from './evidence';
 
 const hits = (text: string) => TRADEMARKS.filter((t) => t.re.test(text)).map((t) => t.name);
@@ -31,5 +34,34 @@ describe('factsIntegrity', () => {
   it('fails facts that slots:eval did not write (no oracle check or no specHash)', () => {
     expect(factsIntegrity({ rtp: 0.96, note: 'game-local script' }, oracle)).toEqual([expect.stringMatching(/^facts not from slots:eval/)]);
     expect(factsIntegrity({ oracle: { status: 'pass' } }, oracle)).toEqual([expect.stringMatching(/^facts not from slots:eval/)]);
+  });
+});
+
+describe('gameRuntimeFiles (the code hash covers only what reaches the player)', () => {
+  it('keeps the entries, the slot JSON and what they import; drops tests, oracle, tools and test-only helpers', async () => {
+    const games = mkdtempSync(join(tmpdir(), 'slot-hash-'));
+    const src = join(games, 'g', 'src');
+    mkdirSync(join(src, 'tools'), { recursive: true });
+    const files: Record<string, string> = {
+      'index.ts': "import Game from './Game';\nexport default Game;",
+      'Game.tsx': "import { art } from './art';\nimport spec from './slot.spec.json';\nimport icon from './icon.svg?raw';",
+      'art.tsx': 'export const art = 1;',
+      'icon.svg': '<svg/>',
+      'manifest.ts': "import facts from './slot-facts.json';",
+      'slot.spec.json': '{}',
+      'slot.config.json': '{}',
+      'feature.spec.json': '{}',
+      'slot-facts.json': '{}',
+      'oracle.json': '{}',
+      'mixture.ts': 'export const exact = 1;',
+      'g.test.ts': "import { exact } from './mixture';\nimport oracle from './oracle.json';",
+      'tools/fit.ts': 'export {};',
+    };
+    for (const [f, t] of Object.entries(files)) writeFileSync(join(src, f), t);
+    vi.resetModules();
+    vi.stubEnv('SLOT_REVIEW_GAMES_DIR', games);
+    const { gameRuntimeFiles } = await import('./evidence');
+    expect(gameRuntimeFiles('g')).toEqual(['Game.tsx', 'art.tsx', 'feature.spec.json', 'icon.svg', 'index.ts', 'manifest.ts', 'slot.config.json', 'slot.spec.json']);
+    vi.unstubAllEnvs();
   });
 });

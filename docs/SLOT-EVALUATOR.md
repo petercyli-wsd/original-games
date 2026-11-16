@@ -104,7 +104,11 @@ The weights add up to 17. A slot that scores 4 everywhere is 4.00. A 3 on readab
 | `.evaluator/slots/<id>/score.json` | `score` | The full scoring detail: mean, grades, bands, reskin twins, session shortfalls and panel spread. |
 | `.evaluator/slots/<id>/play-errors.log` | `play` | Tool crashes, kept out of the player's folder because they may name the game. |
 
-**Staleness.** `codeHash` is a hash of everything in `games/<id>/src` except `slot-review.json` and `slot-facts.json`, plus the slot kit and engine (`packages/slots/src`), which draw and play every slot. Left out of the kit: tests, fixtures and `engine/analytics/**`. The analytics are `slots:eval`'s maths, they don't change what the player sees or the outcomes, and their results reach the review through `slot-facts.json` (re-run `slots:eval` just before `score`). Any other change, the manifest or the kit included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
+**Staleness.** `codeHash` (`slotCodeHash` in `review-lib/evidence.ts`) is a hash of what changes the player's game, and nothing else:
+- the game's runtime files: its entries (`index.ts`, `manifest.ts`, `dev.ts`), the slot's spec and config (`slot.spec.json`, `slot.config.json`, `feature*.spec.json`), and every file they import, followed transitively;
+- the slot kit and engine (`packages/slots/src`), which draw and play every slot.
+
+Left out everywhere: `slot-review.json`, `slot-facts.json`, `oracle.json` / `oracle.json.gz`, tests (`*.test.ts`), fixtures and `tools/`. Also left out: a game helper that only tests import (an exact-maths model, say), and the kit's `engine/analytics/**`. The analytics are `slots:eval`'s maths. They don't change what the player sees or the outcomes, and their results reach the review through `slot-facts.json` (re-run `slots:eval` just before `score`). So compacting the oracle files or changing a test doesn't make a review stale. Any change to a runtime file, the manifest or the kit included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
 
 ## 4. What it can't know yet
 

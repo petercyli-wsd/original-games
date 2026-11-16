@@ -33,16 +33,51 @@ export const srcFiles = (id: string) => walk(srcDir(id)).map((p) => relative(src
 /** The slot kit and engine (`@originals/slots`): every slot is drawn and played by it, so it is part of the code hash. */
 export const KIT_SRC = join(ROOT, 'packages', 'slots', 'src');
 /**
- * Kit files that can't change how a game plays or looks: tests, their fixtures, and the analytics
- * (engine/analytics: slots:eval's maths, still changing; its results reach the review through
- * slot-facts.json, which carries them).
+ * Files that can't change the player's game, left out of the code hash wherever they are: tests,
+ * test fixtures, tools, and the oracle (the pack's reference spins, `oracle.json` / `oracle.json.gz`,
+ * which tests read; the review reads it through evidence, and slots:eval's parity check through
+ * slot-facts.json).
  */
-const KIT_NOT_HASHED = /(\.test\.tsx?$|(^|\/)fixtures\/|^engine\/analytics\/)/;
+const NEVER_HASHED = /(\.test\.tsx?$|(^|\/)(fixtures|tools)\/|(^|\/)oracle\.json(\.gz)?$)/;
+/** Kit files left out besides those: the analytics (slots:eval's maths; its results reach the review through slot-facts.json). */
+const KIT_NOT_HASHED = /^engine\/analytics\//;
+/** The game's runtime entries (package.json exports and the dev page) and the JSON that defines the slot. */
+const GAME_ENTRIES = ['index.ts', 'index.tsx', 'manifest.ts', 'dev.ts', 'dev.tsx'];
+const GAME_DEFINITION = /^(slot\.spec|slot\.config|feature[^/]*\.spec)\.json$/;
 
 /**
- * Hash of the game's src minus the review and facts files, plus the slot kit and engine
- * (packages/slots/src minus tests, fixtures and engine/analytics), so a kit or engine change makes every slot review stale.
- * Line endings normalised, as for Originals.
+ * The game's files that reach the player: the entries, the slot's spec and config, and every file
+ * they import (relative imports, followed transitively). A helper only tests import (an exact-maths
+ * model, say) is left out.
+ */
+export function gameRuntimeFiles(id: string): string[] {
+  const dir = srcDir(id);
+  const all = new Set(srcFiles(id));
+  const seen = new Set<string>();
+  const queue = [...all].filter((f) => GAME_ENTRIES.includes(f) || GAME_DEFINITION.test(f));
+  const resolve = (from: string, spec: string): string | undefined => {
+    const base = relative(dir, join(dir, from, '..', spec.split('?')[0])).replaceAll('\\', '/');
+    return [base, ...['.ts', '.tsx', '.js', '.jsx', '.json', '/index.ts', '/index.tsx'].map((x) => base + x)].find((c) => all.has(c));
+  };
+  while (queue.length) {
+    const f = queue.shift()!;
+    if (seen.has(f)) continue;
+    seen.add(f);
+    if (!/\.(tsx?|jsx?|mjs)$/.test(f)) continue;
+    const code = readFileSync(join(dir, f), 'utf8');
+    for (const m of code.matchAll(/(?:from\s+|import\s*\(?\s*)['"](\.{1,2}\/[^'"]+)['"]/g)) {
+      const r = resolve(f, m[1]);
+      if (r && !seen.has(r)) queue.push(r);
+    }
+  }
+  return [...seen].filter((f) => !NOT_HASHED.has(f.split('/').pop()!) && !NEVER_HASHED.test(f)).sort();
+}
+
+/**
+ * Hash of what changes the player's game: the game's runtime files (gameRuntimeFiles: not the
+ * review, the facts, the oracle, tests, tools or test-only helpers), plus the slot kit and engine
+ * (packages/slots/src minus tests, fixtures, tools and engine/analytics), so a kit or engine change
+ * makes every slot review stale. Line endings normalised, as for Originals.
  */
 export function slotCodeHash(id: string): string {
   const h = createHash('sha256');
@@ -51,9 +86,9 @@ export function slotCodeHash(id: string): string {
     const text = /\.(tsx?|jsx?|json|css|svg|md|html)$/.test(f) ? buf.toString('utf8').replace(/\r\n/g, '\n') : buf.toString('base64');
     h.update(`${label}\n${text}\n`);
   };
-  for (const f of srcFiles(id)) if (!NOT_HASHED.has(f.split('/').pop()!)) add(srcDir(id), f, f);
+  for (const f of gameRuntimeFiles(id)) add(srcDir(id), f, f);
   for (const f of walk(KIT_SRC).map((p) => relative(KIT_SRC, p).replaceAll('\\', '/')))
-    if (!KIT_NOT_HASHED.test(f)) add(KIT_SRC, f, `@originals/slots/${f}`);
+    if (!NEVER_HASHED.test(f) && !KIT_NOT_HASHED.test(f)) add(KIT_SRC, f, `@originals/slots/${f}`);
   return h.digest('hex').slice(0, 16);
 }
 
