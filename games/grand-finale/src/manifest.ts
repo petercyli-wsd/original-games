@@ -9,7 +9,7 @@ export default defineManifest({
   status: 'prototype',
   collection: 'slots',
   revision: { kind: 'new', date: '2026-11-16', note: 'Wild rockets add their numbers to every win. Sonnet-built, not yet rated by the team.' },
-  rtp: 0.96, // exact, pack-verified (slot-facts.json carries the Monte Carlo read)
+  rtp: 0.96, // 96.00% mc (uncapped 96.03% exact, cap loss mc), pack-verified; see slot-facts.json
   maxMultiplier: facts.maxWin,
   volatility: ['medium'],
   checkpoints: false,

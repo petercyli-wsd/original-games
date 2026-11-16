@@ -75,8 +75,7 @@ export function baseMath(spec: SlotSpec): BaseMath {
   }
   const mu = mean / tw;
   const sets = (spec.board_law as { reel_sets: { strips: number[][]; weight: number }[] }).reel_sets;
-  if (sets.length !== 1) throw new Error('exactmath: one reel set only');
-  const strips = sets[0].strips;
+  const totalW = sets.reduce((a, r) => a + Number(r.weight), 0);
   const rows = spec.geometry.rows;
   const cols = rows.length;
   const K = cols * Math.max(...rows) + 1;
@@ -84,7 +83,11 @@ export function baseMath(spec: SlotSpec): BaseMath {
   const sp = spec.pays.scatter_pay ?? {};
 
   const evByK = new Array<number>(K).fill(0);
-  let kPmf: number[] | null = null;
+  const kPmf = new Array<number>(K).fill(0);
+  for (const set of sets) {
+  const strips = set.strips;
+  const sw = Number(set.weight) / totalW; // reel sets are a weighted mixture; each spin draws one
+  let setK: number[] | null = null;
   for (const s of paying) {
     // P[(n * N + w) * K + k]
     let P = new Float64Array(N * N * K);
@@ -110,12 +113,16 @@ export function baseMath(spec: SlotSpec): BaseMath {
           const p0 = P[(n * N + w) * K + k];
           if (p0 === 0) continue;
           kk[k] += p0;
-          if (pay) evByK[k] += p0 * (base + w * mu) * pay;
+          if (pay) evByK[k] += sw * p0 * (base + w * mu) * pay;
         }
       }
-    if (!kPmf) kPmf = kk; // the scatter count law is the same for every s
+    if (!setK) setK = kk; // within a set the scatter count law is the same for every s
   }
-  for (let k = 0; k < K; k++) evByK[k] += (kPmf![k] ?? 0) * Number(sp[String(k)] ?? 0);
+  for (let k = 0; k < K; k++) {
+    kPmf[k] += sw * setK![k];
+    evByK[k] += sw * setK![k] * Number(sp[String(k)] ?? 0);
+  }
+  }
   const ev = evByK.reduce((a, b) => a + b, 0);
-  return { evCoins: ev, rtp: ev / spec.bet.coins, kPmf: kPmf!, evCoinsByK: evByK, mu, gBase: base };
+  return { evCoins: ev, rtp: ev / spec.bet.coins, kPmf, evCoinsByK: evByK, mu, gBase: base };
 }

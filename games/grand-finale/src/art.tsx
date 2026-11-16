@@ -1,5 +1,5 @@
 // Grand Finale: symbol art and theme. Flat vector only (docs/SLOT-STYLE.md): filled shapes and round-cap strokes
-// in the palette below, nothing else. Rocket values (+1, +2, +3, +5, +10) are painted by the kit as cell badges.
+// in the palette below, nothing else. Rocket values (+1 to +50) are painted by the kit as cell badges.
 
 import type { ReactElement } from 'react';
 import type { SlotSymbols, SlotTheme } from '@originals/slots/ui';

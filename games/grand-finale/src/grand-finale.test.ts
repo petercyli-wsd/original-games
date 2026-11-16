@@ -143,13 +143,12 @@ describe('the max-win cap', () => {
     }
     expect(capped).toBeGreaterThan(0);
   });
-  // Reachability (P > 1e-9 per round) is a slots:eval gate band, not a unit test. It currently FAILS:
-  // slots:eval's tail bounds give 2.1e-10 to 2.9e-10 per round (2026-11-16). The fix is a spec change
-  // (a fatter top end), pending Peter's approval. Until then the game fails its review gate.
-  it('the shipped cap is 1,000x and the facts agree on it', () => {
-    expect(config.maxWinStakes).toBe(1000);
-    expect(facts.maxWin).toBe(1000);
-    expect(facts.pMaxWin).toBeGreaterThan(0);
+  // Reachability (P > 1e-9 per round) is a slots:eval gate band. The feature's rare "grand" reel set
+  // (all rockets and shells) and the rare +25/+50 rocket values give the 5,000x cap a real path.
+  it('the shipped cap is 5,000x, the facts agree on it, and it is reachable', () => {
+    expect(config.maxWinStakes).toBe(5000);
+    expect(facts.maxWin).toBe(5000);
+    expect(facts.pMaxWin).toBeGreaterThan(1e-9);
   });
 });
 
@@ -164,7 +163,7 @@ describe('the rocket is the wild and the multiplier is 1 + the rockets', () => {
     expect((spec.evaluation as unknown as { min_count: number }).min_count).toBeGreaterThanOrEqual(9);
     expect(Object.keys(mech.params.value_pmf).map(Number)).toEqual([1, 2, 3, 5]);
     const fm = fspec.mechanics![0] as typeof mech;
-    expect(Object.keys(fm.params.value_pmf).map(Number)).toEqual([5, 10]);
+    expect(Object.keys(fm.params.value_pmf).map(Number)).toEqual([5, 10, 25, 50]);
   });
   it('on a real board every win is multiplied by 1 + the rockets painted on it', () => {
     const e = new SlotEngine(spec);

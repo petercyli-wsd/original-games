@@ -16,7 +16,7 @@
       "value": 1
     }
   },
-  "maxWinStakes": 1000,
+  "maxWinStakes": 5000,
   "volatility": "medium",
-  "targetRtp": 0.96
+  "targetRtp": 0.9603
 }
