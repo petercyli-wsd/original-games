@@ -96,6 +96,8 @@ export const slotStyles = /* css */ `
 .sl-mreel-v.on.dim { color: var(--muted); border-color: var(--line-strong); background: transparent; }
 .sl-mreel-v.on { color: var(--text); border-color: var(--text); background: var(--hover); }
 
+.sl-dim { color: var(--muted); }
+.sl-pt-note { margin: 0 0 var(--sp-1); font-size: var(--fs-2); }
 .sl-hist-label { flex-shrink: 0; align-self: center; margin-right: var(--sp-1); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
 .sl-ways { font-size: var(--fs-2); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
 .sl-ways b { color: var(--text); }

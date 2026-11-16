@@ -7,7 +7,7 @@ import { InfoSection, fmtChance } from '@originals/game-sdk/ui';
 import type { CSSProperties } from 'react';
 import type { SlotSpec } from '../engine/types';
 import type { SlotCopy, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from './types';
-import { featureRules, fmtCount, fmtX, howToWinLines, idsWithRole, maxRowsOf, modifierRuleLines, multiplierValues, paylinesOf, payRows, scatterLines, symbolMetas, topPay, valueDistribution, valueLines, wildLines } from './util';
+import { featureRules, fmtCount, mysterySymbol, pluralOf, fmtX, howToWinLines, idsWithRole, maxRowsOf, modifierRuleLines, multiplierValues, paylinesOf, payRows, scatterLines, symbolMetas, topPay, valueDistribution, valueLines, wildLines } from './util';
 
 const TIER_WORDS = { exact: 'exact', exact_mixture: 'exact mixture', mc: 'Monte Carlo' } as const;
 
@@ -58,6 +58,8 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
   const modLines = modifierRuleLines(spec, (id) => symbols[id]?.name ?? `Symbol ${id}`, copy);
   const mults = multiplierValues(spec);
   const wilds = idsWithRole(spec, 'wild');
+  // The scatter as the rules name it: "3 suns", not "3 scatters".
+  const scatterWord = pluralOf(symbols[idsWithRole(spec, 'scatter')[0]]?.name);
   const scatters = idsWithRole(spec, 'scatter');
   const scatterPay = spec.pays.scatter_pay ?? {};
   const lines = paylinesOf(spec);
@@ -90,6 +92,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
               <Tile id={m.id} size={44} />
               <div>
                 <b>{name(m.id)}</b>
+                {copy?.symbolText?.[m.id] && <p className="sl-pt-note">{copy.symbolText[m.id]}</p>}
                 <ul className="sl-pays">
                   {payRows(pays ?? {}, bet).map((r) => (
                     <li key={r.from}>
@@ -113,7 +116,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
               <Tile id={id} size={44} />
               <div>
                 <b>{name(id)}</b>
-                {wildLines(copy).map((t, i) => (
+                {(copy?.symbolText?.[id] ? [copy.symbolText[id]] : wildLines(copy)).map((t, i) => (
                   <p key={i}>{t}</p>
                 ))}
               </div>
@@ -126,7 +129,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
                 <Tile id={m.id} size={44} />
                 <div>
                   <b>{name(m.id)}</b>
-                  {d ? valueLines(d, bet).map((t, i) => <p key={i}>{t}</p>) : <p>Carries a value</p>}
+                  {copy?.symbolText?.[m.id] ? <p>{copy.symbolText[m.id]}</p> : d ? valueLines(d, bet).map((t, i) => <p key={i}>{t}</p>) : <p>{m.id === mysterySymbol(spec) ? 'Opens into one symbol' : 'Carries a value'}</p>}
                 </div>
               </div>
             );
@@ -138,7 +141,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
                 <Tile id={id} size={44} />
                 <div>
                   <b>{name(id)}</b>
-                  {scatterLines(spec.trigger?.scatter_min ?? 3, feature ? featureName : null, copy).map((t, i) => (
+                  {(copy?.symbolText?.[id] ? [copy.symbolText[id]] : scatterLines(spec.trigger?.scatter_min ?? 3, feature ? featureName : null, copy, scatterWord)).map((t, i) => (
                     <p key={i}>{t}</p>
                   ))}
                   {rows_.length > 0 && (
@@ -173,7 +176,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
 
       {feature && (
         <InfoSection title={featureName}>
-          {featureRules(feature, featureName).map((t, i) => (
+          {featureRules(feature, featureName, scatterWord).map((t, i) => (
             <p key={i}>{t}</p>
           ))}
         </InfoSection>

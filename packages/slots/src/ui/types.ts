@@ -112,6 +112,10 @@ export interface SlotCopy {
   mainFeature?: 'free' | 'respin';
   /** Name of the pending win while a chain runs ("Winding"). Default "Pending win". */
   pendingLabel?: string;
+  /** A symbol's own paytable line (under 9 words), by id: replaces the generated one (a wild's, a scatter's, a value or mystery symbol's) or adds one under a paying symbol. */
+  symbolText?: Record<number, string>;
+  /** What the spin multiplier readouts do on a spin that pays nothing: 'dim' (default), 'hide', or 'label' (dimmed, with "No win to multiply"). */
+  noWinMultiplier?: 'dim' | 'hide' | 'label';
   /** Symbol ids to list first in the paytable (key symbols: wild, scatter, a cook); the special symbols then come before the pays. */
   paytableFirst?: number[];
   /** The rule line under the board while free spins run (default: the base rule). Under 9 words. */
