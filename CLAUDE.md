@@ -28,6 +28,7 @@ Online casinos run on two kinds of in-house content: **slots** and **Originals**
 
 ## How Peter works (follow these)
 
+- **Shorthand:** "ss" means screenshot.
 - **Reports.** Concise and precise. Say the exact mechanic ("the cash-out paid the pre-draw value when you left within one render"), not abstract verbs. Lead with the answer, give numbers, and flag what is uncertain.
 - **Test before adopting.** A/B any evaluator or pipeline change before it enters the pipeline. Use the local harness, both arms run fresh, report ρ, MAE and the games that flipped. Reject changes that fix one case and break another.
 - **Commit and push only when asked.** A brief or prompt that says to commit counts.
