@@ -168,8 +168,14 @@ function main(): void {
 // the count of non-linear spins. R1 and the split base / feature come from slots:eval (pack
 // anchored where the pack is exact, else the worker Monte Carlo with its SE). The feature RTP
 // is linear in the feature spin's mean win, so L_total = ρ_base · base RTP + ρ_feature · feature RTP
-// with ρ = L / mean coins per spec. Solve s = 1 + (target − R1) / L_total, scale and round every
-// pay, then re-verify with a fresh slots:eval; iterate (≤ 3 times) until |R − target| ≤ 0.0005,
+// with ρ = L / mean coins per spec. Integer rounding moves each trial's pay-proportional coins off
+// s by up to ~0.1%, so each trial's EFFECTIVE scale (base and feature) is measured with the same
+// common random numbers. Every trial is evaluated by slots:eval on its own seed, and the estimates
+// are pooled through the linear model (R_i = N + rB_i·LB + rF_i·LF, inverse-variance weights), so
+// the iteration converges on the pooled N instead of chasing one eval's noise; the final pays are
+// solved against the pooled N and reported with the pooled SE. Up to 3 trial evals; stop early
+// when the pooled prediction is within ±0.0005 with SE ≤ 0.00025.
+// Accept |R − target| ≤ 0.0005,
 // R being the CAPPED RTP slots:eval reports (the cap loss isn't linear in the pays, the iteration absorbs it),
 // or ≤ 3 SE when the verifying RTP is Monte Carlo. The pack oracle is regenerated for the trial
 // specs when the game's oracle was exact, so an exact pack RTP stays exact.
@@ -221,6 +227,14 @@ function linearShare(spec: SlotSpec, n: number): { rho: number; nonLinear: numbe
     if (c3 - 2 * c2 + c1 !== 0) bad++;
   }
   return { rho: s1 > 0 ? sl / s1 : 0, nonLinear: bad, mean: s1 / n };
+}
+
+/** Mean coins per spin over the fixed CRN seeds (the same seeds linearShare uses). */
+function meanCoins(spec: SlotSpec, n: number): number {
+  const e = new SlotEngine(spec);
+  let s = 0;
+  for (let i = 0; i < n; i++) s += e.spinRaw(new Mulberry32((0x9e3779b9 * (i + 1)) >>> 0)).totalCoins;
+  return s / n;
 }
 
 /** Pays × an integer factor, exactly (for the common-random-numbers measurement). */
@@ -349,33 +363,80 @@ function tuneByScale(a: ScaleArgs): boolean {
   const withinNoise = (r: EvalRead) => r.tier === 'mc' && Math.abs(r.rtp - target) <= 3 * r.se;
 
   try {
+    // every trial eval runs on its own seed, so the estimates are independent and can be pooled
+    const evalAt = (i: number) => runEval(trial, `${a.evalArgs} --seed ${20261116 + 7919 * i}`);
     writeTrial(a.spec, a.featureSpec);
-    let cur = runEval(trial, a.evalArgs);
-    const before = cur;
-    console.log(`  before: ${fmt(cur)}`);
-    // R(s) = N + s·L1: L1 = the pay-proportional RTP at the current pays (ρ measured at scale 1)
-    const L1 = lb.rho * before.base + (lf ? lf.rho * before.feature : 0);
+    const before = evalAt(0);
+    console.log(`  before: ${fmt(before)}`);
+    // R = N + rB·LB + rF·LF: LB, LF the pay-proportional RTP of base and feature at the current pays
+    // (ρ measured at scale 1); rB, rF the EFFECTIVE scale of a trial spec's pay-proportional coins,
+    // measured with common random numbers (integer rounding moves it off s by up to ~0.1%).
+    const LB = lb.rho * before.base;
+    const LF = lf ? lf.rho * before.feature : 0;
+    const L1 = LB + LF;
     if (!(L1 > 0)) {
       console.error('refused: no pay-proportional RTP to scale');
       return false;
     }
-    console.log(`  pay-proportional RTP ${(L1 * 100).toFixed(3)}% of ${(before.rtp * 100).toFixed(3)}%; the rest (${((before.rtp - L1) * 100).toFixed(3)}%) doesn't scale with the pays`);
-    let s = 1;
-    let best = { s: 1, r: cur, base: a.spec, feat: a.featureSpec };
-    for (let it = 1; it <= 3 && !inside(cur); it++) {
-      s = s + (target - cur.rtp) / L1;
-      const base = scalePays(a.spec, s);
-      const feat = a.featureSpec ? scalePays(a.featureSpec, s) : null;
-      writeTrial(base, feat);
-      cur = runEval(trial, a.evalArgs);
-      console.log(`  scale ×${s.toFixed(6)}: ${fmt(cur)}`);
-      if (Math.abs(cur.rtp - target) < Math.abs(best.r.rtp - target)) best = { s, r: cur, base, feat };
+    console.log(`  pay-proportional RTP ${(L1 * 100).toFixed(3)}% of ${(before.rtp * 100).toFixed(3)}%; the rest (${((before.rtp - L1) * 100).toFixed(3)}%) doesn't scale with the pays (cap loss included)`);
+    const m0 = new Map<SlotSpec, number>();
+    const effScale = (spec0: SlotSpec, spec1: SlotSpec, rho: number) => {
+      if (!m0.has(spec0)) m0.set(spec0, meanCoins(spec0, CRN_SPINS));
+      const m = m0.get(spec0)!;
+      return (meanCoins(spec1, CRN_SPINS) - (1 - rho) * m) / (rho * m);
+    };
+    interface Trial { s: number; rB: number; rF: number; base: SlotSpec; feat: SlotSpec | null }
+    const trialAt = (sc: number): Trial => {
+      const base = scalePays(a.spec, sc);
+      const feat = a.featureSpec ? scalePays(a.featureSpec, sc) : null;
+      return { s: sc, base, feat, rB: lb.rho > 0 ? effScale(a.spec, base, lb.rho) : 1, rF: feat && lf && lf.rho > 0 ? effScale(a.featureSpec!, feat, lf.rho) : 1 };
+    };
+    const lin = (t: Trial) => t.rB * LB + t.rF * LF;
+    // pooled N over every eval (inverse-variance weights; an exact eval pins it)
+    const points: { t: Trial; r: EvalRead }[] = [{ t: { s: 1, rB: 1, rF: 1, base: a.spec, feat: a.featureSpec }, r: before }];
+    const pooled = () => {
+      let sw = 0;
+      let swn = 0;
+      for (const { t, r } of points) {
+        const w = 1 / Math.max(r.tier === 'mc' ? r.se : 0, 1e-9) ** 2;
+        sw += w;
+        swn += w * (r.rtp - lin(t));
+      }
+      return { N: swn / sw, se: points.some((q) => q.r.tier !== 'mc') ? 0 : 1 / Math.sqrt(sw) };
+    };
+    // the trial whose predicted RTP is on target: solve s against the measured effective scale
+    const solve = (N: number): Trial => {
+      let sc = (target - N) / L1;
+      let t = trialAt(sc);
+      for (let k = 0; k < 3; k++) {
+        const err = target - (N + lin(t));
+        if (Math.abs(err) < 1e-6) break;
+        sc += err / L1;
+        t = trialAt(sc);
+      }
+      return t;
+    };
+    let pick = points[0].t;
+    for (let it = 1; it <= 3; it++) {
+      const P = pooled();
+      const predNow = P.N + lin(pick);
+      if (Math.abs(predNow - target) <= 0.0005 && P.se <= 0.0005 / 2) break;
+      const t = solve(P.N);
+      const r = (writeTrial(t.base, t.feat), evalAt(it));
+      points.push({ t, r });
+      pick = t;
+      const Q = pooled();
+      console.log(`  scale ×${t.s.toFixed(6)} (effective ×${t.rB.toFixed(5)} base, ×${t.rF.toFixed(5)} feature): this eval ${fmt(r)}; pooled over ${points.length} evals ${((Q.N + lin(t)) * 100).toFixed(4)}% ± ${(Q.se * 100).toFixed(4)}%`);
     }
+    // the final pays: on target under the pooled estimate
+    const P = pooled();
+    if (points.length > 1) pick = solve(P.N);
+    const pred = P.N + lin(pick);
+    const final: EvalRead = { rtp: pred, tier: P.se > 0 ? 'mc' : before.tier, se: P.se, base: NaN, feature: NaN, ok: true, log: '' };
+    const best = { s: pick.s, r: final, base: pick.base, feat: pick.feat };
     const ok = inside(best.r) || withinNoise(best.r);
     console.log('');
-    console.log(row('total RTP (capped)', fmt(before).split(' (')[0], fmt(best.r).split(' (')[0]));
-    console.log(row('base RTP', `${(before.base * 100).toFixed(4)}%`, `${(best.r.base * 100).toFixed(4)}%`));
-    console.log(row('feature RTP', `${(before.feature * 100).toFixed(4)}%`, `${(best.r.feature * 100).toFixed(4)}%`));
+    console.log(row('total RTP (capped)', fmt(before).split(' (')[0], `${fmt(final).split(' (')[0]} (pooled over ${points.length} evals at their effective scales)`));
     console.log(
       `  RTP error ${((best.r.rtp - target) * 100).toFixed(4)} percentage points: ${inside(best.r) ? 'inside the ±0.05 pp band' : withinNoise(best.r) ? `within noise (outside ±0.05 pp but within 3 SE = ${(3 * best.r.se * 100).toFixed(3)} pp; more --budget-s narrows it)` : 'OUTSIDE the ±0.05 pp band'}; capped RTP (slots:eval's, cap loss included)`,
     );
