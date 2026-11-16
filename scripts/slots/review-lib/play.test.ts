@@ -84,6 +84,7 @@ describe('featureQueries', () => {
     expect(featureQueries({ feature: { kind: 'free_spins' } }, { mechanics: [{ id: 'expanding_wild' }, { id: 'sticky_respin' }] })).toEqual(['feature=1', 'feature=respin']);
     expect(featureQueries({}, respinSpec)).toEqual(['feature=respin']);
     expect(featureQueries({}, { mechanics: [{ id: 'cascade_step_ladder' }] })).toEqual([]);
+    expect(featureQueries({ modifierFeature: { name: 'Honey harvest', mechanic: 'x' } })).toEqual(['feature=respin']);
   });
   it('refuses anything but a kit dev query', () => {
     expect(() => featureQueries({ review: { featureQuery: 'feature=free;alert(1)' } })).toThrow(/featureQuery/);

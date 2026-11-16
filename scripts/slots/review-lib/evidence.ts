@@ -32,12 +32,16 @@ export const srcFiles = (id: string) => walk(srcDir(id)).map((p) => relative(src
 
 /** The slot kit and engine (`@originals/slots`): every slot is drawn and played by it, so it is part of the code hash. */
 export const KIT_SRC = join(ROOT, 'packages', 'slots', 'src');
-/** Kit files that can't change how a game plays or looks: tests and their fixtures. */
-const KIT_NOT_HASHED = /(\.test\.tsx?$|(^|\/)fixtures\/)/;
+/**
+ * Kit files that can't change how a game plays or looks: tests, their fixtures, and the analytics
+ * (engine/analytics: slots:eval's maths, still changing; its results reach the review through
+ * slot-facts.json, which carries them).
+ */
+const KIT_NOT_HASHED = /(\.test\.tsx?$|(^|\/)fixtures\/|^engine\/analytics\/)/;
 
 /**
  * Hash of the game's src minus the review and facts files, plus the slot kit and engine
- * (packages/slots/src minus tests and fixtures), so a kit change makes every slot review stale.
+ * (packages/slots/src minus tests, fixtures and engine/analytics), so a kit or engine change makes every slot review stale.
  * Line endings normalised, as for Originals.
  */
 export function slotCodeHash(id: string): string {

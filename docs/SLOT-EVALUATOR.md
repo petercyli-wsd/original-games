@@ -21,7 +21,7 @@ The slot evaluator is the AI review that decides whether an original slot is kep
 **The blind session.** The player plays like a real slot player:
 - at least 60 spins, at normal speed and in Turbo, and an Autoplay run;
 - every feature the slot has, each forced once through the kit's dev hooks. In real play a feature comes once in 80–300 spins, so a 60-spin session would rarely see one. Each `feature` step forces the next feature in the game's list:
-  - by default, free spins (`slot.config.json` `feature`) as `feature=1`, then a respin chain as `feature=respin` when the base spec has a `*respin*` mechanic;
+  - by default, free spins (`slot.config.json` `feature`) as `feature=1`, then a respin chain as `feature=respin` when the config has a `modifierFeature` or the base spec has a `*respin*` mechanic;
   - `slot.config.json` `review: { featureQuery: … }` overrides the list with one query or several, each `feature=1`, `feature=free`, `feature=respin` or `seed=<n>` (a seed the builder found). Example: `{ "review": { "featureQuery": ["feature=free", "seed=351"] } }`.
 
   `play` passes the list to the hook, which turns each entry into one fixed `window.__slotDev` call. The player never sees the queries, only "feature 1 of 2";
@@ -104,7 +104,7 @@ The weights add up to 17. A slot that scores 4 everywhere is 4.00. A 3 on readab
 | `.evaluator/slots/<id>/score.json` | `score` | The full scoring detail: mean, grades, bands, reskin twins, session shortfalls and panel spread. |
 | `.evaluator/slots/<id>/play-errors.log` | `play` | Tool crashes, kept out of the player's folder because they may name the game. |
 
-**Staleness.** `codeHash` is a hash of everything in `games/<id>/src` except `slot-review.json` and `slot-facts.json`, plus the slot kit and engine (`packages/slots/src`, minus tests and fixtures), which draw and play every slot. Any other change, the manifest or the kit included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
+**Staleness.** `codeHash` is a hash of everything in `games/<id>/src` except `slot-review.json` and `slot-facts.json`, plus the slot kit and engine (`packages/slots/src`), which draw and play every slot. Left out of the kit: tests, fixtures and `engine/analytics/**`. The analytics are `slots:eval`'s maths, they don't change what the player sees or the outcomes, and their results reach the review through `slot-facts.json` (re-run `slots:eval` just before `score`). Any other change, the manifest or the kit included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
 
 ## 4. What it can't know yet
 

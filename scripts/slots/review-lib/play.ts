@@ -32,8 +32,8 @@ export const FEATURE_QUERY = /^(feature=(1|main|free|respin)|seed=\d{1,10})$/;
 /**
  * The features a blind player must see, in the order the `feature` step forces them.
  * - `slot.config.json` `review.featureQuery` (a query or a list of them) decides when present.
- * - Otherwise: free spins (`config.feature`) as `feature=1`, plus `feature=respin` when the base spec
- *   has a respin mechanic (`*respin*`, e.g. hold_and_spin_lock_respin, sticky_respin).
+ * - Otherwise: free spins (`config.feature`) as `feature=1`, plus `feature=respin` when the config has a
+ *   `modifierFeature` or the base spec has a respin mechanic (`*respin*`, e.g. hold_and_spin_lock_respin, sticky_respin).
  * Empty for a pure base game. Throws on a malformed `review.featureQuery`.
  */
 export function featureQueries(config: unknown, spec?: unknown): string[] {
@@ -50,7 +50,8 @@ export function featureQueries(config: unknown, spec?: unknown): string[] {
   const out: string[] = [];
   if (obj(config) && obj(config.feature)) out.push('feature=1');
   const mechanics = obj(spec) && Array.isArray(spec.mechanics) ? spec.mechanics : [];
-  if (mechanics.some((m) => obj(m) && /respin/i.test(String(m.id ?? m.family ?? '')))) out.push('feature=respin');
+  const modifier = obj(config) && obj(config.modifierFeature);
+  if (modifier || mechanics.some((m) => obj(m) && /respin/i.test(String(m.id ?? m.family ?? '')))) out.push('feature=respin');
   return out;
 }
 
