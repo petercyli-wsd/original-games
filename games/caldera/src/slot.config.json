@@ -1,0 +1,22 @@
+{
+ "maxWinStakes": 3000,
+ "volatility": "high",
+ "targetRtp": 0.96,
+ "feature": {
+  "kind": "free_spins",
+  "spec": "feature.spec.json",
+  "awards": {
+   "3": 5,
+   "4": 7,
+   "5": 9
+  },
+  "retrigger": {
+   "3": 2
+  },
+  "maxSpins": 40,
+  "multiplier": {
+   "kind": "constant",
+   "value": 1
+  }
+ }
+}
