@@ -6,6 +6,8 @@ The slot evaluator is the AI review that decides whether an original slot is kep
 - **Plumbing:** `npm run slots:review -- …`, in `scripts/slots/review.ts` and `scripts/slots/review-lib/`.
 - **Pipelines that use it:** `/generate-slots` and `/search-slots`.
 
+**Version 2 (2026-11-16).** Facts not written by `slots:eval` fail the gate; the blind player must see every feature, free spins and respin chains alike (`review.featureQuery`); a respin-only slot is no longer a pure base game; the code hash covers the slot kit. These close holes in the §5 contract rather than tune a weight, and with no team ratings of slots there was nothing to A/B against. Every v1 review shows as stale.
+
 ## 1. How it works
 
 **Three roles, each a fresh Opus subagent that sees only its own inputs:**
@@ -18,13 +20,17 @@ The slot evaluator is the AI review that decides whether an original slot is kep
 
 **The blind session.** The player plays like a real slot player:
 - at least 60 spins, at normal speed and in Turbo, and an Autoplay run;
-- one feature, forced through the kit's dev hook (`window.__slotDev.feature()`, the same as `?feature=1`). In real play the feature comes once in 80–300 spins, so a 60-spin session would rarely see one;
+- every feature the slot has, each forced once through the kit's dev hooks. In real play a feature comes once in 80–300 spins, so a 60-spin session would rarely see one. Each `feature` step forces the next feature in the game's list:
+  - by default, free spins (`slot.config.json` `feature`) as `feature=1`, then a respin chain as `feature=respin` when the base spec has a `*respin*` mechanic;
+  - `slot.config.json` `review: { featureQuery: … }` overrides the list with one query or several, each `feature=1`, `feature=free`, `feature=respin` or `seed=<n>` (a seed the builder found). Example: `{ "review": { "featureQuery": ["feature=free", "seed=351"] } }`.
+
+  `play` passes the list to the hook, which turns each entry into one fixed `window.__slotDev` call. The player never sees the queries, only "feature 1 of 2";
 - the paytable, opened once.
 
 Its only tool is `npm run slots:review -- play <alias> "<steps>"`. That runs `scripts/play.mjs --blind` on the aliased game, through a preload (`review-lib/play-hook.mjs`) that adapts the Originals sandbox to slots:
 - the How-to-play button and its paytable dialog stay visible (Originals hide them);
 - `text:` steps can also press toggles such as Turbo;
-- a `feature` step and a `scroll` step run one fixed expression each. The player has no free JavaScript.
+- a `feature` step and a `scroll` step run one fixed expression each (the `feature` step's comes from the game's feature list, never from the player). The player has no free JavaScript.
 
 Prose of 9+ words stays hidden everywhere, the paytable included. A slot must explain itself in short lines, as good market slots do ("3 chests = 8 free spins").
 
@@ -50,18 +56,18 @@ The declared volatility comes from `slot.config.json` (or a single-entry manifes
    - each two-sided band's own width: RTP 1 point, hit rate 25 points (general), SD 3 / 5 / 10 by band;
    - the open extreme-volatility band: 10;
    - the one-sided bands (dry streak, max-win reachability): the bound itself, so a dry-streak p95 over twice its limit caps.
-4. **Weighted mean.** The weights are below. A pure base game (no feature) drops feature clarity from both the mean and the gate.
+4. **Weighted mean.** The weights are below. A pure base game (no feature) drops feature clarity from both the mean and the gate. A slot whose only feature is a respin chain in the base game is not a pure base game.
 5. **Readability cap.** The overall is at most 1.5 + 0.75 × readability: 3.0 at readability 2, 3.75 at readability 3.
 6. **Gate (keep).** All of these must hold:
    - overall ≥ 3.5;
    - readability ≥ 3 and feature clarity ≥ 3;
    - `oracle.json` present, and RTP in 95.5–96.5%. The RTP is the game's total RTP from `slot-facts.json`, or the oracle's base RTP for a pure base game;
-   - the oracle reproduced: the parity check that `slots:eval` records in `slot-facts.json` (`oracle.status`) passed, and the facts were measured from the spec the oracle holds (the same `specHash`);
+   - the oracle reproduced: the parity check that `slots:eval` records in `slot-facts.json` (`oracle.status`) passed, and the facts were measured from the spec the oracle holds (the same `specHash`). Facts with no `oracle.status` or no `specHash` weren't written by `slots:eval` (hand-written, or a game-local script) and fail as "facts not from slots:eval";
    - hit rate in band, dry-streak p95 within its volatility's limit, and P(max win) above 1 in 10⁹. A measure that wasn't measured fails;
    - not a reskin;
    - no trademarked mechanic name;
    - a full panel when the overall is 3.25–3.75 (inclusive);
-   - every player's session complete by the play log: 60+ spins (an Autoplay watch shot counts as one), Turbo, Autoplay, the paytable, and a feature run (if the slot has a feature). This one is a validity check, not a §5 quality bar: an under-tested review can't pass.
+   - every player's session complete by the play log: 60+ spins (an Autoplay watch shot counts as one), Turbo, Autoplay, the paytable, and a run of every feature the slot has ("saw 1 of 2 features" falls short). This one is a validity check, not a §5 quality bar: an under-tested review can't pass.
 
 **Reskins.** A reskin is a catalogue slot with the same signature. The signature has three parts:
 - the evaluation law on its board law and board size (e.g. `payline|global_mixture 5×3`);
@@ -98,7 +104,7 @@ The weights add up to 17. A slot that scores 4 everywhere is 4.00. A 3 on readab
 | `.evaluator/slots/<id>/score.json` | `score` | The full scoring detail: mean, grades, bands, reskin twins, session shortfalls and panel spread. |
 | `.evaluator/slots/<id>/play-errors.log` | `play` | Tool crashes, kept out of the player's folder because they may name the game. |
 
-**Staleness.** `codeHash` is a hash of everything in `games/<id>/src` except `slot-review.json` and `slot-facts.json`. Any other change, the manifest included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
+**Staleness.** `codeHash` is a hash of everything in `games/<id>/src` except `slot-review.json` and `slot-facts.json`, plus the slot kit and engine (`packages/slots/src`, minus tests and fixtures), which draw and play every slot. Any other change, the manifest or the kit included, makes the review stale, and `todo` lists the slot. A change to `SLOT_REVIEW_VERSION` (in `scores.ts`) also makes every review stale. Bump it when a prompt, a weight, a cap or the gate changes.
 
 ## 4. What it can't know yet
 

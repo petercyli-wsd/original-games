@@ -14,7 +14,7 @@ Read `docs/SLOT-EVALUATOR.md` once if you haven't: it explains the scores, the c
 The slot review is **local and file-based**. There is no API and nothing to submit: `score` writes `games/<id>/src/slot-review.json`, which is committed with the game, and the site shows it on the game page. The CLI (`npm run slots:review -- …`) does all the plumbing. You run three kinds of judgement step, each in a **fresh `opus` subagent** that sees only what its step allows:
 
 - **Rules card** (reads the spec, config and source): a factual card about the slot. Facts only.
-- **Blind players** (screenshots only): each plays a whole session under an alias. That means 60+ spins, Turbo, Autoplay, one forced feature and the paytable. Each scores theme, readability, feature clarity, excitement and fun, and answers factual checks. A player never sees the id, the name, the source, the card, docs or reviews. This is the step that matters most: an AI that reads the code rates a game far clearer than a player does.
+- **Blind players** (screenshots only): each plays a whole session under an alias. That means 60+ spins, Turbo, Autoplay, every feature (each forced once: free spins, respin chains) and the paytable. Each scores theme, readability, feature clarity, excitement and fun, and answers factual checks. A player never sees the id, the name, the source, the card, docs or reviews. This is the step that matters most: an AI that reads the code rates a game far clearer than a player does.
 - **Designer** (card + measured facts + the panel's answers + screenshots + the slot catalogue): scores creativity, maths fit, uniqueness and polish. It grades whether each player understood the slot, names trademark uses, and names a reskin.
 
 Code computes the overall, the caps and the gate. Never edit a score, a JSON file a subagent wrote, or `slot-review.json` yourself.
@@ -22,7 +22,8 @@ Code computes the overall, the caps and the gate. Never edit a score, a JSON fil
 ## Before you start
 
 - The game must have `slot.spec.json`, `slot.config.json`, `oracle.json` (`npm run slots:oracle -- <id>`) and `slot-facts.json` (`npm run slots:eval -- <id>`), all current. `prepare` warns about anything missing, and the gate fails without them.
-- **Set the manifest `revision` before the first `prepare`.** The review is tied to a hash of `games/<id>/src` (everything except `slot-review.json` and `slot-facts.json`). Any later change to a file in it, the manifest included, makes the review stale.
+- **Set the manifest `revision` before the first `prepare`.** The review is tied to a hash of `games/<id>/src` (everything except `slot-review.json` and `slot-facts.json`) and of the slot kit (`packages/slots/src`). Any later change to a file in either, the manifest included, makes the review stale.
+- **Features the player must see.** Each `feature` step forces the game's next feature: free spins, then a respin chain if the spec has a respin mechanic. A builder can set the list in `slot.config.json` `review.featureQuery` (`feature=1|free|respin` or `seed=<n>`, one or a list), e.g. a seed that shows a long respin chain. The player sees only "feature 1 of 2".
 
 ## For each game
 

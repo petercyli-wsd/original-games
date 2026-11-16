@@ -26,6 +26,10 @@ describe('factsIntegrity', () => {
   });
   it('fails a failed or stale oracle check, and facts from another spec', () => {
     expect(factsIntegrity({ specHash: 'aaa', oracle: { status: 'stale', detail: 'spec changed' } }, oracle)).toEqual(['oracle check stale in slots:eval: spec changed']);
-    expect(factsIntegrity({ specHash: 'bbb' }, oracle)).toEqual([expect.stringMatching(/different specs/)]);
+    expect(factsIntegrity({ specHash: 'bbb', oracle: { status: 'pass' } }, oracle)).toEqual([expect.stringMatching(/different specs/)]);
+  });
+  it('fails facts that slots:eval did not write (no oracle check or no specHash)', () => {
+    expect(factsIntegrity({ rtp: 0.96, note: 'game-local script' }, oracle)).toEqual([expect.stringMatching(/^facts not from slots:eval/)]);
+    expect(factsIntegrity({ oracle: { status: 'pass' } }, oracle)).toEqual([expect.stringMatching(/^facts not from slots:eval/)]);
   });
 });

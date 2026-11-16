@@ -12,7 +12,7 @@
 //                                           --more adds the N plays to the game's current panel
 //   play <alias> "<steps>"                  the blind player's only tool (scripts/play.mjs --blind, mapped
 //                                           from the alias); helper steps spin, spin×N, turbo, autoplay,
-//                                           watch×N, feature (loads with ?feature=1), paytable, close
+//                                           watch×N, feature (forces the game's next feature), paytable, close
 //   judge-prompt <id...>                    the designer prompt (card + facts + panel + catalogue)
 //                                           → .evaluator/slots/<id>/judge.md + review.schema.json
 //   score <id...> [--dry-run]               overall, caps and gate in code → games/<id>/src/slot-review.json
@@ -24,11 +24,11 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { join, relative } from 'node:path';
 import { parseArgs } from 'node:util';
 import { catalogueEntries, catalogueText, twinsOf } from './review-lib/catalogue';
-import { buildEvidence, legacySlotIds, signatureText, slotCodeHash, slotGameIds, srcDir, themeSources, type SlotEvidence } from './review-lib/evidence';
+import { buildEvidence, legacySlotIds, readJsonFile, signatureText, slotCodeHash, slotGameIds, srcDir, themeSources, type SlotEvidence } from './review-lib/evidence';
 import { bandTable } from './review-lib/facts';
 import { mergePanel, panelLabel, panelText, playerProblems } from './review-lib/panel';
 import { BLIND, ROOT, WORK } from './review-lib/paths';
-import { readPlayLog, runPlay, sessionShortfalls } from './review-lib/play';
+import { featureQueries, readPlayLog, runPlay, sessionShortfalls } from './review-lib/play';
 import { CARD_SCHEMA, CARD_SYSTEM, cardUser } from './review-lib/prompts/card';
 import { JUDGE_SYSTEM, judgeSchema, judgeUser, type DesignerReview } from './review-lib/prompts/judge';
 import { PLAYER_SYSTEM, playerSchema, playerUser, type PlayerReview } from './review-lib/prompts/player';
@@ -100,6 +100,9 @@ Reply with a single JSON object only (no prose, no code fences) that matches the
 // player is never told about.
 // ---------------------------------------------------------------------------
 
+/** How the review forces each of the game's features (slot.config.json review.featureQuery, or free spins / respins). Throws on a bad featureQuery. */
+const gameFeatures = (id: string) => featureQueries(readJsonFile(join(srcDir(id), 'slot.config.json')), readJsonFile(join(srcDir(id), 'slot.spec.json')));
+
 const aliasFile = (alias: string) => join(BLIND, '_map', alias);
 const gameOfAlias = (alias: string) => (existsSync(aliasFile(alias)) ? readFileSync(aliasFile(alias), 'utf8').trim() : undefined);
 type PlayerMeta = { aliases: string[]; codeHash: string };
@@ -165,6 +168,12 @@ async function playerPrompt() {
     if (!existsSync(join(srcDir(id), 'manifest.ts'))) fail(`No game ${id}`);
     const d = gameDir(id);
     const codeHash = slotCodeHash(id);
+    let features: string[];
+    try {
+      features = gameFeatures(id);
+    } catch (err) {
+      fail(`${id}: ${(err as Error).message}`);
+    }
     const current = values.more ? metaOf(id) : undefined;
     if (current && current.codeHash !== codeHash) fail(`${id}: the code changed since the current panel was played; start a new panel (no --more)`);
     const aliases = [...(current?.aliases ?? [])];
@@ -175,7 +184,7 @@ async function playerPrompt() {
       mkdirSync(b, { recursive: true });
       write(aliasFile(alias), id);
       write(join(b, 'player.schema.json'), playerSchema());
-      write(join(b, 'player.md'), promptFile(PLAYER_SYSTEM, playerUser(alias), rel(join(b, 'player.schema.json'))));
+      write(join(b, 'player.md'), promptFile(PLAYER_SYSTEM, playerUser(alias, features.length), rel(join(b, 'player.schema.json'))));
       aliases.push(alias);
       console.log(`✓ ${id}: blind player ${panelLabel(aliases.length - 1)} as ${alias} → read ${rel(join(b, 'player.md'))}, write ${rel(join(b, 'player.json'))}`);
     }
@@ -190,9 +199,18 @@ async function play() {
   if (!alias || !steps) fail('Usage: npm run slots:review -- play <alias> "<steps>"');
   const id = gameOfAlias(alias);
   if (!id) fail(`No player ${alias}`);
+  const errorLog = join(gameDir(id), 'play-errors.log');
+  let features: string[];
+  try {
+    features = gameFeatures(id);
+  } catch (err) {
+    // The message names the game's config: keep it from the player.
+    writeFileSync(errorLog, `${new Date().toISOString()} ${(err as Error).message}\n`, { flag: 'a' });
+    fail('The sandbox could not be set up; stop and report this.');
+  }
   let res;
   try {
-    res = runPlay(id, join(BLIND, alias), steps, join(gameDir(id), 'play-errors.log'));
+    res = runPlay(id, join(BLIND, alias), steps, errorLog, features);
   } catch (err) {
     fail((err as Error).message);
   }
@@ -248,7 +266,7 @@ async function judgePrompt() {
     const meta = metaOf(id)!;
     if (meta.codeHash !== e.codeHash) fail(`${id}: the panel played older code; run player-prompt ${id} again`);
     const merged = mergePanel(reviews);
-    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature));
+    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature, e.features.length));
     shortfalls.forEach((s, i) => s.length && console.log(`! ${id}: player ${panelLabel(i)} (${aliases[i]}) fell short of the session brief: ${s.join('; ')}`));
     const entries = await catalogueEntries(id);
     const twins = twinsOf(e.signature, entries);
@@ -323,7 +341,7 @@ async function score() {
       players: merged.players,
       trademarks: [...e.trademarks, ...(Array.isArray(review.trademarks) ? review.trademarks.filter((t) => typeof t === 'string' && t.trim()).map((t) => `${t} (designer)`) : [])],
     });
-    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature));
+    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature, e.features.length));
     // A player who didn't play the session (from the play log, not its own account) hasn't reviewed the slot.
     shortfalls.forEach((s, i) => s.length && reasons.push(`review incomplete: player ${panelLabel(i)}'s session fell short (${s.join(', ')}); replace the panel`));
     const misreads = review.comprehension.filter((c) => c.grade !== 'correct').map((c) => `Player ${c.player} ${c.grade}: ${c.reasoning}`);

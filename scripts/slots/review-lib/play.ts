@@ -21,23 +21,63 @@ export const WATCH_WAIT = 1500;
 export const MAX_SPINS_PER_CALL = 40;
 export const SHEET = { cols: 2, rows: 3, thumbW: 640, thumbH: 400 };
 
+/**
+ * How the review forces each of a slot's features, as a kit dev query (engine-bridge.ts):
+ * `feature=1` (the game's main feature, the same as `feature=main`), `feature=free` (free spins),
+ * `feature=respin` (a respin chain) or `seed=<n>` (a known seed). play-hook.mjs turns each into one
+ * fixed `window.__slotDev` call; the blind player never sees which.
+ */
+export const FEATURE_QUERY = /^(feature=(1|main|free|respin)|seed=\d{1,10})$/;
+
+/**
+ * The features a blind player must see, in the order the `feature` step forces them.
+ * - `slot.config.json` `review.featureQuery` (a query or a list of them) decides when present.
+ * - Otherwise: free spins (`config.feature`) as `feature=1`, plus `feature=respin` when the base spec
+ *   has a respin mechanic (`*respin*`, e.g. hold_and_spin_lock_respin, sticky_respin).
+ * Empty for a pure base game. Throws on a malformed `review.featureQuery`.
+ */
+export function featureQueries(config: unknown, spec?: unknown): string[] {
+  const obj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+  const review = obj(config) && obj(config.review) ? config.review : undefined;
+  const explicit = review?.featureQuery;
+  if (explicit !== undefined) {
+    const list = Array.isArray(explicit) ? explicit : [explicit];
+    const bad = list.filter((q) => typeof q !== 'string' || !FEATURE_QUERY.test(q.replace(/^\?/, '')));
+    if (!list.length || bad.length)
+      throw new Error(`slot.config.json review.featureQuery must be one or more of "feature=1", "feature=free", "feature=respin" or "seed=<n>" (got ${JSON.stringify(explicit)})`);
+    return list.map((q) => (q as string).replace(/^\?/, ''));
+  }
+  const out: string[] = [];
+  if (obj(config) && obj(config.feature)) out.push('feature=1');
+  const mechanics = obj(spec) && Array.isArray(spec.mechanics) ? spec.mechanics : [];
+  if (mechanics.some((m) => obj(m) && /respin/i.test(String(m.id ?? m.family ?? '')))) out.push('feature=respin');
+  return out;
+}
+
 export interface Expanded {
   /** play.mjs steps. */
   steps: string[];
   /** For each `text:` step in order, what it was for (to count presses from play.mjs's output). */
   textTags: ('spin' | 'turbo' | 'autoplay' | 'paytable' | 'close' | 'other')[];
   counts: { spins: number; watches: number; turbo: boolean; autoplay: boolean; feature: boolean; paytable: boolean };
+  /** Which features (1-based, in featureQueries order) the run's `feature` steps forced. */
+  features: number[];
 }
 
 const REPEAT = /^(spin|watch)\s*(?:[×x*]\s*(\d+))?(?:@(\d+))?$/i;
 
-/** Expands the player's steps. Throws on an unknown or disallowed step. */
-export function expandSteps(input: string): Expanded {
+/**
+ * Expands the player's steps. Throws on an unknown or disallowed step. Each `feature` step forces
+ * the next of the game's `featureCount` features, counting on from `featuresDone` earlier ones.
+ */
+export function expandSteps(input: string, opts: { featureCount?: number; featuresDone?: number } = {}): Expanded {
+  const featureCount = Math.max(1, opts.featureCount ?? 1);
+  let featureNext = opts.featuresDone ?? 0;
   const raw = input
     .split(';')
     .map((s) => s.trim())
     .filter(Boolean);
-  const out: Expanded = { steps: [], textTags: [], counts: { spins: 0, watches: 0, turbo: false, autoplay: false, feature: false, paytable: false } };
+  const out: Expanded = { steps: [], textTags: [], counts: { spins: 0, watches: 0, turbo: false, autoplay: false, feature: false, paytable: false }, features: [] };
   let turbo = false;
   let pages = 0;
   const text = (label: string, tag: Expanded['textTags'][number]) => {
@@ -82,10 +122,13 @@ export function expandSteps(input: string): Expanded {
       text(LABELS.autoplayStart, 'autoplay');
       out.steps.push('wait:400');
     } else if (lower === 'feature') {
-      // The kit's dev hook (window.__slotDev.feature(), the same as ?feature=1): the next spin triggers
-      // the feature. play-hook.mjs turns this virtual key into that one call. It can search for up to 4 s.
+      // The kit's dev hook for the game's next feature (featureQueries: window.__slotDev.feature(kind)
+      // or .seed(n)): the next spin triggers it. play-hook.mjs turns this virtual key into that one
+      // call. A feature search can take up to 5 s.
+      const n = (featureNext++ % featureCount) + 1;
       out.counts.feature = true;
-      out.steps.push('key:SlotFeature', 'wait:300');
+      out.features.push(n);
+      out.steps.push(`key:SlotFeature${n}`, 'wait:300');
     } else if (lower === 'paytable') {
       // Open it and take three pages of it (the sheet scrolls).
       out.counts.paytable = true;
@@ -162,9 +205,14 @@ export interface PlayLogEntry {
   turbo: boolean;
   autoplay: boolean;
   feature: boolean;
+  /** The features (1-based) this run forced, when a spin followed. Older logs have only `feature` (= feature 1). */
+  features?: number[];
   paytable: boolean;
   failedClicks: number;
 }
+
+/** The distinct features (1-based) a session forced. */
+const featuresSeen = (log: PlayLogEntry[]) => new Set(log.flatMap((e) => e.features ?? (e.feature ? [1] : [])));
 
 /** Totals over every play call of one blind player: what the review checks the session against. */
 export function playTotals(log: PlayLogEntry[]) {
@@ -175,12 +223,19 @@ export function playTotals(log: PlayLogEntry[]) {
     turbo: log.some((e) => e.turbo),
     autoplay: log.some((e) => e.autoplay),
     feature: log.some((e) => e.feature),
+    /** How many of the game's features were forced (distinct). */
+    features: featuresSeen(log).size,
+    /** Feature steps forced so far (where the next `feature` step continues). */
+    featureRuns: log.reduce((s, e) => s + (e.features?.length ?? (e.feature ? 1 : 0)), 0),
     paytable: log.some((e) => e.paytable),
   };
 }
 
-/** What a blind session lacks against the brief (≥ 60 spins incl. Turbo and Autoplay, a feature, the paytable). */
-export function sessionShortfalls(log: PlayLogEntry[], hasFeature = true): string[] {
+/**
+ * What a blind session lacks against the brief (≥ 60 spins incl. Turbo and Autoplay, every feature,
+ * the paytable). `featureCount` is the number of features the game has (featureQueries).
+ */
+export function sessionShortfalls(log: PlayLogEntry[], hasFeature = true, featureCount = 1): string[] {
   const t = playTotals(log);
   const out: string[] = [];
   // Autoplay spins are watched, not pressed: each watch shot counts as about one spin.
@@ -188,6 +243,7 @@ export function sessionShortfalls(log: PlayLogEntry[], hasFeature = true): strin
   if (!t.turbo) out.push('no Turbo');
   if (!t.autoplay) out.push('no Autoplay');
   if (hasFeature && !t.feature) out.push('no feature run');
+  else if (hasFeature && featureCount > 1 && t.features < featureCount) out.push(`saw ${t.features} of ${featureCount} features`);
   if (!t.paytable) out.push('never opened the paytable');
   return out;
 }
@@ -198,8 +254,11 @@ export const readPlayLog = (aliasDir: string): PlayLogEntry[] => {
 };
 
 /** Runs one play call for the game behind an alias; prints what the player may see. */
-export function runPlay(gameId: string, aliasDir: string, input: string, errorLog?: string): { ok: boolean; output: string } {
-  const ex = expandSteps(input);
+export function runPlay(gameId: string, aliasDir: string, input: string, errorLog?: string, features: string[] = []): { ok: boolean; output: string } {
+  // A pure base game still gets the kit's default hook, so a `feature` step does what it says.
+  const queries = features.length ? features : ['feature=1'];
+  const before = playTotals(readPlayLog(aliasDir));
+  const ex = expandSteps(input, { featureCount: queries.length, featuresDone: before.featureRuns });
   const uiDir = join(aliasDir, 'ui');
   mkdirSync(uiDir, { recursive: true });
   const run = readdirSync(uiDir).filter((f) => f.startsWith('run-')).length + 1;
@@ -209,7 +268,7 @@ export function runPlay(gameId: string, aliasDir: string, input: string, errorLo
     spawnSync(process.execPath, ['--import', hook, PLAY_MJS, gameId, '--blind', '--size', '1280x800', '--out', out, '--steps', ex.steps.join(';')], {
       cwd: ROOT,
       encoding: 'utf8',
-      env: { ...process.env, SLOT_PLAY_SANDBOX: 'slot' },
+      env: { ...process.env, SLOT_PLAY_SANDBOX: 'slot', SLOT_PLAY_FEATURES: JSON.stringify(queries) },
       maxBuffer: 32 * 1024 * 1024,
     });
   const crashedIn = (x: ReturnType<typeof once>) => `${x.stdout ?? ''}${x.stderr ?? ''}`.split('\n').some((l) => /^(Error|TypeError|ReferenceError)\b|^\s+at /.test(l));
@@ -249,16 +308,20 @@ export function runPlay(gameId: string, aliasDir: string, input: string, errorLo
     turbo: worked('turbo') > 0,
     autoplay: worked('autoplay') > 0,
     feature: ex.counts.feature && spinsOk > 0,
+    features: spinsOk > 0 ? ex.features : [],
     paytable: worked('paytable') > 0,
     failedClicks,
   });
   writeFileSync(join(aliasDir, 'plays.json'), `${JSON.stringify(log, null, 2)}\n`);
   const t = playTotals(log);
+  const many = queries.length > 1;
+  const forced = ex.features.length ? ` (${many ? `feature ${ex.features.join(', ')} of ${queries.length}` : 'feature'} forced: the spin after each feature step triggers it)` : '';
+  const featureLine = many ? `features ${t.features} of ${queries.length}` : `feature ${t.feature ? 'yes' : 'no'}`;
   const summary = [
-    `Run ${run}${ex.counts.feature ? ' (feature forced: the spin after the feature step triggers the bonus feature)' : ''}: ${ex.counts.spins ? `${spinsOk} of ${ex.counts.spins} spin presses worked. ` : ''}`,
+    `Run ${run}${forced}: ${ex.counts.spins ? `${spinsOk} of ${ex.counts.spins} spin presses worked. ` : ''}`,
     ...shown,
     ...(sheets.length ? [`Contact sheets (the spin and watch screenshots of this run, 6 per image, in order):`, ...sheets.map((s) => `sheet: ${s.replaceAll('\\', '/')}`)] : []),
-    `Session so far: ${t.calls} calls, ${t.spins} spins pressed, ${t.watches} autoplay watch shots, Turbo ${t.turbo ? 'yes' : 'no'}, Autoplay ${t.autoplay ? 'yes' : 'no'}, feature ${t.feature ? 'yes' : 'no'}, paytable ${t.paytable ? 'yes' : 'no'}.`,
+    `Session so far: ${t.calls} calls, ${t.spins} spins pressed, ${t.watches} autoplay watch shots, Turbo ${t.turbo ? 'yes' : 'no'}, Autoplay ${t.autoplay ? 'yes' : 'no'}, ${featureLine}, paytable ${t.paytable ? 'yes' : 'no'}.`,
   ];
   if (sandboxBroken) summary.push('✗ The sandbox could not be set up; stop and report this.');
   if (crashed) summary.push('✗ The play tool failed during this run (details logged for the operator). Try once more; if it fails again, stop and report it.');

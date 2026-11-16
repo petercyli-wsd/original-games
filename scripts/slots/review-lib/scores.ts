@@ -3,8 +3,14 @@
 // blind-player scores, the designer's scores and the measured facts, and
 // writes the result to games/<id>/src/slot-review.json.
 
-/** Bump when a prompt, a weight, a cap or the gate changes: every review under an older version shows as stale in `todo`. */
-export const SLOT_REVIEW_VERSION = 1;
+/**
+ * Bump when a prompt, a weight, a cap or the gate changes: every review under an older version shows as stale in `todo`.
+ * - v2 (2026-11-16): facts without slots:eval's oracle check and specHash fail the gate ("facts not from slots:eval");
+ *   the blind player must force and see every feature (free spins and respin chains, slot.config.json
+ *   review.featureQuery); a respin-only slot is no longer a pure base game; the code hash covers the slot kit.
+ *   Not A/B'd: no slot has team ratings yet, and these close holes in the §5 contract rather than tune a weight.
+ */
+export const SLOT_REVIEW_VERSION = 2;
 
 export const PLAYER_KEYS = ['theme', 'readability', 'feature_clarity', 'excitement', 'fun'] as const;
 export const DESIGNER_KEYS = ['creativity', 'maths_fit', 'uniqueness', 'polish'] as const;

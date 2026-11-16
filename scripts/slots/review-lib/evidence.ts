@@ -6,7 +6,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { bandRows, factGateFailures, normaliseFacts, wideMisses, type BandRow, type Declared, type SlotFactsN, type Volatility } from './facts';
-import { GAMES_DIR } from './paths';
+import { GAMES_DIR, ROOT } from './paths';
+import { featureQueries } from './play';
 
 /** Files the review writes or that are regenerated from the spec: left out of the code hash. */
 export const NOT_HASHED = new Set(['slot-review.json', 'slot-facts.json']);
@@ -29,15 +30,26 @@ function walk(dir: string): string[] {
 /** Every file under the game's src, as relative paths, sorted. */
 export const srcFiles = (id: string) => walk(srcDir(id)).map((p) => relative(srcDir(id), p).replaceAll('\\', '/'));
 
-/** Hash of the game's src minus the review and facts files. Line endings normalised, as for Originals. */
+/** The slot kit and engine (`@originals/slots`): every slot is drawn and played by it, so it is part of the code hash. */
+export const KIT_SRC = join(ROOT, 'packages', 'slots', 'src');
+/** Kit files that can't change how a game plays or looks: tests and their fixtures. */
+const KIT_NOT_HASHED = /(\.test\.tsx?$|(^|\/)fixtures\/)/;
+
+/**
+ * Hash of the game's src minus the review and facts files, plus the slot kit and engine
+ * (packages/slots/src minus tests and fixtures), so a kit change makes every slot review stale.
+ * Line endings normalised, as for Originals.
+ */
 export function slotCodeHash(id: string): string {
   const h = createHash('sha256');
-  for (const f of srcFiles(id)) {
-    if (NOT_HASHED.has(f.split('/').pop()!)) continue;
-    const buf = readFileSync(join(srcDir(id), f));
+  const add = (root: string, f: string, label: string) => {
+    const buf = readFileSync(join(root, f));
     const text = /\.(tsx?|jsx?|json|css|svg|md|html)$/.test(f) ? buf.toString('utf8').replace(/\r\n/g, '\n') : buf.toString('base64');
-    h.update(`${f}\n${text}\n`);
-  }
+    h.update(`${label}\n${text}\n`);
+  };
+  for (const f of srcFiles(id)) if (!NOT_HASHED.has(f.split('/').pop()!)) add(srcDir(id), f, f);
+  for (const f of walk(KIT_SRC).map((p) => relative(KIT_SRC, p).replaceAll('\\', '/')))
+    if (!KIT_NOT_HASHED.test(f)) add(KIT_SRC, f, `@originals/slots/${f}`);
   return h.digest('hex').slice(0, 16);
 }
 
@@ -241,13 +253,16 @@ export function themeSources(id: string): { path: string; content: string; trunc
 
 /**
  * What slots:eval itself found about the oracle (slot_facts_v1 records its parity check), and
- * whether the facts were measured from the spec the oracle holds. Gate failures; empty when fine
- * or when the facts file doesn't say.
+ * whether the facts were measured from the spec the oracle holds. Gate failures; empty when fine.
+ * Facts without the parity check (`oracle.status`) or the `specHash` weren't written by slots:eval
+ * (hand-written, or a game-local script), so nothing shows the oracle reproduced: a gate failure.
  */
 export function factsIntegrity(factsRaw: Json | undefined, oracle: OracleSummary): string[] {
   if (!factsRaw) return [];
   const out: string[] = [];
   const check = isObj(factsRaw.oracle) ? factsRaw.oracle : undefined;
+  if (typeof check?.status !== 'string' || typeof factsRaw.specHash !== 'string')
+    out.push('facts not from slots:eval (slot-facts.json has no oracle check or specHash; run npm run slots:eval)');
   if (check && typeof check.status === 'string' && check.status !== 'pass') out.push(`oracle check ${check.status} in slots:eval${typeof check.detail === 'string' && check.detail ? `: ${check.detail}` : ''}`);
   if (typeof factsRaw.specHash === 'string' && oracle.specHash && factsRaw.specHash !== oracle.specHash)
     out.push('slot-facts.json and oracle.json were made from different specs (rerun npm run slots:oracle and slots:eval)');
@@ -274,6 +289,8 @@ export interface SlotEvidence {
   rtp: number | null;
   rtpSource: string;
   hasFeature: boolean;
+  /** How the review forces each feature, in order (play.ts featureQueries); empty for a pure base game. */
+  features: string[];
   /** Trademarked mechanic names found in the code (§4): a gate fail. */
   trademarks: string[];
   warnings: string[];
@@ -303,10 +320,20 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
   const featureFamilies = oracle.features.flatMap((f) => f.families);
   const signature = signatureOf(spec, oracle, declared, featureFamilies, config);
   const bands = bandRows(facts, declared);
-  const hasFeature = !!declared.feature;
-  const rtp = facts.rtp ?? (!hasFeature && oracle.baseRtp !== undefined ? oracle.baseRtp : null);
-  const rtpSource = facts.rtp !== undefined ? 'slot-facts.json' : rtp != null ? 'oracle.json (base game, no feature)' : 'none';
-  if (facts.rtp !== undefined && !hasFeature && oracle.baseRtp !== undefined && Math.abs(facts.rtp - oracle.baseRtp) > Math.max(1e-6, 4 * (facts.rtpSe ?? 0)))
+  // The features a blind player must see (free spins, a respin chain in the base game, or what
+  // slot.config.json review.featureQuery lists). A respin-only game is not a pure base game.
+  let features: string[] = [];
+  try {
+    features = featureQueries(config, spec);
+  } catch (err) {
+    warnings.push((err as Error).message);
+  }
+  const hasFeature = !!declared.feature || features.length > 0;
+  // The oracle's base RTP is the whole game's only without a separate free-spins spec.
+  const baseOnly = !declared.feature;
+  const rtp = facts.rtp ?? (baseOnly && oracle.baseRtp !== undefined ? oracle.baseRtp : null);
+  const rtpSource = facts.rtp !== undefined ? 'slot-facts.json' : rtp != null ? 'oracle.json (base game, no free spins)' : 'none';
+  if (facts.rtp !== undefined && baseOnly && oracle.baseRtp !== undefined && Math.abs(facts.rtp - oracle.baseRtp) > Math.max(1e-6, 4 * (facts.rtpSe ?? 0)))
     warnings.push(`slot-facts RTP ${facts.rtp} differs from the pack's ${oracle.baseRtp} for a pure base game`);
   return {
     id,
@@ -327,6 +354,7 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
     rtp,
     rtpSource,
     hasFeature,
+    features,
     trademarks: trademarkHits(id),
     warnings,
   };
