@@ -1,46 +1,46 @@
 {
   "version": 2,
-  "overall": 3.44,
+  "overall": 3.24,
   "scores": {
     "theme": 4,
-    "readability": 3,
+    "readability": 4,
     "feature_clarity": 4,
-    "excitement": 4,
+    "excitement": 3,
     "fun": 3,
     "creativity": 3,
-    "maths_fit": 4,
-    "uniqueness": 3,
+    "maths_fit": 3,
+    "uniqueness": 2,
     "polish": 3
   },
   "gate": false,
   "gateReasons": [
-    "overall 3.44 < 3.5"
+    "overall 3.24 < 3.5"
   ],
-  "verdict": "A coherent, well-named clockmaker slot whose maths sits in every band. Its mechanics are Jack Hammer's sticky wins plus Starburst's wilds, and the respin chain is undermined by modal clicks, unmarked locked cells and penny-sized base wins.",
+  "verdict": "A tidy, fully in-band clockwork reskin of Jack Hammer's win-respin with Starburst wilds, which the players understood, but its 'winding' build-up mostly pays cents and never strikes the hour, so it is competent and forgettable until the chain gets a climax.",
   "pros": [
-    "Every §3 band is met, with medium volatility as declared (SD 8.54), a 1-in-149 feature carrying 39% of the RTP at 55.7× on average, and a short dry-streak p95 of 14.",
-    "Winding gives ordinary wins a second beat, and the board filling tick by tick with one symbol was the panel's favourite base-game moment.",
-    "Three full pendulum reels give a clear, visible chase in both the base game and free spins, and produce the 50–180× results.",
-    "The names and art are consistent: Winding/Tick, Pendulum, Winding key and Grand Complication all fit the watchmaker's bench, and the feature switches to a teal room."
+    "Every measured band passes, with a clean medium profile: SD 8.61, free spins 1 in 148 carrying 39% of the RTP at 55.6× on average, and a dry-streak p95 of 14.",
+    "Winding gives every winning spin a 'will it grow?' beat, and all three players named a Winding chain filling the board as a highlight.",
+    "All three players understood the top pay, the trigger and the wild. The trigger card (feature name, spin count, cause, twist) and the free-spin counter with a feature total are clear.",
+    "The theme's language is consistent across the mechanics (Winding, Tick, lock its gears, winding key, Grand Complication), and the brass/enamel/teal art is coherent."
   ],
   "cons": [
-    "Mark locked cells during Winding: give held symbols a brass frame or a lock glint, and dim or blur only the cells that respin. All three players could not tell held cells from respun ones.",
-    "Remove the Start and Continue cards for Winding at normal speed. Let the chain play automatically, as it does in Turbo, with a short 'Tick 2/4' badge, and show the line win before the chain starts instead of 'Win 0.00'.",
-    "Separate the Astronomical dial from the Cog: drop the toothed gold rim from the dial (use a smooth starred or moon bezel), and give the Clock hand a backing disc so it fills its cell like the other symbols.",
-    "Raise the low 3-of-a-kind pays (now 0.013–0.019×) and trim 5-of-a-kind or chain value to compensate, so base hits aren't mostly 1–2 cents. Make the measured RTP match the stated 96.20% (it measures 95.34%), and name the Pendulum a 'wild' in the paytable."
+    "Give the hour its strike. When a Winding chain fills the board or reaches tick 4/4 while still locking, add a 'Chime' (for example the board pays ×2, or ×3 in Grand Complication), and pay for it by trimming the 5-of-a-kind premiums. Then raise the 3-of-a-kind lows from 0.01–0.02× to about 0.04–0.05× so that chains end above a few cents more often (win > stake is only 11.3%).",
+    "Make the Winding readouts agree. Show 'Up to 4 ticks' beside the 'Tick n/4' counter and advance it on every respin. Rename the running 'Winding' amount to 'Board pays' and make the pill show the same total rather than one line (players saw 'Jewel x3 = 0.01' next to 'Winding 0.10', and a running total that went down between ticks). Show the Tick counter in free spins so players can see that Winding runs there too.",
+    "Label the specials in the paytable. Add Pendulum and Winding key tiles to the symbol grid with short lines ('Pendulum: wild, reels 2–4, fills its reel', 'Winding key: 3+ anywhere start Grand Complication'). All three players noticed that the word 'wild' never appears.",
+    "Speed up Winding and make it honest to watch. Cap each tick at about 0.6 s and let the Spin button skip the chain (one chain held Spin for over 30 s). Make the Cog and Jewel art plainer (one tone, smaller) so they stop reading as premiums. Either add an honest tease on reels 4 and 5 when two keys are showing, or accept that the 2-key near-miss goes unnoticed."
   ],
   "confusions": [
-    "At normal speed, every winning spin, even a 0.02 line, stops for a 'Winding: Up to 4 respins' card that needs Start, then a 'Total win' card that needs Continue. The Spin button becomes 'Skip' meanwhile, and my next Spin presses failed until I pressed those buttons.",
-    "Right after a win lands, the header shows a green 'Win' label but 'Win 0.00' until the respins finish, so for a moment I didn't know what had won.",
-    "During Winding ticks, the locked (held) symbols are not highlighted, so I couldn't tell which cells were held and which respun.",
-    "A winning spin shows 'Win' with Win 0.00 and doesn't show which line won before the Winding card appears. The amount only comes at the end.",
-    "Spins with a single winding key and no visible line were framed and labelled 'Win', then started Winding. I wasn't sure whether keys trigger Winding or just hold.",
-    "During Winding respins I couldn't tell which cells were locked and which were respinning.",
-    "After a base win the header showed a green 'Win' with 0.00, then a Winding card, and only after the respins was the amount added. At first I thought the win had paid nothing.",
-    "In manual play every winning spin needed a Start click, then a Continue click, before Spin worked again. Early on my spins stopped working because a card was waiting.",
-    "The Winding meter in the header didn't match the tally under the board at times (3.75 vs '13 wins = 12.18'; 19.01 then 18.62 at the same tick)."
+    "The 'Tick 0/4' counter during Winding: it sometimes stayed at 0/4 for many respins and sometimes climbed to 3/4. I didn't learn what the 4 means or what happens when it is reached.",
+    "During a Winding chain the pill shows a single line ('Jewel x3 = 0.01') or 'Winding · 0.41' while the Winding total at the top shows a different running amount, so it wasn't always clear which number would be paid.",
+    "Winding rounds keep Spin disabled for a long time (one early round ran past 30 seconds), so several of my spin presses did nothing.",
+    "During a Winding chain the running 'Winding' amount went down between ticks (e.g. 0.15 at tick 2/4, 0.11 at 4/4) and the round then paid a different amount (0.19); I couldn't tell what the running number meant.",
+    "Tick n/4: the paytable says the chain stops when a tick locks nothing, but the counter shows a maximum of 4; I'm not sure if 4 ticks is a hard cap.",
+    "The pendulum's role: the paytable says it 'swings to fill reels 2 to 4' but never says 'wild'; I inferred from line wins that it substitutes and that it fills its reel, but I never saw a single pendulum expand on screen.",
+    "The pendulum is never called a wild. I had to infer from wins that it substitutes, and 'swings to fill reels 2 to 4' doesn't say it counts as other symbols.",
+    "During Winding, Spin turns into Skip. My spin presses were ignored (several 'no enabled button') until the respin finished, and a respin takes several seconds at normal speed.",
+    "'Tick 0/4 ... 4/4': I wasn't sure whether 4 is a hard cap on ticks or just a display, or what happens at 4/4 if the board is still locking."
   ],
   "players": 3,
-  "codeHash": "220f83fa629de1a7",
+  "codeHash": "6a4a20a724708a3e",
   "date": "2026-11-16"
 }
