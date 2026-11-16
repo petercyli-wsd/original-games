@@ -86,6 +86,8 @@ export interface SlotTheme {
 export interface SlotCopy {
   /** The feature's name on its cards and in the paytable, e.g. "Tide spins". Default "Free spins". */
   featureName?: string;
+  /** The noun for the feature's spins, for the rules and cards: "rush spins". Default "free spins"; a `featureName` that already ends in "spins" is used as it is. */
+  featureSpins?: string;
   /** A line under the intro's spin count, e.g. "Every win pays double". Default: generated from the multiplier law. */
   introNote?: string;
   /** The one sentence under the board. Default: generated from the evaluation kind. */
@@ -120,8 +122,12 @@ export interface SlotCopy {
   noWinMultiplier?: 'dim' | 'hide' | 'label';
   /** Symbol ids to list first in the paytable (key symbols: wild, scatter, a cook); the special symbols then come before the pays. */
   paytableFirst?: number[];
+  /** Words for the parts of a combined multiplier chip ("Spin ×9 · Rockets ×9 = ×81"): the feature's spin, and what the spin's own multiplier is. */
+  multiplierLabels?: { spin?: string; additive?: string; reel?: string; orbs?: string };
   /** The rule line under the board while free spins run (default: the base rule). Under 9 words. */
   featureRule?: string;
+  /** Extra lines at the end of the feature's paytable section (a feature rule the config cannot say). Each under 9 words. */
+  featureNotes?: string[];
   /** The same while a respin chain runs. */
   chainRule?: string;
   /** The respin counter's word, default "Respin". */
@@ -142,8 +148,13 @@ export interface CellOverlayInfo {
   col: number;
   row: number;
   symbol: number;
-  /** The spin's decor, once its final board is shown (else undefined). */
+  /** The spin's decor, from the moment the spin lands (not only at its end). */
   decor?: Record<string, unknown>;
+  /** The step on show (0 = the board the reels stopped on, then one per tumble or respin) and how many steps the spin has. */
+  step?: number;
+  steps?: number;
+  /** What the kit knows about this cell now: framed as a win, held (locked), or marked as a former mystery square. */
+  tags?: { win: boolean; held: boolean; marked: boolean };
 }
 
 /** Measured facts from analytics (`games/<id>/src/slot-facts.json`), shown in the paytable. */

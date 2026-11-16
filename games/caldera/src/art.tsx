@@ -12,6 +12,13 @@ export const CALDERA = {
   lava: '#ff5a1f',
   pumice: '#f2dcb5',
   obsidian: '#150907',
+  // basalt, the plain low: dull grey-brown rock
+  basalt: '#6e5d52',
+  basaltDark: '#4b3d35',
+  basaltTop: '#8c7a6c',
+  // the premiums sit on a lit plaque with a gold rim
+  plaque: '#7a3418',
+  gold: '#e6b450',
   // the eruption: a hotter, redder window for the free spins
   hotBg: '#4a0e08',
   hotFrame: '#e8571f',
@@ -23,6 +30,14 @@ const svg = (size: number, body: ReactElement) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
     {body}
   </svg>
+);
+
+/** A premium's lit plaque with a gold rim; the art sits inside it, a little smaller. */
+const plaque = (body: ReactElement) => (
+  <>
+    <rect x="3" y="3" width="94" height="94" rx="12" fill={C.plaque} stroke={C.gold} strokeWidth="5" />
+    <g transform="translate(50 50) scale(0.84) translate(-50 -50)">{body}</g>
+  </>
 );
 
 export const calderaTheme: SlotTheme = {
@@ -76,28 +91,29 @@ export const calderaSymbols: SlotSymbols = {
     render: (s) =>
       svg(
         s,
-        <>
+        plaque(<>
           <path d="M6 94 L10 78 H90 L94 94 Z" fill={C.lava} />
           <path d="M14 80 L22 36 L34 80 Z" fill={C.sulphur} />
           <path d="M66 80 L78 30 L88 80 Z" fill={C.sulphur} />
           <path d="M30 80 L50 6 L70 80 Z" fill={C.sulphur} />
           <path d="M50 6 L70 80 H52 Z" fill={C.pumice} />
           <path d="M22 36 L34 80 H24 Z M78 30 L88 80 H80 Z" fill={C.pumice} />
-        </>,
+        </>),
       ),
   },
-  // 4 Premium: an obsidian blade, a tall thin kite with a lava crack
+  // 4 Premium: an obsidian blade, a broad kite with a bright lava crack
   4: {
     name: 'Obsidian blade',
     render: (s) =>
       svg(
         s,
-        <>
-          <path d="M50 4 L70 34 L56 96 H44 L30 34 Z" fill={C.obsidian} />
-          <path d="M50 4 L70 34 L56 34 Z" fill={C.pumice} />
-          <path d="M50 20 L46 46 L54 62 L48 84" fill="none" stroke={C.lava} strokeWidth="5" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M30 34 H70" stroke={C.frame} strokeWidth="4" />
-        </>,
+        plaque(<>
+          <path d="M50 2 L84 36 L62 98 H38 L16 36 Z" fill={C.obsidian} />
+          <path d="M50 2 L84 36 L58 36 Z" fill={C.pumice} />
+          <path d="M16 36 L42 36 L50 2 Z" fill={C.basaltDark} />
+          <path d="M52 16 L44 44 L58 62 L46 88" fill="none" stroke={C.lava} strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M52 16 L44 44 L58 62 L46 88" fill="none" stroke={C.sulphur} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        </>),
       ),
   },
   // 5 Premium: a fire opal, a flat-topped gem pointing down
@@ -106,25 +122,26 @@ export const calderaSymbols: SlotSymbols = {
     render: (s) =>
       svg(
         s,
-        <>
+        plaque(<>
           <path d="M24 18 H76 L94 40 L50 92 L6 40 Z" fill={C.lava} />
           <path d="M24 18 H76 L62 40 H38 Z" fill={C.sulphur} />
           <path d="M6 40 H38 L50 92 Z" fill={C.frame} />
           <path d="M62 40 H94 L50 92 Z" fill={C.frame} />
           <path d="M38 40 H62 L50 92 Z" fill={C.pumice} />
-        </>,
+        </>),
       ),
   },
-  // 6 Low: basalt, a hexagonal column top
+  // 6 Low: basalt, a dull grey-brown hexagonal column seen from the side
   6: {
     name: 'Basalt',
     render: (s) =>
       svg(
         s,
         <>
-          <path d="M50 8 L88 28 V72 L50 92 L12 72 V28 Z" fill={C.frame} />
-          <path d="M50 8 L88 28 L50 48 L12 28 Z" fill={C.lava} />
-          <path d="M50 48 V92" stroke={C.tile} strokeWidth="4" />
+          <path d="M22 26 H78 V90 H22 Z" fill={C.basalt} />
+          <path d="M22 26 L34 12 H66 L78 26 L66 38 H34 Z" fill={C.basaltTop} />
+          <path d="M34 38 V90 M66 38 V90" stroke={C.basaltDark} strokeWidth="5" />
+          <path d="M22 62 H34 M66 70 H78" stroke={C.basaltDark} strokeWidth="4" />
         </>,
       ),
   },
@@ -186,3 +203,18 @@ export const calderaSymbols: SlotSymbols = {
       ),
   },
 };
+
+/** A short flat splash when lava lands: drops thrown out in lava and sulphur (no glow). */
+export const lavaFx = (size: number): ReactElement =>
+  svg(
+    size,
+    <>
+      <circle cx="12" cy="40" r="6" fill={C.lava} />
+      <circle cx="88" cy="36" r="6" fill={C.lava} />
+      <circle cx="26" cy="12" r="5" fill={C.sulphur} />
+      <circle cx="74" cy="10" r="5" fill={C.sulphur} />
+      <circle cx="50" cy="4" r="4" fill={C.lava} />
+      <circle cx="8" cy="76" r="4" fill={C.sulphur} />
+      <circle cx="92" cy="74" r="4" fill={C.sulphur} />
+    </>,
+  );

@@ -1,5 +1,5 @@
 {
- "maxWinStakes": 3000,
+ "maxWinStakes": 10000,
  "volatility": "high",
  "targetRtp": 0.96,
  "feature": {

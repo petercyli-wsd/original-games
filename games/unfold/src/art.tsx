@@ -245,14 +245,6 @@ export const unfoldSymbols: SlotSymbols = {
   },
 };
 
-// Every cell is a square of folded paper: a turned-down top-right corner, drawn over the tile (not the symbol).
-export const unfoldCorner = () => (
-  <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
-    <path d="M80 0 H100 V20 Z" fill={C.ink} />
-    <path d="M80 0 L100 20 H80 Z" fill={C.indigo} />
-  </svg>
-);
-
 // The folded sun lands with a short burst of paper rays.
 export const unfoldFx = {
   1: (size: number) => (

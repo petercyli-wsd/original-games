@@ -21,7 +21,8 @@ import { exactRtp } from './exact';
 import { spinScatterCount } from './mc';
 import { computeSlotStats } from './stats';
 import noodleFeature from '../../../../../games/noodle-cart/src/feature.spec.json';
-import honeycomb from '../../../../../games/honeycomb/src/slot.spec.json';
+// Honeycomb's round-1 spec (ways + hold-and-respin only), frozen here so the game can change without moving these tests.
+import honeycomb from './fixtures/honeycomb-r1.spec.json';
 
 // An expanding wild on every reel, alone: it runs exactly when a wild is visible (trigger: ≥ 1 wild),
 // and the spec WITH it has a closed form, so the split can be checked against the exact answer.

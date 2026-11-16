@@ -202,15 +202,22 @@ export const wordCount = (line: string) => line.trim().split(/\s+/).filter(Boole
  * The feature's rules as short lines (each under 9 words, so a blind player can read them), generated from the
  * law the engine runs: "3 scatters: 8 free spins", "Every win ×2", "Retrigger: 3 scatters, +4 spins".
  */
-export function featureRules(f: FeatureConfig, name = 'free spins', scatterName = 'scatters'): string[] {
+export function featureRules(f: FeatureConfig, name = 'free spins', scatterName = 'scatters', spinsNoun?: string, scatterSingular?: string): string[] {
   const out: string[] = [];
-  const nm = name.toLowerCase();
+  const spins = spinsNounFor(name, spinsNoun);
+  const sc = (n: number) => countNoun(n, scatterName, scatterSingular);
   const keys = sortedKeys(f.awards);
-  keys.forEach((k, i) => out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${scatterName}: ${f.awards[String(k)]} ${nm}`));
+  keys.forEach((k, i) => {
+    const n = f.awards[String(k)];
+    out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${sc(k)}: ${n} ${countNoun(n, spins)}`);
+  });
   const note = multiplierNote(f);
   if (note) out.push(note);
   const rk = sortedKeys(f.retrigger);
-  rk.forEach((k) => out.push(`Retrigger: ${k} ${scatterName}, +${f.retrigger![String(k)]} spins`));
+  rk.forEach((k) => {
+    const n = f.retrigger![String(k)];
+    out.push(`Retrigger: ${k} ${sc(k)}, +${n} ${countNoun(n, 'spins')}`);
+  });
   // Say what the config says: retriggers yes or no, and the cap only where it can bind.
   if (!rk.length) {
     out.push('No retriggers');
@@ -218,6 +225,18 @@ export function featureRules(f: FeatureConfig, name = 'free spins', scatterName 
     if (f.maxSpins < top) out.push(`At most ${f.maxSpins} spins`);
   } else out.push(`At most ${f.maxSpins} spins in total`);
   return out;
+}
+
+/** The noun for a feature's spins: the name if it already ends in "spins" ("Tide spins"), else `copy.featureSpins`, else "free spins". */
+export function spinsNounFor(featureName: string, featureSpins?: string): string {
+  return /spins?$/i.test(featureName.trim()) ? featureName.trim().toLowerCase() : (featureSpins ?? 'free spins').toLowerCase();
+}
+
+/** "1 order ticket", "3 order tickets": the singular for one, the plural otherwise (a plural noun with its trailing "s" dropped, unless a singular is given). */
+export function countNoun(n: number, plural: string, singular?: string): string {
+  if (n !== 1) return plural;
+  if (singular) return singular.toLowerCase();
+  return /ies$/.test(plural) ? plural.slice(0, -3) + 'y' : /(ch|sh|x|z|s)es$/.test(plural) ? plural.slice(0, -2) : plural.replace(/s$/, '');
 }
 
 /** The "how to win" lines, short. */
@@ -241,10 +260,10 @@ export function scatterLines(min: number, featureName: string | null, copy?: Slo
 }
 
 /** Feature intro card lines. */
-export const introLines = (scatters: number, note: string, scatterName = 'scatters') => [`${scatters} ${scatterName}`, ...(note ? [note] : [])];
+export const introLines = (scatters: number, note: string, scatterName = 'scatters', scatterSingular?: string) => [`${scatters} ${countNoun(scatters, scatterName, scatterSingular)}`, ...(note ? [note] : [])];
 
 /** Feature outro card lines. */
-export const outroLines = (spins: number, stakes: number, capped: boolean) => [`${spins} free spins`, `${fmtX(stakes)} your bet`, ...(capped ? ['Max win reached'] : [])];
+export const outroLines = (spins: number, stakes: number, capped: boolean, spinsNoun = 'free spins') => [`${spins} ${countNoun(spins, spinsNoun)}`, `${fmtX(stakes)} your bet`, ...(capped ? ['Max win reached'] : [])];
 
 /** Free spins given at the start: derived from the spins played unless the cap cut the feature short, then from the awards table. */
 export function initialSpins(f: FeatureConfig, spinsPlayed: number, retriggered: number, capped: boolean, scatters: number): number {
@@ -664,6 +683,7 @@ export function checkCopy(copy: SlotCopy | undefined): { field: string; text: st
   for (const k of ['featureName', 'introNote', 'rule', 'wildText', 'scatterText', 'modifierName', 'modifierIntro', 'respinLabel', 'respinsLeftLabel', 'fillLabel', 'pendingLabel', 'featureRule', 'chainRule'] as const) add(k, copy[k]);
   Object.entries(copy.symbolText ?? {}).forEach(([id, t]) => add(`symbolText.${id}`, t));
   copy.modifierRules?.forEach((t, i) => add(`modifierRules[${i}]`, t));
+  copy.featureNotes?.forEach((t, i) => add(`featureNotes[${i}]`, t));
   if (copy.extrasLabels && typeof copy.extrasLabels === 'object') Object.entries(copy.extrasLabels).forEach(([k, v]) => add(`extrasLabels.${k}`, v));
   if (typeof copy.ladder === 'object') add('ladder.label', copy.ladder.label);
   add('multiplierReel.label', copy.multiplierReel?.label);
@@ -671,9 +691,10 @@ export function checkCopy(copy: SlotCopy | undefined): { field: string; text: st
 }
 
 /** "Sun" → "suns", "Treasure chest" → "treasure chests": the scatter's name as the rules say it. Falls back to "scatters". */
-export function pluralOf(name: string | undefined): string {
+export function pluralOf(name: string | undefined, count?: number): string {
   const n = name?.trim().toLowerCase();
-  if (!n) return 'scatters';
+  if (!n) return count === 1 ? 'scatter' : 'scatters';
+  if (count === 1) return n;
   return /(s|x|z|ch|sh)$/.test(n) ? n + (/s$/.test(n) ? '' : 'es') : /[^aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's';
 }
 
@@ -696,3 +717,83 @@ export function fmtMoney(x: number): string {
 
 /** A history chip: a round's multiple of the bet, tiny ones keep their digits ("0.0045×"), a loss is "0.00×". */
 export const fmtHist = (m: number) => (m > 0 && m < 0.01 ? fmtX(m) : m.toFixed(2) + '×');
+
+// ---------------------------------------------------------------- values on landing (orbs, coins)
+
+/**
+ * Where each cell of each step ends up on the terminal board, following the tumbles (survivors fall in order, new
+ * symbols fill from the top). Null if any step is not a plain tumble, so nothing is ever guessed.
+ */
+export function terminalMaps(res: SpinResult): Map<string, string>[] | null {
+  const n = res.steps.length;
+  const maps: Map<string, string>[] = new Array(n);
+  maps[n - 1] = new Map(res.steps[n - 1].board.flatMap((col, c) => col.map((_, r) => [`${c},${r}`, `${c},${r}`] as [string, string])));
+  for (let j = n - 2; j >= 0; j--) {
+    const st = res.steps[j];
+    const next = res.steps[j + 1];
+    const gone = new Set(cellsUnion(st.wins).map(([c, r]) => `${c},${r}`));
+    const step = new Map<string, string>();
+    for (let c = 0; c < st.board.length; c++) {
+      const col = st.board[c];
+      if (!next.board[c] || next.board[c].length !== col.length) return null;
+      const keep = col.map((_, r) => r).filter((r) => !gone.has(`${c},${r}`));
+      const nNew = col.length - keep.length;
+      // A survivor that stays in place may show a new symbol (a locked row opening): a new symbol, not tracked back.
+      for (let i = 0; i < keep.length; i++) if (col[keep[i]] !== next.board[c][nNew + i] && keep[i] !== nNew + i) return null;
+      keep.forEach((r, i) => {
+        if (col[r] === next.board[c][nNew + i]) step.set(`${c},${r}`, maps[j + 1].get(`${c},${nNew + i}`)!);
+      });
+    }
+    maps[j] = step;
+  }
+  return maps;
+}
+
+/**
+ * The value badges of each step: a value-carrying symbol (an orb, a coin) shows its value from the moment it lands.
+ * The engine decides the values at the terminal board; tracking each cell to its terminal place says which cell is which.
+ * Null if the spin has no such values (e.g. a spin that pays nothing draws none).
+ */
+export function valueBadgesByStep(res: SpinResult, labels: SlotCopy['decorLabels'], bet: number): Map<string, string>[] | null {
+  const key = Object.keys(res.decor ?? {}).find((k) => /orbVals$/i.test(k) && isMoneyMap(res.decor[k]));
+  if (!key) return null;
+  const vals = res.decor[key] as Record<string, number>;
+  const maps = terminalMaps(res);
+  const labelOf = (cell: string) => decorOverlays({ [key]: { [cell]: vals[cell] } }, labels, bet).get(cell);
+  if (!maps) {
+    const last = new Map<string, string>(Object.keys(vals).map((c) => [c, labelOf(c)!]));
+    return res.steps.map((_, j) => (j === res.steps.length - 1 ? last : new Map()));
+  }
+  return res.steps.map((st, j) => {
+    const out = new Map<string, string>();
+    st.board.forEach((col, c) =>
+      col.forEach((_, r) => {
+        const t = maps[j].get(`${c},${r}`);
+        if (t && t in vals) out.set(`${c},${r}`, labelOf(t)!);
+      }),
+    );
+    return out;
+  });
+}
+
+// ---------------------------------------------------------------- ladder lines
+
+/** "Base: ×1 ×2 ×3" lines, each under 9 words: long ladders continue on the next line. */
+export function ladderLines(label: string, values: number[]): string[] {
+  const head = `${label}:`;
+  const room = Math.max(1, 8 - head.split(/\s+/).length);
+  const out: string[] = [];
+  for (let i = 0; i < values.length; i += room) out.push((i === 0 ? head + ' ' : '') + values.slice(i, i + room).map((v) => `×${v}`).join(' '));
+  return out;
+}
+
+/**
+ * The chip for a spin multiplier that combines with the feature's own: "Spin ×9 · Rockets ×9 = ×81". `labels` come from the
+ * game's copy. Under 9 words; if the labels make it longer it falls back to "Multiplier ×81".
+ */
+export function combinedMultiplierChip(rm: RoundMultiplier, spin: number, labels: { spin?: string; additive?: string; reel?: string; orbs?: string } = {}): string | null {
+  if (spin === 1) return multiplierChip(rm);
+  const part = rm.kind === 'additive' ? (labels.additive ?? 'Bonus') : rm.kind === 'reel' ? (labels.reel ?? 'Reel') : (labels.orbs ?? 'Orbs');
+  const text = `${labels.spin ?? 'Spin'} ×${spin} · ${part} ×${rm.total} = ×${spin * rm.total}`;
+  return wordCount(text) >= 9 ? `Multiplier ×${spin * rm.total}` : text;
+}

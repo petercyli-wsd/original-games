@@ -2,50 +2,50 @@
   "schema": "slot_facts_v1",
   "game": "caldera",
   "generatedBy": "npm run slots:eval (scripts/slots/eval.ts, packages/slots/src/engine/analytics)",
-  "specHash": "d2d472e131a0ccec06e3fbe804d8d9884a5d344f455b1c599aa01fd53d433751",
-  "featureSpecHash": "d231ea1b06ef26661995ea9f36a3bdc97136caffa57a4f8ae4df20d530a6e05f",
-  "rtp": 0.9594255360242552,
+  "specHash": "7607a34821c6b7e7108b6363689b4881827829e380e4ce3e2c264ff626f16228",
+  "featureSpecHash": "87e0b4fc950f5e0a34724765b398c7a12b46246ad8436f60e28e6223ab6f9c1b",
+  "rtp": 0.9592056388995385,
   "rtpTier": "mc",
-  "rtpSe": 0.0005073606503883208,
-  "rtpN": 269700000,
-  "hitRate": 0.37000407075179,
+  "rtpSe": 0.0004972209536616584,
+  "rtpN": 231900000,
+  "hitRate": 0.3953441129674898,
   "volatility": "high",
-  "volatilitySd": 11.323039251915857,
-  "maxWin": 3000,
-  "featureFreq": 235.2419887324631,
-  "featureShare": 0.4879082521828857,
+  "volatilitySd": 11.882537852415176,
+  "maxWin": 10000,
+  "featureFreq": 228.29049892154504,
+  "featureShare": 0.44489044456250115,
   "volatilityDeclared": "high",
-  "winOverStakeRate": 0.1514098990703763,
-  "avgFeatureWin": 110.15939530219838,
-  "pWin100": 0.001538013089914663,
-  "pMaxWin": 2.177299760134496e-7,
+  "winOverStakeRate": 0.14552496004655907,
+  "avgFeatureWin": 97.42101239384122,
+  "pWin100": 0.001244558355950901,
+  "pMaxWin": 1.1414142664911246e-8,
   "pMaxWinBounds": {
-    "lower": 2.1635961744278528e-7,
-    "upper": 2.177299760134496e-7,
+    "lower": 1.1414142664911246e-8,
+    "upper": 1.1449953346797756e-8,
     "tier": "mc"
   },
-  "dryStreakP95": 14,
-  "sessionMedian": 32.565,
-  "sessionBustRate": 0.2966,
-  "rtpUncapped": 0.9597730201211226,
+  "dryStreakP95": 13,
+  "sessionMedian": 33.114999999999995,
+  "sessionBustRate": 0.22745,
+  "rtpUncapped": 0.9592056388995385,
   "rtpUncappedTier": "mc",
-  "rtpUncappedSe": 0.0004971396541297746,
+  "rtpUncappedSe": 0.0004972209536616584,
   "capLoss": {
-    "value": 0.0003474840968674323,
+    "value": 0,
     "tier": "mc",
-    "se": 0.00010132617556282239,
+    "se": 0,
     "n": 200000,
-    "hits": 13,
+    "hits": 0,
     "exactPart": 0,
-    "method": "E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 4.251e-3, 200,000 rounds sampled from the exact distributions, 13 above the cap); exact upper bound 0.52722% (Cauchy–Schwarz with the exact second moments and the reach upper bound)",
-    "upperBound": 0.005272150186920368
+    "method": "E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 4.380e-3, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.12647% (Cauchy–Schwarz with the exact second moments and the reach upper bound)",
+    "upperBound": 0.0012646792006171792
   },
   "rtpSplit": {
-    "base": 0.4914918433815361,
+    "base": 0.5324642157826649,
     "baseTier": "mc",
-    "feature": 0.4682811767395865,
+    "feature": 0.42674142311687363,
     "featureTier": "mc",
-    "capLoss": 0.0003474840968674675
+    "capLoss": 0
   },
   "feature": {
     "kind": "free_spins",
@@ -64,46 +64,46 @@
       "value": 1
     },
     "tier": "mc",
-    "triggerP": 0.004250941787170843,
-    "expectedSpins": 5.165619331706927,
-    "averageWinStakes": 110.15939530219838,
-    "sdWinStakes": 133.40567997243102,
-    "pZero": 0.00020095661212507783,
-    "featureRtp": 0.4682811767395865,
+    "triggerP": 0.004380383786114826,
+    "expectedSpins": 5.165337015956893,
+    "averageWinStakes": 97.42101239384122,
+    "sdWinStakes": 149.33621136554007,
+    "pZero": 0.0018643902003556635,
+    "featureRtp": 0.42674142311687363,
     "buy": false,
     "buyPriceStakes": null,
     "byK": [
       {
         "k": 3,
-        "pK": 0.004026818687430392,
+        "pK": 0.004148482104355445,
         "spins": 5,
-        "expectedSpins": 5.055539286172075,
-        "averageWinStakes": 107.8118837121504,
-        "pZero": 0.000211754256602387
+        "expectedSpins": 5.05492799459303,
+        "averageWinStakes": 95.33863933561626,
+        "pZero": 0.001959823846836332
       },
       {
         "k": 4,
-        "pK": 0.00021684464219502955,
+        "pK": 0.0002246140577835297,
         "spins": 7,
-        "expectedSpins": 7.077755000648245,
-        "averageWinStakes": 150.9366371971671,
-        "pZero": 0.000007180670666598477
+        "expectedSpins": 7.076899192412769,
+        "averageWinStakes": 133.4740950695332,
+        "pZero": 0.00016184670156518338
       },
       {
         "k": 5,
-        "pK": 0.0000071894697812384295,
+        "pK": 0.000007205692108667534,
         "spins": 9,
-        "expectedSpins": 9.09997071512861,
-        "averageWinStakes": 194.06139068227324,
-        "pZero": 2.434993848504606e-7
+        "expectedSpins": 9.098870390222523,
+        "averageWinStakes": 171.60955080326184,
+        "pZero": 0.000013365667965421522
       },
       {
         "k": 6,
-        "pK": 8.898776418242492e-8,
+        "pK": 8.193186718413108e-8,
         "spins": 9,
-        "expectedSpins": 9.09997071512861,
-        "averageWinStakes": 194.06139068227324,
-        "pZero": 2.434993848504606e-7
+        "expectedSpins": 9.098870390222523,
+        "averageWinStakes": 171.60955080326184,
+        "pZero": 0.000013365667965421522
       }
     ]
   },
@@ -112,11 +112,11 @@
     {
       "key": "rtp",
       "label": "RTP",
-      "value": 0.9594255360242552,
-      "display": "95.943% mc ± 0.051%, n 269,700,000",
+      "value": 0.9592056388995385,
+      "display": "95.921% mc ± 0.05%, n 231,900,000",
       "tier": "mc",
-      "se": 0.0005073606503883208,
-      "n": 269700000,
+      "se": 0.0004972209536616584,
+      "n": 231900000,
       "band": {
         "lo": 0.955,
         "hi": 0.965,
@@ -124,16 +124,16 @@
       },
       "pass": true,
       "gate": true,
-      "method": "uncapped 95.9773% (mc ± 0.0497%) = base 49.149% + feature 46.828% − cap 0.0347%. Base: Monte Carlo (n 269700000); feature: exact free-spins algebra (features.ts) over the mc feature distribution and the sampled trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 4.251e-3, 200,000 rounds sampled from the exact distributions, 13 above the cap); exact upper bound 0.52722% (Cauchy–Schwarz with the exact second moments and the reach upper bound)."
+      "method": "uncapped 95.9206% (mc ± 0.0497%) = base 53.246% + feature 42.674% − cap 0.0000%. Base: Monte Carlo (n 231900000); feature: exact free-spins algebra (features.ts) over the mc feature distribution and the sampled trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 4.380e-3, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.12647% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
     },
     {
       "key": "hitRate",
       "label": "Hit rate",
-      "value": 0.37000407075179,
-      "display": "37.00% mc ± 0.0029%, n 269,700,000",
+      "value": 0.3953441129674898,
+      "display": "39.53% mc ± 0.0032%, n 231,900,000",
       "tier": "mc",
-      "se": 0.000029398903623543564,
-      "n": 269700000,
+      "se": 0.00003210605208247906,
+      "n": 231900000,
       "band": {
         "lo": 0.25,
         "hi": 0.45,
@@ -146,10 +146,10 @@
     {
       "key": "winOverStake",
       "label": "Win > stake rate",
-      "value": 0.1514098990703763,
-      "display": "15.14% mc ± 0.0022%, n 200,000",
+      "value": 0.14552496004655907,
+      "display": "14.55% mc ± 0.0023%, n 200,000",
       "tier": "mc",
-      "se": 0.000021826862884593128,
+      "se": 0.00002315821833050577,
       "n": 200000,
       "band": {
         "lo": 0.08,
@@ -158,16 +158,16 @@
       },
       "pass": true,
       "gate": false,
-      "method": "P(X > stake): exact part 1.4776e-1 (base spin already > the stake) + Monte Carlo of the 3.648e-3 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the mc base and mc feature distributions (features simulated spin by spin), weighted by that exact mass"
+      "method": "P(X > stake): exact part 1.4178e-1 (base spin already > the stake) + Monte Carlo of the 3.749e-3 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the mc base and mc feature distributions (features simulated spin by spin), weighted by that exact mass"
     },
     {
       "key": "volatility",
       "label": "Volatility (SD per round, stakes)",
-      "value": 11.323039251915857,
-      "display": "11.32 (high) mc ± 0.005, n 269,700,000",
+      "value": 11.882537852415176,
+      "display": "11.88 (high) mc ± 0.006, n 231,900,000",
       "tier": "mc",
-      "se": 0.0052723311590472735,
-      "n": 269700000,
+      "se": 0.005836943063070349,
+      "n": 231900000,
       "band": {
         "lo": 10,
         "hi": 20,
@@ -180,11 +180,11 @@
     {
       "key": "featureFrequency",
       "label": "Feature frequency",
-      "value": 235.2419887324631,
-      "display": "1 in 235 mc ± 0.22, n 269,700,000",
+      "value": 228.29049892154504,
+      "display": "1 in 228 mc ± 0.23, n 231,900,000",
       "tier": "mc",
-      "se": 0.21923341167511923,
-      "n": 269700000,
+      "se": 0.22601023345666088,
+      "n": 231900000,
       "band": {
         "lo": 80,
         "hi": 300,
@@ -197,10 +197,10 @@
     {
       "key": "featureShare",
       "label": "Feature share of RTP",
-      "value": 0.4879082521828857,
-      "display": "48.8% mc ± 0.05%, n 269,700,000",
+      "value": 0.44489044456250115,
+      "display": "44.5% mc ± 0.05%, n 231,900,000",
       "tier": "mc",
-      "se": 0.0005133293975868964,
+      "se": 0.0005087164177117627,
       "band": {
         "lo": 0.25,
         "hi": 0.55,
@@ -213,10 +213,10 @@
     {
       "key": "averageFeatureWin",
       "label": "Average feature win",
-      "value": 110.15939530219838,
-      "display": "110× mc ± 0.12, n 269,700,000",
+      "value": 97.42101239384122,
+      "display": "97.42× mc ± 0.11, n 231,900,000",
       "tier": "mc",
-      "se": 0.11589895390377211,
+      "se": 0.11139746659109394,
       "band": {
         "lo": 15,
         "hi": 150,
@@ -229,10 +229,10 @@
     {
       "key": "pWin100",
       "label": "P(win ≥ 100×) per round",
-      "value": 0.001538013089914663,
-      "display": "1 in 650 (p 1.538e-3 mc ± 4.8e-6, n 200,000)",
+      "value": 0.001244558355950901,
+      "display": "1 in 803 (p 1.245e-3 mc ± 4.6e-6, n 200,000)",
       "tier": "mc",
-      "se": 0.000004786855975208466,
+      "se": 0.0000045848637314833625,
       "n": 200000,
       "band": {
         "lo": 0.0006666666666666666,
@@ -241,13 +241,13 @@
       },
       "pass": true,
       "gate": false,
-      "method": "P(X ≥ 100·stake): exact part 6.5999e-7 (base spin already ≥ 100×) + Monte Carlo of the 4.251e-3 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the mc base and mc feature distributions (features simulated spin by spin), weighted by that exact mass"
+      "method": "P(X ≥ 100·stake): exact part 1.4273e-6 (base spin already ≥ 100×) + Monte Carlo of the 4.380e-3 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the mc base and mc feature distributions (features simulated spin by spin), weighted by that exact mass"
     },
     {
       "key": "maxWin",
       "label": "Max win (declared cap)",
-      "value": 3000,
-      "display": "3,000×",
+      "value": 10000,
+      "display": "10,000×",
       "tier": "exact",
       "band": {
         "lo": 1000,
@@ -261,10 +261,10 @@
     {
       "key": "maxWinReach",
       "label": "P(reaching the max win) per round",
-      "value": 2.177299760134496e-7,
-      "display": "1 in 4.59e+6 to 4.62e+6 (mc bounds); MC 1 in 3.62e+6 (13 hits / 200,000)",
+      "value": 1.1414142664911246e-8,
+      "display": "1 in 8.73e+7 to 8.76e+7 (mc bounds); MC 0 (0 hits / 200,000)",
       "tier": "mc",
-      "n": 269700000,
+      "n": 231900000,
       "band": {
         "lo": 1e-9,
         "hi": 1,
@@ -272,15 +272,15 @@
       },
       "pass": true,
       "gate": true,
-      "method": "exact bounds: P(B ≥ cap) + Σ over triggered entries with B < cap of P(F ≥ cap − B), bounded below and above by the free-spins DP (retriggers and multipliers included) with each spin's m·W rounded down / up to a 6-stake grid (500 bins up to the cap); P(B ≥ cap) exact + Monte Carlo of the triggered rounds with B < cap (13 of 200,000 reached the cap)"
+      "method": "exact bounds: P(B ≥ cap) + Σ over triggered entries with B < cap of P(F ≥ cap − B), bounded below and above by the free-spins DP (retriggers and multipliers included) with each spin's m·W rounded down / up to a 20-stake grid (500 bins up to the cap); P(B ≥ cap) exact + Monte Carlo of the triggered rounds with B < cap (0 of 200,000 reached the cap)"
     },
     {
       "key": "dryStreakP95",
       "label": "Dry streak p95 (longest miss run in 100)",
-      "value": 14,
-      "display": "14 rounds mc (13–14 at hit rate ± 3 SE)",
+      "value": 13,
+      "display": "13 rounds mc",
       "tier": "mc",
-      "n": 269700000,
+      "n": 231900000,
       "band": {
         "lo": 0,
         "hi": 26,
@@ -288,15 +288,15 @@
       },
       "pass": true,
       "gate": true,
-      "method": "exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = 0.629996; p95 = smallest L with P(longest ≤ L) ≥ 0.95; at hit rate ± 3 SE it is 13–14"
+      "method": "exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = 0.604656; p95 = smallest L with P(longest ≤ L) ≥ 0.95; at hit rate ± 3 SE it is 13–13"
     },
     {
       "key": "session",
       "label": "Session (median balance after 200 rounds from 100)",
-      "value": 32.565,
-      "display": "32.6 (95% CI 30.5–34.8), bust 29.7%, mc n 20,000",
+      "value": 33.114999999999995,
+      "display": "33.1 (95% CI 31.8–34.2), bust 22.7%, mc n 20,000",
       "tier": "mc",
-      "se": 1.0969387755102042,
+      "se": 0.5943877551020413,
       "n": 20000,
       "band": null,
       "pass": null,
@@ -328,12 +328,12 @@
         "name": "base",
         "file": "slot.spec.json",
         "ok": true,
-        "specHash": "d2d472e131a0ccec06e3fbe804d8d9884a5d344f455b1c599aa01fd53d433751",
-        "oracleHash": "d2d472e131a0ccec06e3fbe804d8d9884a5d344f455b1c599aa01fd53d433751",
-        "tsRtp": 0.4894373,
+        "specHash": "7607a34821c6b7e7108b6363689b4881827829e380e4ce3e2c264ff626f16228",
+        "oracleHash": "7607a34821c6b7e7108b6363689b4881827829e380e4ce3e2c264ff626f16228",
+        "tsRtp": 0.53588925,
         "tsTier": "mc (pack stream replayed)",
-        "detail": "pack 0.4894373000 mc (n 200000, seed 3404072035, one Mulberry32 stream) replayed by the port: 0.4894373000, |Δ| 0.00e+0",
-        "packRtp": 0.4894373,
+        "detail": "pack 0.5358892500 mc (n 200000, seed 1259363878, one Mulberry32 stream) replayed by the port: 0.5358892500, |Δ| 0.00e+0",
+        "packRtp": 0.53588925,
         "packTier": "mc",
         "diff": 0,
         "tolerance": 1e-12
@@ -342,12 +342,12 @@
         "name": "feature",
         "file": "feature.spec.json",
         "ok": true,
-        "specHash": "d231ea1b06ef26661995ea9f36a3bdc97136caffa57a4f8ae4df20d530a6e05f",
-        "oracleHash": "d231ea1b06ef26661995ea9f36a3bdc97136caffa57a4f8ae4df20d530a6e05f",
-        "tsRtp": 21.334343349999997,
+        "specHash": "87e0b4fc950f5e0a34724765b398c7a12b46246ad8436f60e28e6223ab6f9c1b",
+        "oracleHash": "87e0b4fc950f5e0a34724765b398c7a12b46246ad8436f60e28e6223ab6f9c1b",
+        "tsRtp": 19.0421569,
         "tsTier": "mc (pack stream replayed)",
-        "detail": "pack 21.3343433500 mc (n 200000, seed 3316446645, one Mulberry32 stream) replayed by the port: 21.3343433500, |Δ| 0.00e+0",
-        "packRtp": 21.334343349999997,
+        "detail": "pack 19.0421569000 mc (n 200000, seed 1333746013, one Mulberry32 stream) replayed by the port: 19.0421569000, |Δ| 0.00e+0",
+        "packRtp": 19.0421569,
         "packTier": "mc",
         "diff": 0,
         "tolerance": 1e-12
@@ -357,15 +357,15 @@
   "distributions": {
     "base": {
       "tier": "mc",
-      "n": 269700000,
-      "entries": 13634,
-      "method": "Monte Carlo over 269,700,000 engine spins (2697 chunks of 100,000, chunk seeds from 20261116); K = the scatter count the pack's trigger read"
+      "n": 231900000,
+      "entries": 18472,
+      "method": "Monte Carlo over 231,900,000 engine spins (2319 chunks of 100,000, chunk seeds from 20261116); K = the scatter count the pack's trigger read"
     },
     "feature": {
       "tier": "mc",
-      "n": 32600000,
-      "entries": 151047,
-      "method": "Monte Carlo over 32,600,000 engine feature spins (326 chunks of 100,000)"
+      "n": 37900000,
+      "entries": 224051,
+      "method": "Monte Carlo over 37,900,000 engine feature spins (379 chunks of 100,000)"
     }
   },
   "mc": {
@@ -373,24 +373,24 @@
     "sessions": 20000,
     "seed": 20261116,
     "workers": 13,
-    "wallSeconds": 366.5,
+    "wallSeconds": 709.7,
     "stop": "RTP SE 0.050% ≤ target 0.050%, every gate row resolved",
     "rtpSeTarget": 0.0005,
     "budgetSeconds": 1500,
     "streams": {
       "base": {
-        "n": 269700000,
-        "chunks": 2697,
+        "n": 231900000,
+        "chunks": 2319,
         "chunk": 100000,
-        "perSecondWall": 735966,
-        "perSecondPerWorker": 75789
+        "perSecondWall": 326752,
+        "perSecondPerWorker": 34303
       },
       "feature": {
-        "n": 32600000,
-        "chunks": 326,
+        "n": 37900000,
+        "chunks": 379,
         "chunk": 100000,
-        "perSecondWall": 88960,
-        "perSecondPerWorker": 35355
+        "perSecondWall": 53402,
+        "perSecondPerWorker": 18252
       }
     }
   }

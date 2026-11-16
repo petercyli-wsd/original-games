@@ -6,9 +6,9 @@ import { describe, expect, it } from 'vitest';
 import { PayTableSheet } from './PayTableSheet';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
-import { createSlot } from '../engine';
+import { createSlot, type SpinResult } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, combinedMultiplierChip, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -435,11 +435,125 @@ describe('round 9: a paying win is never shown as zero', () => {
 describe('round 10: rules from the config', () => {
   const f = (o: object) => ({ kind: 'free_spins', spec: 'x', awards: { '3': 5 }, maxSpins: 5, multiplier: { kind: 'constant', value: 1 }, ...o }) as never;
   it('says "No retriggers" and shows the cap only where it can bind', () => {
-    expect(featureRules(f({}), 'Free folds')).toEqual(['3 scatters: 5 free folds', 'No retriggers']);
-    expect(featureRules(f({ maxSpins: 4 }), 'Free folds')).toContain('At most 4 spins');
-    const withRetrigger = featureRules(f({ retrigger: { '3': 2 } }), 'Free folds');
+    expect(featureRules(f({}), 'Free folds', 'scatters', 'free folds')).toEqual(['3 scatters: 5 free folds', 'No retriggers']);
+    expect(featureRules(f({ maxSpins: 4 }), 'Free folds', 'scatters', 'free folds')).toContain('At most 4 spins');
+    const withRetrigger = featureRules(f({ retrigger: { '3': 2 } }), 'Free folds', 'scatters', 'free folds');
     expect(withRetrigger).toContain('Retrigger: 3 scatters, +2 spins');
     expect(withRetrigger).toContain('At most 5 spins in total');
     expect(withRetrigger).not.toContain('No retriggers');
+  });
+});
+
+describe('round 11: rule lines read as sentences', () => {
+  // Noodle Cart: the scatter is "Order ticket", the feature "Dinner rush" with its own spins noun.
+  const noodle = { kind: 'free_spins', spec: 'feature.spec.json', awards: { '3': 5 }, retrigger: { '1': 1 }, maxSpins: 20, multiplier: { kind: 'per_retrigger', start: 1, step: 1 } } as never;
+  it('uses the spins noun, and pluralises the symbol and the spins by count', () => {
+    expect(featureRules(noodle, 'Dinner rush', pluralOf('Order ticket'), 'rush spins', 'order ticket')).toEqual([
+      '3 order tickets: 5 rush spins',
+      'Multiplier starts ×1, +1 per retrigger',
+      'Retrigger: 1 order ticket, +1 spin',
+      'At most 20 spins in total',
+    ]);
+    // without the copy noun it falls back to "free spins"
+    expect(featureRules(noodle, 'Dinner rush', 'order tickets', undefined, 'order ticket')[0]).toBe('3 order tickets: 5 free spins');
+  });
+  it('a feature name that already ends in "spins" is used as it is', () => {
+    expect(spinsNounFor('Tide spins')).toBe('tide spins');
+    expect(spinsNounFor('Dinner rush')).toBe('free spins');
+    expect(spinsNounFor('Dinner rush', 'rush spins')).toBe('rush spins');
+    expect(featureRules(reefDemo().config.feature!, 'Tide spins')[0]).toBe('3 scatters: 8 tide spins');
+  });
+  it('countNoun and pluralOf pick singular for one', () => {
+    expect([1, 2].map((n) => countNoun(n, 'spins'))).toEqual(['spin', 'spins']);
+    expect(countNoun(1, 'berries')).toBe('berry');
+    expect(countNoun(1, 'foxes')).toBe('fox');
+    expect(countNoun(1, 'order tickets', 'order ticket')).toBe('order ticket');
+    expect(pluralOf('Order ticket', 1)).toBe('order ticket');
+    expect(pluralOf('Order ticket', 3)).toBe('order tickets');
+    expect(pluralOf(undefined, 1)).toBe('scatter');
+  });
+  it('the cards count the same way', () => {
+    expect(introLines(1, '', 'order tickets', 'order ticket')[0]).toBe('1 order ticket');
+    expect(introLines(3, '', 'order tickets', 'order ticket')[0]).toBe('3 order tickets');
+    expect(outroLines(1, 5, false, 'rush spins')[0]).toBe('1 rush spin');
+  });
+});
+
+describe('round 12: cascade presentation', () => {
+  it('a value symbol shows its value from the step it lands, tracked to the terminal board', () => {
+    const d = emberDemo(6);
+    let checked = 0;
+    for (let seed = 1; seed <= 600 && checked < 8; seed++) {
+      const r = d.engine.playRound(seed, seededRng32(seed)).base;
+      const vals = r.decor['orb_sum_terminal.orbVals'];
+      if (!vals || r.steps.length < 2) continue;
+      const badges = valueBadgesByStep(r, {}, d.spec.bet.coins)!;
+      expect(terminalMaps(r)).not.toBeNull();
+      badges.forEach((m, j) => {
+        for (const cell of m.keys()) {
+          const [c, row] = cell.split(',').map(Number);
+          expect(r.steps[j].board[c][row], `${seed} step ${j} ${cell}`).toBe(11); // only orbs carry a badge
+        }
+        // every orb on the board has its badge, from the step it landed
+        const orbs = r.steps[j].board.flatMap((col, c) => col.flatMap((s, row) => (s === 11 ? [`${c},${row}`] : [])));
+        expect([...m.keys()].sort()).toEqual(orbs.sort());
+      });
+      expect(badges[badges.length - 1].size).toBe(Object.keys(vals as object).length);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+  it('a step pays the sum of its wins (so a chip can carry the step total)', () => {
+    const d = emberDemo(6);
+    for (let seed = 1; seed <= 200; seed++) for (const st of d.engine.playRound(seed, seededRng32(seed)).base.steps) expect(st.stepCoins).toBe(st.wins.reduce((a, w) => a + w.coins, 0));
+  });
+  it('writes the ladder of each phase in lines under 9 words', () => {
+    expect(ladderLines('Base', [1, 2, 3, 5, 8])).toEqual(['Base: ×1 ×2 ×3 ×5 ×8']);
+    const long = ladderLines('Eruption spins', [4, 8, 17, 35, 70, 140, 280, 560]);
+    expect(long.length).toBeGreaterThan(1);
+    for (const l of long) expect(wordCount(l)).toBeLessThan(9);
+  });
+});
+
+describe('a grid that opens locked rows (expanding_grid_structural)', () => {
+  // One reel of 3 rows; the bottom row is locked (blank 9) and opens on the first tumble, showing a jellyfish (11).
+  const res = (opened: number[], popped: [number, number] = [0, 0]) => ({
+    decor: { 'orb_sum_terminal.orbVals': { '0,2': 5 } },
+    extras: [],
+    finalBoard: [opened],
+    flags: [],
+    set: 0,
+    steps: [
+      { board: [[5, 7, 9]], wins: [{ label: 'x', coins: 1, cells: [popped], lineIdx: null, ways: null }], stepCoins: 1 },
+      { board: [opened], wins: [], stepCoins: 0 },
+    ],
+    stops: [0],
+    totalCoins: 1,
+    trigger: null,
+  }) as SpinResult;
+  it('a cell that stays in place may show a new symbol; it is not tracked back', () => {
+    const r = res([6, 7, 11]);
+    const maps = terminalMaps(r)!;
+    expect(maps).not.toBeNull();
+    expect(maps[0].get('0,1')).toBe('0,1');
+    expect(maps[0].has('0,2')).toBe(false);
+    const badges = valueBadgesByStep(r, {}, 100)!;
+    expect(badges[0].size).toBe(0);
+    expect(badges[1].get('0,2')).toBeTruthy();
+  });
+  it('a cell that falls may not change symbol', () => {
+    expect(terminalMaps(res([6, 5, 11], [0, 1]))).not.toBeNull(); // 5 falls one row: fine
+    expect(terminalMaps(res([6, 8, 11], [0, 1]))).toBeNull(); // 5 falls and turns into 8: not a fall
+  });
+});
+
+describe('round 13: combined multiplier chip', () => {
+  const rockets: { total: number; parts: number[]; kind: 'additive' } = { total: 9, parts: [8], kind: 'additive' };
+  it('shows the feature multiplier and the spin multiplier and their product, under 9 words', () => {
+    expect(combinedMultiplierChip({ ...rockets }, 9, { additive: 'Rockets' })).toBe('Spin ×9 · Rockets ×9 = ×81');
+    expect(combinedMultiplierChip({ total: 5, kind: 'reel' }, 3, { reel: 'Marquee', spin: 'Free' })).toBe('Free ×3 · Marquee ×5 = ×15');
+    expect(wordCount(combinedMultiplierChip({ ...rockets }, 9, { additive: 'Rockets' })!)).toBeLessThan(9);
+    expect(combinedMultiplierChip({ ...rockets }, 9, { spin: 'Free spin multiplier', additive: 'Rocket wilds' })).toBe('Multiplier ×81');
+    expect(combinedMultiplierChip({ ...rockets }, 1)).toBe('Multiplier ×9 (1 + 8)');
   });
 });

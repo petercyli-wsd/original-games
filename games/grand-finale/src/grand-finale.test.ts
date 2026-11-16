@@ -11,7 +11,7 @@ import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics
 import { checkParity, type OracleFixture } from '../../../packages/slots/src/engine/parity';
 import { featureRules, howToWinLines, introLines, multiplierNote, outroLines, scatterLines, wildLines, wordCount, ruleSentence, parseSlotFacts } from '../../../packages/slots/src/ui/util';
 import { checkCopy } from '../../../packages/slots/src/ui';
-import { copy as gameCopy } from './Game';
+import { copy as gameCopy, fuseCount, FUSE, FUSES_NEEDED } from './Game';
 import { baseMath } from './exactmath';
 
 const dir = dirname(fileURLToPath(import.meta.url));
@@ -163,7 +163,7 @@ describe('the rocket is the wild and the multiplier is 1 + the rockets', () => {
     expect((spec.evaluation as unknown as { min_count: number }).min_count).toBeGreaterThanOrEqual(9);
     expect(Object.keys(mech.params.value_pmf).map(Number)).toEqual([1, 2, 3, 5]);
     const fm = fspec.mechanics![0] as typeof mech;
-    expect(Object.keys(fm.params.value_pmf).map(Number)).toEqual([5, 10, 25, 50]);
+    expect(Object.keys(fm.params.value_pmf).map(Number)).toEqual([1, 2, 3, 5, 10]);
   });
   it('on a real board every win is multiplied by 1 + the rockets painted on it', () => {
     const e = new SlotEngine(spec);
@@ -216,21 +216,15 @@ describe('the spin flow draws after place()', () => {
 });
 
 describe('copy: every line is under 9 words', () => {
-  const copy = {
-    featureName: 'Finale spins',
-    introNote: 'More rockets. Bigger numbers.',
-    rule: '10 or more anywhere pay. Rockets multiply.',
-    wildText: 'Any firework. Its +N joins the multiplier.',
-    scatterText: 'Fuse pays anywhere. 4 fuses = 12 spins.',
-  };
+  const copy = gameCopy;
   it('the game copy and the lines the kit generates from the config', () => {
     const f = config.feature!;
     const lines = [
-      ...Object.values(copy),
+      ...[copy.featureName, copy.introNote, copy.featureRule, copy.rule, copy.wildText, copy.scatterText].map(String),
       ...howToWinLines(spec, copy),
       ...wildLines(copy),
-      ...scatterLines(4, copy.featureName, copy),
-      ...featureRules(f, copy.featureName),
+      ...scatterLines(4, copy.featureName!, copy),
+      ...featureRules(f, copy.featureName!),
       multiplierNote(f),
       ruleSentence(spec, copy),
       ...introLines(12, multiplierNote(f)),
@@ -251,5 +245,78 @@ describe('copy: every line is under 9 words', () => {
 describe('copy', () => {
   it('every line is short enough for blind reviewers', () => {
     expect(checkCopy(gameCopy)).toEqual([]);
+  });
+});
+
+// The round-2 rule: the finale builds. Free spin n pays ×n (the config's per_spin law: it depends on the spin
+// index only, docs/SLOTS.md §2.5), times the rockets on that spin's board.
+describe('the finale builds: free spin n pays ×n, times the rockets', () => {
+  it('the config declares the per-spin law ×1, ×2, ×3 …', () => {
+    expect(config.feature!.multiplier).toEqual({ kind: 'per_spin', start: 1, step: 1 });
+  });
+  it('in real features, spin n is paid its board × n, and the rockets multiply inside the board', () => {
+    const slot = createSlot({ spec, featureSpecs: { 'feature.spec.json': fspec }, feature: config.feature, maxWinStakes: 1e9 });
+    let features = 0;
+    let sawRockets = false;
+    for (let seed = 0; seed < 3_000_000 && features < 6; seed++) {
+      if (!slot.spin(seed).trigger?.fired) continue;
+      const r = slot.playRound(seed, stream(seed));
+      features++;
+      r.feature!.spins.forEach((sp, i) => {
+        expect(sp.multiplier).toBe(i + 1);
+        expect(sp.coins).toBe(sp.result.totalCoins * (i + 1));
+        const g = (sp.result.decor as Record<string, unknown>)['global_additive.gwm'];
+        if (typeof g === 'number' && g > 1 && sp.result.totalCoins > 0) sawRockets = true;
+      });
+      expect(r.feature!.totalCoins).toBe(r.feature!.spins.reduce((a, sp) => a + sp.coins, 0));
+    }
+    expect(features).toBe(6);
+    expect(sawRockets).toBe(true);
+  }, 120_000);
+  it('the algebra prices the build: Σ P(N ≥ n)·n·E[W], about 6.5× a flat feature', () => {
+    const flat = { ...config.feature!, multiplier: { kind: 'constant' as const, value: 1 } };
+    const b = baseMath(spec);
+    const f = baseMath(fspec);
+    const dist: SpinDist = { coins: [], k: [], p: [], tier: 'exact', method: 'E[win | K]' };
+    f.kPmf.forEach((p, k) => {
+      if (p > 0) {
+        dist.coins.push(f.evCoinsByK[k] / p);
+        dist.k.push(k);
+        dist.p.push(p);
+      }
+    });
+    const args = { baseRtp: b.rtp, baseTier: 'exact', betCoins: spec.bet.coins, scatterDist: b.kPmf, scatterMin: 4, featureDist: dist };
+    const built = freeSpinsAnalytics({ ...args, cfg: config.feature! } as never).featureRtp;
+    const level = freeSpinsAnalytics({ ...args, cfg: flat } as never).featureRtp;
+    expect(built / level).toBeGreaterThan(6);
+    expect(built / level).toBeLessThan(7);
+  });
+  it('the feature pays the same paytable as the base game (one table to read)', () => {
+    expect(fspec.pays).toEqual(spec.pays);
+  });
+});
+
+describe('the fuse counter (k/4 on each fuse once the board lands)', () => {
+  const board = (cells: number[][], decor?: Record<string, unknown>) => {
+    const seen = { n: 0 };
+    const out: (string | null)[] = [];
+    cells.forEach((col, c) => col.forEach((symbol, row) => out.push(fuseCount(seen, { col: c, row, symbol, decor }))));
+    return out.filter((x) => x !== null);
+  };
+  const b = [
+    [7, FUSE, 8, 9, 10],
+    [FUSE, 7, 8, 9, 10],
+    [7, 8, 9, 10, 11],
+    [7, 8, FUSE, 9, 10],
+    [7, 8, 9, 10, 11],
+    [7, 8, 9, 10, 11],
+    [7, 8, 9, 10, 11],
+  ];
+  it('counts toward 4 in reading order once the board has landed', () => {
+    expect(FUSES_NEEDED).toBe(4);
+    expect(board(b, { 'global_additive.gwm': 1 })).toEqual(['1/4', '2/4', '3/4']);
+  });
+  it('shows nothing while the reels spin', () => {
+    expect(board(b)).toEqual([]);
   });
 });

@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "overall": 3.24,
+  "scores": {
+    "theme": 3,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 4,
+    "uniqueness": 2,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.24 < 3.5"
+  ],
+  "verdict": "A competent, well-tuned extreme variable-ways slot whose storm feature delivers its late-spin climax, but its mechanism is close to Gonzo's Quest/Extra Chilli Megaways and its art and highlights need work before it stands out.",
+  "pros": [
+    "Every measured band passes, and the extreme volatility is real: SD 25.8, a reachable 20,000x max, and 100x+ wins about 1 in 757 rounds.",
+    "The per-spin multiplier stacked with the slide ladder produces the theme's climax: both of the panel's big features (479x, 107x) exploded on spins 8–11, which made the late spins tense.",
+    "Win readouts are clear and checkable: a pill naming symbol, reel count, ways and amount, the slide ladder lit at its current step, and an end card that splits feature total and trigger spin. All three players understood the pays, the trigger and the wild.",
+    "The names tie the mechanics to the setting (slides, Whiteout spins, cornice wild, beacon scatter), and the lows are distinct, readable gear icons."
+  ],
+  "cons": [
+    "Take the orange backdrop pennants out of the reel window (or drop them below 20% opacity behind the cells): on reels 4–5 they read as extra Summit flags and sit inside win boxes.",
+    "Fix the highlights: on the trigger spin, box every beacon that counted; during a slide, clear the win boxes before the refill drops so they never frame newly arrived symbols.",
+    "Explain the feature's multipliers in short on-screen lines (each under 9 words): on the intro card 'Storm slides start at x2', and in the header the product, e.g. 'Slide x3 × spin x6 = x18'. Add a paytable line listing the slide ladder (x1 x2 x3 x5 x8, then +1).",
+    "Give the premiums visible weight and the theme some spectacle: enlarge or frame the Summit flag as the top symbol, move the lammergeier off the boot print's pink, add an honest tease on the remaining reels when 3 beacons have landed and a 4th can still come, and replace the grey big-win box with a snow/avalanche celebration scaled to the win."
+  ],
+  "confusions": [
+    "On cascade chains the top 'Win' figure (e.g. 1.02, 0.38) did not match the win pill under the grid (0.71, 0.19), because the pill shows only the latest slide step while Win is the running total; it took some working out.",
+    "Mid-cascade, orange win boxes sometimes framed the newly sliding-in symbols (a hut, a tree, a boot) instead of the snowflakes that actually won.",
+    "The Slide ladder changes from ×1 ×2 ×3 ×5 ×8 in base to ×2 ×3 ×5 ×8 ×12 in Whiteout spins, which I only noticed by comparing screenshots.",
+    "On the trigger spin, only 2 of the 4 beacons (plus an unrelated ice axe) were boxed in orange next to 'Scatter pay · +0.07', so the highlight didn't match what triggered the feature.",
+    "During long tumble chains the list under the board only kept the last two or three steps, so I couldn't add up totals like 6.28 or 4.29 from what was shown.",
+    "In the feature the Slide ladder changed from ×1–×8 to ×2–×12 without explanation, and the header switched between 'Multiplier ×N' and 'Slide ×a · spin ×b', so it took a moment to see that the two multiply.",
+    "The Slide ladder (×1 ×2 ×3 ×5 ×8) is never explained in the visible paytable text beyond 'Wins slide away'; I inferred it steps up with each cascade.",
+    "In the feature the Slide ladder changed to ×2 ×3 ×5 ×8 ×12 and the header showed 'Slide ×2 · spin ×6'; I had to work out that the two multiply together.",
+    "One base win showed '2 wins = 2.75' in the summary while the Win readout said 2.81; the small difference was unexplained (maybe an earlier cascade step)."
+  ],
+  "players": 3,
+  "codeHash": "f442c392e5c69251",
+  "date": "2026-11-16"
+}

@@ -48,7 +48,7 @@ export interface ReelWindowHandle {
   set(board: number[][]): void;
   spin(opts: SpinOpts): Promise<void>;
   /** `removed`: the cells (in the current board) that pop. `next`: the board after survivors fall and new symbols drop in. */
-  tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number): Promise<void>;
+  tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number, onRebuild?: () => void): Promise<void>;
   slam(): void;
   /** Flips these cells (all at once) from what they show into `next`'s symbols: the mystery reveal. */
   reveal(next: number[][], cells: [number, number][], turbo: boolean, ms?: number): Promise<void>;
@@ -91,8 +91,9 @@ export interface ReelWindowProps {
   onHeights?: (heights: (number | null)[]) => void;
   /** Draws over a symbol's tile (see `SlotGameProps.renderOverlay`). */
   renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
-  /** The spin's decor, passed to `renderOverlay` once the final board shows. */
+  /** The spin's decor, passed to `renderOverlay`, with the step on show. */
   overlayDecor?: Record<string, unknown>;
+  overlayStep?: { step: number; steps: number };
 }
 
 const backdropFnPresent = (t: SlotTheme) => !!(t.backdrop || t.featureBackdrop);
@@ -107,7 +108,7 @@ const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights, held, fx, symbolFx, burst, onLand, marks, wildIds, wildTag },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, overlayStep, onHeights, held, fx, symbolFx, burst, onLand, marks, wildIds, wildTag },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -305,7 +306,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
       await Promise.all(ins);
     },
 
-    async tumble(next, removed, turbo, speed = 1) {
+    async tumble(next, removed, turbo, speed = 1, onRebuild) {
       const { height: H } = geo.current;
       const old = boardRef.current;
       const gone = new Set(removed.map(([c, r]) => `${c},${r}`));
@@ -326,11 +327,13 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
 
       // 2. Rebuild: survivors keep their keys and fall; everything above is new.
       const moves = new Map<number, number>(); // key → pixels to start above its final spot
+      const flips = new Set<number>(); // cells that stay in place but show a new symbol (a locked row opening)
       const rebuilt: Cell[][] = next.map((col, c) => {
         const oldCol = old[c] ?? [];
         const keep = oldCol.filter((_, r) => !gone.has(`${c},${r}`));
         const nNew = col.length - keep.length;
-        const matches = oldCol.length === col.length && nNew >= 0 && keep.every((x, i) => x.s === col[nNew + i]);
+        // A survivor that does not move may change symbol in place (see `terminalMaps`); one that falls may not.
+        const matches = oldCol.length === col.length && nNew >= 0 && keep.every((x, i) => x.s === col[nNew + i] || oldCol.indexOf(x) === nNew + i);
         if (!matches) {
           // Not a plain fall: if the column is unchanged keep it, otherwise the whole column drops in.
           const same = oldCol.length === col.length && oldCol.every((x, i) => x.s === col[i]) && !removed.some(([rc]) => rc === c);
@@ -350,6 +353,12 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
         keep.forEach((x) => {
           const oldRow = oldCol.indexOf(x);
           const newRow = out.length;
+          if (x.s !== col[newRow]) {
+            const y = mk(col[newRow]);
+            flips.add(y.k);
+            out.push(y);
+            return;
+          }
           const hOld = H / Math.max(1, oldCol.length);
           const dy = oldRow * hOld - newRow * hNew;
           if (Math.abs(dy) > 0.5) moves.set(x.k, -dy);
@@ -357,6 +366,8 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
         });
         return out;
       });
+      // The previous step's frames go in the same commit that brings the new symbols, so they never sit on arrivals.
+      onRebuild?.();
       commitBoard(rebuilt);
       await nextCommit();
       if (!alive.current) return;
@@ -366,6 +377,11 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
       rebuilt.forEach((col, c) => {
         const h = H / Math.max(1, col.length);
         col.forEach((cell, r) => {
+          if (flips.has(cell.k)) {
+            const sym = cellEls.current.get(cell.k)?.querySelector('.sl-sym');
+            if (sym) falls.push(track(sym.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: dropMs, easing: 'ease-in-out' })).finished.catch(() => undefined));
+            return;
+          }
           const dy = moves.get(cell.k);
           const el = cellEls.current.get(cell.k);
           if (dy === undefined || !el) return;
@@ -428,7 +444,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
               <polygon points="10,0 10,10 0,0" fill="var(--sl-hi)" />
             </svg>
           )}
-          {renderOverlay && <CellOverlay node={renderOverlay({ col: c, row: r, symbol: cell.s, decor: overlayDecor })} />}
+          {renderOverlay && <CellOverlay node={renderOverlay({ col: c, row: r, symbol: cell.s, decor: overlayDecor, step: overlayStep?.step, steps: overlayStep?.steps, tags: { win: isWin, held: !!held?.has(id), marked: !!marks?.has(id) } })} />}
           {badge && (
             <span className="sl-badge" style={{ fontSize: Math.max(10, Math.min(18, size * 0.3)) }}>
               {badge}

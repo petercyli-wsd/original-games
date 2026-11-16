@@ -147,8 +147,36 @@ describe('backdrops', () => {
   });
 });
 
+describe('Free folds rule: bigger squares open into animals only', () => {
+  const ANIMALS = [3, 4, 5, 6]; // Crane, Fox, Koi, Frog
+  const squares = (s: SlotSpec) => s.board_law.reel_sets![0].strips.map((st) => st.filter((v) => v === 12).length);
+  it('the feature reveals only animals; the base game reveals any paying symbol', () => {
+    expect(components(feat).map((c) => c.sym).sort()).toEqual(ANIMALS);
+    expect(components(base).some((c) => !ANIMALS.includes(c.sym))).toBe(true);
+  });
+  it('the feature strips carry more and stacked squares than the base strips', () => {
+    const b = squares(base), f = squares(feat);
+    expect(f.reduce((a, x) => a + x, 0)).toBeGreaterThanOrEqual(4 * b.reduce((a, x) => a + x, 0));
+    for (const st of feat.board_law.reel_sets![0].strips) expect(st.join(',')).toContain('12,12,12,12');
+  });
+  it('every free spin with a reveal opens into an animal (playRound)', () => {
+    const slot = createSlot({ spec: base, featureSpecs: { 'feature.spec.json': feat }, feature: config.feature as never, maxWinStakes: config.maxWinStakes });
+    const rand = rng32(11);
+    let reveals = 0;
+    for (let i = 0; i < 20_000 && reveals < 200; i++) {
+      const r = slot.playRound(rand(), rand);
+      for (const s of r.feature?.spins ?? []) {
+        const v = (s.result as { decor?: Record<string, unknown> }).decor?.['mystery_reveal.mysteryReveal'];
+        if (typeof v === 'number') { reveals++; expect(ANIMALS).toContain(v); }
+      }
+    }
+    expect(reveals).toBeGreaterThan(50);
+  });
+});
+
 describe('copy', () => {
   it('has no line of 9 or more words', () => {
     expect(checkCopy(copy)).toEqual([]);
+    for (const t of Object.values(copy.symbolText ?? {})) expect(t.split(/\s+/).length).toBeLessThan(9);
   });
 });

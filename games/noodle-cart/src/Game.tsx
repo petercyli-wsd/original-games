@@ -3,8 +3,8 @@ import type { SlotGameConfig } from '@originals/slots/ui';
 import { createSlot } from '@originals/slots';
 import type { SlotSpec } from '@originals/slots';
 import manifest from './manifest';
-import { noodleSymbols, noodleTheme, ticketHidden, extraCookTag, cookFx } from './art';
-import { holdsTicket, noteRound } from './walker';
+import { noodleSymbols, noodleTheme, cookOverlay, orderBadge, cookFx } from './art';
+import { cookAt, holdsTicket, inOrder, isRushSpin, noteRound, orderAt } from './walker';
 import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
 import config from './slot.config.json';
@@ -12,7 +12,6 @@ import { copy } from './copy';
 import factsRaw from './slot-facts.json';
 
 const facts = parseSlotFacts(factsRaw);
-
 
 const baseSpec = spec as unknown as SlotSpec;
 const rushSpec = featureSpec as unknown as SlotSpec;
@@ -45,10 +44,11 @@ export default function Game() {
       engine={engine}
       symbolFx={{ 2: cookFx }}
       renderOverlay={({ col, row, symbol, decor }) => {
-        if (holdsTicket(decor, col, row, symbol)) return ticketHidden;
-        const ex = decor?.['expanding_wild.expandedReels'];
-        if (symbol === 2 && row === 0 && Array.isArray(ex) && ex.includes(col)) return extraCookTag;
-        return null;
+        const cook = cookAt(decor, col, symbol);
+        if (cook) return cookOverlay({ kind: cook, row, rows: 3, hidden: holdsTicket(decor, col, row, symbol), rush: isRushSpin(decor) });
+        const order = orderAt(decor, col, row, symbol);
+        if (order) return orderBadge(order);
+        return inOrder(decor, symbol) ? orderBadge({ addedSpins: 0, nextMultiplier: null }) : null;
       }}
     />
   );

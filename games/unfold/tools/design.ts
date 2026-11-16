@@ -15,6 +15,9 @@ import { dryStreakQuantile } from '../../../packages/slots/src/engine/analytics/
 const BET = 102400;
 const SRC = join(import.meta.dirname, '..', 'src');
 const P = JSON.parse(readFileSync(join(import.meta.dirname, 'params.json'), 'utf8'));
+// Optional overrides for experiments: UNFOLD_FEATURE='{"pmf":{...},"mysteries":[...]}' merges into P.feature.
+if (process.env.UNFOLD_FEATURE) Object.assign(P.feature, JSON.parse(process.env.UNFOLD_FEATURE));
+if (process.env.UNFOLD_BASE) Object.assign(P.base, JSON.parse(process.env.UNFOLD_BASE));
 
 // symbol ids: 1 sun scatter, 2 gold wild, 3 crane, 4 fox, 5 koi, 6 frog, 7 boat, 8 pinwheel, 9 fan, 10 star, 11 cube, 12 mystery
 const symbols = [

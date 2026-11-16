@@ -27,7 +27,7 @@ const svg = (size: number, body: ReactElement) => (
 );
 
 // A skyline over water, flat shapes only, a shade off the window tone so symbols stay readable.
-// Base: night navy. Feature: dusk, with a few flat bursts (stars of round-cap strokes) in the sky.
+// Base: night navy. Feature: dusk. No lit windows or bursts: they showed as stray dashes in the gaps between tiles.
 const BUILDINGS = [
   [0.0, 0.10, 0.30], [0.08, 0.08, 0.20], [0.15, 0.12, 0.38], [0.27, 0.07, 0.24], [0.33, 0.11, 0.33],
   [0.44, 0.09, 0.18], [0.52, 0.12, 0.42], [0.64, 0.08, 0.26], [0.71, 0.11, 0.34], [0.82, 0.08, 0.20], [0.89, 0.11, 0.30],
@@ -37,38 +37,12 @@ function scene(w: number, h: number, dusk: boolean) {
   const city = dusk ? '#241035' : '#112844';
   const water = dusk ? '#321747' : '#183A5E';
   const wave = dusk ? '#5A2D78' : '#2F5F8C';
-  const lit = dusk ? '#8A4DB0' : '#FFC857';
   const horizon = h * 0.72;
-  const bursts = dusk
-    ? [[0.2, 0.2, 0.09], [0.78, 0.15, 0.11], [0.52, 0.32, 0.07]]
-    : [];
   return (
     <g>
       <rect width={w} height={h} fill={sky} />
-      {bursts.map(([bx, by, br], i) => {
-        const r = br * w;
-        return (
-          <g key={i} stroke={lit} strokeWidth={Math.max(2, w * 0.006)} strokeLinecap="round">
-            {Array.from({ length: 8 }, (_, k) => {
-              const a = (k * Math.PI) / 4;
-              return (
-                <line
-                  key={k}
-                  x1={bx * w + Math.cos(a) * r * 0.45}
-                  y1={by * h + Math.sin(a) * r * 0.45}
-                  x2={bx * w + Math.cos(a) * r}
-                  y2={by * h + Math.sin(a) * r}
-                />
-              );
-            })}
-          </g>
-        );
-      })}
       {BUILDINGS.map(([x, bw, bh], i) => (
-        <g key={i}>
-          <rect x={x * w} y={horizon - bh * h} width={bw * w + 1} height={bh * h} fill={city} />
-          <rect x={x * w + bw * w * 0.3} y={horizon - bh * h + h * 0.04} width={Math.max(2, bw * w * 0.12)} height={h * 0.03} fill={lit} />
-        </g>
+        <rect key={i} x={x * w} y={horizon - bh * h} width={bw * w + 1} height={bh * h} fill={city} />
       ))}
       <rect y={horizon} width={w} height={h - horizon} fill={water} />
       {[0.08, 0.16, 0.24].map((f, i) => (
@@ -90,7 +64,7 @@ export const finaleTheme: SlotTheme = {
     featureFrame: C.magenta,
     featureTile: C.duskTile,
   },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 5, radius: 4, cellRadius: 4, backdropMargin: 16 },
+  window: { cell: 'tile', separators: 'gap', frameWidth: 5, radius: 4, cellRadius: 4, backdropMargin: 26 },
   backdrop: (w, h) => scene(w, h, false),
   featureBackdrop: (w, h) => scene(w, h, true),
 };
@@ -125,19 +99,19 @@ export const finaleSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // Wild: a slim rocket
+  // Wild: a rocket in flight, tilted up and to the right (no other symbol leans), gold nose, magenta body, a flame
   2: {
     name: 'Rocket',
     render: (s) =>
       svg(
         s,
-        <>
-          <path d="M50 6 C62 18 66 34 66 52 H34 C34 34 38 18 50 6 Z" fill={C.magenta} />
-          <rect x="34" y="50" width="32" height="30" fill={C.gold} />
-          <path d="M34 56 L16 80 V88 L34 78 Z M66 56 L84 80 V88 L66 78 Z" fill={C.magenta} />
-          <circle cx="50" cy="40" r="7" fill={C.blue} />
-          <path d="M38 82 H62 L50 96 Z" fill={C.ember} />
-        </>,
+        <g transform="rotate(45 50 50)">
+          <path d="M40 76 H60 L50 98 Z" fill={C.ember} />
+          <path d="M36 58 L24 78 V86 L36 76 Z M64 58 L76 78 V86 L64 76 Z" fill={C.gold} />
+          <rect x="36" y="30" width="28" height="46" fill={C.magenta} />
+          <path d="M50 2 C60 12 64 22 64 30 H36 C36 22 40 12 50 2 Z" fill={C.gold} />
+          <circle cx="50" cy="46" r="7" fill={C.blue} />
+        </g>,
       ),
   },
   // P1: the grand shell, a giant gold chrysanthemum (top pay)
@@ -169,17 +143,17 @@ export const finaleSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // P3: the Roman candle, a tall tube shooting balls
+  // P3: the Roman candle, an upright blue tube shooting balls (the rocket leans and is magenta)
   5: {
     name: 'Roman candle',
     render: (s) =>
       svg(
         s,
         <>
-          <rect x="36" y="42" width="28" height="52" rx="4" fill={C.magenta} />
+          <rect x="36" y="42" width="28" height="52" rx="4" fill={C.blue} />
           <rect x="36" y="54" width="28" height="8" fill={C.gold} />
           <rect x="36" y="76" width="28" height="8" fill={C.gold} />
-          <circle cx="50" cy="32" r="9" fill={C.blue} />
+          <circle cx="50" cy="32" r="9" fill={C.magenta} />
           <circle cx="40" cy="14" r="7" fill={C.gold} />
           <circle cx="60" cy="18" r="6" fill={C.ember} />
         </>,
