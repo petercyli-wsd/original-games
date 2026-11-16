@@ -15,6 +15,7 @@ const copy: SlotCopy = {
   introNote: 'Marquee starts at ×2',
   rule: 'Match 3 on a line. Marquee multiplies wins.',
   wildText: 'Glitch block on reel 2 stands in.',
+  multiplierReel: { label: 'Marquee' },
   scatterText: '3 golden tokens start the bonus stage.',
 };
 

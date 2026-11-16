@@ -19,6 +19,67 @@ export const ARCADE = {
 } as const;
 const C = ARCADE;
 
+// Backdrops: flat shapes a shade off the window tone, so the tiles stay the loudest thing on screen.
+function cabinetScene(w: number, h: number, tones: { line: string; px: string; px2: string; bezel: string }) {
+  const u = Math.max(4, Math.round(Math.min(w, h) / 40)); // one "pixel"
+  const horizon = Math.round(h * 0.55);
+  const lines: ReactElement[] = [];
+  for (let i = -6; i <= 6; i++) {
+    lines.push(<line key={`v${i}`} x1={w / 2 + i * w * 0.05} y1={horizon} x2={w / 2 + i * w * 0.32} y2={h} stroke={tones.line} strokeWidth={1.5} />);
+  }
+  for (let k = 1; k <= 5; k++) {
+    const y = horizon + (h - horizon) * (k / 5) ** 2;
+    lines.push(<line key={`h${k}`} x1={0} y1={y} x2={w} y2={y} stroke={tones.line} strokeWidth={1.5} />);
+  }
+  const stars: [number, number, number][] = [
+    [0.08, 0.1, 1], [0.22, 0.28, 2], [0.4, 0.07, 1], [0.58, 0.22, 2], [0.74, 0.09, 1],
+    [0.9, 0.3, 2], [0.12, 0.42, 1], [0.84, 0.46, 1], [0.5, 0.38, 1],
+  ];
+  return (
+    <g>
+      <rect x={u} y={u} width={w - 2 * u} height={h - 2 * u} fill="none" stroke={tones.bezel} strokeWidth={u / 2} />
+      {stars.map(([fx, fy, n], i) => (
+        <rect key={i} x={Math.round(fx * w)} y={Math.round(fy * h)} width={u * n} height={u * n} fill={i % 2 ? tones.px : tones.px2} />
+      ))}
+      <rect x={0} y={horizon} width={w} height={2} fill={tones.px2} />
+      {lines}
+    </g>
+  );
+}
+
+function bonusScene(w: number, h: number) {
+  const u = Math.max(4, Math.round(Math.min(w, h) / 40));
+  const cx = w / 2;
+  const sunY = Math.round(h * 0.5);
+  const r = Math.round(Math.min(w, h) * 0.3);
+  const bands: ReactElement[] = [];
+  for (let i = 0; i < 6; i++) {
+    bands.push(<rect key={i} x={cx - r} y={sunY - r + i * (r / 3) + r * 0.9} width={r * 2} height={Math.max(2, i * 1.5)} fill={C.hotBg} />);
+  }
+  // stepped pixel hills along the bottom
+  const steps: ReactElement[] = [];
+  const cols = Math.ceil(w / (u * 3));
+  for (let i = 0; i < cols; i++) {
+    const hh = u * (2 + ((i * 7) % 5));
+    steps.push(<rect key={i} x={i * u * 3} y={h - hh - u} width={u * 3} height={hh} fill="#2A0C33" />);
+  }
+  const bursts: [number, number][] = [[0.1, 0.12], [0.3, 0.3], [0.7, 0.14], [0.9, 0.34], [0.5, 0.08]];
+  return (
+    <g>
+      <rect x={u} y={u} width={w - 2 * u} height={h - 2 * u} fill="none" stroke="#4A1A55" strokeWidth={u / 2} />
+      <circle cx={cx} cy={sunY} r={r} fill="#3A1040" />
+      {bands}
+      {bursts.map(([fx, fy], i) => (
+        <g key={i} fill="#5A1E5E">
+          <rect x={fx * w} y={fy * h - u} width={u} height={u * 3} />
+          <rect x={fx * w - u} y={fy * h} width={u * 3} height={u} />
+        </g>
+      ))}
+      {steps}
+    </g>
+  );
+}
+
 export const hiScoreTheme: SlotTheme = {
   name: 'Hi-Score',
   palette: {
@@ -32,6 +93,8 @@ export const hiScoreTheme: SlotTheme = {
     featureTile: C.hotTile,
   },
   window: { cell: 'tile', separators: 'gap', frameWidth: 12, radius: 10, cellRadius: 3 },
+  backdrop: (w, h) => cabinetScene(w, h, { line: '#1B1B4A', px: '#24246A', px2: '#2E2E7A', bezel: '#2A1450' }),
+  featureBackdrop: bonusScene,
 };
 
 const svg = (size: number, body: ReactElement) => (
