@@ -48,7 +48,7 @@ export interface ReelWindowHandle {
   set(board: number[][]): void;
   spin(opts: SpinOpts): Promise<void>;
   /** `removed`: the cells (in the current board) that pop. `next`: the board after survivors fall and new symbols drop in. */
-  tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number): Promise<void>;
+  tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number, onRebuild?: () => void): Promise<void>;
   slam(): void;
   /** Flips these cells (all at once) from what they show into `next`'s symbols: the mystery reveal. */
   reveal(next: number[][], cells: [number, number][], turbo: boolean, ms?: number): Promise<void>;
@@ -305,7 +305,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
       await Promise.all(ins);
     },
 
-    async tumble(next, removed, turbo, speed = 1) {
+    async tumble(next, removed, turbo, speed = 1, onRebuild) {
       const { height: H } = geo.current;
       const old = boardRef.current;
       const gone = new Set(removed.map(([c, r]) => `${c},${r}`));
@@ -357,6 +357,8 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
         });
         return out;
       });
+      // The previous step's frames go in the same commit that brings the new symbols, so they never sit on arrivals.
+      onRebuild?.();
       commitBoard(rebuilt);
       await nextCommit();
       if (!alive.current) return;

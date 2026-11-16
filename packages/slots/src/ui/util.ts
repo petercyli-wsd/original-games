@@ -716,3 +716,69 @@ export function fmtMoney(x: number): string {
 
 /** A history chip: a round's multiple of the bet, tiny ones keep their digits ("0.0045×"), a loss is "0.00×". */
 export const fmtHist = (m: number) => (m > 0 && m < 0.01 ? fmtX(m) : m.toFixed(2) + '×');
+
+// ---------------------------------------------------------------- values on landing (orbs, coins)
+
+/**
+ * Where each cell of each step ends up on the terminal board, following the tumbles (survivors fall in order, new
+ * symbols fill from the top). Null if any step is not a plain tumble, so nothing is ever guessed.
+ */
+export function terminalMaps(res: SpinResult): Map<string, string>[] | null {
+  const n = res.steps.length;
+  const maps: Map<string, string>[] = new Array(n);
+  maps[n - 1] = new Map(res.steps[n - 1].board.flatMap((col, c) => col.map((_, r) => [`${c},${r}`, `${c},${r}`] as [string, string])));
+  for (let j = n - 2; j >= 0; j--) {
+    const st = res.steps[j];
+    const next = res.steps[j + 1];
+    const gone = new Set(cellsUnion(st.wins).map(([c, r]) => `${c},${r}`));
+    const step = new Map<string, string>();
+    for (let c = 0; c < st.board.length; c++) {
+      const col = st.board[c];
+      if (!next.board[c] || next.board[c].length !== col.length) return null;
+      const keep = col.map((_, r) => r).filter((r) => !gone.has(`${c},${r}`));
+      const nNew = col.length - keep.length;
+      for (let i = 0; i < keep.length; i++) if (col[keep[i]] !== next.board[c][nNew + i]) return null;
+      keep.forEach((r, i) => step.set(`${c},${r}`, maps[j + 1].get(`${c},${nNew + i}`)!));
+    }
+    maps[j] = step;
+  }
+  return maps;
+}
+
+/**
+ * The value badges of each step: a value-carrying symbol (an orb, a coin) shows its value from the moment it lands.
+ * The engine decides the values at the terminal board; tracking each cell to its terminal place says which cell is which.
+ * Null if the spin has no such values (e.g. a spin that pays nothing draws none).
+ */
+export function valueBadgesByStep(res: SpinResult, labels: SlotCopy['decorLabels'], bet: number): Map<string, string>[] | null {
+  const key = Object.keys(res.decor ?? {}).find((k) => /orbVals$/i.test(k) && isMoneyMap(res.decor[k]));
+  if (!key) return null;
+  const vals = res.decor[key] as Record<string, number>;
+  const maps = terminalMaps(res);
+  const labelOf = (cell: string) => decorOverlays({ [key]: { [cell]: vals[cell] } }, labels, bet).get(cell);
+  if (!maps) {
+    const last = new Map<string, string>(Object.keys(vals).map((c) => [c, labelOf(c)!]));
+    return res.steps.map((_, j) => (j === res.steps.length - 1 ? last : new Map()));
+  }
+  return res.steps.map((st, j) => {
+    const out = new Map<string, string>();
+    st.board.forEach((col, c) =>
+      col.forEach((_, r) => {
+        const t = maps[j].get(`${c},${r}`);
+        if (t && t in vals) out.set(`${c},${r}`, labelOf(t)!);
+      }),
+    );
+    return out;
+  });
+}
+
+// ---------------------------------------------------------------- ladder lines
+
+/** "Base: ×1 ×2 ×3" lines, each under 9 words: long ladders continue on the next line. */
+export function ladderLines(label: string, values: number[]): string[] {
+  const head = `${label}:`;
+  const room = Math.max(1, 8 - head.split(/\s+/).length);
+  const out: string[] = [];
+  for (let i = 0; i < values.length; i += room) out.push((i === 0 ? head + ' ' : '') + values.slice(i, i + room).map((v) => `×${v}`).join(' '));
+  return out;
+}

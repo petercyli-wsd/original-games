@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -476,5 +476,41 @@ describe('round 11: rule lines read as sentences', () => {
     expect(introLines(1, '', 'order tickets', 'order ticket')[0]).toBe('1 order ticket');
     expect(introLines(3, '', 'order tickets', 'order ticket')[0]).toBe('3 order tickets');
     expect(outroLines(1, 5, false, 'rush spins')[0]).toBe('1 rush spin');
+  });
+});
+
+describe('round 12: cascade presentation', () => {
+  it('a value symbol shows its value from the step it lands, tracked to the terminal board', () => {
+    const d = emberDemo(6);
+    let checked = 0;
+    for (let seed = 1; seed <= 600 && checked < 8; seed++) {
+      const r = d.engine.playRound(seed, seededRng32(seed)).base;
+      const vals = r.decor['orb_sum_terminal.orbVals'];
+      if (!vals || r.steps.length < 2) continue;
+      const badges = valueBadgesByStep(r, {}, d.spec.bet.coins)!;
+      expect(terminalMaps(r)).not.toBeNull();
+      badges.forEach((m, j) => {
+        for (const cell of m.keys()) {
+          const [c, row] = cell.split(',').map(Number);
+          expect(r.steps[j].board[c][row], `${seed} step ${j} ${cell}`).toBe(11); // only orbs carry a badge
+        }
+        // every orb on the board has its badge, from the step it landed
+        const orbs = r.steps[j].board.flatMap((col, c) => col.flatMap((s, row) => (s === 11 ? [`${c},${row}`] : [])));
+        expect([...m.keys()].sort()).toEqual(orbs.sort());
+      });
+      expect(badges[badges.length - 1].size).toBe(Object.keys(vals as object).length);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+  it('a step pays the sum of its wins (so a chip can carry the step total)', () => {
+    const d = emberDemo(6);
+    for (let seed = 1; seed <= 200; seed++) for (const st of d.engine.playRound(seed, seededRng32(seed)).base.steps) expect(st.stepCoins).toBe(st.wins.reduce((a, w) => a + w.coins, 0));
+  });
+  it('writes the ladder of each phase in lines under 9 words', () => {
+    expect(ladderLines('Base', [1, 2, 3, 5, 8])).toEqual(['Base: ×1 ×2 ×3 ×5 ×8']);
+    const long = ladderLines('Eruption spins', [4, 8, 17, 35, 70, 140, 280, 560]);
+    expect(long.length).toBeGreaterThan(1);
+    for (const l of long) expect(wordCount(l)).toBeLessThan(9);
   });
 });

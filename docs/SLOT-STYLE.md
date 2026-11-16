@@ -195,6 +195,8 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Rule lines read as sentences.** The feature's spins use a noun, not the feature's name: `copy.featureSpins` ("rush spins", default "free spins"), or the name itself when it ends in "spins" ("Tide spins"). The scatter is named as the game does and counted: "3 order tickets: 5 rush spins", "Retrigger: 1 order ticket, +1 spin".
 
+**Cascades.** The win chip carries its step's multiplier ("Fire opal ×5 · Pressure ×2 = 2.58"; dropped if the chip would pass 9 words, since the readout shows it) and a "Chain total" chip sits beside it. The Win readout never runs ahead of what is on screen: with several wins it adds each as that win shows. A step's win frames and its list go in the same commit that brings the new symbols, so they never sit on arrivals. A value-carrying symbol (orb, coin) shows its badge from the moment it lands, tracked through the tumbles to the engine's terminal values; a spin the engine draws no values for (an orb round that pays nothing) shows none, because none exist. The ladder highlight starts empty each spin and when a feature ends. When the feature's ladder differs, its intro card says where it starts ("Pressure starts at ×4") and the paytable lists each phase's ladder ("Base: ×1 ×2 ×3 ×5 ×8"). The trigger highlight boxes the scatters on the final board, so cascade triggers are boxed where the symbols ended up.
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

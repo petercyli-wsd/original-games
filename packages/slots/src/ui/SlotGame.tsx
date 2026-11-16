@@ -66,6 +66,8 @@ import {
   idsWithRole,
   ladderOf,
   stepMults,
+  valueBadgesByStep,
+  wordCount,
   waysOf,
   initialSpins as initialSpins_,
   countNoun,
@@ -204,6 +206,7 @@ export function SlotGame(props: SlotGameProps) {
   const [held, setHeld] = useState<ReadonlySet<string> | null>(null);
   const [fx, setFx] = useState<{ k: number; col: number; row: number; symbol: number }[]>([]);
   const [burst, setBurst] = useState(0);
+  const [chainTotal, setChainTotal] = useState<string | null>(null);
   const [marks, setMarks] = useState<ReadonlySet<string> | null>(null);
   const wildIds = useMemo(() => new Set(idsWithRole(spec, 'wild')), [spec]);
   const [breakdown, setBreakdown] = useState<string[]>([]);
@@ -342,6 +345,7 @@ export function SlotGame(props: SlotGameProps) {
     setSlide(null);
     setNoWin(false);
     setBreakdown([]);
+    setChainTotal(null);
     setBurst(0);
     setMarks(null);
     if (mrCfg) setMr({ spinning: true, value: null });
@@ -400,50 +404,63 @@ export function SlotGame(props: SlotGameProps) {
   };
 
   /** The chip for one win: its symbol on a tile, then "name ×count = amount". */
-  const winChipOf = (w: SpinWin, m: number, stake: number): ChipState => {
+  const winChipOf = (w: SpinWin, m: number, stake: number, note = ''): ChipState => {
     const p = parseWinLabel(w.label);
     const id = p ? metas.find((x) => x.label === p.symbol)?.id : undefined;
     const art = id !== undefined ? symbols[id] : undefined;
     const name = art?.name ?? p?.symbol ?? w.label;
     const count = p ? ` ×${p.count}` : '';
     const ways = w.ways && w.ways > 1 ? ` · ${w.ways} ways` : '';
-    return { art, text: `${name}${count}${ways} = ${money(((w.coins * m) / bc) * stake)}` };
+    const text = `${name}${count}${ways}${note} = ${money(((w.coins * m) / bc) * stake)}`;
+    // The multiplier note is dropped if it would push the chip past what blind players can read (9 words).
+    return { art, text: note && wordCount(text) >= 9 ? text.replace(note, '') : text };
   };
 
-  /** Shows every win of one step, rolling the counter up by the step's coins. Returns the running coins. */
-  async function presentWins(st: SpinStep, m: number, stake: number, running: number, limit: number, k = 1): Promise<number> {
+  /**
+   * Shows every win of one step. The Win readout rolls up with what is on show (each win in turn adds its own), so it never
+   * runs ahead of the chip; the chip carries the step's multiplier ("Fire opal ×5 · Pressure ×2 = 2.58") and, in a chain,
+   * a running "Chain total" sits beside it. Returns the running coins.
+   */
+  async function presentWins(st: SpinStep, m: number, stake: number, running: number, limit: number, k = 1, factor?: number, chain = false): Promise<number> {
     const add = st.stepCoins * m;
     const to = running + add;
     const m$ = (c: number) => (Math.min(c, limit) / bc) * stake;
-    const ms = rollTo(counter.current, m$(to), rollMs(add / bc, fastNow()) * k);
     const wins = st.wins;
-    const chipFor = (w: SpinWin): ChipState => winChipOf(w, m, stake);
+    const note = factor && factor > 1 && ladder.length ? ` · ${ladderLabel} ×${factor}` : '';
+    const chipFor = (w: SpinWin): ChipState => winChipOf(w, m, stake, note);
     const all = keys(cellsUnion(wins));
     const total = `${wins.length} wins = ${money((add / bc) * stake)}`;
-    // Which win paid what, kept on screen under the summary (Manual only; Turbo shows the summary alone).
+    const showChain = (coins: number) => chain && setChainTotal(money(m$(coins)));
+    // Which win paid what, kept on screen under the summary.
     const lines = wins.map((w) => `${w.lineIdx !== null ? `Line ${w.lineIdx + 1} · ` : ''}${chipFor(w).text}`);
     const list = lines.length > 6 ? [...lines.slice(0, 6), `+${lines.length - 6} more`] : lines;
     if (wins.length === 1 || fastNow() || wins.length > 8) {
+      const ms = rollTo(counter.current, m$(to), rollMs(add / bc, fastNow()) * k);
       setWin(all);
       setLine(wins.length === 1 ? linePath(wins[0]) : null);
       setChip(wins.length === 1 ? chipFor(wins[0]) : { text: total });
+      showChain(to);
       if (wins.length > 1) setBreakdown(list);
       await Promise.all([ms, wait(T(700) * k)]);
     } else {
-      // Each win in turn (its cells, its line path, its chip "Symbol × count = amount"), then the summary.
+      // Each win in turn (its cells, its line path, its chip), the readout adding each as it shows; then the summary.
       const ep = epoch.current;
+      let cum = running;
       for (const w of wins) {
         if (!alive.current || ep !== epoch.current) break;
+        cum += w.coins * m;
         setWin(keys(w.cells));
         setLine(linePath(w));
         setChip(chipFor(w));
-        await wait(900 * k);
+        showChain(cum);
+        await Promise.all([rollTo(counter.current, m$(cum), Math.min(600, rollMs((w.coins * m) / bc, false)) * k), wait(900 * k)]);
       }
-      await ms;
+      await rollTo(counter.current, m$(to), 150);
       if (alive.current) {
         setWin(all);
         setLine(null);
         setChip({ text: total });
+        showChain(to);
         setBreakdown(list);
       }
     }
@@ -500,6 +517,9 @@ export function SlotGame(props: SlotGameProps) {
     }
 
     const factors = stepMults(res.decor);
+    // Value badges (orbs, coins) show from the moment the symbol lands, tracked through the tumbles to the engine's terminal values.
+    const badges = !mod ? valueBadgesByStep(res, copy?.decorLabels, bc) : null;
+    if (badges) setOverlays(badges[0]);
     let paying = 0;
     let introduced = false;
     let initialLeft: number | null = null;
@@ -512,13 +532,15 @@ export function SlotGame(props: SlotGameProps) {
         const f = factors[paying++];
         if (f) setSlide(f);
         bigBurst();
-        running = await presentWins(st, m, stake, running, limit, k);
+        running = await presentWins(st, m, stake, running, limit, k, f, steps.length > 1);
         if (next) {
-          await r?.tumble(next.board, cellsUnion(st.wins), fastNow(), k);
-          if (alive.current) {
+          // The step's frames and its list go as the new symbols arrive, so they never sit on them.
+          await r?.tumble(next.board, cellsUnion(st.wins), fastNow(), k, () => {
             setWin(null);
             setLine(null);
-          }
+            setBreakdown([]);
+          });
+          if (alive.current && badges) setOverlays(badges[i + 1]);
         }
       } else if (next) {
         // No win, but the board changes: a respin.
@@ -681,17 +703,19 @@ export function SlotGame(props: SlotGameProps) {
     const introNote = copy?.introNote ?? (config.feature ? multiplierNote(config.feature) : '');
     // The scatters that triggered it, framed for about a second before the card (brief in Turbo).
     const sc: [number, number][] = [];
-    (base.steps[0]?.board ?? base.finalBoard).forEach((col, c) => col.forEach((sym, row) => scatterIds.includes(sym) && sc.push([c, row])));
+    // The board on screen now is the final one (cascades included), so box the scatters that sit on it: every one that counted.
+    base.finalBoard.forEach((col, c) => col.forEach((sym, row) => scatterIds.includes(sym) && sc.push([c, row])));
     setWin(sc.length ? keys(sc) : null);
     setLine(null);
     await wait(fastNow() ? 600 : 1000);
     await showCard(
-      { kicker: name, title: `${initialSpins} ${countNoun(initialSpins, spinsNoun)}`, lines: introLines(nScatter, introNote, pluralOf(symbols[scatterIds[0]]?.name), symbols[scatterIds[0]]?.name?.toLowerCase()), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
+      { kicker: name, title: `${initialSpins} ${countNoun(initialSpins, spinsNoun)}`, lines: [...introLines(nScatter, introNote, pluralOf(symbols[scatterIds[0]]?.name), symbols[scatterIds[0]]?.name?.toLowerCase()), ...(featLadder.length && JSON.stringify(featLadder) !== JSON.stringify(baseLadder) && !introNote.includes(`×${featLadder[0]}`) ? [`${ladderLabel} starts at ×${featLadder[0]}`] : [])], button: 'Start', placement: placementFor(sc, base.finalBoard) },
       { autoMs: autoAdvance() ? T(1600) : null },
     );
     if (!alive.current) return;
 
     const limit = round.totalCoins - baseCoins;
+    setSlide(null);
     counter.current?.set(0);
     setWin(null);
     setLine(null);
@@ -728,6 +752,7 @@ export function SlotGame(props: SlotGameProps) {
     );
     if (!alive.current) return;
     setFeat(null);
+    setSlide(null); // the base ladder starts empty again
     await rollTo(counter.current, (round.totalCoins / bc) * stake, T(500));
   }
 
@@ -978,6 +1003,7 @@ export function SlotGame(props: SlotGameProps) {
           />
           <div className="sl-winbar" aria-live="polite">
             {chip && <WinChip art={chip.art} text={chip.text} event={chip.event} />}
+            {chainTotal && chip && <WinChip text={`Chain total · ${chainTotal}`} />}
             {breakdown.length > 0 && (
               <ul className="sl-breakdown" aria-label="Which win paid what">
                 {breakdown.map((t, i) => (
@@ -992,7 +1018,7 @@ export function SlotGame(props: SlotGameProps) {
       <Caption>{feat ? ((feat.kind === 'respin' ? copy?.chainRule : copy?.featureRule) ?? ruleSentence(spec, copy)) : ruleSentence(spec, copy)}</Caption>
       {infoOpen && (
         <InfoModal title="Paytable" onClose={() => setInfoOpen(false)}>
-          <PayTableSheet spec={spec} symbols={symbols} config={config} copy={copy} facts={facts} theme={theme} modifierName={modName} />
+          <PayTableSheet spec={spec} featureSpecs={featureSpecs} symbols={symbols} config={config} copy={copy} facts={facts} theme={theme} modifierName={modName} />
         </InfoModal>
       )}
     </GameLayout>

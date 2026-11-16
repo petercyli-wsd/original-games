@@ -7,7 +7,7 @@ import { InfoSection, fmtChance } from '@originals/game-sdk/ui';
 import type { CSSProperties } from 'react';
 import type { SlotSpec } from '../engine/types';
 import type { SlotCopy, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from './types';
-import { featureRules, fmtCount, mysterySymbol, pluralOf, fmtX, howToWinLines, idsWithRole, maxRowsOf, modifierRuleLines, multiplierValues, paylinesOf, payRows, scatterLines, symbolMetas, topPay, valueDistribution, valueLines, wildLines } from './util';
+import { featureRules, fmtCount, ladderLines, ladderOf, mysterySymbol, pluralOf, fmtX, howToWinLines, idsWithRole, maxRowsOf, modifierRuleLines, multiplierValues, paylinesOf, payRows, scatterLines, symbolMetas, topPay, valueDistribution, valueLines, wildLines } from './util';
 
 const TIER_WORDS = { exact: 'exact', exact_mixture: 'exact mixture', mc: 'Monte Carlo' } as const;
 
@@ -37,7 +37,7 @@ function PaylinePicture({ line, cols, rows }: { line: number[]; cols: number; ro
   );
 }
 
-export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modifierName }: { spec: SlotSpec; symbols: SlotSymbols; config: SlotGameConfig; copy?: SlotCopy; facts: SlotFacts; theme: SlotTheme; modifierName?: string }) {
+export function PayTableSheet({ spec, featureSpecs, symbols, config, copy, facts, theme, modifierName }: { spec: SlotSpec; featureSpecs?: Record<string, SlotSpec>; symbols: SlotSymbols; config: SlotGameConfig; copy?: SlotCopy; facts: SlotFacts; theme: SlotTheme; modifierName?: string }) {
   const bet = spec.bet.coins;
   const metas = symbolMetas(spec);
 
@@ -57,6 +57,10 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
   const valueSyms = metas.filter((m) => m.role !== 'wild' && m.role !== 'scatter' && Object.keys(spec.pays.paytable[String(m.id)] ?? {}).length === 0);
   const modLines = modifierRuleLines(spec, (id) => symbols[id]?.name ?? `Symbol ${id}`, copy);
   const mults = multiplierValues(spec);
+  // Multiplier ladders of each phase (cascade_step_ladder): the base game's, and the feature spec's if it differs.
+  const ladderLabel = typeof copy?.ladder === 'object' && copy.ladder.label ? copy.ladder.label : 'Step';
+  const baseLadder = copy?.ladder === false ? [] : ladderOf(spec);
+  const featLadder = copy?.ladder === false ? [] : ladderOf(Object.values(featureSpecs ?? {})[0] ?? spec);
   const wilds = idsWithRole(spec, 'wild');
   // The scatter as the rules name it: "3 suns", not "3 scatters".
   const scatterWord = pluralOf(symbols[idsWithRole(spec, 'scatter')[0]]?.name);
@@ -187,6 +191,16 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
           {modLines.map((t, i) => (
             <p key={i}>{t}</p>
           ))}
+        </InfoSection>
+      )}
+
+      {baseLadder.length > 0 && (
+        <InfoSection title={ladderLabel}>
+          {ladderLines('Base', baseLadder).map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+          {featLadder.length > 0 && JSON.stringify(featLadder) !== JSON.stringify(baseLadder) &&
+            ladderLines(featureName, featLadder).map((t, i) => <p key={`f${i}`}>{t}</p>)}
         </InfoSection>
       )}
 
