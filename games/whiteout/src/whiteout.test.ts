@@ -12,7 +12,7 @@ import { featureValue, freeSpinsAnalytics } from '../../../packages/slots/src/en
 import { mcRtp, mcSpinDistribution } from '../../../packages/slots/src/engine/analytics/mc';
 import { checkParity, type OracleFixture } from '../../../packages/slots/src/engine/parity';
 import { SlotEngine, canonicalSpin, createSlot, Mulberry32, triggerScatters, type SlotSpec } from '../../../packages/slots/src/engine/index';
-import { featureRules, introLines, wordCount } from '../../../packages/slots/src/ui/util';
+import { checkCopy, featureRules, introLines, wordCount } from '../../../packages/slots/src/ui/util';
 import { createSeedSource } from '../../../packages/slots/src/ui/engine-bridge';
 import { copy } from './Game';
 import manifest from './manifest';
@@ -122,13 +122,13 @@ describe('whiteout feature algebra vs playRound', () => {
     expect(Math.abs(mean - alg), `played ${(mean / bet).toFixed(1)}x vs algebra ${(alg / bet).toFixed(1)}x, tol ${(tol / bet).toFixed(1)}x`).toBeLessThan(tol);
     // and the algebra's trigger law is the engine's: 1 in N from the scatter distribution it prices
     const fa = freeSpinsAnalytics({ baseRtp: 0.48, baseTier: 'mc', baseRtpSe: 0.01, betCoins: bet, scatterDist: [0, 0, 0, 0, 0.0037], scatterMin: min, featureDist: fd, cfg });
-    expect(fa.expectedSpinsGivenTrigger).toBeGreaterThan(12);
-    expect(fa.expectedSpinsGivenTrigger).toBeLessThan(14);
+    expect(fa.expectedSpinsGivenTrigger).toBeGreaterThan(9);
+    expect(fa.expectedSpinsGivenTrigger).toBeLessThan(10.5);
   }, 600_000);
 
-  it('spin j pays x j, awards are 12 / 15 / 18, one retrigger of +4, 36 spins at most', () => {
+  it('spin j pays x j, awards are 9 / 12 / 15, one retrigger of +4, 36 spins at most', () => {
     const cfg = config.feature!;
-    expect(cfg.awards).toEqual({ '4': 12, '5': 15, '6': 18 });
+    expect(cfg.awards).toEqual({ '4': 9, '5': 12, '6': 15 });
     expect(cfg.retrigger).toEqual({ '4': 4 });
     expect(cfg.maxSpins).toBe(36);
     expect(cfg.multiplier).toEqual({ kind: 'per_spin', start: 1, step: 1 });
@@ -143,6 +143,61 @@ describe('whiteout feature algebra vs playRound', () => {
     }
     expect(seen).toBe(3);
   }, 300_000);
+});
+
+describe('whiteout buried reel (the storm rule)', () => {
+  type Sets = { id: string; weight: number; strips: number[][] }[];
+  const BURIED = 13;
+  const fsets = (fspec as unknown as { board_law: { reel_sets: Sets } }).board_law.reel_sets;
+  const bsets = (spec as unknown as { board_law: { reel_sets: Sets } }).board_law.reel_sets;
+
+  it('three equally weighted feature reel sets bury reel 4, 5 and 6 in snow; nothing else is wild in the storm', () => {
+    expect(fsets.map((s) => s.weight)).toEqual([1, 1, 1]);
+    const buried = fsets.map((s) => s.strips.map((st, c) => (st.every((x) => x === BURIED) ? c : -1)).filter((c) => c >= 0));
+    expect(buried).toEqual([[3], [4], [5]]);
+    for (const s of fsets) for (const st of s.strips) if (!st.every((x) => x === BURIED)) expect(st.some((x) => x === 2 || x === BURIED)).toBe(false);
+    // Buried snow is a wild with no pays, and it never appears in the base game.
+    expect(fspec.symbols.find((s) => s.id === BURIED)?.role).toBe('wild');
+    expect(fspec.pays.paytable[String(BURIED)]).toBeUndefined();
+    for (const s of bsets) for (const st of s.strips) expect(st.includes(BURIED)).toBe(false);
+    // The slide ladder is the same in both phases, so the storm's rule is the buried reel, not a new ladder.
+    const lad = (s: SlotSpec) => s.mechanics.find((m) => m.id === 'cascade_step_ladder')?.params;
+    expect(lad(fspec)).toEqual(lad(spec));
+  });
+
+  it('on every free spin the buried reel is snow on the stop and after every slide refill', () => {
+    const eng = new SlotEngine(fspec);
+    const counts = [0, 0, 0];
+    let slides = 0;
+    for (let seed = 0; seed < 3000; seed++) {
+      const r = eng.spin(seed);
+      const col = [3, 4, 5].find((c) => r.steps[0].board[c].every((x) => x === BURIED));
+      expect(col, `seed ${seed}`).toBeDefined();
+      counts[col! - 3]++;
+      for (const st of r.steps) expect(st.board[col!].every((x) => x === BURIED)).toBe(true);
+      expect(r.finalBoard[col!].every((x) => x === BURIED)).toBe(true);
+      slides += r.steps.length - 1;
+      // only the buried reel holds snow
+      r.steps[0].board.forEach((c, i) => i !== col && expect(c.includes(BURIED)).toBe(false));
+    }
+    for (const n of counts) expect(n).toBeGreaterThan(900);
+    expect(slides).toBeGreaterThan(300);
+  });
+
+  it('a buried reel completes ways: the same stops pay more with it than without it', () => {
+    const plain = JSON.parse(JSON.stringify(fspec)) as SlotSpec;
+    const ps = (plain as unknown as { board_law: { reel_sets: Sets } }).board_law.reel_sets;
+    for (const s of ps) s.strips = s.strips.map((st) => (st.every((x) => x === BURIED) ? fsets[0].strips[0].slice(0, st.length) : st));
+    const a = new SlotEngine(fspec);
+    const b = new SlotEngine(plain);
+    let wa = 0;
+    let wb = 0;
+    for (let seed = 0; seed < 4000; seed++) {
+      wa += a.spin(seed).totalCoins;
+      wb += b.spin(seed).totalCoins;
+    }
+    expect(wa).toBeGreaterThan(1.5 * wb);
+  });
 });
 
 describe('whiteout max win', () => {
@@ -199,11 +254,20 @@ describe('whiteout copy', () => {
     copy.rule,
     copy.wildText,
     copy.scatterText,
+    copy.featureRule,
+    ...Object.values(copy.symbolText ?? {}),
+    ...(copy.featureNotes ?? []),
     ...featureRules(config.feature!, copy.featureName),
     ...introLines(4, copy.introNote ?? ''),
   ].filter(Boolean) as string[];
   it('every line is under 9 words', () => {
     for (const l of lines) expect(wordCount(l), l).toBeLessThan(9);
+    expect(checkCopy(copy)).toEqual([]);
+  });
+  it('the intro card and the board name the buried reel', () => {
+    expect(copy.introNote).toMatch(/Buried reel/);
+    expect(copy.featureRule).toMatch(/Buried reel/);
+    expect(read('art.tsx')).toContain("name: 'Buried snow'");
   });
   it('never uses a trademarked mechanic name', () => {
     const all = [read('Game.tsx'), read('art.tsx'), read('manifest.ts'), JSON.stringify(copy)].join('\n');
@@ -211,5 +275,10 @@ describe('whiteout copy', () => {
   });
   it('the summit marker is a flag, not a cross', () => {
     expect(read('art.tsx')).toContain('Summit flag');
+  });
+  it('the backdrop draws no flag or pennant behind the reels', () => {
+    const src = read('art.tsx');
+    const scene = src.slice(src.indexOf('function alpineScene'), src.indexOf('export const whiteoutTheme'));
+    expect(scene).not.toMatch(/C\.orange|opacity/);
   });
 });
