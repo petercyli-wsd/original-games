@@ -399,17 +399,30 @@ function tuneByScale(a: ScaleArgs): boolean {
       }
       return { N: swn / sw, se: points.some((q) => q.r.tier !== 'mc') ? 0 : 1 / Math.sqrt(sw) };
     };
-    // the trial whose predicted RTP is on target: solve s against the measured effective scale
+    // the trial whose predicted RTP is on target. The effective scale r(s) is a STEP function of s
+    // (frequent small pays round in jumps: 50 coins becomes 51 only from s ≥ 1.01), so a secant
+    // iteration can land anywhere; search a grid of s around the linear estimate instead (each
+    // candidate's effective scale measured by the cached common random numbers) and keep the
+    // candidate whose prediction is closest to target (ties: closest to the estimate).
+    const trialCache = new Map<number, Trial>();
+    const trialCached = (sc: number) => {
+      const key = Math.round(sc * 1e6);
+      if (!trialCache.has(key)) trialCache.set(key, trialAt(key / 1e6));
+      return trialCache.get(key)!;
+    };
     const solve = (N: number): Trial => {
-      let sc = (target - N) / L1;
-      let t = trialAt(sc);
-      for (let k = 0; k < 3; k++) {
-        const err = target - (N + lin(t));
-        if (Math.abs(err) < 1e-6) break;
-        sc += err / L1;
-        t = trialAt(sc);
+      const s0 = (target - N) / L1;
+      let best: Trial | null = null;
+      let bestErr = Infinity;
+      for (let d = -16; d <= 16; d++) {
+        const t = trialCached(s0 + d * 0.00025);
+        const err = Math.abs(N + lin(t) - target) + Math.abs(d) * 1e-9;
+        if (err < bestErr) {
+          bestErr = err;
+          best = t;
+        }
       }
-      return t;
+      return best!;
     };
     let pick = points[0].t;
     for (let it = 1; it <= 3; it++) {
