@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, featureRules, fmtX, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -192,4 +192,79 @@ describe('the demo stub engine matches the engine types', () => {
       if (name === 'reef') expect(features).toBeGreaterThan(0);
     });
   }
+});
+
+describe('round 2: modifier features, labels, multipliers, mystery reveal', () => {
+  it('never shows raw engine extras labels; the default is neutral and a game can map them', () => {
+    expect(extraLabel('HOLD & SPIN: 9 coins')).toBe('Bonus total');
+    expect(extraLabel('ORB SUM x35')).toBe('Bonus ×35');
+    expect(extraLabel('SCATTER PAY (3 scatters)')).toBe('Scatter pay');
+    expect(extraLabel('Honey Harvest: 9 cells')).toBe('Honey Harvest: 9 cells'); // already the game's words
+    expect(extraLabel('HOLD & SPIN: 9 coins', { 'HOLD & SPIN': 'Noodle haul' })).toBe('Noodle haul');
+    expect(extraLabel('ORB SUM x3', (r) => r.toLowerCase())).toBe('orb sum x3');
+  });
+  it('sums the multiplier the engine applied', () => {
+    expect(roundMultiplier({ 'global_additive.gwm': 6, 'global_additive.wildMults': { '1,1': 2, '2,0': 3 } })).toEqual({ total: 6, parts: [2, 3], kind: 'additive' });
+    expect(multiplierChip(roundMultiplier({ 'global_additive.gwm': 6, 'global_additive.wildMults': { '1,1': 2, '2,0': 3 } })!)).toBe('Multiplier ×6 (1 + 5)');
+    expect(roundMultiplier({ 'global_iid.mult': 5 })).toEqual({ total: 5, kind: 'reel' });
+    expect(roundMultiplier({ 'global_iid.mult': 1 })).toBeNull();
+    expect(roundMultiplier({ 'orb_sum_terminal.orbVals': { '0,0': 2, '1,1': 3 } })?.total).toBe(5);
+    expect(roundMultiplier({})).toBeNull();
+    expect(decorOverlays({ 'global_additive.wildMults': { '2,2': 3 } }).get('2,2')).toBe('+3');
+  });
+  it('tiny pays keep their digits', () => {
+    expect(fmtX(0.0045)).toBe('0.0045×');
+    expect(fmtX(0.00002)).toBe('0.00002×');
+    expect(fmtX(0.15)).toBe('0.15×');
+  });
+  it('value symbols show what they can take', () => {
+    const d = emberDemo(6);
+    const dist = valueDistribution(d.spec, 11)!;
+    expect(dist.kind).toBe('mult');
+    expect(valueLines(dist, 100)).toEqual(['Value ×2 to ×10', 'Most often ×2']);
+    expect(valueDistribution(d.spec, 3)).toBeNull();
+    expect(multiplierValues(reefDemo('marquee').spec)).toEqual([1, 2, 3, 5, 10]);
+  });
+  it('rebuilds the board before a mystery reveal from the stops and strips', () => {
+    const d = reefDemo('mystery');
+    let found = 0;
+    for (let seed = 1; seed <= 300 && found < 5; seed++) {
+      const r = d.engine.playRound(seed, seededRng32(seed));
+      const pre = preReveal(d.spec, r.base);
+      if (!pre) continue;
+      found++;
+      const revealed = r.base.decor['mystery_reveal.mysteryReveal'] as number;
+      for (const [c, row] of pre.cells) {
+        expect(pre.board[c][row]).toBe(11); // the mystery symbol is visible before the flip
+        expect(r.base.steps[0].board[c][row]).toBe(revealed); // and becomes the revealed symbol
+      }
+      pre.board.forEach((col, c) => col.forEach((v, row) => pre.cells.some(([cc, rr]) => cc === c && rr === row) || expect(v).toBe(r.base.steps[0].board[c][row])));
+    }
+    expect(found).toBeGreaterThan(0);
+  });
+  it('finds respin chains as a modifier feature, with the coins landing by step', () => {
+    const board = (...cols: number[][]) => cols;
+    const spin = (steps: number[][][], decor: Record<string, unknown>) =>
+      ({ steps: steps.map((b) => ({ board: b, stepCoins: 0, wins: [] })), finalBoard: steps[steps.length - 1], decor, extras: [], flags: [], set: 0, stops: [], totalCoins: 0, trigger: null }) as never;
+    const res = spin([board([1, 0], [0, 0]), board([1, 0], [0, 9]), board([1, 9], [0, 9])], { 'x.heldVals': { '0,0': 100, '1,1': 200, '0,1': 300 }, 'x.respins': 2 });
+    expect(modifierOf(res)).toEqual({ respins: 2 });
+    expect(landedCoins(res)).toEqual([100, 300, 600]);
+    expect([...landedByStep(res, 100, {})[0].keys()]).toEqual(['0,0']);
+    expect(modifierOf(spin([board([1], [2])], {}))).toBeNull();
+    expect(modifierOf(spin([board([1], [2])], {}), () => true)).toEqual({ respins: 0 });
+  });
+  it('writes paytable lines for a hold-and-spin mechanic, each under 9 words', () => {
+    const spec = { mechanics: [{ id: 'hold_and_spin_lock_respin', params: { coin_symbol: 11, entry_min: 6, respins: 3, full_grid_bonus: 5 } }] } as never;
+    const lines = modifierRuleLines(spec, () => 'Honey');
+    expect(lines).toContain('6+ honeys start the bonus');
+    for (const l of lines) expect(wordCount(l)).toBeLessThan(9);
+  });
+  it('forceFeature also finds modifier features when told what counts', () => {
+    const d = reefDemo();
+    const src = createSeedSource(d.engine, createRng(seededSource(3)), d.spec.bet.coins, undefined, (r) => r.base.totalCoins > 0 && !r.feature);
+    const seed = src.forceFeature()!;
+    const r = d.engine.playRound(seed, seededRng32(seed));
+    expect(r.feature).toBeNull();
+    expect(r.base.totalCoins).toBeGreaterThan(0);
+  });
 });

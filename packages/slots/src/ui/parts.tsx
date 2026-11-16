@@ -2,7 +2,7 @@
 // cards that cover the window at the big moments (feature intro and outro, retrigger,
 // big win). All flat: a solid surface with a 1px border, no dim layer, no confetti.
 
-import { forwardRef, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from 'react';
 import { ActionButton } from '@originals/game-sdk/ui';
 import type { SlotSymbolArt } from './types';
 
@@ -110,6 +110,30 @@ export function Card({ kicker, title, amount, lines, tier = 0, button, onContinu
           {button}
         </ActionButton>
       )}
+    </div>
+  );
+}
+
+/**
+ * A multiplier reel (the marquee: ×1 ×2 ×3 ×5 ×10) in a row above the window. While the reels spin the highlight
+ * steps along the values; when they stop it rests on the spin's value (or on none if the spin has none).
+ */
+export function MultiplierReel({ label, values, spinning, value, turbo }: { label: string; values: number[]; spinning: boolean; value: number | null; turbo: boolean }) {
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    if (!spinning) return;
+    const id = setInterval(() => setAt((i) => (i + 1) % values.length), turbo ? 40 : 90);
+    return () => clearInterval(id);
+  }, [spinning, turbo, values.length]);
+  const on = spinning ? values[at] : value;
+  return (
+    <div className="sl-mreel" role="img" aria-label={`${label}${!spinning && value ? ` ×${value}` : ''}`}>
+      <span className="sl-mreel-label">{label}</span>
+      {values.map((v) => (
+        <span key={v} className={'sl-mreel-v' + (v === on ? ' on' : '')}>
+          ×{v}
+        </span>
+      ))}
     </div>
   );
 }

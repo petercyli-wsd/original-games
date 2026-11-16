@@ -1,7 +1,7 @@
 // Pure helpers behind the slot UI: timing rules, anticipation, tiers, decor parsing,
 // facts parsing and paytable rows. No React, no DOM, so they are unit-tested directly.
 
-import type { SlotSpec, SpecSymbol } from '../engine/types';
+import type { SlotSpec, SpecSymbol, SpinResult } from '../engine/types';
 import { award, multiplierAt, type FeatureConfig } from '../engine';
 import type { SlotCopy, SlotFacts } from './types';
 
@@ -103,12 +103,19 @@ export function cellsUnion(wins: { cells: [number, number][] }[]): [number, numb
  * `orb_sum_terminal.orbVals`); keys with "orb", "mult" or "badge" read as multipliers (`×2`), the rest as plain numbers.
  * Other encodings (cell lists, ints) carry no per-cell value and are ignored here.
  */
-export function decorOverlays(decor: Record<string, unknown> | undefined, labels: SlotCopy['decorLabels'] = {}): Map<string, string> {
+export function decorOverlays(decor: Record<string, unknown> | undefined, labels: SlotCopy['decorLabels'] = {}, bet?: number): Map<string, string> {
   const out = new Map<string, string>();
   if (!decor) return out;
   for (const [key, val] of Object.entries(decor)) {
     if (!val || typeof val !== 'object' || Array.isArray(val)) continue;
-    const fmt = labels[key] ?? ((v: number) => (/orb|mult|badge/i.test(key) ? `×${v}` : String(v)));
+    const fmt =
+      labels[key] ??
+      ((v: number) => {
+        if (/wildmults?$/i.test(key)) return `+${v}`; // additive multipliers add up: shown as +N
+        if (/orb|mult|badge/i.test(key)) return `×${v}`;
+        if (bet && /(held|coin|cash)vals?$/i.test(key)) return fmtX(v / bet); // coin values are coins: shown in bets
+        return String(v);
+      });
     for (const [cell, v] of Object.entries(val as Record<string, unknown>)) {
       if (/^\d+,\d+$/.test(cell) && typeof v === 'number' && Number.isFinite(v)) out.set(cell, fmt(v));
     }
@@ -239,9 +246,13 @@ export { multiplierAt };
 
 // ---------------------------------------------------------------- paytable
 
-/** Stakes display for pays: "0.5×", "12×", "5,000×". */
+/** Stakes display for pays: "0.5×", "12×", "5,000×". Tiny pays keep their digits ("0.0045×"), never "0×". */
 export function fmtX(x: number): string {
   if (x >= 100) return Math.round(x).toLocaleString('en-US') + '×';
+  if (x > 0 && x < 0.01) {
+    const t = (x >= 0.0001 ? x.toFixed(4) : x.toPrecision(2)).replace(/0+$/, '');
+    return t + '×';
+  }
   const t = x >= 10 ? x.toFixed(1) : x.toFixed(2);
   return t.replace(/\.?0+$/, '') + '×';
 }
@@ -310,4 +321,213 @@ export function idleBoard(spec: SlotSpec): number[][] {
     const strip = strips?.[c];
     return Array.from({ length: n }, (_, r) => (strip && strip.length ? strip[(c * 3 + 1 + r) % strip.length] : fillerSymbol(ids, c, r)));
   });
+}
+
+// ---------------------------------------------------------------- extras labels
+
+const RAW_ENGINE_LABEL = /^[A-Z]{2,}(?:[ &][A-Z]{2,})*/;
+
+/**
+ * What to show for an engine extras label. Raw engine text ("HOLD & SPIN: 9 coins", "ORB SUM x35") is never shown:
+ * `copy.extrasLabels` maps it; the neutral default is "Scatter pay", "Bonus ×35" or "Bonus total". A label already in
+ * the game's own words (not engine capitals) passes through unchanged.
+ */
+export function extraLabel(raw: string, map?: SlotCopy['extrasLabels']): string {
+  if (typeof map === 'function') return map(raw);
+  if (map) {
+    if (raw in map) return map[raw];
+    const hit = Object.keys(map).find((k) => raw.startsWith(k));
+    if (hit) return map[hit];
+  }
+  if (!RAW_ENGINE_LABEL.test(raw)) return raw;
+  if (/scatter pay/i.test(raw)) return 'Scatter pay';
+  const m = /\bx(\d+)/i.exec(raw);
+  return m ? `Bonus ×${m[1]}` : 'Bonus total';
+}
+
+// ---------------------------------------------------------------- multipliers from the spin
+
+export interface RoundMultiplier {
+  total: number;
+  /** The additive parts ("+1" per rocket), when the engine reports them. */
+  parts?: number[];
+  kind: 'additive' | 'reel' | 'orbs';
+}
+
+const isMoneyMap = (v: unknown): v is Record<string, number> => isObj(v) && Object.values(v).every((x) => typeof x === 'number');
+
+/**
+ * The multiplier the engine applied to this spin, from its decor: `global_additive` (1 + the rockets' +N),
+ * a `global_iid` multiplier reel, or the sum of `orb_sum_terminal` orbs. Null if none, or if it is ×1.
+ */
+export function roundMultiplier(decor: Record<string, unknown> | undefined): RoundMultiplier | null {
+  if (!decor) return null;
+  const gwm = decor['global_additive.gwm'];
+  if (typeof gwm === 'number' && gwm > 1) {
+    const w = decor['global_additive.wildMults'];
+    return { total: gwm, parts: isMoneyMap(w) ? Object.values(w) : undefined, kind: 'additive' };
+  }
+  for (const [k, v] of Object.entries(decor)) if (/(^|\.)mult$/.test(k) && typeof v === 'number' && v > 1) return { total: v, kind: 'reel' };
+  const orbs = decor['orb_sum_terminal.orbVals'];
+  if (isMoneyMap(orbs)) {
+    const t = Object.values(orbs).reduce((a, b) => a + b, 0);
+    if (t > 1) return { total: t, kind: 'orbs' };
+  }
+  return null;
+}
+
+/** "Multiplier ×6 (1 + 5)" for the chip; under 9 words. Orbs show through their own extras line. */
+export function multiplierChip(m: RoundMultiplier): string | null {
+  if (m.kind === 'orbs') return null;
+  const sum = m.parts?.reduce((a, b) => a + b, 0);
+  return m.kind === 'additive' && sum !== undefined && sum + 1 === m.total ? `Multiplier ×${m.total} (1 + ${sum})` : `Multiplier ×${m.total}`;
+}
+
+// ---------------------------------------------------------------- modifier-driven features
+
+export interface ModifierInfo {
+  /** Respins in the chain (steps without a win that are followed by another board). */
+  respins: number;
+}
+
+/**
+ * A modifier-driven feature (hold and spin, sticky or expanding-wild respins) shows in the spin itself: a chain of
+ * boards with no win between them, or a `*.respins` decor. `custom` is a game's own test (the optional
+ * `modifierFeature.detect` of slot.config.json) and wins if it returns true.
+ */
+export function modifierOf(res: SpinResult, custom?: (res: SpinResult) => boolean): ModifierInfo | null {
+  let respins = 0;
+  res.steps.forEach((st, i) => {
+    if (i + 1 < res.steps.length && st.wins.length === 0) respins++;
+  });
+  for (const [k, v] of Object.entries(res.decor ?? {})) if (/(^|\.)respins$/.test(k) && typeof v === 'number' && v > respins) respins = v;
+  if (respins > 0) return { respins };
+  return custom?.(res) ? { respins: 0 } : null;
+}
+
+/** Cells whose coin value has landed by each step: the cell holds its final symbol from that step on. */
+export function landedByStep(res: SpinResult, bet: number, labels: SlotCopy['decorLabels']): Map<string, string>[] {
+  const key = Object.keys(res.decor ?? {}).find((k) => /(held|coin|cash)vals?$/i.test(k) && isMoneyMap(res.decor[k]));
+  const fin = res.finalBoard;
+  if (!key) return res.steps.map(() => new Map());
+  const labelled = decorOverlays({ [key]: res.decor[key] }, labels, bet);
+  return res.steps.map((_, j) => {
+    const out = new Map<string, string>();
+    for (const [cell, text] of labelled) {
+      const [c, r] = cell.split(',').map(Number);
+      let stays = true;
+      for (let k = j; k < res.steps.length && stays; k++) stays = res.steps[k].board[c]?.[r] === fin[c]?.[r];
+      if (stays) out.set(cell, text);
+    }
+    return out;
+  });
+}
+
+/** Sum of the landed coin values, in coins. */
+export function landedCoins(res: SpinResult): number[] {
+  const key = Object.keys(res.decor ?? {}).find((k) => /(held|coin|cash)vals?$/i.test(k) && isMoneyMap(res.decor[k]));
+  const vals = key ? (res.decor[key] as Record<string, number>) : {};
+  const fin = res.finalBoard;
+  return res.steps.map((_, j) => {
+    let t = 0;
+    for (const [cell, v] of Object.entries(vals)) {
+      const [c, r] = cell.split(',').map(Number);
+      let stays = true;
+      for (let k = j; k < res.steps.length && stays; k++) stays = res.steps[k].board[c]?.[r] === fin[c]?.[r];
+      if (stays) t += v;
+    }
+    return t;
+  });
+}
+
+// ---------------------------------------------------------------- value symbols and mechanic text (paytable)
+
+export interface ValueDist {
+  kind: 'mult' | 'coins';
+  values: { v: number; p: number }[];
+}
+
+/** The value distribution of a coin / orb / collector symbol, from the mechanic that names it (`coin_symbol`, `orb_symbol`...). */
+export function valueDistribution(spec: SlotSpec, symbolId: number): ValueDist | null {
+  for (const m of spec.mechanics) {
+    const p = m.params as Record<string, unknown> | undefined;
+    if (!p || !isObj(p.value_pmf)) continue;
+    const linked = Object.entries(p).some(([k, v]) => /_symbol$/.test(k) && Number(v) === symbolId);
+    if (!linked) continue;
+    const pmf = p.value_pmf as Record<string, number>;
+    const total = Object.values(pmf).reduce((a, b) => a + b, 0) || 1;
+    const values = Object.entries(pmf).map(([v, w]) => ({ v: Number(v), p: w / total })).sort((a, b) => a.v - b.v);
+    return { kind: /orb|mult/i.test(m.id) ? 'mult' : 'coins', values };
+  }
+  return null;
+}
+
+/** "Value ×1 to ×500", "Most often ×1": short lines for a value symbol. */
+export function valueLines(d: ValueDist, bet: number): string[] {
+  const f = (v: number) => (d.kind === 'mult' ? `×${v}` : `×${+(v / bet).toPrecision(3)}`);
+  const lo = d.values[0].v;
+  const hi = d.values[d.values.length - 1].v;
+  const mode = d.values.reduce((a, b) => (b.p > a.p ? b : a));
+  return [lo === hi ? `Value ${f(lo)}` : `Value ${f(lo)} to ${f(hi)}`, `Most often ${f(mode.v)}`];
+}
+
+/** The values a `global_iid` multiplier reel can show, from the spec. */
+export function multiplierValues(spec: SlotSpec): number[] {
+  const m = spec.mechanics.find((x) => x.id === 'global_iid');
+  const pmf = m?.params?.value_pmf;
+  return isObj(pmf) ? Object.keys(pmf).map(Number).sort((a, b) => a - b) : [];
+}
+
+/** Paytable lines for a respin-style modifier feature, from the mechanic's params (each under 9 words). */
+export function modifierRuleLines(spec: SlotSpec, symbolName: (id: number) => string, copy?: SlotCopy): string[] {
+  if (copy?.modifierRules) return copy.modifierRules;
+  const m = spec.mechanics.find((x) => /respin|hold_and_spin/.test(x.id));
+  if (!m) return [];
+  const p = (m.params ?? {}) as Record<string, unknown>;
+  const out: string[] = [];
+  const coin = typeof p.coin_symbol === 'number' ? symbolName(p.coin_symbol).toLowerCase() : null;
+  if (typeof p.entry_min === 'number') out.push(coin ? `${p.entry_min}+ ${coin}s start the bonus` : `${p.entry_min}+ symbols start the bonus`);
+  if (typeof p.respins === 'number') out.push(`${p.respins} respins`);
+  if (/hold_and_spin/.test(m.id)) out.push('Each new coin resets the respins', 'Coins lock and pay their value');
+  else out.push('Locked symbols stay while it respins');
+  if (typeof p.full_grid_bonus === 'number') out.push('Fill the grid for a bonus');
+  return out;
+}
+
+// ---------------------------------------------------------------- mystery reveal
+
+export interface PreReveal {
+  /** The board as the reels stop: mystery symbols visible. */
+  board: number[][];
+  /** The cells that flip. */
+  cells: [number, number][];
+}
+
+/**
+ * `mystery_reveal` shows only the final board, with the mystery squares already replaced. Rebuild the board before
+ * the reveal from the stops and the strips (the mystery symbol sits at those positions) and list the cells to flip
+ * into `decor['mystery_reveal.mysteryReveal']`. Null if the spin has no reveal or the strips don't reproduce it.
+ */
+export function preReveal(spec: SlotSpec, res: SpinResult): PreReveal | null {
+  const mech = spec.mechanics.find((m) => m.id === 'mystery_reveal');
+  const revealed = res.decor?.['mystery_reveal.mysteryReveal'];
+  const mystery = Number((mech?.params as Record<string, unknown> | undefined)?.mystery_symbol);
+  const rs = spec.board_law.reel_sets?.[res.set];
+  const board0 = res.steps[0]?.board;
+  if (!mech || typeof revealed !== 'number' || !Number.isFinite(mystery) || !rs || !board0 || rs.strips.length !== board0.length || res.stops?.length !== board0.length) return null;
+  const cells: [number, number][] = [];
+  const board = board0.map((col, c) => {
+    const strip = rs.strips[c];
+    return col.map((sym, r) => {
+      const pre = strip[(res.stops[c] + r) % strip.length];
+      if (pre === sym) return sym;
+      if (pre === mystery && sym === revealed) {
+        cells.push([c, r]);
+        return pre;
+      }
+      return NaN; // a different transform: don't guess
+    });
+  });
+  if (!cells.length || board.some((col) => col.some((v) => Number.isNaN(v)))) return null;
+  return { board, cells };
 }

@@ -5,7 +5,7 @@
 // player sees about the maths (pays, RTP, hit rate) is generated from the spec
 // and the facts, so the screen can never disagree with the game.
 
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { SlotConfig as GameConfig } from '../engine';
 import type { SlotRound, SlotSpec } from '../engine/types';
 
@@ -59,6 +59,15 @@ export interface SlotTheme {
   name: string;
   palette: SlotPalette;
   window: SlotWindowStyle;
+  /**
+   * Optional flat-vector scene drawn behind the symbols, inside the reel window (a skyline over water, a seabed).
+   * Returns SVG children for a `w × h` px canvas (the window's size, so draw relative to it); the kit wraps them in
+   * an `<svg>`. Flat shapes in palette colours only, no gradients, glows or filters, and keep it quiet: symbols must
+   * stay readable. It shows through the gaps between tiles, and fully with `window.cell: 'plain'`.
+   */
+  backdrop?: (w: number, h: number) => ReactNode;
+  /** The same scene during a feature (a flat swap). Defaults to `backdrop`. */
+  featureBackdrop?: (w: number, h: number) => ReactNode;
 }
 
 /**
@@ -77,6 +86,33 @@ export interface SlotCopy {
   scatterText?: string;
   /** How to label decor values on cells, by decor key (default: `×v` for keys with "orb", "mult" or "badge", else the number). */
   decorLabels?: Record<string, (v: number) => string>;
+  /**
+   * The engine's extras labels ("HOLD & SPIN: 9 coins", "ORB SUM x35") are raw engine text and are never shown as is.
+   * Map them here: a function, or a record keyed by the label or by its start ("HOLD & SPIN"). Default: "Scatter pay",
+   * "Bonus ×35" or "Bonus total". A label that is already in the game's own words (not engine capitals) is left alone.
+   */
+  extrasLabels?: Record<string, string> | ((raw: string) => string);
+  /** Name of a modifier-driven feature (hold and spin, sticky respins): its intro card, counter, outro and paytable section. Default "Bonus". */
+  modifierName?: string;
+  /** Intro note and paytable rules for it (each under 9 words). Defaults are generated from the mechanic. */
+  modifierIntro?: string;
+  modifierRules?: string[];
+  /** The respin counter's word, default "Respin". */
+  respinLabel?: string;
+  /**
+   * A multiplier reel (`global_iid`: the marquee) shown spinning with the reels. `values` default to the spec's
+   * `global_iid` value_pmf keys; `decorKey` defaults to "global_iid.mult".
+   */
+  multiplierReel?: { label?: string; values?: number[]; decorKey?: string };
+}
+
+/** What a cell overlay hook gets to draw on top of a symbol (for example a ticket in a cook's hand). */
+export interface CellOverlayInfo {
+  col: number;
+  row: number;
+  symbol: number;
+  /** The spin's decor, once its final board is shown (else undefined). */
+  decor?: Record<string, unknown>;
 }
 
 /** Measured facts from analytics (`games/<id>/src/slot-facts.json`), shown in the paytable. */
@@ -124,6 +160,8 @@ export interface SlotGameProps {
   symbols: SlotSymbols;
   /** Names and one-line texts (optional). */
   copy?: SlotCopy;
+  /** Draws extra content over a symbol's tile: return null for none. It sits above the symbol and below the win frame. */
+  renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
   /** Test and demo only: use this engine instead of `createSlot(...)`. */
   engine?: SlotEngine;
 }

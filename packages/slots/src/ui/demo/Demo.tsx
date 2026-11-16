@@ -1,4 +1,4 @@
-// DEMO ONLY. Mounts SlotGame on the stub engine. Pick the game with `?demo=reef|ember|ember8|mega`, or with
+// DEMO ONLY. Mounts SlotGame on the stub engine. Pick the game with `?demo=reef|ember|ember8|mega|mystery|marquee`, or with
 // the VITE_SLOT_DEMO environment variable (scripts/play.mjs can't pass a query).
 import { SlotGame } from '../SlotGame';
 import { pickDemo } from './demos';

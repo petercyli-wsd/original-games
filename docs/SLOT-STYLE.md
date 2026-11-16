@@ -157,6 +157,22 @@ For a free-spins feature (`config.feature` in `slot.config.json`):
 
 Spins in the feature use the same win presentation (with each win multiplied by the feature multiplier). The stake of the whole round is settled once, on the first spin's ticket.
 
+## 7b. Modifier features, multipliers, reveals and the backdrop
+
+**Modifier-driven features** (hold and spin, sticky or expanding-wild respins) are found in the spin itself: a chain of boards with no win between them, or a `*.respins` decor (or the game's own `modifierFeature.detect` in `slot.config.json`). They get the same arc as free spins: an intro card (`copy.modifierName`, default "Bonus", with "N respins"), a live counter in the readouts (**Respin n of m**, **Bonus total**, `copy.respinLabel`), coin values shown on their cells as each lands (in bets; `copy.decorLabels` overrides) with the total rolling up, an outro card with the total, and a paytable section generated from the mechanic's params. `?feature=1` finds these rounds too.
+
+**Engine extras labels are never shown raw.** "HOLD & SPIN: 9 coins" and "ORB SUM x35" are engine text. Map them with `copy.extrasLabels` (a function, or a record keyed by the label or its start). The neutral default is "Scatter pay", "Bonus ×35" or "Bonus total"; a label already in the game's own words passes through.
+
+**The multiplier readout shows what is applied.** The feature's multiplier times the spin's own: a `global_iid` reel value, the `global_additive` total, or the sum of orbs. A plain ×1 is not shown. `global_additive` rockets show their "+N" badges and a chip "Multiplier ×6 (1 + 5)" before the wins. A game can add the multiplier reel (the marquee) above the window with `copy.multiplierReel`: its values step along while the reels spin and rest on the spin's value.
+
+**Mystery reveal.** The reels stop on the board with the mystery symbols visible (rebuilt from the stops and strips), then every mystery cell flips into the revealed symbol at once, before any win shows.
+
+**Cell overlays.** `renderOverlay({ col, row, symbol, decor })` draws extra content over a symbol's tile (a ticket in a cook's hand). It sits above the symbol, below the win frame, and takes no pointer events.
+
+**Backdrop.** `theme.backdrop(w, h)` (and optional `theme.featureBackdrop`) returns flat SVG shapes for the window's size, drawn behind the symbols: a seabed, a skyline over water. Palette colours a shade off the window tone, no gradients, glows or filters. It shows through the gaps between tiles and fully with `window.cell: 'plain'`. Keep it quiet: if a symbol is harder to read with it, make it quieter. Check it at 420 px.
+
+**Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
+
 ## 8. The paytable sheet
 
 `PayTableSheet` is generated from the spec and the facts. A game never writes it by hand.

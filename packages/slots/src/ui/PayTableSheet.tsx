@@ -7,7 +7,7 @@ import { InfoSection, fmtChance } from '@originals/game-sdk/ui';
 import type { CSSProperties } from 'react';
 import type { SlotSpec } from '../engine/types';
 import type { SlotCopy, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from './types';
-import { featureRules, fmtCount, fmtX, howToWinLines, idsWithRole, maxRowsOf, paylinesOf, payRows, scatterLines, symbolMetas, topPay, wildLines } from './util';
+import { featureRules, fmtCount, fmtX, howToWinLines, idsWithRole, maxRowsOf, modifierRuleLines, multiplierValues, paylinesOf, payRows, scatterLines, symbolMetas, topPay, valueDistribution, valueLines, wildLines } from './util';
 
 const TIER_WORDS = { exact: 'exact', exact_mixture: 'exact mixture', mc: 'Monte Carlo' } as const;
 
@@ -37,13 +37,17 @@ function PaylinePicture({ line, cols, rows }: { line: number[]; cols: number; ro
   );
 }
 
-export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { spec: SlotSpec; symbols: SlotSymbols; config: SlotGameConfig; copy?: SlotCopy; facts: SlotFacts; theme: SlotTheme }) {
+export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modifierName }: { spec: SlotSpec; symbols: SlotSymbols; config: SlotGameConfig; copy?: SlotCopy; facts: SlotFacts; theme: SlotTheme; modifierName?: string }) {
   const bet = spec.bet.coins;
   const metas = symbolMetas(spec);
   const paying = metas
-    .filter((m) => m.role !== 'wild' && m.role !== 'scatter')
+    .filter((m) => m.role !== 'wild' && m.role !== 'scatter' && Object.keys(spec.pays.paytable[String(m.id)] ?? {}).length > 0)
     .map((m) => ({ m, pays: spec.pays.paytable[String(m.id)] }))
     .sort((a, b) => topPay(b.pays, bet) - topPay(a.pays, bet));
+  // Coin, orb and collector symbols pay no line pays: they show the values they can take.
+  const valueSyms = metas.filter((m) => m.role !== 'wild' && m.role !== 'scatter' && Object.keys(spec.pays.paytable[String(m.id)] ?? {}).length === 0);
+  const modLines = modifierRuleLines(spec, (id) => symbols[id]?.name ?? `Symbol ${id}`, copy);
+  const mults = multiplierValues(spec);
   const wilds = idsWithRole(spec, 'wild');
   const scatters = idsWithRole(spec, 'scatter');
   const scatterPay = spec.pays.scatter_pay ?? {};
@@ -56,6 +60,8 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
   const name = (id: number) => symbols[id]?.name ?? `Symbol ${id}`;
 
   const how = howToWinLines(spec, copy);
+  if (spec.evaluation.kind === 'ways') how.push('Pays shown are per way');
+  if (mults.length && copy?.multiplierReel) how.push(`Multiplier reel: ×${mults[0]} to ×${mults[mults.length - 1]}`);
 
   const facts_: [string, string][] = [
     ['RTP', rtpText(facts)],
@@ -96,7 +102,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
         </div>
       </InfoSection>
 
-      {(wilds.length > 0 || scatters.length > 0) && (
+      {(wilds.length > 0 || scatters.length > 0 || valueSyms.length > 0) && (
         <InfoSection title="Special symbols">
           {wilds.map((id) => (
             <div key={id} className="sl-pt-special">
@@ -109,6 +115,18 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
               </div>
             </div>
           ))}
+          {valueSyms.map((m) => {
+            const d = valueDistribution(spec, m.id);
+            return (
+              <div key={m.id} className="sl-pt-special">
+                <Tile id={m.id} size={44} />
+                <div>
+                  <b>{name(m.id)}</b>
+                  {d ? valueLines(d, bet).map((t, i) => <p key={i}>{t}</p>) : <p>Carries a value</p>}
+                </div>
+              </div>
+            );
+          })}
           {scatters.map((id) => {
             const rows_ = payRows(scatterPay, bet);
             return (
@@ -139,6 +157,14 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
       {feature && (
         <InfoSection title={featureName}>
           {featureRules(feature, featureName).map((t, i) => (
+            <p key={i}>{t}</p>
+          ))}
+        </InfoSection>
+      )}
+
+      {modLines.length > 0 && (
+        <InfoSection title={modifierName ?? 'Bonus'}>
+          {modLines.map((t, i) => (
             <p key={i}>{t}</p>
           ))}
         </InfoSection>

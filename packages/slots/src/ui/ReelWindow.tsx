@@ -12,7 +12,8 @@
 // Board convention is the engine's: board[col][row], row 0 on top.
 
 import { forwardRef, memo, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
-import type { SlotSymbolArt, SlotSymbols, SlotTheme } from './types';
+import type { CellOverlayInfo, SlotSymbolArt, SlotSymbols, SlotTheme } from './types';
+import type { ReactNode } from 'react';
 import { fillerSymbol, reelTimings } from './util';
 
 interface Cell {
@@ -49,6 +50,8 @@ export interface ReelWindowHandle {
   /** `removed`: the cells (in the current board) that pop. `next`: the board after survivors fall and new symbols drop in. */
   tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number): Promise<void>;
   slam(): void;
+  /** Flips these cells (all at once) from what they show into `next`'s symbols: the mystery reveal. */
+  reveal(next: number[][], cells: [number, number][], turbo: boolean): Promise<void>;
 }
 
 export interface ReelWindowProps {
@@ -68,17 +71,23 @@ export interface ReelWindowProps {
   overlays?: ReadonlyMap<string, string> | null;
   /** The feature palette (flat swap). */
   feature?: boolean;
+  /** Draws over a symbol's tile (see `SlotGameProps.renderOverlay`). */
+  renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
+  /** The spin's decor, passed to `renderOverlay` once the final board shows. */
+  overlayDecor?: Record<string, unknown>;
 }
 
 const Glyph = memo(function Glyph({ art, size }: { art: SlotSymbolArt; size: number }) {
   return art.render(size);
 });
 
+const CellOverlay = ({ node }: { node: ReactNode }) => (node == null || node === false ? null : <div className="sl-ov">{node}</div>);
+
 const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, renderOverlay, overlayDecor },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -235,6 +244,38 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
       for (let c = 0; c < cols; c++) if (spinning(c)) finish(c);
     },
 
+    async reveal(next, cells, turbo) {
+      const old = boardRef.current;
+      const ms = turbo ? 80 : 240;
+      const flip = (c: number, r: number, from: number, to: number) => {
+        const cell = boardRef.current[c]?.[r];
+        const sym = cell && cellEls.current.get(cell.k)?.querySelector('.sl-sym');
+        return sym ? track(sym.animate([{ transform: `scaleX(${from})` }, { transform: `scaleX(${to})` }], { duration: ms, easing: 'ease-in-out', fill: 'forwards' })).finished.catch(() => undefined) : Promise.resolve();
+      };
+      await Promise.all(cells.map(([c, r]) => flip(c, r, 1, 0)));
+      if (!alive.current) return;
+      const fresh = new Set<number>();
+      const rebuilt = old.map((col, c) =>
+        col.map((cell, r) => {
+          if (!cells.some(([cc, rr]) => cc === c && rr === r)) return cell;
+          const x = mk(next[c][r]);
+          fresh.add(x.k);
+          return x;
+        }),
+      );
+      commitBoard(rebuilt);
+      await nextCommit();
+      if (!alive.current) return;
+      const ins: Promise<unknown>[] = [];
+      rebuilt.forEach((col) =>
+        col.forEach((cell) => {
+          const sym = fresh.has(cell.k) ? cellEls.current.get(cell.k)?.querySelector('.sl-sym') : null;
+          if (sym) ins.push(track(sym.animate([{ transform: 'scaleX(0)' }, { transform: 'scaleX(1)' }], { duration: ms, easing: 'ease-in-out' })).finished.catch(() => undefined));
+        }),
+      );
+      await Promise.all(ins);
+    },
+
     async tumble(next, removed, turbo, speed = 1) {
       const { height: H } = geo.current;
       const old = boardRef.current;
@@ -323,6 +364,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
     '--sl-w': String(cols / maxRows),
   } as CSSProperties;
 
+  const backdropFn = feature && theme.featureBackdrop ? theme.featureBackdrop : theme.backdrop;
   const dimmed = !!win && win.size > 0;
   const renderCell = (cell: Cell, c: number, r: number, h: number) => {
     const art = symbols[cell.s];
@@ -344,6 +386,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
           <div className="sl-sym" role="img" aria-label={art?.name ?? `Symbol ${cell.s}`}>
             {art && <Glyph art={art} size={size} />}
           </div>
+          {renderOverlay && <CellOverlay node={renderOverlay({ col: c, row: r, symbol: cell.s, decor: overlayDecor })} />}
           {badge && (
             <span className="sl-badge" style={{ fontSize: Math.max(10, Math.min(18, size * 0.3)) }}>
               {badge}
@@ -357,6 +400,11 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
   return (
     <div className={`sl-frame sep-${w.separators} cell-${w.cell}` + (feature ? ' feature' : '')} style={style}>
       <div ref={rootRef} className="sl-reels" role="group" aria-label="Reels">
+        {width > 0 && backdropFn && (
+          <svg className="sl-backdrop" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            {backdropFn(width, height)}
+          </svg>
+        )}
         {width > 0 &&
           Array.from({ length: cols }, (_, c) => {
             const plan = plans[c];

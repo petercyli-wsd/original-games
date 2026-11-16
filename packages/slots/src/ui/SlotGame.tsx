@@ -36,12 +36,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { SpinResult, SpinStep, SpinWin } from '../engine/types';
 import { installDevHooks, createSeedSource, resolveEngine } from './engine-bridge';
 import { PayTableSheet, themeVars } from './PayTableSheet';
-import { Card, RollNumber, WinChip, type CardProps, type RollHandle } from './parts';
+import { Card, MultiplierReel, RollNumber, WinChip, type CardProps, type RollHandle } from './parts';
 import { ReelWindow, type ReelWindowHandle } from './ReelWindow';
 import type { SlotGameProps, SlotSymbolArt } from './types';
 import {
   TIER_LABEL,
   anticipationPlan,
+  extraLabel,
+  landedByStep,
+  landedCoins,
+  modifierOf,
+  multiplierChip,
+  multiplierValues,
+  preReveal,
+  roundMultiplier,
+  type RoundMultiplier,
   bigWinTier,
   cellsUnion,
   decorOverlays,
@@ -68,6 +77,10 @@ interface ChipState {
 }
 
 interface FeatureState {
+  /** 'spins' (free spins) or 'respin' (a modifier-driven feature). */
+  kind?: 'spins' | 'respin';
+  /** Landed coin value so far, in money (respins). */
+  total?: number;
   n: number;
   of: number;
   mult: number;
@@ -76,7 +89,7 @@ interface FeatureState {
 const prefersReducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 export function SlotGame(props: SlotGameProps) {
-  const { manifest, spec, featureSpecs, config, facts, theme, symbols, copy } = props;
+  const { manifest, spec, featureSpecs, config, facts, theme, symbols, copy, renderOverlay } = props;
   const { rng } = useHost();
   const balance = useBalance();
   const bet = useBetInput();
@@ -85,7 +98,14 @@ export function SlotGame(props: SlotGameProps) {
   const [history, pushHistory] = useHistory(14);
 
   const engine = useMemo(() => resolveEngine(props), [props.engine, spec, featureSpecs, config]); // eslint-disable-line react-hooks/exhaustive-deps
-  const seeds = useMemo(() => createSeedSource(engine, rng, spec.bet.coins), [engine, rng, spec.bet.coins]);
+  // A modifier-driven feature (hold and spin, sticky respins) may come with its own test and name in slot.config.json.
+  const mf = (config as { modifierFeature?: { name?: string; detect?: unknown } }).modifierFeature;
+  const customDetect = typeof mf?.detect === 'function' ? (mf.detect as (r: SpinResult) => boolean) : undefined;
+  const modName = mf?.name ?? copy?.modifierName ?? 'Bonus';
+  const seeds = useMemo(
+    () => createSeedSource(engine, rng, spec.bet.coins, undefined, (r) => !!r.feature || !!modifierOf(r.base, customDetect)),
+    [engine, rng, spec.bet.coins], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   useEffect(() => installDevHooks(seeds), [seeds]);
 
   const cols = spec.geometry.cols;
@@ -107,6 +127,11 @@ export function SlotGame(props: SlotGameProps) {
   const [chip, setChip] = useState<ChipState | null>(null);
   const [card, setCard] = useState<CardProps | null>(null);
   const [feat, setFeat] = useState<FeatureState | null>(null);
+  const [rmult, setRmult] = useState<RoundMultiplier | null>(null);
+  const [overlayDecor, setOverlayDecor] = useState<Record<string, unknown> | undefined>(undefined);
+  const mrCfg = copy?.multiplierReel;
+  const mrValues = useMemo(() => mrCfg?.values ?? multiplierValues(spec), [mrCfg, spec]);
+  const [mr, setMr] = useState<{ spinning: boolean; value: number | null }>({ spinning: false, value: null });
   const [busy, setBusy] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [mode, setMode] = useState<'manual' | 'auto'>('manual');
@@ -199,17 +224,34 @@ export function SlotGame(props: SlotGameProps) {
   };
 
   async function spinOne(res: SpinResult, s: typeof spec, anticipate: boolean) {
-    const board = res.steps[0]?.board ?? res.finalBoard;
+    const board0 = res.steps[0]?.board ?? res.finalBoard;
+    // A mystery reveal shows only the final board; rebuild the board the reels stop on, with the mystery squares visible.
+    const pre = preReveal(s, res);
+    const board = pre?.board ?? board0;
     const st = strips(s, res, board);
     const ant =
       anticipate && config.feature
-        ? anticipationPlan(board, scatterIds, scatterMin, (c) => !st || st[c].strip.some((x) => scatterIds.includes(x)))
+        ? anticipationPlan(board0, scatterIds, scatterMin, (c) => !st || st[c].strip.some((x) => scatterIds.includes(x)))
         : undefined;
     setWin(null);
     setLine(null);
     setChip(null);
     setOverlays(null);
+    setOverlayDecor(undefined);
+    setRmult(null);
+    if (mrCfg) setMr({ spinning: true, value: null });
     await reels.current?.spin({ board, strips: st, turbo: turboRef.current, anticipate: ant });
+    if (!alive.current) return;
+    if (pre) {
+      // The reveal: every mystery square flips into its symbol at once, before any win shows.
+      await wait(T(350));
+      if (alive.current) await reels.current?.reveal(board0, pre.cells, turboRef.current);
+      await wait(T(300));
+    }
+    if (mrCfg) {
+      const v = res.decor?.[mrCfg.decorKey ?? 'global_iid.mult'];
+      setMr({ spinning: false, value: typeof v === 'number' ? v : null });
+    }
   }
 
   const linePath = (w: SpinWin): [number, number][] | null => (w.lineIdx !== null && w.cells.length > 1 ? [...w.cells].sort((a, b) => a[0] - b[0]) : null);
@@ -258,10 +300,30 @@ export function SlotGame(props: SlotGameProps) {
     return to;
   }
 
-  /** One spin result from its first board to its last: wins, tumbles, extras, decor. Returns the running coins. */
-  async function presentResult(res: SpinResult, m: number, stake: number, running: number, limit: number): Promise<number> {
+  /** One spin result from its first board to its last: wins, tumbles, respins, extras, decor. Returns the running coins. */
+  async function presentResult(res: SpinResult, m: number, stake: number, running: number, limit: number, isBase = false): Promise<number> {
     const r = reels.current;
     const steps = res.steps;
+    const rm = roundMultiplier(res.decor);
+    setRmult(rm);
+    const mod = isBase ? modifierOf(res, customDetect) : null;
+    const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
+    const landedC = mod ? landedCoins(res) : null;
+    const money$ = (c: number) => (Math.min(c, limit) / bc) * stake;
+
+    // Decor that belongs to the whole spin shows before the wins: the rockets' +N, the multiplier they add up to.
+    if (steps.length === 1 && !mod) {
+      const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
+      if (ov.size) setOverlays(ov);
+      setOverlayDecor(res.decor);
+      const chipText = rm && res.totalCoins > 0 ? multiplierChip(rm) : null;
+      if (chipText) {
+        setChip({ text: chipText, event: true });
+        await wait(T(800));
+      }
+    }
+
+    let introduced = false;
     for (let i = 0; i < steps.length && alive.current; i++) {
       const st = steps[i];
       const next = steps[i + 1];
@@ -278,23 +340,48 @@ export function SlotGame(props: SlotGameProps) {
         }
       } else if (next) {
         // No win, but the board changes: a respin. Only the reels that changed spin.
+        if (mod && !introduced) {
+          introduced = true;
+          if (landed) setOverlays(landed[0]);
+          setChip(null);
+          setWin(null);
+          setLine(null);
+          await wait(T(400));
+          const note = copy?.modifierIntro ?? '';
+          await showCard(
+            { kicker: modName, title: `${mod.respins} respins`, lines: note ? [note] : [], button: 'Start' },
+            { autoMs: autoAdvance() ? T(1400) : null },
+          );
+          setFeat({ kind: 'respin', n: 0, of: mod.respins, mult: 1, total: 0 });
+          if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
+        }
         const only = new Set<number>();
         next.board.forEach((col, c) => {
           if (JSON.stringify(col) !== JSON.stringify(st.board[c])) only.add(c);
         });
+        if (mod) setFeat((f) => (f ? { ...f, n: i + 1 } : f));
         if (only.size) await r?.spin({ board: next.board, only, turbo: turboRef.current, speed: k });
+        if (mod && landed && landedC && alive.current) {
+          // Coin values show as they land, and the live total rolls up with them.
+          setOverlays(landed[i + 1]);
+          await rollTo(counter.current, money$(landedC[i + 1]), T(250) * k);
+        }
       }
     }
     if (!alive.current) return running;
     const last = steps[steps.length - 1]?.board;
     if (last && JSON.stringify(last) !== JSON.stringify(res.finalBoard)) r?.set(res.finalBoard);
+    if (mod) setFeat(null);
     // Decor first (the orb values on their cells), then the multiplier event that uses them.
-    const ov = decorOverlays(res.decor, copy?.decorLabels);
-    if (ov.size) setOverlays(ov);
+    if (steps.length > 1 || mod) {
+      const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
+      if (ov.size) setOverlays(ov);
+      setOverlayDecor(res.decor);
+    }
     for (const ex of res.extras) {
       const add = ex.coins * m;
       running += add;
-      setChip({ text: `${ex.label.replace(/ x(?=\d)/g, ' ×')} · +${money(((add / bc) * stake))}`, event: true });
+      setChip({ text: `${extraLabel(ex.label, copy?.extrasLabels)} · +${money(((add / bc) * stake))}`, event: true });
       if (/scatter/i.test(ex.label)) {
         // A scatter pay has no cells of its own: show the scatters that paid.
         const cells: [number, number][] = [];
@@ -302,6 +389,13 @@ export function SlotGame(props: SlotGameProps) {
         setWin(keys(cells));
       }
       await Promise.all([rollTo(counter.current, (Math.min(running, limit) / bc) * stake, rollMs(add / bc, turboRef.current)), wait(T(900))]);
+    }
+    if (mod && alive.current) {
+      const stakes = Math.min(running, limit) / bc;
+      await showCard(
+        { kicker: modName, title: 'Total win', amount: money(stakes * stake), lines: [`${mod.respins} respins`, `${fmtX(stakes)} your bet`], tier: bigWinTier(stakes) },
+        { autoMs: autoAdvance() ? T(1800) : null },
+      );
     }
     return running;
   }
@@ -330,7 +424,7 @@ export function SlotGame(props: SlotGameProps) {
     setStatus(round.feature ? { text: featureName, tone: 'live' } : base.totalCoins > 0 ? { text: 'Win', tone: 'won' } : { text: 'No win', tone: 'idle' });
     const baseCoins = Math.min(base.totalCoins, round.totalCoins);
     counter.current?.set(0);
-    await presentResult(base, 1, stake, 0, round.totalCoins);
+    await presentResult(base, 1, stake, 0, round.totalCoins, true);
     if (!alive.current) return;
 
     const fr = round.feature;
@@ -476,15 +570,26 @@ export function SlotGame(props: SlotGameProps) {
   const locked = busy || autoRunning;
   const hasFeature = !!config.feature;
 
+  // The multiplier readout shows what is really applied: the feature's multiplier times the spin's own (a multiplier reel,
+  // rockets, orbs). A plain ×1 is not shown, so it can't mislead.
+  const mult = (feat?.mult ?? 1) * (rmult?.total ?? 1);
+  const multItem = mult !== 1 ? [{ label: 'Multiplier', value: `×${mult}` }] : [];
   const readouts = feat
-    ? [
-        { label: 'Free spin', value: `${feat.n} of ${feat.of}` },
-        { label: 'Feature total', value: <RollNumber ref={counter} format={money} /> },
-        { label: 'Multiplier', value: `×${feat.mult}` },
-      ]
+    ? feat.kind === 'respin'
+      ? [
+          { label: copy?.respinLabel ?? 'Respin', value: `${feat.n} of ${feat.of}` },
+          { label: 'Bonus total', value: <RollNumber ref={counter} format={money} /> },
+          ...multItem,
+        ]
+      : [
+          { label: 'Free spin', value: `${feat.n} of ${feat.of}` },
+          { label: 'Feature total', value: <RollNumber ref={counter} format={money} /> },
+          ...multItem,
+        ]
     : [
         { label: 'Balance', value: money(balance) },
         { label: 'Win', value: <RollNumber ref={counter} format={money} /> },
+        ...multItem,
       ];
 
   const panel = (
@@ -554,11 +659,26 @@ export function SlotGame(props: SlotGameProps) {
 
   return (
     <GameLayout name={manifest.name} accent={manifest.accent} className="slots" panel={panel}>
-      <StageTop status={feat ? featureName : status.text} tone={feat ? 'live' : status.tone} history={history} />
+      <StageTop status={feat ? (feat.kind === 'respin' ? modName : featureName) : status.text} tone={feat ? 'live' : status.tone} history={history} />
       <Readouts items={readouts} />
       <Board>
         <div className="sl-stage" style={themeVars(theme)}>
-          <ReelWindow ref={reels} cols={cols} maxRows={maxRows} symbols={symbols} theme={theme} fillerIds={filler} initial={initial} win={win} line={line} overlays={overlays} feature={!!feat} />
+          {mrCfg && mrValues.length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={mrValues} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
+          <ReelWindow
+            ref={reels}
+            cols={cols}
+            maxRows={maxRows}
+            symbols={symbols}
+            theme={theme}
+            fillerIds={filler}
+            initial={initial}
+            win={win}
+            line={line}
+            overlays={overlays}
+            feature={!!feat}
+            renderOverlay={renderOverlay}
+            overlayDecor={overlayDecor}
+          />
           <div className="sl-winbar" aria-live="polite">
             {chip && <WinChip art={chip.art} text={chip.text} event={chip.event} />}
           </div>
@@ -568,7 +688,7 @@ export function SlotGame(props: SlotGameProps) {
       <Caption>{ruleSentence(spec, copy)}</Caption>
       {infoOpen && (
         <InfoModal title="Paytable" onClose={() => setInfoOpen(false)}>
-          <PayTableSheet spec={spec} symbols={symbols} config={config} copy={copy} facts={facts} theme={theme} />
+          <PayTableSheet spec={spec} symbols={symbols} config={config} copy={copy} facts={facts} theme={theme} modifierName={modName} />
         </InfoModal>
       )}
     </GameLayout>

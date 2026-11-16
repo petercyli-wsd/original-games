@@ -41,7 +41,14 @@ export interface SeedSource {
  * `await ticket.place()`); the host RNG supplies the seed and every later draw. The dev hooks
  * (`?seed=<n>`, `?feature=1`, `?win=<stakes>`, `window.__slotDev`) exist so a blind reviewer can reach a feature.
  */
-export function createSeedSource(engine: SlotEngine, rng: Rng, betCoins: number, search = { maxSeeds: 200000, maxMs: 5000 }): SeedSource {
+export function createSeedSource(
+  engine: SlotEngine,
+  rng: Rng,
+  betCoins: number,
+  search = { maxSeeds: 200000, maxMs: 5000 },
+  /** What counts as "the feature" for `?feature=1`. Default: a free-spins round; SlotGame also counts modifier-driven features. */
+  isFeature: (r: SlotRound) => boolean = (r) => !!r.feature,
+): SeedSource {
   let forced: number | null = null;
   let cursor = 1;
   /** Searches seeds from the cursor on until `ok(round)`; forces that seed for the next spin. */
@@ -72,7 +79,7 @@ export function createSeedSource(engine: SlotEngine, rng: Rng, betCoins: number,
       forced = seed >>> 0;
     },
     forceFeature() {
-      return find((r) => !!r.feature);
+      return find(isFeature);
     },
     forceWin(stakes) {
       return find((r) => r.totalCoins / betCoins >= stakes);

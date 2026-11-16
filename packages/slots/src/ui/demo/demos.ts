@@ -10,7 +10,7 @@ import { createSlot } from '../../engine';
 import type { SlotSpec } from '../../engine/types';
 import type { SlotCopy, SlotEngine, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from '../types';
 import { emberSymbols, emberTheme } from './art-ember';
-import { reefSymbols, reefTheme } from './art-reef';
+import { reefBackdrop, reefFeatureBackdrop, reefSymbols, reefTheme } from './art-reef';
 
 export interface DemoGame {
   manifest: { id: string; name: string; accent: string };
@@ -48,7 +48,7 @@ const mkSpec = (slug: string, p: Partial<SlotSpec> & Pick<SlotSpec, 'geometry' |
   ...p,
 });
 
-export function reefDemo(): DemoGame {
+export function reefDemo(variant?: 'mystery' | 'marquee'): DemoGame {
   const symbols = [
     { id: 1, label: 'SC', role: 'scatter' },
     { id: 2, label: 'WD', role: 'wild' },
@@ -60,8 +60,9 @@ export function reefDemo(): DemoGame {
     { id: 8, label: 'L2', role: 'low' },
     { id: 9, label: 'L3', role: 'low' },
     { id: 10, label: 'L4', role: 'low' },
+    ...(variant === 'mystery' ? [{ id: 11, label: 'MY', role: 'mid' }] : []),
   ];
-  const reel = (c: number) => strip({ 1: c === 0 ? 0 : 2, 2: c === 0 || c === 4 ? 0 : 2, 3: 2, 4: 3, 5: 3, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6 }, 32, 40 + c);
+  const reel = (c: number) => strip({ 1: c === 0 ? 0 : 2, 2: c === 0 || c === 4 ? 0 : 2, 3: 2, 4: 3, 5: 3, 6: 4, 7: 5, 8: 5, 9: 6, 10: 6, ...(variant === 'mystery' ? { 11: 4 } : {}) } as Counts, variant === 'mystery' ? 36 : 32, 40 + c);
   const spec = mkSpec('demo-reef', {
     geometry: { cols: 5, rows: [3, 3, 3, 3, 3] },
     symbols,
@@ -84,6 +85,12 @@ export function reefDemo(): DemoGame {
       scatter_pay: { '3': 200, '4': 1000, '5': 5000 },
     },
     trigger: { scatter_min: 3 },
+    mechanics:
+      variant === 'mystery'
+        ? [{ id: 'mystery_reveal', params: { mystery_symbol: 11, reveal_pmf: { '3': 1, '4': 1, '5': 2, '6': 2, '7': 3, '8': 3 } } }]
+        : variant === 'marquee'
+          ? [{ id: 'global_iid', params: { value_pmf: { '1': 50, '2': 30, '3': 12, '5': 6, '10': 2 }, apply: 'terminal_total' } }]
+          : [],
   });
   const config: SlotGameConfig = {
     maxWinStakes: 5000,
@@ -101,9 +108,14 @@ export function reefDemo(): DemoGame {
       featureName: 'Tide spins',
       wildText: 'Pearl replaces all but chest',
       scatterText: 'Pays anywhere. 3+ start tide spins',
+      ...(variant === 'marquee' ? { multiplierReel: { label: 'Marquee' } } : {}),
     },
     facts: { rtp: 0.96, rtpTier: 'exact', hitRate: 0.31, maxWinStakes: 5000, featureOneIn: 160, volatility: 'medium' },
-    theme: reefTheme,
+    // The mystery variant draws its symbols straight on a seabed backdrop (plain cells); the others keep tiles.
+    theme:
+      variant === 'mystery'
+        ? { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop, window: { cell: 'plain', separators: 'line', frameWidth: 8, radius: 10, cellRadius: 0 } }
+        : { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop },
     symbols: reefSymbols,
     engine: createSlot({ spec, featureSpecs, feature: config.feature, maxWinStakes: config.maxWinStakes }),
   };
@@ -204,7 +216,7 @@ export function megaDemo(): DemoGame {
   };
 }
 
-/** `?demo=reef|ember|ember8|mega` (default reef). */
+/** `?demo=reef|ember|ember8|mega|mystery|marquee` (default reef). */
 export function pickDemo(name: string | null | undefined): DemoGame {
   switch (name) {
     case 'ember':
@@ -213,6 +225,10 @@ export function pickDemo(name: string | null | undefined): DemoGame {
       return emberDemo(8);
     case 'mega':
       return megaDemo();
+    case 'mystery':
+      return reefDemo('mystery');
+    case 'marquee':
+      return reefDemo('marquee');
     default:
       return reefDemo();
   }

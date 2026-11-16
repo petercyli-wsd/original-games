@@ -32,6 +32,8 @@ export const slotStyles = /* css */ `
   background: var(--sl-bg);
   border-radius: max(0px, calc(var(--sl-r, 8px) - 3px));
 }
+.sl-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.sl-ov { position: absolute; inset: 0; pointer-events: none; }
 .sl-reel { position: absolute; top: 0; bottom: 0; overflow: hidden; }
 .sep-line .sl-reel + .sl-reel { border-left: 1px solid var(--sl-frame); }
 .sl-strip { position: absolute; left: 0; top: 0; width: 100%; will-change: transform; }
@@ -76,6 +78,12 @@ export const slotStyles = /* css */ `
 .sl-line polyline { fill: none; stroke: var(--sl-hi); stroke-width: 3.5; stroke-linejoin: round; stroke-linecap: round; }
 .sl-line polyline.case { stroke: var(--sl-bg); stroke-width: 8; }
 .sl-line circle { fill: var(--sl-hi); stroke: var(--sl-bg); stroke-width: 2.5; }
+
+/* ---------- Multiplier reel ---------- */
+.sl-mreel { display: flex; align-items: center; justify-content: center; gap: var(--sp-1); flex-wrap: wrap; }
+.sl-mreel-label { margin-right: var(--sp-2); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
+.sl-mreel-v { min-width: 44px; padding: 4px var(--sp-2); text-align: center; border: 1px solid var(--line); border-radius: 4px; font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.sl-mreel-v.on { color: var(--text); border-color: var(--text); background: var(--hover); }
 
 /* ---------- Under the window: the win chip ---------- */
 .sl-winbar {

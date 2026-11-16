@@ -35,7 +35,34 @@ export const reefTheme: SlotTheme = {
   window: { cell: 'tile', separators: 'gap', frameWidth: 8, radius: 10, cellRadius: 6 },
 };
 
+/** A quiet seabed: two flat dunes and a few bubbles, a shade off the window tone so symbols stay readable. */
+const seabed = (w: number, h: number, far: string, near: string, dots: string): ReactElement => (
+  <>
+    <path d={`M0 ${h * 0.72} C ${w * 0.18} ${h * 0.62} ${w * 0.38} ${h * 0.8} ${w * 0.58} ${h * 0.7} S ${w * 0.9} ${h * 0.62} ${w} ${h * 0.7} V ${h} H 0 Z`} fill={far} />
+    <path d={`M0 ${h * 0.88} C ${w * 0.22} ${h * 0.78} ${w * 0.45} ${h * 0.94} ${w * 0.7} ${h * 0.84} S ${w * 0.92} ${h * 0.82} ${w} ${h * 0.86} V ${h} H 0 Z`} fill={near} />
+    {[[0.12, 0.3, 5], [0.2, 0.18, 3], [0.82, 0.26, 6], [0.9, 0.12, 3], [0.5, 0.1, 4]].map(([x, y, r], i) => (
+      <circle key={i} cx={w * x} cy={h * y} r={r} fill={dots} />
+    ))}
+  </>
+);
+export const reefBackdrop = (w: number, h: number) => seabed(w, h, '#0f3349', '#10405a', '#0f3a52');
+export const reefFeatureBackdrop = (w: number, h: number) => seabed(w, h, '#2a1236', '#34183f', '#321a40');
+
 export const reefSymbols: SlotSymbols = {
+  // Mystery: a closed clam that flips into another symbol
+  11: {
+    name: 'Mystery clam',
+    render: (s) =>
+      svg(
+        s,
+        <>
+          <path d="M10 56 A40 40 0 0 1 90 56 Z" fill={C.coral} />
+          <path d="M10 56 H90 A40 30 0 0 1 10 56 Z" fill={C.sand} />
+          <path d="M10 56 H90" stroke={C.navy} strokeWidth="5" />
+          <circle cx="50" cy="56" r="9" fill={C.pearl} />
+        </>,
+      ),
+  },
   // Scatter: treasure chest (a box with an arched lid)
   1: {
     name: 'Treasure chest',
