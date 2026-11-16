@@ -154,4 +154,49 @@ describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
     // The chain plays and ends on its outro card.
     expect(await until(() => /Total win/.test(sr.querySelector('.sl-card')?.textContent ?? ''), 10000)).toBeTruthy();
   }, 25000);
+
+  it('after each round the newest chip is that round\'s paid ÷ its own stake, whatever the bet box says later', async () => {
+    setupDom();
+    const demo = reefDemo();
+    const engine = { playRound: (seed: number) => ({ ...fixedRound(250, demo.spec.bet.coins), seed }) };
+    const host: HostContext = { ...createDemoHost(), settings: createStore<HostSettings>({ turbo: true, sound: false }) };
+    const root = document.getElementById('root')!;
+    mountStandalone(defineReactGame(() => createElement(SlotGame, { ...demo, engine }), { styles: slotGameStyles }), root, host);
+    await new Promise((r) => setTimeout(r, 100));
+    const sr = root.shadowRoot!;
+    const until = async (f: () => unknown, ms = 9000) => {
+      for (let t = 0; t < ms && !f(); t += 50) await new Promise((r) => setTimeout(r, 50));
+      return f();
+    };
+    const spinBtn = () => [...sr.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Spin') as HTMLButtonElement | undefined;
+    const status = () => sr.querySelector('.og-status')?.textContent ?? '';
+    const newest = () => sr.querySelector('.sl-hist .og-hist.now') as HTMLElement | null;
+
+    // round 1 at a stake of 1.00: 250 coins of a 100-coin stake = 2.5×, paid 2.50
+    await until(spinBtn);
+    spinBtn()!.click();
+    const first = await until(() => /Won 2\.50/.test(status()) && newest());
+    expect(first).toBeTruthy();
+    expect(newest()!.textContent).toBe('2.50× bet');
+    expect(newest()!.title).toContain('Bet 1.00, paid 2.50');
+
+    // the bet box changes after the round: nothing already shown is recomputed with the new stake
+    const input = sr.querySelector('input[aria-label="Bet amount"]') as HTMLInputElement;
+    ([...sr.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'Double bet') as HTMLButtonElement).click(); // 1.00 → 2.00
+    await new Promise((r) => setTimeout(r, 100));
+    expect(status()).toContain('Won 2.50');
+    expect(newest()!.textContent).toBe('2.50× bet');
+
+    // round 2 at a stake of 2.00: the same 2.5×, paid 5.00; the first round's chip is now the second, unmarked
+    await until(spinBtn);
+    spinBtn()!.click();
+    const second = await until(() => /Won 5\.00/.test(status()));
+    expect(input.value).toBe('2.00');
+    expect(second).toBeTruthy();
+    expect(newest()!.textContent).toBe('2.50× bet');
+    expect(newest()!.title).toContain('Bet 2.00, paid 5.00');
+    const chips = [...sr.querySelectorAll('.sl-hist .og-hist')];
+    expect(chips.map((c) => c.textContent)).toEqual(['2.50× bet', '2.50×']);
+    expect((chips[1] as HTMLElement).title).toContain('Bet 1.00, paid 2.50');
+  }, 30000);
 });

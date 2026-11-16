@@ -4,14 +4,14 @@ import facts from './slot-facts.json';
 export default defineManifest({
   id: 'whiteout',
   name: 'Whiteout',
-  tagline: 'Drift rows shift every spin. Wins slide away and every slide hits harder.',
+  tagline: 'Wins slide away and climb a ladder. In the storm, one reel is buried in wild snow.',
   mechanic: 'slots',
   collection: 'slots',
   status: 'prototype',
   revision: {
     kind: 'new',
     date: '2026-11-16',
-    note: 'Alpine slot: drift rows, slides that climb a ladder, Whiteout spins. Sonnet-built, not yet rated by the team.',
+    note: 'Alpine slot: drift rows and slides that climb a ladder; every Whiteout spin buries reel 4, 5 or 6 in wild snow. Not yet rated by the team.',
   },
   rtp: facts.rtp,
   // measured by slots:eval (Monte Carlo, tier mc); see slot-facts.json

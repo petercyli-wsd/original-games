@@ -25,6 +25,12 @@ const svg = (size: number, body: ReactElement) => (
   </svg>
 );
 
+// The four premiums sit on a lit, framed panel so the pay order reads before the creature does.
+const lit = <rect x="6" y="6" width="88" height="88" rx="12" fill={C.frame} stroke={C.gold} strokeWidth="4" />;
+
+/** The locked deep rows of The Abyss: an unlit tile with a down chevron (the row opens on a tumble). */
+export const DEEP = 13;
+
 export const midnightTheme: SlotTheme = {
   name: 'Midnight Zone',
   palette: {
@@ -59,19 +65,19 @@ export const midnightSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // P1: gulper eel, a huge open mouth and a whip tail (top pay)
+  // P1: gulper eel, the top pay: a huge open jaw that fills the panel, and a whip tail
   3: {
     name: 'Gulper eel',
     render: (s) =>
       svg(
         s,
         <>
-          <path d="M6 52 L60 26 Q76 24 78 40 L66 50 Z" fill={C.violet} />
-          <path d="M6 52 L66 50 Q84 60 72 78 Q52 96 18 80 Q4 68 6 52 Z" fill={C.coral} />
-          <path d="M15 55 L61 49 Q67 62 57 72 Q36 83 19 73 Q11 65 15 55 Z" fill={C.tile} />
-          <circle cx="63" cy="37" r="5.5" fill={C.gold} />
-          <path d="M78 58 C90 54 94 70 87 77 C83 83 90 86 91 89" fill="none" stroke={C.violet} strokeWidth="5" strokeLinecap="round" />
-          <circle cx="90" cy="88" r="4" fill={C.gold} />
+          {lit}
+          <path d="M12 46 L58 16 Q80 14 84 34 L70 48 Z" fill={C.violet} />
+          <path d="M12 46 L70 48 Q90 58 80 76 Q60 94 22 84 Q10 70 12 46 Z" fill={C.coral} />
+          <path d="M22 52 L66 50 Q74 62 64 72 Q44 84 26 76 Q18 66 22 52 Z" fill={C.bg} />
+          <circle cx="64" cy="31" r="7" fill={C.gold} />
+          <path d="M82 60 C92 64 92 78 84 84" fill="none" stroke={C.violet} strokeWidth="6" strokeLinecap="round" />
         </>,
       ),
   },
@@ -82,13 +88,16 @@ export const midnightSymbols: SlotSymbols = {
       svg(
         s,
         <>
+          {lit}
+          <g transform="translate(50 50) scale(0.8) translate(-50 -50)">
           <ellipse cx="52" cy="58" rx="42" ry="26" fill={C.gold} />
           <path d="M36 38 V78 M52 34 V82 M68 38 V78" fill="none" stroke={C.tile} strokeWidth="4.5" strokeLinecap="round" />
           <circle cx="19" cy="50" r="5" fill={C.coral} />
           <circle cx="19" cy="66" r="5" fill={C.coral} />
           <path d="M16 42 L8 26 M24 40 L24 22" fill="none" stroke={C.gold} strokeWidth="3.5" strokeLinecap="round" />
           <path d="M34 82 L30 92 M52 84 L52 93 M70 82 L74 92" fill="none" stroke={C.gold} strokeWidth="4" strokeLinecap="round" />
-        </>,
+                  </g>
+</>,
       ),
   },
   // P3: vampire squid, a dome with webbed arms and glowing eyes
@@ -98,6 +107,8 @@ export const midnightSymbols: SlotSymbols = {
       svg(
         s,
         <>
+          {lit}
+          <g transform="translate(50 50) scale(0.8) translate(-50 -50)">
           <ellipse cx="14" cy="38" rx="8" ry="12" fill={C.violet} />
           <ellipse cx="86" cy="38" rx="8" ry="12" fill={C.violet} />
           <path d="M14 64 C14 30 34 12 50 12 C66 12 86 30 86 64 L86 70 L76 90 L66 72 L58 92 L50 72 L42 92 L34 72 L24 90 L14 70 Z" fill={C.violet} />
@@ -106,7 +117,8 @@ export const midnightSymbols: SlotSymbols = {
           <circle cx="37" cy="46" r="3.5" fill={C.bg} />
           <circle cx="63" cy="46" r="3.5" fill={C.bg} />
           <path d="M28 68 Q50 56 72 68" fill="none" stroke={C.coral} strokeWidth="5" strokeLinecap="round" />
-        </>,
+                  </g>
+</>,
       ),
   },
   // P4: siphonophore, a tall chain of glowing bulbs
@@ -116,13 +128,16 @@ export const midnightSymbols: SlotSymbols = {
       svg(
         s,
         <>
+          {lit}
+          <g transform="translate(50 50) scale(0.8) translate(-50 -50)">
           <path d="M50 24 Q28 40 40 46 Q72 52 60 62 Q36 70 46 78 Q60 84 54 90" fill="none" stroke={C.violet} strokeWidth="4.5" strokeLinecap="round" />
           <circle cx="50" cy="16" r="11" fill={C.coral} />
           <circle cx="40" cy="44" r="9" fill={C.cyan} />
           <circle cx="60" cy="61" r="8.5" fill={C.cyan} />
           <circle cx="46" cy="77" r="7.5" fill={C.cyan} />
           <circle cx="55" cy="88" r="5.5" fill={C.cyan} />
-        </>,
+                  </g>
+</>,
       ),
   },
   // L1: copepod, a drop with long feelers
@@ -153,16 +168,18 @@ export const midnightSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // L3: sea gooseberry, a comb jelly with two tails
+  // L3: sea gooseberry, a round comb jelly with two long trailing tentacles (not an oval: the isopod is the oval)
   9: {
     name: 'Sea gooseberry',
     render: (s) =>
       svg(
         s,
         <>
-          <ellipse cx="50" cy="42" rx="25" ry="31" fill={C.violet} />
-          <path d="M39 20 V64 M50 14 V70 M61 20 V64" fill="none" stroke={C.tile} strokeWidth="3.5" strokeLinecap="round" />
-          <path d="M42 72 C44 80 34 84 34 90 M58 72 C56 80 66 84 66 90" fill="none" stroke={C.violet} strokeWidth="4" strokeLinecap="round" />
+          <circle cx="40" cy="38" r="26" fill={C.violet} />
+          <circle cx="32" cy="30" r="5" fill={C.tile} />
+          <circle cx="48" cy="44" r="5" fill={C.tile} />
+          <path d="M54 58 C70 62 64 78 80 80 C88 82 90 88 88 92" fill="none" stroke={C.violet} strokeWidth="4" strokeLinecap="round" />
+          <path d="M30 62 C30 76 44 78 44 90" fill="none" stroke={C.violet} strokeWidth="4" strokeLinecap="round" />
         </>,
       ),
   },
@@ -203,6 +220,18 @@ export const midnightSymbols: SlotSymbols = {
           <path d="M14 54 C12 14 88 14 86 54 Q76 60 66 54 Q50 62 34 54 Q24 60 14 54 Z" fill={C.violet} />
           <circle cx="50" cy="34" r="12" fill={C.cyan} />
           <path d="M26 58 C22 70 30 76 24 90 M44 60 C40 72 50 78 44 92 M62 60 C58 72 66 76 62 86" fill="none" stroke={C.coral} strokeWidth="4" strokeLinecap="round" />
+        </>,
+      ),
+  },
+  // The locked deep row (The Abyss only): unlit water with a down chevron. It never pays.
+  [DEEP]: {
+    name: 'Locked deep row',
+    render: (s) =>
+      svg(
+        s,
+        <>
+          <rect x="6" y="6" width="88" height="88" rx="8" fill={C.deepBg} />
+          <path d="M34 44 L50 60 L66 44" fill="none" stroke={C.deepFrame} strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
         </>,
       ),
   },

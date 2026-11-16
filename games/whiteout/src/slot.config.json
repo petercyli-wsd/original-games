@@ -3,9 +3,9 @@
   "kind": "free_spins",
   "spec": "feature.spec.json",
   "awards": {
-   "4": 12,
-   "5": 15,
-   "6": 18
+   "4": 9,
+   "5": 12,
+   "6": 15
   },
   "retrigger": {
    "4": 4

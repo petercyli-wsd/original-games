@@ -797,3 +797,53 @@ export function combinedMultiplierChip(rm: RoundMultiplier, spin: number, labels
   const text = `${labels.spin ?? 'Spin'} ×${spin} · ${part} ×${rm.total} = ×${spin * rm.total}`;
   return wordCount(text) >= 9 ? `Multiplier ×${spin * rm.total}` : text;
 }
+
+/**
+ * The running sum of the orbs on show at each step (`orb_sum_terminal`): each step's orbs are tracked to the terminal
+ * board, where the engine decided their values, so the sum grows as tumbles reveal more orbs and reaches the spin's total
+ * only on the last step. Null if the spin has no orb values. Never shows the outcome before the board that produces it.
+ */
+export function orbSumsByStep(res: SpinResult): number[] | null {
+  const key = Object.keys(res.decor ?? {}).find((k) => /orbVals$/i.test(k) && isMoneyMap(res.decor[k]));
+  if (!key) return null;
+  const vals = res.decor[key] as Record<string, number>;
+  const total = Object.values(vals).reduce((a, b) => a + b, 0);
+  const maps = terminalMaps(res);
+  const n = res.steps.length;
+  if (!maps) return res.steps.map((_, j) => (j === n - 1 ? total : 0));
+  return res.steps.map((st, j) => {
+    let sum = 0;
+    st.board.forEach((col, c) =>
+      col.forEach((_, r) => {
+        const t = maps[j].get(`${c},${r}`);
+        if (t && t in vals) sum += vals[t];
+      }),
+    );
+    return j === n - 1 ? total : sum;
+  });
+}
+
+// ---------------------------------------------------------------- the paytable's compact columns
+
+/**
+ * The counts to show as columns in the compact pay rows, each an exact count from the spec's own tables: 3, 4, 5 of a kind
+ * for line and ways games; for cluster and pay-anywhere games the smallest count and every 5 above it (5, 10, 15, 20),
+ * as far as the tables go. The full per-count table sits behind each symbol's "All pays".
+ */
+export function tierCounts(spec: SlotSpec, symbolIds: number[]): number[] {
+  const all = new Set<number>();
+  for (const id of symbolIds) for (const k of Object.keys(spec.pays.paytable[String(id)] ?? {})) if (Number.isFinite(Number(k))) all.add(Number(k));
+  const counts = [...all].sort((a, b) => a - b);
+  if (counts.length <= 4) return counts;
+  const kind = spec.evaluation.kind;
+  if (kind === 'payline' || kind === 'ways') return counts.slice(-4);
+  const picked = [0, 5, 10, 15].map((d) => counts[0] + d).filter((n) => all.has(n));
+  if (picked.length >= 3) return picked;
+  return [0, 1, 2, 3].map((i) => counts[Math.round((i * (counts.length - 1)) / 3)]);
+}
+
+/** A symbol's pay for exactly `count` of it, in stakes (null if the table has none). */
+export function payAt(pays: Record<string, number> | undefined, count: number, bet: number): number | null {
+  const v = pays?.[String(count)];
+  return typeof v === 'number' ? v / bet : null;
+}

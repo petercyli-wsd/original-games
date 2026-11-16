@@ -27,6 +27,7 @@ const svg = (size: number, body: ReactElement) => (
 function alpineScene(w: number, h: number, storm: boolean) {
   const far = storm ? '#17233A' : C.tile;
   const near = storm ? '#121B2E' : '#0D4A6B';
+  // No flag or pennant in the scene: on the plain window it sat behind reels 4–5 and read as an extra Summit flag.
   const px = w * 0.72;
   const py = h * 0.5;
   return (
@@ -35,9 +36,7 @@ function alpineScene(w: number, h: number, storm: boolean) {
         <>
           <rect x="0" y={h * 0.62} width={w} height={h * 0.05} fill="#2A2238" />
           <rect x="0" y={h * 0.72} width={w} height={h * 0.04} fill="#2A2238" />
-          {[0.1, 0.3, 0.5, 0.7, 0.9].map((f, i) => (
-            <path key={i} d={`M${w * f} ${h * (0.1 + (i % 2) * 0.2)} l${-w * 0.05} ${h * 0.08}`} stroke="#3A4560" strokeWidth="3" strokeLinecap="round" />
-          ))}
+          {/* No snow streaks: on the plain window they sat beside symbols and read as stray marks. */}
         </>
       )}
       <path
@@ -48,8 +47,6 @@ function alpineScene(w: number, h: number, storm: boolean) {
         d={`M0 ${h} V${h * 0.8} L${w * 0.2} ${h * 0.68} L${w * 0.38} ${h * 0.82} L${w * 0.6} ${h * 0.7} L${w * 0.8} ${h * 0.84} L${w} ${h * 0.72} V${h} Z`}
         fill={near}
       />
-      <path d={`M${px} ${py} V${py - h * 0.12}`} stroke={C.rock} strokeWidth="3" strokeLinecap="round" />
-      <path d={`M${px} ${py - h * 0.12} l${w * 0.07} ${h * 0.025} l${-w * 0.07} ${h * 0.025} Z`} fill={storm ? C.pink : C.orange} opacity="0.7" />
     </>
   );
 }
@@ -99,6 +96,22 @@ export const whiteoutSymbols: SlotSymbols = {
           <path d="M4 34 Q24 12 52 20 Q82 26 96 46 Q86 58 74 52 Q62 62 50 54 Q38 64 26 54 Q14 60 4 50 Z" fill={C.white} />
           <path d="M20 54 L26 80 L32 54 Z M44 56 L50 90 L56 56 Z M66 54 L72 74 L78 52 Z" fill={C.ice} />
           <path d="M14 36 Q30 22 50 28" fill="none" stroke={C.ice} strokeWidth="5" strokeLinecap="round" />
+        </>,
+      ),
+  },
+  // Buried-reel wild (Whiteout spins only): a solid wall of packed snow with ice layers. It fills the whole cell,
+  // so a buried reel reads as one unbroken column of snow, unlike the cornice's single overhang.
+  13: {
+    name: 'Buried snow',
+    render: (s) =>
+      svg(
+        s,
+        <>
+          <rect x="6" y="6" width="88" height="88" rx="6" fill={C.white} />
+          <path d="M6 34 Q28 26 50 34 Q72 42 94 34" fill="none" stroke={C.ice} strokeWidth="6" strokeLinecap="round" />
+          <path d="M6 64 Q28 56 50 64 Q72 72 94 64" fill="none" stroke={C.ice} strokeWidth="6" strokeLinecap="round" />
+          <circle cx="30" cy="80" r="4" fill={C.ice} />
+          <circle cx="70" cy="18" r="4" fill={C.ice} />
         </>,
       ),
   },
@@ -207,15 +220,15 @@ export const whiteoutSymbols: SlotSymbols = {
       )
     ),
   },
-  // L5: snow boot print, a sole with treads
+  // L5: snow boot print, a sole with treads (rock grey, so no low shares the Lammergeier's pink)
   11: {
     name: 'Boot print',
     render: (s) =>
       svg(
         s,
         <>
-          <path d="M30 6 H64 Q76 6 74 24 L70 44 H34 L26 24 Q24 6 30 6 Z" fill={C.pink} />
-          <path d="M34 54 H68 L70 70 Q68 94 50 94 Q32 94 32 70 Z" fill={C.pink} />
+          <path d="M30 6 H64 Q76 6 74 24 L70 44 H34 L26 24 Q24 6 30 6 Z" fill={C.rock} />
+          <path d="M34 54 H68 L70 70 Q68 94 50 94 Q32 94 32 70 Z" fill={C.rock} />
           <path d="M36 18 H64 M36 32 H64 M40 70 H60" stroke={C.tile} strokeWidth="5" strokeLinecap="round" />
         </>,
       ),

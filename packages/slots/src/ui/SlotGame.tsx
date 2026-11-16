@@ -24,7 +24,6 @@ import {
   PanelFoot,
   Readouts,
   useBetInput,
-  useHistory,
   useHotkeys,
   useTicket,
   useTurbo,
@@ -66,6 +65,7 @@ import {
   idsWithRole,
   ladderOf,
   stepMults,
+  orbSumsByStep,
   valueBadgesByStep,
   wordCount,
   waysOf,
@@ -121,7 +121,10 @@ export function SlotGame(props: SlotGameProps) {
   const bet = useBetInput();
   const turboState = useTurbo();
   const turbo = turboState.turbo || prefersReducedMotion();
-  const [history, pushHistory] = useHistory(14);
+  // Every round, newest first: its multiple of its own stake, what it paid and what the stake was. The chips and the log read it.
+  const [rounds, setRounds] = useState<{ id: number; mult: number; stake: number; paid: number; at: number }[]>([]);
+  const roundSeq = useRef(0);
+  const [histOpen, setHistOpen] = useState(false);
 
   const engine = useMemo(() => resolveEngine(props), [props.engine, spec, featureSpecs, config]); // eslint-disable-line react-hooks/exhaustive-deps
   // A modifier-driven feature (hold and spin, sticky respins) may come with its own test and name in slot.config.json.
@@ -483,7 +486,10 @@ export function SlotGame(props: SlotGameProps) {
     const mod = modifierOf(res, customDetect);
     const full = isBase && !!mod;
     // No spoilers: a multiplier read off the chain's final board (orbs) shows once that board does, not from respin 1.
-    setRmult(full && rm?.kind === 'orbs' ? null : rm);
+    // An orb total is shown as a running sum of the orbs on show; the final total appears only when the last step lands.
+    const orbSums = rm?.kind === 'orbs' && !full ? orbSumsByStep(res) : null;
+    const orbRunning = (j: number): RoundMultiplier | null => (orbSums && orbSums[j] > 1 ? { total: orbSums[j], kind: 'orbs' } : null);
+    setRmult(rm?.kind === 'orbs' ? (full ? null : orbRunning(0)) : rm);
     const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
     const landedC = full ? landedCoins(res) : null;
     const heldSets = mod ? heldByStep(res) : null;
@@ -550,6 +556,7 @@ export function SlotGame(props: SlotGameProps) {
           });
           if (alive.current) setOverlayStep({ step: i + 1, steps: steps.length });
           if (alive.current && badges) setOverlays(badges[i + 1]);
+          if (alive.current && orbSums && i + 1 < steps.length - 1) setRmult(orbRunning(i + 1));
         }
       } else if (next) {
         // No win, but the board changes: a respin.
@@ -642,7 +649,7 @@ export function SlotGame(props: SlotGameProps) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
       if (ov.size) setOverlays(ov);
       setOverlayDecor(res.decor);
-      if (full && rm?.kind === 'orbs') setRmult(rm);
+      if (rm?.kind === 'orbs') setRmult(rm);
     }
     for (const ex of res.extras) {
       const add = ex.coins * m;
@@ -804,9 +811,10 @@ export function SlotGame(props: SlotGameProps) {
       if (alive.current) {
         ticket.settle(mult);
         busyRef.current = false;
-        pushHistory(mult);
         const won = mult * stake;
-        setStatus(won <= 0 ? { text: 'No win', tone: 'lost' } : won > stake + 1e-9 ? { text: `Won ${money(won)}`, tone: 'won' } : { text: `Returned ${money(won)}`, tone: 'idle' });
+        // `stake` is this round's own stake (the bet box may have changed since): the chip, the status and the log all use it.
+        setRounds((r) => [{ id: ++roundSeq.current, mult, stake, paid: won, at: Date.now() }, ...r].slice(0, 12));
+        setStatus(won <= 0 ? { text: 'No win', tone: 'lost' } : won > stake + 1e-9 ? { text: `Won ${money(won)} · ${fmtHist(mult)}`, tone: 'won' } : { text: `Paid back ${money(won)} · ${fmtHist(mult)}`, tone: 'idle' });
         setBusy(false);
         counter.current?.set(won);
       }
@@ -904,7 +912,8 @@ export function SlotGame(props: SlotGameProps) {
         ]
     : [
         { label: 'Balance', value: money(balance) },
-        { label: 'Win', value: <RollNumber ref={counter} format={money} /> },
+        // The last round's amount stays here, with its multiple of the bet, until the next spin.
+        { label: 'Win', value: <RollNumber ref={counter} format={money} />, sub: !busy && rounds[0] ? `${fmtHist(rounds[0].mult)} bet` : undefined },
         ...multItem,
       ];
 
@@ -975,19 +984,47 @@ export function SlotGame(props: SlotGameProps) {
 
   return (
     <GameLayout name={manifest.name} accent={manifest.accent} className="slots" panel={panel}>
-      <div className="og-stage-top">
+      <div className="og-stage-top sl-top">
         <span className={`og-status ${feat ? 'live' : status.tone}`} aria-live="polite">
           {feat ? (feat.kind === 'respin' ? modName : featureName) : status.text}
         </span>
-        {/* The history chips are round totals; name them, so a bare "3.36×" is never a mystery. */}
-        <div className="og-history" aria-label="Recent round results">
-          {history.length > 0 && <span className="sl-hist-label">Recent rounds</span>}
-          {history.map((h) => (
-            <span key={h.id} className={'og-hist ' + (h.multiplier >= 1 ? 'w' : h.multiplier > 0 ? 'p' : 'l')} title={`Round paid ${fmtHist(h.multiplier)} the bet`}>
-              {fmtHist(h.multiplier)}
-            </span>
-          ))}
-        </div>
+        {rounds.length > 0 && (
+          <div className="sl-hist">
+            {/* The order and the unit, said once: newest first, each chip a multiple of that round's bet. */}
+            <button type="button" className="sl-hist-toggle" aria-expanded={histOpen} onClick={() => setHistOpen((o) => !o)}>
+              Last rounds · newest first →
+            </button>
+            <div className="og-history" aria-label="Recent rounds, newest first">
+              {rounds.slice(0, 8).map((h, i) => (
+                <span key={h.id} className={'og-hist ' + (h.mult >= 1 ? 'w' : h.mult > 0 ? 'p' : 'l') + (i === 0 ? ' now' : '')} title={`Bet ${money(h.stake)}, paid ${money(h.paid)}: ${fmtHist(h.mult)} the bet`}>
+                  {i === 0 ? `${fmtHist(h.mult)} bet` : fmtHist(h.mult)}
+                </span>
+              ))}
+            </div>
+            {histOpen && (
+              <table className="sl-hist-log" aria-label="Round log">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Bet</th>
+                    <th>Paid</th>
+                    <th>Of bet</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rounds.slice(0, 8).map((h) => (
+                    <tr key={h.id}>
+                      <td>{new Date(h.at).toLocaleTimeString('en-GB')}</td>
+                      <td>{money(h.stake)}</td>
+                      <td>{money(h.paid)}</td>
+                      <td>{fmtHist(h.mult)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
       </div>
       <Readouts items={readouts} />
       <Board>

@@ -15,6 +15,8 @@ import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
 import config from './slot.config.json';
 import oracle from './oracle.json';
+import { checkCopy } from '../../../packages/slots/src/ui/util';
+import { copy, lockedRowLabel } from './copy';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const base = spec as unknown as SlotSpec;
@@ -33,9 +35,12 @@ describe('oracle parity (the pack and the TypeScript port draw the same spins)',
     const f = (oracle.features as Record<string, { spins: unknown[]; seeds: number }>).feature;
     for (let s = 0; s < f.spins.length; s++) expect(canonicalSpin(feat, s)).toEqual(f.spins[s]);
   });
-  it('the pack accepted both specs as scatter pays with tumble and orb sum', () => {
+  it('the pack accepted both specs as scatter pays with tumble and orb sum; the feature adds the opening rows', () => {
     expect(oracle.base.context).toBe('scatter_pays|global_mixture');
     expect(oracle.base.families).toEqual(['orb_sum_terminal', 'tape_continuation_refill']);
+    const f = (oracle.features as Record<string, { context: string; families: string[] }>).feature;
+    expect(f.context).toBe('scatter_pays|global_mixture');
+    expect(f.families).toEqual(['expanding_grid_structural', 'orb_sum_terminal', 'tape_continuation_refill']);
   });
 });
 
@@ -116,6 +121,70 @@ describe('the free spins algebra matches simulated rounds', () => {
     expect(Math.abs(m - v.expectedWinCoins)).toBeLessThan(4 * se + 1);
     expect(Math.abs(spinsSum / N - v.expectedSpins)).toBeLessThan(0.5);
   }, 300000);
+});
+
+describe('The Abyss gets deeper: each tumble opens the next row down', () => {
+  const DEEP = 13;
+  const eng = new SlotEngine(feat);
+  it('the feature board is 6x8 with the bottom 3 rows locked; the base board stays 6x5', () => {
+    expect(base.geometry.rows).toEqual([5, 5, 5, 5, 5, 5]);
+    expect(feat.geometry.rows).toEqual([8, 8, 8, 8, 8, 8]);
+    const m = feat.mechanics!.find((x) => x.id === 'expanding_grid_structural')!.params as Record<string, unknown>;
+    expect(m).toMatchObject({ unlock: 'rows_bottom', locked: 3, unlock_per_step: 1, blank_symbol: DEEP, reveal: 'window' });
+    expect(base.mechanics!.some((x) => x.id === 'expanding_grid_structural')).toBe(false);
+  });
+  it('every feature spin lands with rows 5-7 dark, and tumble k opens row 4 + k with real symbols', () => {
+    const opened = [0, 0, 0, 0];
+    for (let seed = 0; seed < 4000; seed++) {
+      const r = eng.spin(seed);
+      const first = r.steps[0].board;
+      for (const col of first) {
+        expect(col.slice(0, 5).includes(DEEP)).toBe(false);
+        expect(col.slice(5)).toEqual([DEEP, DEEP, DEEP]);
+      }
+      const at = (r.decor['expanding_grid_structural.unlockedAt'] as number[]) ?? [];
+      expect(at).toEqual(at.map((_, i) => i + 1)); // one row per tumble, in order
+      opened[at.length]++;
+      r.steps.forEach((st, k) => {
+        const open = 5 + Math.min(3, k);
+        for (const col of st.board) {
+          expect(col.slice(0, open).includes(DEEP), `seed ${seed} step ${k}`).toBe(false);
+          expect(col.slice(open).every((v) => v === DEEP), `seed ${seed} step ${k}`).toBe(true);
+        }
+      });
+      // locked cells never pay
+      for (const st of r.steps) for (const w of st.wins) for (const [c, row] of w.cells) expect(st.board[c][row]).not.toBe(DEEP);
+    }
+    expect(opened[0]).toBeGreaterThan(0);
+    expect(opened[3]).toBeGreaterThan(100); // the full 6x8 depth is reached often enough to be felt
+  });
+  it('the paytable reaches 48 of a kind in the feature, at the 20-30 pay', () => {
+    for (const [sym, t] of Object.entries(feat.pays.paytable)) {
+      expect(t['48']).toBe(base.pays.paytable[sym]['30']);
+      for (let n = 8; n <= 30; n++) expect(t[String(n)]).toBe(base.pays.paytable[sym][String(n)]);
+    }
+  });
+  it('every jellyfish carries a value, win or not (require_win off)', () => {
+    for (const s of [base, feat]) expect((s.mechanics!.find((x) => x.id === 'orb_sum_terminal')!.params as { require_win?: boolean }).require_win).toBe(false);
+    const be = new SlotEngine(base);
+    let seen = 0;
+    for (let seed = 0; seed < 3000; seed++) {
+      const r = be.spin(seed);
+      const orbs = r.finalBoard.flat().filter((v) => v === 12).length;
+      if (orbs && r.totalCoins === 0) {
+        expect(Object.keys((r.decor['orb_sum_terminal.orbVals'] as object) ?? {}).length).toBe(orbs);
+        seen++;
+      }
+    }
+    expect(seen).toBeGreaterThan(0);
+  });
+  it('the copy names the rule in short lines, and each locked row says its tumble', () => {
+    expect(checkCopy(copy)).toEqual([]);
+    expect(copy.introNote).toBe('Each tumble opens a deeper row');
+    expect(copy.featureRule).toBe(copy.introNote);
+    expect(copy.featureSpins).toBe('free spins');
+    expect([5, 6, 7].map((r) => lockedRowLabel(r, 5, 8))).toEqual(['Tumble 1', 'Tumble 2', 'Tumble 3']);
+  });
 });
 
 describe('the max-win cap', () => {

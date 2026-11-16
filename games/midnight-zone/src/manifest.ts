@@ -3,14 +3,14 @@ import { defineManifest } from '@originals/game-sdk';
 export default defineManifest({
   id: 'midnight-zone',
   name: 'Midnight Zone',
-  tagline: 'Deep-sea creatures pay anywhere. Jellyfish multiply the chain.',
+  tagline: 'Pay-anywhere tumbles. In The Abyss each tumble opens a deeper row.',
   mechanic: 'slots',
   collection: 'slots',
   status: 'prototype',
   revision: {
     kind: 'new',
     date: '2026-11-16',
-    note: 'Pay-anywhere tumbles with jellyfish orb sums. Sonnet-built, not yet rated by the team.',
+    note: 'Round 1 repair: The Abyss gets deeper, each tumble opens a row (6x5 to 6x8).',
   },
   rtp: 0.96,
   maxMultiplier: 15000,
