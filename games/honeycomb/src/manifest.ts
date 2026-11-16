@@ -4,7 +4,7 @@ import facts from './slot-facts.json';
 export default defineManifest({
   id: 'honeycomb',
   name: 'Honeycomb',
-  tagline: 'Land six honey cells and the comb starts filling.',
+  tagline: 'Honey on every reel fills the comb; the queen multiplies it.',
   mechanic: 'slots',
   collection: 'slots',
   status: 'prototype',
@@ -13,5 +13,5 @@ export default defineManifest({
   volatility: ['high'],
   checkpoints: false,
   accent: '#e6b450',
-  revision: { kind: 'new', date: '2026-11-16', note: 'Sonnet-built hold-and-respin slot, not yet rated by the team.' },
+  revision: { kind: 'new', date: '2026-11-16', note: 'Round 2: a queen on the last respin multiplies the harvest; full comb reachable.' },
 });
