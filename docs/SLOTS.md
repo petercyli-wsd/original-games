@@ -56,7 +56,7 @@ The maths authority is the manager's **Slot Math engine pack** (`/Users/petercyl
 | Average feature win | In stakes | 15–150× |
 | P(win ≥ 100×) per spin | How often the big moments come | Low: 1 in 5,000+; high: 1 in 1,500 or more often |
 | Max win | Declared cap, and the measured P(hitting it) | 1,000×–25,000×, never unreachable in practice: P > 1 in 10⁹ |
-| Dry streak p95 | 95th percentile of the longest run of non-paying spins in 100 spins | ≤ 15 |
+| Dry streak p95 | 95th percentile of the longest run of non-paying spins in 100 spins | By volatility: low ≤ 12, medium ≤ 20, high ≤ 26, extreme ≤ 32. It follows from the hit rate (p95 ≈ 15 at a 33% hit rate, 20 at 25%), so it must be read together with the volatility the theme promises, not as one number. |
 | Session | Median balance after 200 spins at 1 unit, starting from 100 | Shows how the volatility feels |
 
 These are guides for tuning and inputs to the review. The gate (§5) uses only the ones marked there.
@@ -64,6 +64,7 @@ These are guides for tuning and inputs to the review. The gate (§5) uses only t
 ## 4. Theme and UI (`docs/SLOT-STYLE.md` has the details)
 
 - **The UI stays simple.** The kit's slot layout is the same for every game: a reel window, Spin, bet, Autoplay, Turbo, an info/paytable sheet, a win readout and the balance. The kit draws it; games don't build their own panels.
+- **No trademarked mechanic names.** "Megaways" is Big Time Gaming's trademark: the variable-rows mechanic is fine, the word is not. The same goes for "Hold & Win" and "Cash Collect"; use our own names.
 - **The theme is the game's own:** palette, symbol art, names, the feature's story and its sounds-as-motion (no audio yet). Symbols are original flat vector art drawn in SVG inside the game (no emoji, no copied art, no real brands), readable at 48 px. The low symbols are themed (gems, tools, fish species), not plain A K Q J, unless the theme is a classic.
 - **The paytable is generated from the spec,** so it can never disagree with the maths. It shows every symbol's pays, how the wild and the scatter work, the feature rules, the RTP with its tier, the hit rate, the max win and the feature frequency.
 - **Win presentation:** highlight the winning lines, ways or clusters one at a time (Turbo: all at once). Count up the win over a time proportional to its size, capped at 3 s. Mark big wins at ≥ 20× and ≥ 100×. Every highlighted win shows its symbol × count = amount.
