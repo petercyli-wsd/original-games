@@ -10,6 +10,8 @@ import type { SpinDist } from '../../../packages/slots/src/engine/analytics/dist
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
 import { checkParity, type OracleFixture } from '../../../packages/slots/src/engine/parity';
 import { featureRules, howToWinLines, introLines, multiplierNote, outroLines, scatterLines, wildLines, wordCount, ruleSentence, parseSlotFacts } from '../../../packages/slots/src/ui/util';
+import { checkCopy } from '../../../packages/slots/src/ui';
+import { copy as gameCopy } from './Game';
 import { baseMath } from './exactmath';
 
 const dir = dirname(fileURLToPath(import.meta.url));
@@ -240,5 +242,11 @@ describe('copy: every line is under 9 words', () => {
   });
   it('the canonical JSON helper is the one the oracle uses', () => {
     expect(typeof canonicalJson({ a: 1 })).toBe('string');
+  });
+});
+
+describe('copy', () => {
+  it('every line is short enough for blind reviewers', () => {
+    expect(checkCopy(gameCopy)).toEqual([]);
   });
 });

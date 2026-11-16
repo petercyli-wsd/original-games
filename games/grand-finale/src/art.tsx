@@ -12,6 +12,8 @@ export const FINALE = {
   magenta: '#E84A8A',
   blue: '#4CC9F0',
   ember: '#F77F00',
+  lilac: '#B9A3F2', // peony: apart from the rocket's magenta
+  ash: '#C9D1DA', // light grey: reads on navy tiles
   // feature (the closing barrage): a dusk sky
   duskBg: '#1A0B24',
   duskTile: '#26112F',
@@ -31,11 +33,11 @@ const BUILDINGS = [
   [0.44, 0.09, 0.18], [0.52, 0.12, 0.42], [0.64, 0.08, 0.26], [0.71, 0.11, 0.34], [0.82, 0.08, 0.20], [0.89, 0.11, 0.30],
 ];
 function scene(w: number, h: number, dusk: boolean) {
-  const sky = dusk ? '#210F2C' : '#112238';
-  const city = dusk ? '#150822' : '#0A1623';
-  const water = dusk ? '#1E0D29' : '#0F2033';
-  const wave = dusk ? '#2E1640' : '#1A3048';
-  const lit = dusk ? '#4A2358' : '#24405C';
+  const sky = dusk ? '#3A1B4D' : '#1D3A5C';
+  const city = dusk ? '#241035' : '#112844';
+  const water = dusk ? '#321747' : '#183A5E';
+  const wave = dusk ? '#5A2D78' : '#2F5F8C';
+  const lit = dusk ? '#8A4DB0' : '#FFC857';
   const horizon = h * 0.72;
   const bursts = dusk
     ? [[0.2, 0.2, 0.09], [0.78, 0.15, 0.11], [0.52, 0.32, 0.07]]
@@ -88,7 +90,7 @@ export const finaleTheme: SlotTheme = {
     featureFrame: C.magenta,
     featureTile: C.duskTile,
   },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 5, radius: 4, cellRadius: 4 },
+  window: { cell: 'tile', separators: 'gap', frameWidth: 5, radius: 4, cellRadius: 4, backdropMargin: 16 },
   backdrop: (w, h) => scene(w, h, false),
   featureBackdrop: (w, h) => scene(w, h, true),
 };
@@ -190,7 +192,7 @@ export const finaleSymbols: SlotSymbols = {
       svg(
         s,
         <>
-          <path d="M20 92 L52 56" stroke={C.smoke} strokeWidth="8" strokeLinecap="round" />
+          <path d="M20 92 L52 56" stroke={C.ash} strokeWidth="8" strokeLinecap="round" />
           <polygon points={star(8, 11, 26, 66, 34)} fill={C.ember} />
           <circle cx="66" cy="34" r="8" fill={C.gold} />
         </>,
@@ -203,9 +205,9 @@ export const finaleSymbols: SlotSymbols = {
       svg(
         s,
         <>
-          <circle cx="50" cy="50" r="26" fill={C.magenta} />
+          <circle cx="50" cy="50" r="26" fill={C.lilac} />
           {spokes(8, 38, 38).map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="7" fill={C.magenta} />
+            <circle key={i} cx={x} cy={y} r="7" fill={C.lilac} />
           ))}
         </>,
       ),
@@ -217,8 +219,8 @@ export const finaleSymbols: SlotSymbols = {
       svg(
         s,
         <>
-          <circle cx="50" cy="16" r="8" fill={C.smoke} />
-          <path d="M50 16 C20 16 12 50 12 82 M50 16 C34 24 32 56 32 86 M50 16 C66 24 68 56 68 86 M50 16 C80 16 88 50 88 82" fill="none" stroke={C.smoke} strokeWidth="6" strokeLinecap="round" />
+          <circle cx="50" cy="16" r="8" fill={C.ash} />
+          <path d="M50 16 C20 16 12 50 12 82 M50 16 C34 24 32 56 32 86 M50 16 C66 24 68 56 68 86 M50 16 C80 16 88 50 88 82" fill="none" stroke={C.ash} strokeWidth="6" strokeLinecap="round" />
         </>,
       ),
   },
@@ -254,4 +256,18 @@ export const finaleSymbols: SlotSymbols = {
         </>,
       ),
   },
+};
+
+// Rocket landing burst: a ring of gold and magenta rays, flat shapes only.
+export const finaleFx: Record<number, (size: number) => ReactElement> = {
+  2: (s) =>
+    svg(
+      s,
+      <g strokeLinecap="round" strokeWidth="7">
+        {spokes(12, 24, 46).map(([x1, y1, x2, y2], i) => (
+          <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={i % 2 ? C.magenta : C.gold} />
+        ))}
+        <polygon points={star(6, 8, 18)} fill={C.gold} stroke="none" />
+      </g>,
+    ),
 };

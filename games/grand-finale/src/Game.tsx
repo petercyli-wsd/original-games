@@ -1,6 +1,6 @@
 import { SlotGame, parseSlotFacts, type SlotCopy } from '@originals/slots/ui';
 import manifest from './manifest';
-import { finaleSymbols, finaleTheme } from './art';
+import { finaleFx, finaleSymbols, finaleTheme } from './art';
 import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
 import config from './slot.config.json';
@@ -13,11 +13,13 @@ const facts = parseSlotFacts(factsRaw);
 const copy: SlotCopy = {
   featureName: 'Finale spins',
   introNote: 'More rockets. Bigger numbers.',
-  rule: '10 or more anywhere pay. Rockets multiply.',
+  rule: '10+ of a kind pays anywhere.',
   wildText: 'Any firework. Its +N joins the multiplier.',
   scatterText: 'Fuse pays anywhere. 4 fuses = 12 spins.',
   decorLabels: { 'global_additive.wildMults': (v) => `+${v}` },
 };
+
+export { copy };
 
 export default function Game() {
   return (
@@ -30,6 +32,7 @@ export default function Game() {
       theme={finaleTheme}
       symbols={finaleSymbols}
       copy={copy}
+      symbolFx={finaleFx}
     />
   );
 }
