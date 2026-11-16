@@ -24,9 +24,10 @@ export type Mechanic =
 /**
  * `originals` are the house's own maths-first designs; `classics` are proven
  * formats rebuilt from the big crypto casinos (Stake, Roobet, BC.Game, …),
- * shown in their own lobby section and useful as a rating benchmark.
+ * shown in their own lobby section and useful as a rating benchmark;
+ * `slots` are the original video slots (docs/SLOTS.md), also a section of their own.
  */
-export type Collection = 'originals' | 'classics';
+export type Collection = 'originals' | 'classics' | 'slots';
 
 /**
  * `template` games are hidden from production lobbies. `retired` games were

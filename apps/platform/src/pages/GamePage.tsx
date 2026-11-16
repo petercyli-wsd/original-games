@@ -4,11 +4,12 @@ import { BRAND } from '../brand';
 import { GameFrame } from '../components/GameFrame';
 import { AiReview } from '../components/AiReview';
 import { HumanReviews } from '../components/HumanReviews';
+import { SlotFacts } from '../components/SlotFacts';
 import { StatsPanel } from '../components/StatsPanel';
 import { createHost } from '../host/session';
 import { lobbyPath } from '../lib/preferences';
 import { ratingsEnabled } from '../lib/ratings';
-import { adjacentGames, findGame } from '../registry';
+import { adjacentGames, findGame, isSlot } from '../registry';
 import { NotFound } from './NotFound';
 
 export function GamePage() {
@@ -68,6 +69,7 @@ export function GamePage() {
               ★ Review this game
             </a>
           )}
+          {isSlot(manifest) && <SlotFacts manifest={manifest} />}
           <StatsPanel manifest={manifest} />
         </div>
       </div>

@@ -14,6 +14,7 @@ import {
 } from '@originals/game-sdk';
 import { BRAND } from '../brand';
 import { resolveOddsReadout } from '../oddsPolicy';
+import { findGame } from '../registry';
 import { persistedStore, safeStorage } from '../lib/storage';
 
 export const wallet = createDemoWallet({
@@ -88,7 +89,7 @@ function instrumentWallet(inner: Wallet, gameId: string): Wallet {
 
 /** The shared settings plus this game's resolved oddsReadout (the operator's choice, limited by oddsPolicy.ts). */
 function settingsFor(gameId: string): ReadableStore<HostSettings> {
-  const oddsReadout = resolveOddsReadout(gameId);
+  const oddsReadout = resolveOddsReadout(gameId, undefined, findGame(gameId)?.manifest.collection);
   const cache = new WeakMap<HostSettings, HostSettings>();
   return {
     get() {

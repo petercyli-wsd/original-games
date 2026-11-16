@@ -1,8 +1,19 @@
 // Games are discovered from the games/ folder at build time: adding a folder
 // with src/manifest.ts and src/index.ts is all it takes to appear in the lobby.
+//
+// Slot games (manifest `collection: 'slots'`) may also ship two optional JSON
+// files next to their manifest. Both are picked up by import.meta.glob (eager,
+// they are small) and read tolerantly by lib/slotInfo.ts:
+//   games/<id>/src/slot-facts.json   RTP tier, hit rate, volatility, max win,
+//                                    feature frequency and share (tile + "Slot facts" panel)
+//   games/<id>/src/slot-review.json  slot AI review: overall, scores, verdict, gate
+// Without them the tile and panel fall back to the manifest's rtp, volatility
+// and maxMultiplier. Nothing is needed in index.ts.
+//
 // Manifests load eagerly (they're tiny); game code is split into its own
 // chunk and only fetched when someone opens the game.
 
+import { readSlotFacts, readSlotReview, type SlotFacts, type SlotReview } from './lib/slotInfo';
 import { validateManifest, type GameManifest, type GameModule, type GameStatus } from '@originals/game-sdk';
 
 export interface GameEntry {
@@ -49,15 +60,24 @@ export const games = buildRegistry(
   { includeTemplates: import.meta.env.DEV || import.meta.env.VITE_SHOW_TEMPLATES === 'true' },
 );
 
+const folderJson = (files: Record<string, unknown>) => new Map(Object.entries(files).map(([path, v]) => [folderOf(path), v]));
+const factsFiles = folderJson(import.meta.glob('../../../games/*/src/slot-facts.json', { eager: true, import: 'default' }));
+const reviewFiles = folderJson(import.meta.glob('../../../games/*/src/slot-review.json', { eager: true, import: 'default' }));
+
+export const isSlot = (manifest: GameManifest) => manifest.collection === 'slots';
+export const slotFacts = (manifest: GameManifest): SlotFacts => readSlotFacts(manifest, factsFiles.get(manifest.id));
+export const slotReview = (id: string): SlotReview | null => readSlotReview(reviewFiles.get(id));
+
 const byId = new Map(games.map((g) => [g.manifest.id, g]));
 export const findGame = (id: string | undefined) => (id ? byId.get(id) : undefined);
 
-/** Which lobby section a game sits in: core Originals, then classics, then experimental, then retired, then templates. */
+/** Which lobby section a game sits in: core Originals, classics, slots, experimental, retired, then templates. */
 export function lobbySection(manifest: GameManifest): number {
-  if (manifest.status === 'template') return 4;
-  if (manifest.status === 'retired') return 3;
+  if (manifest.status === 'template') return 5;
+  if (manifest.status === 'retired') return 4;
   if (manifest.collection === 'classics') return 1;
-  return manifest.status === 'prototype' ? 2 : 0;
+  if (manifest.collection === 'slots') return 2;
+  return manifest.status === 'prototype' ? 3 : 0;
 }
 
 /** Games in lobby order (section, then registry order), for stepping from one game to the next. */

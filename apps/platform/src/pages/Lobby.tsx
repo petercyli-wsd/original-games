@@ -13,9 +13,10 @@ import { games, lobbySection, type GameEntry } from '../registry';
 const SECTIONS: { title: string; subtitle: string; section: number; folded?: boolean }[] = [
   { title: `Core ${BRAND.product}`, subtitle: 'Click any game to play instantly', section: 0 },
   { title: 'Casino Classics', subtitle: 'Proven formats from the biggest crypto casinos, rebuilt to house standard', section: 1 },
-  { title: 'Experimental', subtitle: 'Fresh probability prototypes and new mechanics', section: 2 },
-  { title: 'Archive', subtitle: 'Retired games and earlier versions, kept playable with their reviews', section: 3, folded: true },
-  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', section: 4 },
+  { title: 'Slots', subtitle: 'Original video slots, every RTP computed exactly', section: 2 },
+  { title: 'Experimental', subtitle: 'Fresh probability prototypes and new mechanics', section: 3 },
+  { title: 'Archive', subtitle: 'Retired games and earlier versions, kept playable with their reviews', section: 4, folded: true },
+  { title: 'Templates', subtitle: 'Starting points for new games (dev only)', section: 5 },
 ];
 
 type Sort = 'featured' | 'ai' | 'team' | 'name';
@@ -52,6 +53,8 @@ export function Lobby() {
   }, [params]);
 
   const mechanic = (params.get('mechanic') as Mechanic | null) ?? null;
+  // ?collection=slots narrows to the Slots section's games (the Slots chip uses mechanic=slots, which also holds `reels`).
+  const collection = params.get('collection');
   const query = params.get('q') ?? '';
   const unrated = params.get('unrated') === '1';
   const picked = (params.get('sort') as Sort | null) ?? 'featured';
@@ -74,6 +77,7 @@ export function Lobby() {
   const visible = games.filter(
     (g) =>
       (!mechanic || g.manifest.mechanic === mechanic) &&
+      (!collection || (g.manifest.collection ?? 'originals') === collection) &&
       (!needle || `${g.manifest.name} ${g.manifest.tagline}`.toLowerCase().includes(needle)) &&
       (!unrated || !ratings[g.manifest.id]?.mine),
   );
@@ -86,7 +90,7 @@ export function Lobby() {
       return r?.count ? rankScore(r) : null;
     },
   );
-  const filtered = Boolean(mechanic || needle || unrated);
+  const filtered = Boolean(mechanic || collection || needle || unrated);
 
   return (
     <main className="lobby">
