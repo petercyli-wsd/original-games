@@ -568,3 +568,44 @@ export function mixHex(a: string, b: string, t: number): string {
   const [x, y] = [rgb(a), rgb(b)];
   return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }
+
+// ---------------------------------------------------------------- what a chain announces (never its length)
+
+/** The respins a modifier chain starts with, from the mechanic's params: "3 respins", or "Up to 4 respins". Null if it names none. */
+export function modifierStartTitle(spec: SlotSpec): { title: string; initial: number | null } | null {
+  const m = spec.mechanics.find((x) => /respin|hold_and_spin/.test(x.id));
+  const p = (m?.params ?? {}) as Record<string, unknown>;
+  if (typeof p.respins === 'number') return { title: `${p.respins} respins`, initial: p.respins };
+  if (typeof p.max_respins === 'number') return { title: `Up to ${p.max_respins} respins`, initial: null };
+  return null;
+}
+
+/** Respins left after step `j`, for a chain whose respins reset when a coin lands (hold and spin): known from the past only. */
+export function respinsLeft(landed: number[], j: number, initial: number): number {
+  let since = 0;
+  for (let k = 1; k <= j; k++) since = landed[k] > landed[k - 1] ? 0 : since + 1;
+  return Math.max(0, initial - since);
+}
+
+// ---------------------------------------------------------------- cascade ladder and ways
+
+/** The rungs of a `cascade_step_ladder` mechanic ("×1 ×2 ×3 ×5 ×8"), from the spec's params; empty if there is none. */
+export function ladderOf(spec: SlotSpec): number[] {
+  const l = spec.mechanics.find((m) => m.id === 'cascade_step_ladder')?.params?.ladder;
+  return Array.isArray(l) ? l.filter((x): x is number => typeof x === 'number') : [];
+}
+
+/**
+ * The factor applied to each paying step, in order (decor `cascade_step_ladder.stepMults`, base board first), so the
+ * k-th paying step's wins carry `stepMults[k]`. Empty when the spin has none.
+ */
+export function stepMults(decor: Record<string, unknown> | undefined): number[] {
+  const v = decor?.['cascade_step_ladder.stepMults'];
+  return Array.isArray(v) ? v.filter((x): x is number => typeof x === 'number') : [];
+}
+
+/** Ways of a variable-height board as the reels stop: the product of the rows of the reels that have stopped (null = still spinning). */
+export function waysOf(heights: (number | null)[]): number | null {
+  const done = heights.filter((h): h is number => h !== null);
+  return done.length ? done.reduce((a, b) => a * b, 1) : null;
+}

@@ -106,10 +106,18 @@ export interface SlotCopy {
   /** Intro note and paytable rules for it (each under 9 words). Defaults are generated from the mechanic. */
   modifierIntro?: string;
   modifierRules?: string[];
+  /** The cascade ladder row (`cascade_step_ladder`): on by default when the spec has one; false hides it, `label` renames it. */
+  ladder?: false | { label?: string };
   /** Which feature `?feature=1` finds for a game that has both: free spins (default when the config has one) or the respin chain. */
   mainFeature?: 'free' | 'respin';
   /** Name of the pending win while a chain runs ("Winding"). Default "Pending win". */
   pendingLabel?: string;
+  /** Symbol ids to list first in the paytable (key symbols: wild, scatter, a cook); the special symbols then come before the pays. */
+  paytableFirst?: number[];
+  /** The rule line under the board while free spins run (default: the base rule). Under 9 words. */
+  featureRule?: string;
+  /** The same while a respin chain runs. */
+  chainRule?: string;
   /** The respin counter's word, default "Respin". */
   respinLabel?: string;
   /**

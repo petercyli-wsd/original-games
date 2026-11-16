@@ -73,6 +73,8 @@ export interface ReelWindowProps {
   feature?: boolean;
   /** A modifier chain (respins): the chain palette, a light tint of the base unless the theme sets one. */
   chain?: boolean;
+  /** Called as reels stop: each reel's visible rows, null while it spins (for the ways readout of variable-height reels). */
+  onHeights?: (heights: (number | null)[]) => void;
   /** Draws over a symbol's tile (see `SlotGameProps.renderOverlay`). */
   renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
   /** The spin's decor, passed to `renderOverlay` once the final board shows. */
@@ -91,7 +93,7 @@ const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -129,6 +131,12 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  const heightsRef = useRef(onHeights);
+  heightsRef.current = onHeights;
+  useEffect(() => {
+    heightsRef.current?.(board.map((col, c) => (plans[c] ? null : col.length)));
+  }, [board, plans]);
 
   // Work queued by the handle that must run after the DOM has the new layout (before paint).
   useLayoutEffect(() => {

@@ -85,6 +85,10 @@ export const slotStyles = /* css */ `
 .sl-mreel-v { min-width: 44px; padding: 4px var(--sp-2); text-align: center; border: 1px solid var(--line); border-radius: 4px; font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
 .sl-mreel-v.on { color: var(--text); border-color: var(--text); background: var(--hover); }
 
+.sl-hist-label { flex-shrink: 0; align-self: center; margin-right: var(--sp-1); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
+.sl-ways { font-size: var(--fs-2); font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sl-ways b { color: var(--text); }
+
 /* ---------- Under the window: the win chip ---------- */
 .sl-winbar {
   min-height: 38px;

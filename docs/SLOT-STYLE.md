@@ -173,6 +173,10 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Backdrop.** `theme.backdrop(w, h)` (and optional `theme.featureBackdrop`) returns flat SVG shapes for the window's size, drawn behind the symbols: a seabed, a skyline over water. Palette colours a shade off the window tone, no gradients, glows or filters. It shows through the gaps between tiles and fully with `window.cell: 'plain'`; with tiles, set `window.backdropMargin` (0 to 48 px) to leave a band around the grid where the scene frames the reels without sitting under the symbols. Keep it quiet: if a symbol is harder to read with it, make it quieter. Check it at 420 px.
 
+**No spoilers.** A card or readout never shows an outcome before it plays. A modifier chain's intro says what starts ("3 respins", from the mechanic's params), never how long the chain turns out to be; its counter reads "Respin n", plus "k left" where respins reset on a new coin (known from what has played). A free-spins total grows only when a retrigger is played. `copy.featureRule` and `copy.chainRule` replace the rule line under the board while that feature or chain runs (under 9 words each).
+
+**Standard moments.** The spin that triggers a feature frames the symbols that caused it (the scatters, or the coins of a hold-and-spin) for about a second, in Turbo briefly, before the card. Anticipation also covers hold-and-spin entry and checks the remaining reels' strips for the symbol. A cascade ladder (`cascade_step_ladder`) shows its rungs as a row that lights the paying step on show ("×5 slide × ×3 spin" in the readout); a variable-height ways game shows "Ways n" as the reels stop. `copy.paytableFirst` (symbol ids) lists key symbols first, with the special symbols before the pays. The history chips are labelled "Recent rounds".
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

@@ -40,10 +40,19 @@ function PaylinePicture({ line, cols, rows }: { line: number[]; cols: number; ro
 export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modifierName }: { spec: SlotSpec; symbols: SlotSymbols; config: SlotGameConfig; copy?: SlotCopy; facts: SlotFacts; theme: SlotTheme; modifierName?: string }) {
   const bet = spec.bet.coins;
   const metas = symbolMetas(spec);
+
+  // A game can put its key symbols first: `copy.paytableFirst` lists their ids (the special symbols then come before the pays).
+  const firstIds = copy?.paytableFirst ?? [];
+  const first = firstIds.length > 0;
   const paying = metas
     .filter((m) => m.role !== 'wild' && m.role !== 'scatter' && Object.keys(spec.pays.paytable[String(m.id)] ?? {}).length > 0)
     .map((m) => ({ m, pays: spec.pays.paytable[String(m.id)] }))
-    .sort((a, b) => topPay(b.pays, bet) - topPay(a.pays, bet));
+    .sort((a, b) => {
+      const ia = firstIds.indexOf(a.m.id);
+      const ib = firstIds.indexOf(b.m.id);
+      if (ia >= 0 || ib >= 0) return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib);
+      return topPay(b.pays, bet) - topPay(a.pays, bet);
+    });
   // Coin, orb and collector symbols pay no line pays: they show the values they can take.
   const valueSyms = metas.filter((m) => m.role !== 'wild' && m.role !== 'scatter' && Object.keys(spec.pays.paytable[String(m.id)] ?? {}).length === 0);
   const modLines = modifierRuleLines(spec, (id) => symbols[id]?.name ?? `Symbol ${id}`, copy);
@@ -73,14 +82,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
 
   const Tile = ({ id, size }: { id: number; size: number }) => <span className="sl-pt-art">{art(id, size)}</span>;
 
-  return (
-    <div className="sl-pt" style={themeVars(theme)}>
-      <InfoSection title="How to win">
-        {how.map((t, i) => (
-          <p key={i}>{t}</p>
-        ))}
-      </InfoSection>
-
+  const symbolsNode = (
       <InfoSection title="Symbols">
         <div className="sl-pt-grid">
           {paying.map(({ m, pays }) => (
@@ -101,7 +103,9 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
           ))}
         </div>
       </InfoSection>
-
+  );
+  const special = (
+    <>
       {(wilds.length > 0 || scatters.length > 0 || valueSyms.length > 0) && (
         <InfoSection title="Special symbols">
           {wilds.map((id) => (
@@ -153,6 +157,19 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme, modif
           })}
         </InfoSection>
       )}
+    </>
+  );
+
+  return (
+    <div className="sl-pt" style={themeVars(theme)}>
+      <InfoSection title="How to win">
+        {how.map((t, i) => (
+          <p key={i}>{t}</p>
+        ))}
+      </InfoSection>
+
+      {first ? special : symbolsNode}
+      {first ? symbolsNode : special}
 
       {feature && (
         <InfoSection title={featureName}>

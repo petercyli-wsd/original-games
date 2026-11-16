@@ -106,6 +106,7 @@ export function reefDemo(variant?: 'mystery' | 'marquee'): DemoGame {
     config,
     copy: {
       featureName: 'Tide spins',
+      paytableFirst: [2, 1],
       wildText: 'Pearl replaces all but chest',
       scatterText: 'Pays anywhere. 3+ start tide spins',
       ...(variant === 'marquee' ? { multiplierReel: { label: 'Marquee' } } : {}),

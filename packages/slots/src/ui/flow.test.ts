@@ -39,8 +39,8 @@ function fixedRound(coins: number, bet: number): SlotRound {
   return { seed: 1, base, feature: null, totalCoins: coins, capped: false };
 }
 
-describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
-  it('awaits place() before drawing, ignores a double press, and settles once with the total', async () => {
+/** The globals React DOM and the kit need, from jsdom (which has neither WAAPI nor layout). */
+function setupDom() {
     const { JSDOM } = jsdom!;
     const dom = new JSDOM('<!doctype html><div id="root"></div>', { pretendToBeVisual: true });
     const w = dom.window as unknown as Record<string, unknown>;
@@ -64,6 +64,11 @@ describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
       return { finished: done, finish() {}, cancel() {} };
     };
 
+}
+
+describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
+  it('awaits place() before drawing, ignores a double press, and settles once with the total', async () => {
+    setupDom();
     const demo = reefDemo();
     const log: string[] = [];
     const base = createDemoWallet();
@@ -115,4 +120,42 @@ describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
     expect(placeCalls).toBe(1);
     expect(settled).toEqual([2.5]); // once, with the total (250 coins of a 100-coin stake)
   }, 15000);
+
+  it('the modifier intro card says what starts, and clicking Start advances the chain', async () => {
+    setupDom();
+    const demo = reefDemo();
+    // A hold-and-spin style mechanic that starts with 3 respins; the chain that plays has 2 (not to be announced).
+    const spec = { ...demo.spec, mechanics: [{ id: 'hold_and_spin_lock_respin', params: { coin_symbol: 7, entry_min: 6, respins: 3 } }] };
+    const b0 = [[7, 8, 9], [8, 9, 10], [9, 10, 7], [10, 7, 8], [7, 8, 9]];
+    const b1 = b0.map((c, i) => (i === 1 ? [10, 10, 10] : c));
+    const b2 = b1.map((c, i) => (i === 2 ? [8, 8, 8] : c));
+    const res = (steps: number[][][]) =>
+      ({ decor: {}, extras: [], finalBoard: steps[steps.length - 1], flags: [], set: 0, steps: steps.map((board) => ({ board, stepCoins: 0, wins: [] })), stops: [0, 0, 0, 0, 0], totalCoins: 0, trigger: null }) as SpinResult;
+    const base = res([b0, b1, b2]);
+    const engine = { playRound: (seed: number) => ({ seed, base, feature: null, totalCoins: 0, capped: false }) as SlotRound };
+    const host: HostContext = { ...createDemoHost(), settings: createStore<HostSettings>({ turbo: false, sound: false }) };
+    const root = document.getElementById('root')!;
+    mountStandalone(defineReactGame(() => createElement(SlotGame, { ...demo, spec, engine }), { styles: slotGameStyles }), root, host);
+    await new Promise((r) => setTimeout(r, 100));
+    const sr = root.shadowRoot!;
+    const button = (label: string) => [...sr.querySelectorAll('button')].find((b) => b.textContent?.trim() === label) as HTMLButtonElement | undefined;
+    const until = async (f: () => unknown, ms = 12000) => {
+      for (let t = 0; t < ms && !f(); t += 50) await new Promise((r) => setTimeout(r, 50));
+      return f();
+    };
+
+    button('Spin')!.click();
+    expect(await until(() => button('Start'))).toBeTruthy();
+    const card = sr.querySelector('.sl-card')!.textContent!;
+    expect(card).toContain('3 respins'); // what starts
+    expect(card).not.toContain('2 respins'); // never the length of the chain that is about to play
+    expect(sr.textContent).not.toMatch(/\d+ of \d+/); // and no "n of m" counter that reveals it
+
+    button('Start')!.click(); // a real click on the card's button
+    // The chain plays (2 respins) and ends on its outro card: Start advanced it.
+    const outro = await until(() => /Total win/.test(sr.querySelector('.sl-card')?.textContent ?? ''), 8000);
+    expect(outro).toBeTruthy();
+    expect(sr.querySelector('.sl-card')!.textContent).toContain('2 respins');
+    expect(button('Start')).toBeUndefined();
+  }, 25000);
 });

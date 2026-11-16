@@ -24,7 +24,7 @@ import {
   Label,
   PanelFoot,
   Readouts,
-  StageTop,
+  fmtMult,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -47,6 +47,8 @@ import {
   landedByStep,
   landedCoins,
   modifierOf,
+  modifierStartTitle,
+  respinsLeft,
   pendingByStep,
   multiplierChip,
   multiplierValues,
@@ -59,6 +61,9 @@ import {
   fmtX,
   idleBoard,
   idsWithRole,
+  ladderOf,
+  stepMults,
+  waysOf,
   initialSpins as initialSpins_,
   introLines,
   maxRowsOf,
@@ -83,6 +88,8 @@ interface FeatureState {
   kind?: 'spins' | 'respin';
   /** Landed coin value so far, in money (respins). */
   total?: number;
+  /** Respins left in a chain whose respins reset (known from what has played, never the chain's length). */
+  left?: number;
   /** The counter shows a pending win (a respin chain without coin values). */
   pending?: boolean;
   n: number;
@@ -135,9 +142,15 @@ export function SlotGame(props: SlotGameProps) {
   const filler = useMemo(() => spec.symbols.map((s) => s.id), [spec]);
   const initial = useMemo(() => idleBoard(spec), [spec]);
   const metas = useMemo(() => symbolMetas(spec), [spec]);
+  const scatterMin = spec.trigger?.scatter_min ?? 3;
   const scatterIds = useMemo(() => idsWithRole(spec, 'scatter'), [spec]);
   const featureName = copy?.featureName ?? 'Free spins';
-  const scatterMin = spec.trigger?.scatter_min ?? 3;
+  // What triggers the feature: scatters (free spins), or the coin symbol of a hold-and-spin mechanic (its entry count).
+  const triggerTarget = useMemo(() => {
+    if (config.feature && scatterIds.length) return { ids: scatterIds, min: scatterMin };
+    const p = spec.mechanics.find((m) => /hold_and_spin/.test(m.id))?.params as { coin_symbol?: number; entry_min?: number } | undefined;
+    return p && typeof p.coin_symbol === 'number' && typeof p.entry_min === 'number' ? { ids: [p.coin_symbol], min: p.entry_min } : null;
+  }, [config.feature, scatterIds, scatterMin, spec]);
   const featureSpec = useMemo(() => Object.values(featureSpecs ?? {})[0] ?? spec, [featureSpecs, spec]);
 
   // ---- what the player sees
@@ -160,6 +173,12 @@ export function SlotGame(props: SlotGameProps) {
     const f = multiplierValues(featureSpec);
     return f.length ? f : mrBase;
   }, [mrCfg, featureSpec, mrBase]);
+  // The cascade ladder: its rungs from the spec, and the factor of the paying step on show (from the spin's decor).
+  const ladder = useMemo(() => (copy?.ladder === false ? [] : ladderOf(spec)), [copy, spec]);
+  const [slide, setSlide] = useState<number | null>(null);
+  // Ways of variable-height reels, as the reels stop.
+  const variableHeights = !!(spec as { height_law?: unknown }).height_law && spec.evaluation.kind === 'ways';
+  const [ways, setWays] = useState<number | null>(null);
   const [mr, setMr] = useState<{ spinning: boolean; value: number | null }>({ spinning: false, value: null });
   const [busy, setBusy] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -258,9 +277,12 @@ export function SlotGame(props: SlotGameProps) {
     const pre = preReveal(s, res);
     const board = pre?.board ?? board0;
     const st = strips(s, res, board);
+    // Anticipation only when the trigger is really still possible: one short, and a reel yet to stop has the symbol on its strip.
+    const target = triggerTarget;
+    const setStrips = s.board_law.reel_sets?.[res.set]?.strips;
     const ant =
-      anticipate && config.feature
-        ? anticipationPlan(board0, scatterIds, scatterMin, (c) => !st || st[c].strip.some((x) => scatterIds.includes(x)))
+      anticipate && target
+        ? anticipationPlan(board0, target.ids, target.min, (c) => !setStrips || setStrips.length !== cols || setStrips[c].some((x) => target.ids.includes(x)))
         : undefined;
     setWin(null);
     setLine(null);
@@ -268,6 +290,7 @@ export function SlotGame(props: SlotGameProps) {
     setOverlays(null);
     setOverlayDecor(undefined);
     setRmult(null);
+    setSlide(null);
     if (mrCfg) setMr({ spinning: true, value: null });
     await reels.current?.spin({ board, strips: st, turbo: turboRef.current, anticipate: ant });
     if (!alive.current) return;
@@ -366,13 +389,18 @@ export function SlotGame(props: SlotGameProps) {
       }
     }
 
+    const factors = stepMults(res.decor);
+    let paying = 0;
     let introduced = false;
+    let initialLeft: number | null = null;
     for (let i = 0; i < steps.length && alive.current; i++) {
       const st = steps[i];
       const next = steps[i + 1];
       // Long cascades and respin chains speed up: the first three steps at full length, then shorter, to 35%.
       const k = i < 3 ? 1 : Math.max(0.35, 1 - 0.12 * (i - 2));
       if (st.wins.length) {
+        const f = factors[paying++];
+        if (f) setSlide(f);
         running = await presentWins(st, m, stake, running, limit, k);
         if (next) {
           await r?.tumble(next.board, cellsUnion(st.wins), turboRef.current, k);
@@ -387,15 +415,21 @@ export function SlotGame(props: SlotGameProps) {
           introduced = true;
           if (landed) setOverlays(landed[0]);
           setChip(null);
-          setWin(null);
           setLine(null);
-          await wait(T(400));
-          const note = copy?.modifierIntro ?? '';
+          // The cells that started it, framed for a moment before the card.
+          const tcells = triggerTarget ? steps[0].board.flatMap((col, c) => col.flatMap((sym, row) => (triggerTarget.ids.includes(sym) ? [[c, row] as [number, number]] : []))) : [];
+          setWin(tcells.length ? keys(tcells) : null);
+          await wait(T(1000));
+          // The card says what starts (the mechanic's opening respins), never how long the chain turns out to be.
+          const start = modifierStartTitle(spec);
+          const resets = /hold_and_spin/.test(spec.mechanics.map((x) => x.id).join(' '));
+          const note = copy?.modifierIntro ?? (resets ? 'Each new coin resets the respins' : '');
+          initialLeft = start?.initial ?? null;
           await showCard(
-            { kicker: modName, title: `${mod.respins} respins`, lines: note ? [note] : [], button: 'Start' },
+            { kicker: modName, title: start?.title ?? modName, lines: note ? [note] : [], button: 'Start' },
             { autoMs: autoAdvance() ? T(1400) : null },
           );
-          setFeat({ kind: 'respin', n: 0, of: mod.respins, mult: 1, total: 0, pending: !!pending });
+          setFeat({ kind: 'respin', n: 0, of: 0, mult: 1, total: 0, pending: !!pending, left: initialLeft ?? undefined });
           if (pending) await showPending(0);
           else if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
         }
@@ -404,7 +438,7 @@ export function SlotGame(props: SlotGameProps) {
           if (JSON.stringify(col) !== JSON.stringify(st.board[c])) only.add(c);
         });
         if (mod) {
-          setFeat((f) => (f ? { ...f, n: i + 1 } : f));
+          setFeat((f) => (f ? { ...f, n: i + 1, left: initialLeft !== null && landedC ? respinsLeft(landedC, i, initialLeft) : f.left } : f));
           setWin(null);
           setLine(null);
           setChip(null);
@@ -489,7 +523,12 @@ export function SlotGame(props: SlotGameProps) {
     const nScatter = Math.max(...[base.steps[0]?.board ?? base.finalBoard, base.finalBoard].map((b) => b.flat().filter((s) => scatterIds.includes(s)).length));
     const initialSpins = config.feature ? initialSpins_(config.feature, fr.spins.length, retrig, round.capped, nScatter) : fr.spins.length - retrig;
     const introNote = copy?.introNote ?? (config.feature ? multiplierNote(config.feature) : '');
-    await wait(T(500));
+    // The scatters that triggered it, framed for about a second before the card (brief in Turbo).
+    const sc: [number, number][] = [];
+    (base.steps[0]?.board ?? base.finalBoard).forEach((col, c) => col.forEach((sym, row) => scatterIds.includes(sym) && sc.push([c, row])));
+    setWin(sc.length ? keys(sc) : null);
+    setLine(null);
+    await wait(T(1000));
     await showCard(
       { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote), button: 'Start' },
       { autoMs: autoAdvance() ? T(1600) : null },
@@ -623,11 +662,17 @@ export function SlotGame(props: SlotGameProps) {
   // The multiplier readout shows what is really applied: the feature's multiplier times the spin's own (a multiplier reel,
   // rockets, orbs). A plain ×1 is not shown, so it can't mislead.
   const mult = (feat?.mult ?? 1) * (rmult?.total ?? 1);
-  const multItem = mult !== 1 ? [{ label: 'Multiplier', value: `×${mult}` }] : [];
+  // With a cascade ladder the slide's factor leads: "×5 slide × ×3 spin".
+  const multItem =
+    slide !== null && ladder.length
+      ? [{ label: 'Multiplier', value: mult !== 1 ? `×${slide} slide × ×${mult} spin` : `×${slide} slide` }]
+      : mult !== 1
+        ? [{ label: 'Multiplier', value: `×${mult}` }]
+        : [];
   const readouts = feat
     ? feat.kind === 'respin'
       ? [
-          { label: copy?.respinLabel ?? 'Respin', value: `${feat.n} of ${feat.of}` },
+          { label: copy?.respinLabel ?? 'Respin', value: feat.left !== undefined ? `${feat.n} · ${feat.left} left` : `${feat.n}` },
           { label: feat.pending ? (copy?.pendingLabel ?? 'Pending win') : 'Bonus total', value: <RollNumber ref={counter} format={money} /> },
           ...multItem,
         ]
@@ -709,12 +754,32 @@ export function SlotGame(props: SlotGameProps) {
 
   return (
     <GameLayout name={manifest.name} accent={manifest.accent} className="slots" panel={panel}>
-      <StageTop status={feat ? (feat.kind === 'respin' ? modName : featureName) : status.text} tone={feat ? 'live' : status.tone} history={history} />
+      <div className="og-stage-top">
+        <span className={`og-status ${feat ? 'live' : status.tone}`} aria-live="polite">
+          {feat ? (feat.kind === 'respin' ? modName : featureName) : status.text}
+        </span>
+        {/* The history chips are round totals; name them, so a bare "3.36×" is never a mystery. */}
+        <div className="og-history" aria-label="Recent round results">
+          {history.length > 0 && <span className="sl-hist-label">Recent rounds</span>}
+          {history.map((h) => (
+            <span key={h.id} className={'og-hist ' + (h.multiplier >= 1 ? 'w' : h.multiplier > 0 ? 'p' : 'l')} title={`Round paid ${fmtMult(h.multiplier)} the bet`}>
+              {fmtMult(h.multiplier)}
+            </span>
+          ))}
+        </div>
+      </div>
       <Readouts items={readouts} />
       <Board>
         <div className="sl-stage" style={themeVars(theme)}>
           {mrCfg && (feat && feat.kind !== 'respin' ? mrFeature : mrBase).length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={feat && feat.kind !== 'respin' ? mrFeature : mrBase} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
+          {ladder.length > 0 && <MultiplierReel label={typeof copy?.ladder === 'object' && copy.ladder.label ? copy.ladder.label : 'Slide'} values={slide !== null && !ladder.includes(slide) ? [...ladder, slide] : ladder} spinning={false} value={slide} turbo={turbo} />}
+          {variableHeights && (
+            <div className="sl-ways" aria-live="polite">
+              Ways <b>{ways === null ? '–' : ways.toLocaleString('en-US')}</b>
+            </div>
+          )}
           <ReelWindow
+            onHeights={variableHeights ? (h) => setWays(waysOf(h)) : undefined}
             ref={reels}
             cols={cols}
             maxRows={maxRows}
@@ -736,7 +801,7 @@ export function SlotGame(props: SlotGameProps) {
           {card && <Card {...card} />}
         </div>
       </Board>
-      <Caption>{ruleSentence(spec, copy)}</Caption>
+      <Caption>{feat ? ((feat.kind === 'respin' ? copy?.chainRule : copy?.featureRule) ?? ruleSentence(spec, copy)) : ruleSentence(spec, copy)}</Caption>
       {infoOpen && (
         <InfoModal title="Paytable" onClose={() => setInfoOpen(false)}>
           <PayTableSheet spec={spec} symbols={symbols} config={config} copy={copy} facts={facts} theme={theme} modifierName={modName} />

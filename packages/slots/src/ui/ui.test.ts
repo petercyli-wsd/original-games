@@ -1,10 +1,13 @@
 // Tests for the pure parts of the slot UI kit and the demo's stub engine.
 import { createRng, seededSource } from '@originals/game-sdk';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { PayTableSheet } from './PayTableSheet';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -298,5 +301,35 @@ describe('round 3: pending win in a chain, chain palette, feature kinds', () => 
     expect(mk('free').feature).not.toBeNull();
     expect(mk('respin').feature).toBeNull();
     expect(mk().feature).not.toBeNull(); // 'main' here is free spins
+  });
+});
+
+describe('round 5: no spoilers, ladder, ways', () => {
+  it('a chain announces its opening respins, and counts what is left from the past only', () => {
+    const spec = (params: object) => ({ mechanics: [{ id: 'hold_and_spin_lock_respin', params }] }) as never;
+    expect(modifierStartTitle(spec({ respins: 3 }))).toEqual({ title: '3 respins', initial: 3 });
+    expect(modifierStartTitle({ mechanics: [{ id: 'sticky_respin', params: { max_respins: 4 } }] } as never)).toEqual({ title: 'Up to 4 respins', initial: null });
+    expect(modifierStartTitle({ mechanics: [] } as never)).toBeNull();
+    // coins land at steps 1 and 4: respins left reset to 3 each time a new coin lands
+    expect([0, 1, 2, 3, 4, 5].map((j) => respinsLeft([0, 10, 10, 10, 20, 20], j, 3))).toEqual([3, 3, 2, 1, 3, 2]);
+  });
+  it('reads the cascade ladder and its per-step factors, and the ways of stopped reels', () => {
+    expect(ladderOf({ mechanics: [{ id: 'cascade_step_ladder', params: { ladder: [1, 2, 3, 5, 8] } }] } as never)).toEqual([1, 2, 3, 5, 8]);
+    expect(ladderOf({ mechanics: [] } as never)).toEqual([]);
+    expect(stepMults({ 'cascade_step_ladder.stepMults': [1, 2, 3] })).toEqual([1, 2, 3]);
+    expect(stepMults(undefined)).toEqual([]);
+    expect(waysOf([2, 3, null, 4])).toBe(24);
+    expect(waysOf([null, null])).toBeNull();
+  });
+});
+
+describe('paytable order', () => {
+  it('copy.paytableFirst puts key symbols before the pays', () => {
+    const d = reefDemo();
+    const html = (first?: number[]) => renderToStaticMarkup(createElement(PayTableSheet, { spec: d.spec, symbols: d.symbols, config: d.config, copy: { ...d.copy, paytableFirst: first }, facts: d.facts, theme: d.theme }));
+    const plain = html(undefined);
+    expect(plain.indexOf('Angelfish')).toBeLessThan(plain.indexOf('Pearl in shell'));
+    const keyed = html([2, 1]);
+    expect(keyed.indexOf('Pearl in shell')).toBeLessThan(keyed.indexOf('Angelfish'));
   });
 });
