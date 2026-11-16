@@ -22,6 +22,38 @@ const svg = (size: number, body: ReactElement) => (
   </svg>
 );
 
+// A flat alpine scene: far and near ridge lines, a summit flag. The storm version swaps to a dusk sky with
+// low pink bands and snow streaks. Tones stay a shade off the window colour so symbols read first.
+function alpineScene(w: number, h: number, storm: boolean) {
+  const far = storm ? '#17233A' : C.tile;
+  const near = storm ? '#121B2E' : '#0D4A6B';
+  const px = w * 0.72;
+  const py = h * 0.5;
+  return (
+    <>
+      {storm && (
+        <>
+          <rect x="0" y={h * 0.62} width={w} height={h * 0.05} fill="#2A2238" />
+          <rect x="0" y={h * 0.72} width={w} height={h * 0.04} fill="#2A2238" />
+          {[0.1, 0.3, 0.5, 0.7, 0.9].map((f, i) => (
+            <path key={i} d={`M${w * f} ${h * (0.1 + (i % 2) * 0.2)} l${-w * 0.05} ${h * 0.08}`} stroke="#3A4560" strokeWidth="3" strokeLinecap="round" />
+          ))}
+        </>
+      )}
+      <path
+        d={`M0 ${h} V${h * 0.62} L${w * 0.14} ${h * 0.42} L${w * 0.26} ${h * 0.56} L${w * 0.42} ${h * 0.3} L${w * 0.58} ${h * 0.55} L${px} ${py} L${w * 0.86} ${h * 0.6} L${w} ${h * 0.46} V${h} Z`}
+        fill={far}
+      />
+      <path
+        d={`M0 ${h} V${h * 0.8} L${w * 0.2} ${h * 0.68} L${w * 0.38} ${h * 0.82} L${w * 0.6} ${h * 0.7} L${w * 0.8} ${h * 0.84} L${w} ${h * 0.72} V${h} Z`}
+        fill={near}
+      />
+      <path d={`M${px} ${py} V${py - h * 0.12}`} stroke={C.rock} strokeWidth="3" strokeLinecap="round" />
+      <path d={`M${px} ${py - h * 0.12} l${w * 0.07} ${h * 0.025} l${-w * 0.07} ${h * 0.025} Z`} fill={storm ? C.pink : C.orange} opacity="0.7" />
+    </>
+  );
+}
+
 export const whiteoutTheme: SlotTheme = {
   name: 'Whiteout',
   palette: {
@@ -35,7 +67,9 @@ export const whiteoutTheme: SlotTheme = {
     featureFrame: C.pink,
     featureTile: '#17233A',
   },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 8, radius: 4, cellRadius: 3 },
+  window: { cell: 'plain', separators: 'line', frameWidth: 8, radius: 4, cellRadius: 3 },
+  backdrop: (w, h) => alpineScene(w, h, false),
+  featureBackdrop: (w, h) => alpineScene(w, h, true),
 };
 
 export const whiteoutSymbols: SlotSymbols = {
