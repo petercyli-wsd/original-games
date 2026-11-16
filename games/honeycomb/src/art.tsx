@@ -36,10 +36,37 @@ const star = (cx: number, cy: number, ro: number, ri: number, n: number) =>
     return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
   }).join(' ');
 
+/** Apiary backdrop: a faint comb over meadow hills with hive silhouettes. `chain` swaps to a denser, honey-filled comb. */
+function meadow(w: number, h: number, chain: boolean) {
+  const r = Math.max(w, h) / (chain ? 9 : 7);
+  const dx = r * Math.sqrt(3);
+  const cells: ReactElement[] = [];
+  for (let row = 0, y = r; y < h + r; row++, y += r * 1.5) {
+    for (let x = row % 2 ? dx / 2 : 0; x < w + dx; x += dx) {
+      const filled = chain && (row * 3 + Math.round(x / dx)) % 4 === 0;
+      cells.push(<polygon key={`${row}-${x}`} points={hex(x, y, r * 0.9)} fill={filled ? '#4a2f0c' : chain ? '#2e1c0d' : '#2a1a0c'} />);
+    }
+  }
+  const hill = h * 0.82;
+  return (
+    <>
+      {cells}
+      <path d={`M0 ${hill} Q${w * 0.25} ${hill - h * 0.1} ${w * 0.5} ${hill} T${w} ${hill} V${h} H0 Z`} fill="#22301a" />
+      <path d={`M0 ${h * 0.92} Q${w * 0.3} ${h * 0.84} ${w * 0.6} ${h * 0.92} T${w} ${h * 0.9} V${h} H0 Z`} fill="#1b2615" />
+      <rect x={w * 0.04} y={h * 0.9} width={w * 0.07} height={h * 0.1} fill="#33200f" />
+      <rect x={w * 0.03} y={h * 0.88} width={w * 0.09} height={h * 0.025} fill="#4a2f17" />
+      <rect x={w * 0.9} y={h * 0.9} width={w * 0.07} height={h * 0.1} fill="#33200f" />
+      <rect x={w * 0.89} y={h * 0.88} width={w * 0.09} height={h * 0.025} fill="#4a2f17" />
+    </>
+  );
+}
+
 export const honeycombTheme: SlotTheme = {
   name: 'Honeycomb',
-  palette: { bg: C.bg, frame: C.frame, tile: C.tile, colors: [C.gold, C.cream, C.green, C.lavender], ink: C.cream },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 8, radius: 6, cellRadius: 4 },
+  palette: { bg: C.bg, frame: C.frame, tile: C.tile, chainBg: '#2e1c0a', chainFrame: '#a8741c', chainTile: '#46290e', colors: [C.gold, C.cream, C.green, C.lavender], ink: C.cream },
+  window: { cell: 'plain', separators: 'gap', frameWidth: 8, radius: 6, cellRadius: 4 },
+  backdrop: (w, h) => meadow(w, h, false),
+  featureBackdrop: (w, h) => meadow(w, h, true),
 };
 
 export const honeycombSymbols: SlotSymbols = {

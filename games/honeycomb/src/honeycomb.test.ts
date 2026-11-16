@@ -114,7 +114,7 @@ describe('max win', () => {
 });
 
 describe('spin flow', () => {
-  it('the kit draws the seed only after the bet is placed, and Honeycomb engine is createSlot with only a label rewrite', () => {
+  it('the kit draws the seed only after the bet is placed, and Honeycomb uses the kit engine', () => {
     const kit = readFileSync(join(here, '../../../packages/slots/src/ui/SlotGame.tsx'), 'utf8');
     const play = kit.slice(kit.indexOf('async function play('));
     expect(play.indexOf('await ticket.place(')).toBeGreaterThan(-1);
@@ -122,7 +122,8 @@ describe('spin flow', () => {
     expect(play.indexOf('seeds.next()')).toBeLessThan(play.indexOf('engine.playRound('));
     expect(play).toContain('if (busyRef.current) return null;');
     const game = readFileSync(join(here, 'Game.tsx'), 'utf8');
-    expect(game).toContain('createSlot(');
+    expect(game).not.toContain('engine=');
+    expect(game).toContain('extrasLabels');
     expect(game).not.toMatch(/useHost|Math\.random/);
   });
 });
