@@ -21,8 +21,8 @@
 //   2. fine-tune: greedy ±k-coin steps, k = round(|err| / gradient) clipped to what the constraints
 //      allow; the step whose predicted error is smallest is applied, then the exact total is
 //      recomputed (a step that does not actually improve is undone and banned for that round).
-// Constraints: pay[s][n] < pay[s][n+1] (strictly increasing with the count, per symbol, for
-// paytable / scatter_pay / wild_own_pay); the symbol order at each count (a > b before ⇒ a ≥ b
+// Constraints: pay[s][n] < pay[s][n+1] where the original pays increase there, = where they were
+// equal (plateaus stay plateaus), per symbol, for paytable / scatter_pay / wild_own_pay; the symbol order at each count (a > b before ⇒ a ≥ b
 // after; ties are not constrained).
 // Pays that are 0 stay 0. If the feature spec's pays equal the base spec's, both are tuned in
 // lockstep (one entry writes both). Otherwise both scale by the same factor and only the base
@@ -337,7 +337,15 @@ function buildConstraints(entries: Entry[]): Constraint[] {
   }
   for (const list of groups.values()) {
     list.sort((a, b) => a.count - b.count);
-    for (let i = 1; i < list.length; i++) out.push({ lo: list[i - 1].id, hi: list[i].id, gap: 1 });
+    // keep the original relation between consecutive counts: a strict step stays strict, a plateau
+    // (equal pays, a deliberate design in many paytables) stays equal, a dip stays a dip (not worse)
+    for (let i = 1; i < list.length; i++) {
+      const a = list[i - 1];
+      const b = list[i];
+      if (a.orig < b.orig) out.push({ lo: a.id, hi: b.id, gap: 1 });
+      else if (a.orig === b.orig) out.push({ lo: a.id, hi: b.id, gap: 0 }, { lo: b.id, hi: a.id, gap: 0 });
+      else out.push({ lo: b.id, hi: a.id, gap: 0 });
+    }
   }
   // symbol order at each count
   const byCount = new Map<string, Entry[]>();

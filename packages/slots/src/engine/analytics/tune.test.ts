@@ -23,14 +23,17 @@ function scalePays(s: SlotSpec, f: number): SlotSpec {
 
 /** The constraints the tuner promises, checked on the output. */
 function checkOrder(before: SlotSpec, after: SlotSpec): void {
-  for (const [sym, t] of Object.entries(after.pays.paytable)) {
-    const counts = Object.keys(t).sort((a, b) => Number(a) - Number(b));
-    for (let i = 1; i < counts.length; i++) expect(t[counts[i]]).toBeGreaterThan(t[counts[i - 1]]);
-    void sym;
-  }
-  const sp = after.pays.scatter_pay ?? {};
-  const sc = Object.keys(sp).sort((a, b) => Number(a) - Number(b));
-  for (let i = 1; i < sc.length; i++) expect(sp[sc[i]]).toBeGreaterThan(sp[sc[i - 1]]);
+  // by count: a strict step stays strict, a plateau stays a plateau
+  const byCount = (b: Record<string, number>, t: Record<string, number>) => {
+    const counts = Object.keys(t).sort((x, y) => Number(x) - Number(y));
+    for (let i = 1; i < counts.length; i++) {
+      const [p, q] = [counts[i - 1], counts[i]];
+      if (b[p] < b[q]) expect(t[q]).toBeGreaterThan(t[p]);
+      else if (b[p] === b[q]) expect(t[q]).toBe(t[p]);
+    }
+  };
+  for (const [sym, t] of Object.entries(after.pays.paytable)) byCount(before.pays.paytable[sym], t);
+  byCount(before.pays.scatter_pay ?? {}, after.pays.scatter_pay ?? {});
   const syms = Object.keys(before.pays.paytable);
   for (const a of syms)
     for (const b of syms)
@@ -105,6 +108,17 @@ describe('tuneGame', () => {
       expect(r.error).toBeLessThan(0.0005);
       checkOrder(scaled, r.base);
     }
+  });
+
+  it('keeps a paytable plateau (equal pays for consecutive counts) equal', () => {
+    const ex = (pack as unknown as { exact: { spec: SlotSpec }[] }).exact;
+    const spec = scalePays(clone(ex[0].spec), 1.1);
+    const sym = Object.keys(spec.pays.paytable)[0];
+    spec.pays.paytable[sym]['4'] = spec.pays.paytable[sym]['3']; // a plateau at 3 and 4 of a kind
+    const r = tuneGame(spec, null, null, 0.96);
+    expect(r.error).toBeLessThan(0.0005);
+    expect(r.base.pays.paytable[sym]['4']).toBe(r.base.pays.paytable[sym]['3']);
+    checkOrder(spec, r.base);
   });
 
   it('--hit-rate moves the hit rate the requested way and keeps the scatter gap and reel 1 wild-free', () => {

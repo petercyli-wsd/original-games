@@ -185,21 +185,16 @@ const CRN_SPINS = 100_000;
 
 type Pays = SlotSpec['pays'];
 
-/** Every pay entry of a spec × s, rounded to integer coins (≥ 1 where it was ≥ 1), strictly increasing in count. */
+/**
+ * Every pay entry of a spec × s, rounded to integer coins (≥ 1 where it was ≥ 1). Rounding is
+ * monotone, so the pay order in count and across symbols is kept, and equal pays stay equal
+ * (paytables often have deliberate plateaus, e.g. 8 and 9 of a kind paying the same).
+ */
 export function scalePays(spec: SlotSpec, s: number): SlotSpec {
   const out = JSON.parse(JSON.stringify(spec)) as SlotSpec;
   const scaleMap = (m: Record<string, number> | undefined) => {
     if (!m) return;
-    const keys = Object.keys(m).sort((a, b) => Number(a) - Number(b));
-    let prev = -Infinity;
-    for (const k of keys) {
-      const v = m[k];
-      if (!v) continue;
-      let x = Math.max(1, Math.round(v * s));
-      if (x <= prev) x = prev + 1;
-      m[k] = x;
-      prev = x;
-    }
+    for (const k of Object.keys(m)) if (m[k]) m[k] = Math.max(1, Math.round(m[k] * s));
   };
   const p = out.pays as Pays;
   for (const tbl of Object.values(p.paytable)) scaleMap(tbl);
