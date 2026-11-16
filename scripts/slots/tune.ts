@@ -1,6 +1,7 @@
 // slots:tune — tune a slot's pays (and optionally its strips) to the target RTP, exactly.
 //
 //   npm run slots:tune -- <id|dir> [--hit-rate 0.3] [--volatility low|medium|high|extreme] [--dry-run]
+//                                  [--out <dir>]   (write the tuned specs there instead of over the game's)
 //                                  [--budget-s 300] [--rtp-se 0.001]   (passed to slots:eval for specs with no TS closed form)
 //
 // <id> reads games/<id>/src/; a directory is used as given. Reads slot.spec.json, slot.config.json
@@ -8,7 +9,7 @@
 // packages/slots/src/engine/analytics/tune.ts. The max-win cap is not counted here (slots:eval).
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -56,13 +57,14 @@ function main(): void {
       'hit-rate': { type: 'string' },
       volatility: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
+      out: { type: 'string' },
       'budget-s': { type: 'string' },
       'rtp-se': { type: 'string' },
     },
   });
   const target = positionals[0];
   if (!target) {
-    console.error('usage: npm run slots:tune -- <id|dir> [--hit-rate <fraction>] [--volatility <low|medium|high|extreme>] [--dry-run]');
+    console.error('usage: npm run slots:tune -- <id|dir> [--hit-rate <fraction>] [--volatility <low|medium|high|extreme>] [--dry-run] [--out <dir>] [--budget-s N] [--rtp-se X]');
     process.exit(2);
   }
   const dir = existsSync(resolve(target)) && !existsSync(join(ROOT, 'games', target, 'src')) ? resolve(target) : join(ROOT, 'games', target, 'src');
@@ -114,7 +116,7 @@ function main(): void {
         process.exit(1);
       }
       console.log(`  no TypeScript closed form (${e.message}): tuning by the linear pay scale, verified by slots:eval`);
-      const ok = tuneByScale({ dir, target, spec, specText, specPath, featureSpec, featureText, featurePath, config, dryRun: !!values['dry-run'], evalArgs: [values['budget-s'] ? `--budget-s ${values['budget-s']}` : '', values['rtp-se'] ? `--rtp-se ${values['rtp-se']}` : ''].join(' ') });
+      const ok = tuneByScale({ dir, target, spec, specText, specPath, featureSpec, featureText, featurePath, config, dryRun: !!values['dry-run'], outDir: values.out ? resolve(values.out) : null, evalArgs: [values['budget-s'] ? `--budget-s ${values['budget-s']}` : '', values['rtp-se'] ? `--rtp-se ${values['rtp-se']}` : ''].join(' ') });
       process.exit(ok ? 0 : 1);
     }
     throw e;
@@ -133,11 +135,15 @@ function main(): void {
 
   if (values['dry-run']) console.log('\n--dry-run: nothing written.');
   else {
-    writeFileSync(specPath, JSON.stringify(r.base, null, indentOf(specText)) + (specText.endsWith('\n') ? '\n' : ''));
-    console.log(`\nwrote ${specPath}`);
+    const outDir = values.out ? resolve(values.out) : null;
+    if (outDir) mkdirSync(outDir, { recursive: true });
+    const specOut = outDir ? join(outDir, basename(specPath)) : specPath;
+    writeFileSync(specOut, JSON.stringify(r.base, null, indentOf(specText)) + (specText.endsWith('\n') ? '\n' : ''));
+    console.log(`\nwrote ${specOut}`);
     if (featurePath && r.feature) {
-      writeFileSync(featurePath, JSON.stringify(r.feature, null, indentOf(featureText)) + (featureText.endsWith('\n') ? '\n' : ''));
-      console.log(`wrote ${featurePath}`);
+      const featOut = outDir ? join(outDir, basename(featurePath)) : featurePath;
+      writeFileSync(featOut, JSON.stringify(r.feature, null, indentOf(featureText)) + (featureText.endsWith('\n') ? '\n' : ''));
+      console.log(`wrote ${featOut}`);
     }
   }
   const id = target;
@@ -303,6 +309,8 @@ interface ScaleArgs {
   featurePath: string | null;
   config: SlotConfig;
   dryRun: boolean;
+  /** Write the tuned specs here instead of over the game's own (for a reviewer to apply). */
+  outDir: string | null;
   evalArgs: string;
 }
 
@@ -374,12 +382,16 @@ function tuneByScale(a: ScaleArgs): boolean {
     if (best.s === 1) console.log('  pays unchanged (already on target).');
     else if (a.dryRun) console.log('\n--dry-run: nothing written.');
     else {
-      writeFileSync(a.specPath, JSON.stringify(best.base, null, indentOf(a.specText)) + (a.specText.endsWith('\n') ? '\n' : ''));
-      console.log(`\nwrote ${a.specPath}`);
+      const specOut = a.outDir ? join(a.outDir, basename(a.specPath)) : a.specPath;
+      if (a.outDir) mkdirSync(a.outDir, { recursive: true });
+      writeFileSync(specOut, JSON.stringify(best.base, null, indentOf(a.specText)) + (a.specText.endsWith('\n') ? '\n' : ''));
+      console.log(`\nwrote ${specOut}`);
       if (a.featurePath && best.feat) {
-        writeFileSync(a.featurePath, JSON.stringify(best.feat, null, indentOf(a.featureText)) + (a.featureText.endsWith('\n') ? '\n' : ''));
-        console.log(`wrote ${a.featurePath}`);
+        const featOut = a.outDir ? join(a.outDir, basename(a.featurePath)) : a.featurePath;
+        writeFileSync(featOut, JSON.stringify(best.feat, null, indentOf(a.featureText)) + (a.featureText.endsWith('\n') ? '\n' : ''));
+        console.log(`wrote ${featOut}`);
       }
+      console.log(`  pay scale ×${best.s.toFixed(6)} on every paytable / scatter / wild-own pay of both specs (rounded to integer coins)`);
     }
     console.log(`\nre-run npm run slots:oracle -- ${a.target} and npm run slots:eval -- ${a.target}`);
     return ok;
