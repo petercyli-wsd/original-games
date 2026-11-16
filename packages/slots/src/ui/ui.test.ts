@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -410,5 +410,24 @@ describe('round 8: paytable wording', () => {
     const d = reefDemo();
     expect(sheet(d)).toContain('3 treasure chests: 8 tide spins');
     expect(featureRules(d.config.feature!, 'Tide spins')[0]).toBe('3 scatters: 8 tide spins');
+  });
+});
+
+describe('round 9: a paying win is never shown as zero', () => {
+  it('money keeps two significant digits under 0.01', () => {
+    expect(fmtMoney(0.0045)).toBe('0.0045');
+    expect(fmtMoney(0.004)).toBe('0.004');
+    expect(fmtMoney(0.00001)).toBe('0.00001');
+    expect(fmtMoney(0.0099)).toBe('0.0099');
+    expect(fmtMoney(0.5)).toBe('0.50');
+    expect(fmtMoney(0)).toBe('0.00');
+    expect(fmtMoney(1234.5)).toBe('1234.50');
+    // 3,125 ways: 3 of a kind pays about 0.0045 of the bet, at a 1.00 stake
+    expect(fmtMoney((14 / 3125) * 1)).not.toBe('0.00');
+  });
+  it('history chips keep tiny multiples and show a loss as 0.00×', () => {
+    expect(fmtHist(0.0045)).toBe('0.0045×');
+    expect(fmtHist(0)).toBe('0.00×');
+    expect(fmtHist(3.36)).toBe('3.36×');
   });
 });
