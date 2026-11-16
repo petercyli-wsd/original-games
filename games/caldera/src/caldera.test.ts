@@ -8,6 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { SlotEngine, createSlot, triggerScatters, type SlotSpec } from '@originals/slots';
+import { checkCopy } from '@originals/slots/ui';
+import { LAVA, copy } from './copy';
 import { award, multiplierAt, type SlotConfig } from '../../../packages/slots/src/engine/analytics/config';
 import { featureValue } from '../../../packages/slots/src/engine/analytics/features';
 import { mcSpinDistribution, spinSeeds } from '../../../packages/slots/src/engine/analytics/mc';
@@ -38,9 +40,9 @@ describe('oracle parity (the TypeScript engine is the pack, spin for spin)', () 
     const r = checkParity(fixture(ora.features.feature, featureSpec));
     expect(r.firstMismatch).toBeNull();
   });
-  it('oracle.json is for this spec (the pack accepted a cluster + cascade_step_ladder build)', () => {
+  it('oracle.json is for this spec (the pack accepted a cluster + cascade_step_ladder + power_wild_level build)', () => {
     expect(ora.base.context).toBe('cluster|global_mixture');
-    expect(ora.base.families).toEqual(['cascade_step_ladder']);
+    expect(ora.base.families).toEqual(['cascade_step_ladder', 'power_wild_level']);
     expect(ora.base.analytics.tier ?? 'mc').toBe('mc');
   });
 });
@@ -103,9 +105,11 @@ describe('the free-spins algebra against the engine', () => {
 });
 
 describe('the max-win cap', () => {
-  it('config caps a round at 3,000 stakes', () => {
-    expect(config.maxWinStakes).toBe(3000);
-    expect(createSlot({ spec, featureSpecs: { 'feature.spec.json': featureSpec }, feature: feat, maxWinStakes: config.maxWinStakes }).maxWinCoins).toBe(3000 * 100);
+  it('config caps a round at 10,000 stakes, above every paytable row', () => {
+    expect(config.maxWinStakes).toBe(10000);
+    expect(createSlot({ spec, featureSpecs: { 'feature.spec.json': featureSpec }, feature: feat, maxWinStakes: config.maxWinStakes }).maxWinCoins).toBe(10000 * 100);
+    // no pay figure the paytable shows is beyond the max win
+    for (const s of [spec, featureSpec]) for (const t of Object.values(s.pays.paytable)) for (const v of Object.values(t)) expect(v).toBeLessThanOrEqual(10000 * 100);
   });
   it('no round pays more than the cap, and a round that reaches it says so', () => {
     const cap = 12; // a tiny cap so that capped rounds are common
@@ -125,6 +129,84 @@ describe('the max-win cap', () => {
     expect(capped).toBeGreaterThan(0);
     expect(withFeature).toBeGreaterThan(0);
   }, 120_000);
+});
+
+// The signature rule: lava cools. Every lava wild lands at one level (2 in the base game, 3 in Eruption spins);
+// a lava wild in a win above level 1 stays on the board (falling with the survivors) and drops a level.
+// Replayed here from the boards and wins alone, so the copy's "stays for 2 wins, 3 in Eruption" is the maths.
+function lavaLevel(s: SlotSpec): number {
+  const m = s.mechanics.find((x) => x.id === 'power_wild_level');
+  const pmf = (m?.params as { level_pmf: Record<string, number> }).level_pmf;
+  expect(Object.keys(pmf)).toHaveLength(1);
+  return Number(Object.keys(pmf)[0]);
+}
+
+function checkLavaCools(s: SlotSpec, level: number, seeds: number): { stayed: number; cooled: number } {
+  const eng = new SlotEngine(s);
+  let stayed = 0;
+  let cooled = 0;
+  for (let seed = 1; seed <= seeds; seed++) {
+    const res = eng.spin(seed);
+    // levels of the lava on the board now, by cell
+    let lv = new Map<string, number>();
+    res.steps[0].board.forEach((col, c) => col.forEach((v, r) => v === LAVA && lv.set(`${c},${r}`, level)));
+    for (let i = 0; i + 1 < res.steps.length; i++) {
+      const { board, wins } = res.steps[i];
+      if (!wins.length) break;
+      const removed = new Set<string>();
+      for (const w of wins) for (const [c, r] of w.cells) removed.add(`${c},${r}`);
+      const kept = new Map<string, number>();
+      for (const key of removed) {
+        const l = lv.get(key);
+        if (l === undefined) continue;
+        if (l > 1) {
+          kept.set(key, l - 1);
+          removed.delete(key);
+          stayed++;
+        } else cooled++;
+      }
+      // gravity: the survivors of each column fall to its bottom, in order; the lava among them keeps its level
+      const next = res.steps[i + 1].board;
+      const nlv = new Map<string, number>();
+      board.forEach((col, c) => {
+        const surv = col.map((v, r) => ({ v, key: `${c},${r}` })).filter((x) => !removed.has(x.key));
+        const m = col.length - surv.length;
+        surv.forEach((x, j) => {
+          expect(next[c][m + j]).toBe(x.v);
+          const l = kept.get(x.key) ?? lv.get(x.key);
+          if (l !== undefined) nlv.set(`${c},${m + j}`, l);
+        });
+        for (let r = 0; r < m; r++) if (next[c][r] === LAVA) nlv.set(`${c},${r}`, level);
+      });
+      lv = nlv;
+    }
+  }
+  return { stayed, cooled };
+}
+
+describe('lava cools: the signature rule', () => {
+  it('lava lands at level 2 in the base game and 3 in Eruption spins, as the copy says', () => {
+    expect(lavaLevel(spec)).toBe(2);
+    expect(lavaLevel(featureSpec)).toBe(3);
+    expect(copy.wildText).toMatch(/2 wins, 3 in Eruption/);
+    expect(copy.featureRule).toMatch(/Lava stays 3 wins/);
+  });
+  it('base: a paying lava stays for one more win, then leaves (boards replayed)', () => {
+    const { stayed, cooled } = checkLavaCools(spec, 2, 4000);
+    expect(stayed).toBeGreaterThan(50);
+    expect(cooled).toBeGreaterThan(5);
+  }, 60_000);
+  it('Eruption spins: a paying lava stays for two more wins', () => {
+    const { stayed, cooled } = checkLavaCools(featureSpec, 3, 3000);
+    expect(stayed).toBeGreaterThan(cooled);
+    expect(cooled).toBeGreaterThan(5);
+  }, 60_000);
+});
+
+describe('copy', () => {
+  it('every line is under 9 words', () => {
+    expect(checkCopy(copy)).toEqual([]);
+  });
 });
 
 describe('the spin flow draws after place()', () => {
