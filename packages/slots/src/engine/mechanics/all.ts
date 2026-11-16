@@ -12,3 +12,4 @@ import './hold_and_spin_lock_respin';
 import './sticky_respin';
 import './walking_wild';
 import './cascade_step_ladder';
+import './expanding_grid_structural';
