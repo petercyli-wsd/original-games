@@ -44,8 +44,8 @@ import { buildModel, NoClosedForm } from './model';
 
 export interface TuneMetrics {
   totalRtp: number;
-  /** Tier of the RTP figures ('exact' unless the feature distribution is Monte Carlo). */
-  tier: 'exact' | 'mc';
+  /** Tier of the RTP figures: 'exact' / 'exact_mixture' (as the pack labels the specs), 'mc' when the feature distribution is Monte Carlo. */
+  tier: 'exact' | 'exact_mixture' | 'mc';
   baseRtp: number;
   featureRtp: number;
   featureShare: number;
@@ -200,7 +200,7 @@ export function measure(base: SlotSpec, feature: SlotSpec | null, cfg: FreeSpins
   if (!cfg || !feature || bm.triggerMin === null) {
     return {
       totalRtp: bex.rtp,
-      tier: 'exact',
+      tier: bex.tier,
       baseRtp: bex.rtp,
       featureRtp: 0,
       featureShare: 0,
@@ -237,7 +237,7 @@ export function measure(base: SlotSpec, feature: SlotSpec | null, cfg: FreeSpins
   }
   return {
     totalRtp: a.totalRtp,
-    tier: a.tier,
+    tier: a.tier === 'mc' ? 'mc' : bex.tier === 'exact_mixture' || exactRtp(feature).tier === 'exact_mixture' ? 'exact_mixture' : 'exact',
     baseRtp: a.baseRtp,
     featureRtp: a.featureRtp,
     featureShare: a.featureShare,
