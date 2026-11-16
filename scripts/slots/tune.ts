@@ -189,12 +189,19 @@ type Pays = SlotSpec['pays'];
  * Every pay entry of a spec × s, rounded to integer coins (≥ 1 where it was ≥ 1). Rounding is
  * monotone, so the pay order in count and across symbols is kept, and equal pays stay equal
  * (paytables often have deliberate plateaus, e.g. 8 and 9 of a kind paying the same).
+ * `fine` multiplies, on top, only the pays that reach `big` coins after scaling: a large pay rounds
+ * almost continuously (1 coin ≤ 1/big), so it fine-tunes what the small pays' rounding steps can't
+ * reach. Callers check the pay order (`keepsOrder`) when fine ≠ 1.
  */
-export function scalePays(spec: SlotSpec, s: number): SlotSpec {
+export function scalePays(spec: SlotSpec, s: number, fine = 1, big = Infinity): SlotSpec {
   const out = JSON.parse(JSON.stringify(spec)) as SlotSpec;
   const scaleMap = (m: Record<string, number> | undefined) => {
     if (!m) return;
-    for (const k of Object.keys(m)) if (m[k]) m[k] = Math.max(1, Math.round(m[k] * s));
+    for (const k of Object.keys(m))
+      if (m[k]) {
+        const x = m[k] * s;
+        m[k] = Math.max(1, Math.round(x >= big ? x * fine : x));
+      }
   };
   const p = out.pays as Pays;
   for (const tbl of Object.values(p.paytable)) scaleMap(tbl);
@@ -202,6 +209,27 @@ export function scalePays(spec: SlotSpec, s: number): SlotSpec {
   const ev = out.evaluation as Record<string, unknown>;
   scaleMap(ev.wild_own_pay as Record<string, number> | undefined);
   return out;
+}
+
+/** Does `after` keep every weak order of `before`'s pays (by count per symbol, across symbols at a count, ties kept)? */
+export function keepsOrder(before: SlotSpec, after: SlotSpec): boolean {
+  const flat = (sp: SlotSpec) => {
+    const out: { key: string; sym: string; n: string; v: number }[] = [];
+    for (const [sym, t] of Object.entries(sp.pays.paytable)) for (const [n, v] of Object.entries(t)) out.push({ key: `p|${sym}|${n}`, sym: `p|${sym}`, n: `p|${n}`, v });
+    for (const [n, v] of Object.entries(sp.pays.scatter_pay ?? {})) out.push({ key: `s|${n}`, sym: 's', n: `s|${n}`, v });
+    return out;
+  };
+  const b = flat(before);
+  const a = new Map(flat(after).map((e) => [e.key, e.v]));
+  for (const x of b)
+    for (const y of b) {
+      if (x.sym !== y.sym && x.n !== y.n) continue;
+      const ax = a.get(x.key)!;
+      const ay = a.get(y.key)!;
+      if (x.v > y.v && ax < ay) return false;
+      if (x.v === y.v && ax !== ay) return false;
+    }
+  return true;
 }
 
 /** The pay-proportional share ρ = E[c(2P) − c(P)] / E[c(P)] of a spec, and the linearity test. */
@@ -380,15 +408,17 @@ function tuneByScale(a: ScaleArgs): boolean {
       const m = m0.get(spec0)!;
       return (meanCoins(spec1, CRN_SPINS) - (1 - rho) * m) / (rho * m);
     };
-    interface Trial { s: number; rB: number; rF: number; base: SlotSpec; feat: SlotSpec | null }
-    const trialAt = (sc: number): Trial => {
-      const base = scalePays(a.spec, sc);
-      const feat = a.featureSpec ? scalePays(a.featureSpec, sc) : null;
-      return { s: sc, base, feat, rB: lb.rho > 0 ? effScale(a.spec, base, lb.rho) : 1, rF: feat && lf && lf.rho > 0 ? effScale(a.featureSpec!, feat, lf.rho) : 1 };
+    interface Trial { s: number; fine: number; rB: number; rF: number; base: SlotSpec; feat: SlotSpec | null }
+    const BIG = 2000; // coins: a 1-coin rounding step is ≤ 0.05% of such a pay
+    const trialAt = (sc: number, fine = 1): Trial | null => {
+      const base = scalePays(a.spec, sc, fine, BIG);
+      const feat = a.featureSpec ? scalePays(a.featureSpec, sc, fine, BIG) : null;
+      if (fine !== 1 && (!keepsOrder(a.spec, base) || (feat && !keepsOrder(a.featureSpec!, feat)))) return null;
+      return { s: sc, fine, base, feat, rB: lb.rho > 0 ? effScale(a.spec, base, lb.rho) : 1, rF: feat && lf && lf.rho > 0 ? effScale(a.featureSpec!, feat, lf.rho) : 1 };
     };
     const lin = (t: Trial) => t.rB * LB + t.rF * LF;
     // pooled N over every eval (inverse-variance weights; an exact eval pins it)
-    const points: { t: Trial; r: EvalRead }[] = [{ t: { s: 1, rB: 1, rF: 1, base: a.spec, feat: a.featureSpec }, r: before }];
+    const points: { t: Trial; r: EvalRead }[] = [{ t: { s: 1, fine: 1, rB: 1, rF: 1, base: a.spec, feat: a.featureSpec }, r: before }];
     const pooled = () => {
       let sw = 0;
       let swn = 0;
@@ -404,22 +434,31 @@ function tuneByScale(a: ScaleArgs): boolean {
     // iteration can land anywhere; search a grid of s around the linear estimate instead (each
     // candidate's effective scale measured by the cached common random numbers) and keep the
     // candidate whose prediction is closest to target (ties: closest to the estimate).
-    const trialCache = new Map<number, Trial>();
-    const trialCached = (sc: number) => {
-      const key = Math.round(sc * 1e6);
-      if (!trialCache.has(key)) trialCache.set(key, trialAt(key / 1e6));
+    const trialCache = new Map<string, Trial | null>();
+    const trialCached = (sc: number, fine = 1) => {
+      const key = `${Math.round(sc * 1e6)}|${Math.round(fine * 1e6)}`;
+      if (!trialCache.has(key)) trialCache.set(key, trialAt(Math.round(sc * 1e6) / 1e6, Math.round(fine * 1e6) / 1e6));
       return trialCache.get(key)!;
     };
     const solve = (N: number): Trial => {
       const s0 = (target - N) / L1;
+      const errOf = (t: Trial) => Math.abs(N + lin(t) - target);
+      // 1. the global scale, on a grid around the linear estimate
       let best: Trial | null = null;
-      let bestErr = Infinity;
       for (let d = -16; d <= 16; d++) {
         const t = trialCached(s0 + d * 0.00025);
-        const err = Math.abs(N + lin(t) - target) + Math.abs(d) * 1e-9;
-        if (err < bestErr) {
-          bestErr = err;
-          best = t;
+        if (t && (!best || errOf(t) < errOf(best) - 1e-12)) best = t;
+      }
+      // 2. the large pays' fine factor, where the small pays' rounding steps leave a gap
+      if (best && errOf(best) > 0.0001) {
+        const probe = trialCached(best.s, 1.01);
+        const slope = probe ? (lin(probe) - lin(best)) / 0.01 : 0;
+        if (slope > 1e-6) {
+          const f0 = 1 + (target - N - lin(best)) / slope;
+          for (let d = -4; d <= 4; d++) {
+            const t = trialCached(best.s, f0 + d * 0.0002);
+            if (t && errOf(t) < errOf(best) - 1e-12) best = t;
+          }
         }
       }
       return best!;
@@ -434,21 +473,21 @@ function tuneByScale(a: ScaleArgs): boolean {
       points.push({ t, r });
       pick = t;
       const Q = pooled();
-      console.log(`  scale ×${t.s.toFixed(6)} (effective ×${t.rB.toFixed(5)} base, ×${t.rF.toFixed(5)} feature): this eval ${fmt(r)}; pooled over ${points.length} evals ${((Q.N + lin(t)) * 100).toFixed(4)}% ± ${(Q.se * 100).toFixed(4)}%`);
+      console.log(`  scale ×${t.s.toFixed(6)}${t.fine !== 1 ? `, pays ≥ ${BIG} coins ×${t.fine.toFixed(5)} more` : ''} (effective ×${t.rB.toFixed(5)} base, ×${t.rF.toFixed(5)} feature): this eval ${fmt(r)}; pooled over ${points.length} evals ${((Q.N + lin(t)) * 100).toFixed(4)}% ± ${(Q.se * 100).toFixed(4)}%`);
     }
     // the final pays: on target under the pooled estimate
     const P = pooled();
     if (points.length > 1) pick = solve(P.N);
     const pred = P.N + lin(pick);
     const final: EvalRead = { rtp: pred, tier: P.se > 0 ? 'mc' : before.tier, se: P.se, base: NaN, feature: NaN, ok: true, log: '' };
-    const best = { s: pick.s, r: final, base: pick.base, feat: pick.feat };
+    const best = { s: pick.s, fine: pick.fine, r: final, base: pick.base, feat: pick.feat };
     const ok = inside(best.r) || withinNoise(best.r);
     console.log('');
     console.log(row('total RTP (capped)', fmt(before).split(' (')[0], `${fmt(final).split(' (')[0]} (pooled over ${points.length} evals at their effective scales)`));
     console.log(
       `  RTP error ${((best.r.rtp - target) * 100).toFixed(4)} percentage points: ${inside(best.r) ? 'inside the ±0.05 pp band' : withinNoise(best.r) ? `within noise (outside ±0.05 pp but within 3 SE = ${(3 * best.r.se * 100).toFixed(3)} pp; more --budget-s narrows it)` : 'OUTSIDE the ±0.05 pp band'}; capped RTP (slots:eval's, cap loss included)`,
     );
-    if (best.s === 1) console.log('  pays unchanged (already on target).');
+    if (best.s === 1 && best.fine === 1) console.log('  pays unchanged (already on target).');
     else if (a.dryRun) console.log('\n--dry-run: nothing written.');
     else {
       const specOut = a.outDir ? join(a.outDir, basename(a.specPath)) : a.specPath;
@@ -460,7 +499,7 @@ function tuneByScale(a: ScaleArgs): boolean {
         writeFileSync(featOut, JSON.stringify(best.feat, null, indentOf(a.featureText)) + (a.featureText.endsWith('\n') ? '\n' : ''));
         console.log(`wrote ${featOut}`);
       }
-      console.log(`  pay scale ×${best.s.toFixed(6)} on every paytable / scatter / wild-own pay of both specs (rounded to integer coins)`);
+      console.log(`  pay scale ×${best.s.toFixed(6)} on every paytable / scatter / wild-own pay of both specs${best.fine !== 1 ? `, then ×${best.fine.toFixed(5)} on the pays ≥ ${BIG} coins` : ''} (rounded to integer coins; pay order and plateaus kept)`);
     }
     console.log(`\nre-run npm run slots:oracle -- ${a.target} and npm run slots:eval -- ${a.target}`);
     return ok;
