@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "overall": 3.44,
+  "scores": {
+    "theme": 4,
+    "readability": 3,
+    "feature_clarity": 4,
+    "excitement": 4,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 4,
+    "uniqueness": 3,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.44 < 3.5"
+  ],
+  "verdict": "A coherent, well-named clockmaker slot whose maths sits in every band. Its mechanics are Jack Hammer's sticky wins plus Starburst's wilds, and the respin chain is undermined by modal clicks, unmarked locked cells and penny-sized base wins.",
+  "pros": [
+    "Every §3 band is met, with medium volatility as declared (SD 8.54), a 1-in-149 feature carrying 39% of the RTP at 55.7× on average, and a short dry-streak p95 of 14.",
+    "Winding gives ordinary wins a second beat, and the board filling tick by tick with one symbol was the panel's favourite base-game moment.",
+    "Three full pendulum reels give a clear, visible chase in both the base game and free spins, and produce the 50–180× results.",
+    "The names and art are consistent: Winding/Tick, Pendulum, Winding key and Grand Complication all fit the watchmaker's bench, and the feature switches to a teal room."
+  ],
+  "cons": [
+    "Mark locked cells during Winding: give held symbols a brass frame or a lock glint, and dim or blur only the cells that respin. All three players could not tell held cells from respun ones.",
+    "Remove the Start and Continue cards for Winding at normal speed. Let the chain play automatically, as it does in Turbo, with a short 'Tick 2/4' badge, and show the line win before the chain starts instead of 'Win 0.00'.",
+    "Separate the Astronomical dial from the Cog: drop the toothed gold rim from the dial (use a smooth starred or moon bezel), and give the Clock hand a backing disc so it fills its cell like the other symbols.",
+    "Raise the low 3-of-a-kind pays (now 0.013–0.019×) and trim 5-of-a-kind or chain value to compensate, so base hits aren't mostly 1–2 cents. Make the measured RTP match the stated 96.20% (it measures 95.34%), and name the Pendulum a 'wild' in the paytable."
+  ],
+  "confusions": [
+    "At normal speed, every winning spin, even a 0.02 line, stops for a 'Winding: Up to 4 respins' card that needs Start, then a 'Total win' card that needs Continue. The Spin button becomes 'Skip' meanwhile, and my next Spin presses failed until I pressed those buttons.",
+    "Right after a win lands, the header shows a green 'Win' label but 'Win 0.00' until the respins finish, so for a moment I didn't know what had won.",
+    "During Winding ticks, the locked (held) symbols are not highlighted, so I couldn't tell which cells were held and which respun.",
+    "A winning spin shows 'Win' with Win 0.00 and doesn't show which line won before the Winding card appears. The amount only comes at the end.",
+    "Spins with a single winding key and no visible line were framed and labelled 'Win', then started Winding. I wasn't sure whether keys trigger Winding or just hold.",
+    "During Winding respins I couldn't tell which cells were locked and which were respinning.",
+    "After a base win the header showed a green 'Win' with 0.00, then a Winding card, and only after the respins was the amount added. At first I thought the win had paid nothing.",
+    "In manual play every winning spin needed a Start click, then a Continue click, before Spin worked again. Early on my spins stopped working because a card was waiting.",
+    "The Winding meter in the header didn't match the tally under the board at times (3.75 vs '13 wins = 12.18'; 19.01 then 18.62 at the same tick)."
+  ],
+  "players": 3,
+  "codeHash": "220f83fa629de1a7",
+  "date": "2026-11-16"
+}
