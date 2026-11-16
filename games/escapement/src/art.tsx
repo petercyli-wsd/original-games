@@ -38,6 +38,49 @@ function cogPoints(teeth: number, rOut: number, rIn: number): string {
   return pts.join(' ');
 }
 
+/** Toothed wheel centred at (cx,cy) with a hub hole, as flat shapes. */
+function gear(cx: number, cy: number, r: number, teeth: number, fill: string, hole: string, key: string) {
+  const step = (Math.PI * 2) / teeth;
+  const q = step / 4;
+  const pts: string[] = [];
+  const p = (rr: number, a: number) => `${(cx + rr * Math.cos(a)).toFixed(1)},${(cy + rr * Math.sin(a)).toFixed(1)}`;
+  for (let i = 0; i < teeth; i++) {
+    const a = i * step;
+    pts.push(p(r * 0.82, a - q * 2), p(r, a - q), p(r, a + q), p(r * 0.82, a + q * 2));
+  }
+  return (
+    <g key={key}>
+      <polygon points={pts.join(' ')} fill={fill} />
+      <circle cx={cx} cy={cy} r={r * 0.55} fill={hole} />
+      <circle cx={cx} cy={cy} r={r * 0.2} fill={fill} />
+    </g>
+  );
+}
+
+/** Flat clockmaker's-bench scene: a bench edge, big gears and a mainspring outline, all a shade off the window tone. */
+function benchScene(w: number, h: number, a: string, b: string, c: string) {
+  const m = Math.min(w, h);
+  // mainspring: an outline spiral, centred left-low
+  const sx = w * 0.2, sy = h * 0.74;
+  const pts: string[] = [];
+  for (let i = 0; i <= 90; i++) {
+    const t = i / 90;
+    const ang = t * Math.PI * 6;
+    const r = m * (0.03 + 0.2 * t);
+    pts.push(`${(sx + r * Math.cos(ang)).toFixed(1)},${(sy + r * Math.sin(ang)).toFixed(1)}`);
+  }
+  return (
+    <>
+      <rect x={0} y={h * 0.9} width={w} height={h * 0.1} fill={c} />
+      <rect x={0} y={h * 0.9} width={w} height={Math.max(2, h * 0.012)} fill={b} />
+      {gear(w * 0.82, h * 0.24, m * 0.3, 16, a, c, 'g1')}
+      {gear(w * 0.5, h * 0.5, m * 0.16, 12, b, a, 'g2')}
+      {gear(w * 0.13, h * 0.2, m * 0.2, 14, b, c, 'g3')}
+      <polyline points={pts.join(' ')} fill="none" stroke={a} strokeWidth={Math.max(3, m * 0.025)} strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  );
+}
+
 export const escapementTheme: SlotTheme = {
   name: 'Escapement',
   palette: {
@@ -49,8 +92,14 @@ export const escapementTheme: SlotTheme = {
     featureBg: C.fBg,
     featureFrame: C.fFrame,
     featureTile: C.fTile,
+    // the winding chain: a warm brass-lit bench, apart from the teal feature room
+    chainBg: '#2B2118',
+    chainFrame: '#6E521C',
+    chainTile: '#3B2E20',
   },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 10, radius: 6, cellRadius: 4 },
+  window: { cell: 'plain', separators: 'none', frameWidth: 10, radius: 6, cellRadius: 4 },
+  backdrop: (w, h) => benchScene(w, h, '#3A3535', '#403A37', '#343030'),
+  featureBackdrop: (w, h) => benchScene(w, h, '#274543', '#2D4D4B', '#223B39'),
 };
 
 export const escapementSymbols: SlotSymbols = {
