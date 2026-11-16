@@ -50,8 +50,10 @@ export interface Pays {
   [k: string]: unknown;
 }
 
+/** One mechanic entry: `id` is the pack's family id (e.g. "tape_continuation_refill"). */
 export interface SpecMechanic {
-  family: string;
+  id: string;
+  params?: Record<string, unknown>;
   [k: string]: unknown;
 }
 
@@ -82,7 +84,13 @@ export interface SpinResult {
   steps: SpinStep[];
   stops: number[];
   totalCoins: number;
-  trigger: unknown;
+  /** Set when the base round's scatters reached `trigger.scatter_min` (the feature trigger). */
+  trigger: SpinTrigger | null;
+}
+
+export interface SpinTrigger {
+  fired: boolean;
+  text: string;
 }
 
 /** A paid spin as the game presents it: the base spin plus any feature it triggered. */
