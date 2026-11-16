@@ -1,0 +1,280 @@
+{
+  "bet": {
+    "coins": 4096
+  },
+  "board_law": {
+    "kind": "reel_set_mixture",
+    "reel_sets": [
+      {
+        "id": "base",
+        "label": "base",
+        "strips": [
+          [
+            1,
+            6,
+            7,
+            8,
+            9,
+            6,
+            7,
+            8,
+            9,
+            4,
+            6,
+            7,
+            1,
+            8,
+            9,
+            6,
+            7,
+            5,
+            8,
+            9,
+            3,
+            7,
+            7,
+            8,
+            1,
+            9,
+            6,
+            7,
+            8,
+            9,
+            7,
+            7,
+            8,
+            5,
+            8,
+            7
+          ],
+          [
+            7,
+            8,
+            9,
+            1,
+            4,
+            6,
+            9,
+            8,
+            9,
+            2,
+            6,
+            7,
+            8,
+            9,
+            6,
+            1,
+            5,
+            7,
+            8,
+            9,
+            6,
+            2,
+            7,
+            8,
+            9,
+            7,
+            5,
+            1,
+            7,
+            8,
+            3,
+            9,
+            6,
+            7,
+            8,
+            9
+          ],
+          [
+            6,
+            9,
+            8,
+            5,
+            6,
+            6,
+            1,
+            7,
+            9,
+            9,
+            6,
+            7,
+            8,
+            9,
+            3,
+            6,
+            7,
+            8,
+            9,
+            6,
+            6,
+            4,
+            7,
+            9,
+            6,
+            7,
+            8,
+            9,
+            6,
+            8,
+            1,
+            6,
+            5,
+            9,
+            6,
+            7
+          ]
+        ],
+        "weight": 1
+      }
+    ]
+  },
+  "engine": "reel_engine",
+  "evaluation": {
+    "kind": "payline",
+    "paylines": [
+      [
+        0,
+        0,
+        0
+      ],
+      [
+        1,
+        1,
+        1
+      ],
+      [
+        2,
+        2,
+        2
+      ],
+      [
+        0,
+        1,
+        2
+      ],
+      [
+        2,
+        1,
+        0
+      ]
+    ],
+    "wild_own_pay": {}
+  },
+  "geometry": {
+    "cols": 3,
+    "rows": [
+      3,
+      3,
+      3
+    ]
+  },
+  "mc": {
+    "n_mc": 20000
+  },
+  "mechanics": [
+    {
+      "id": "global_iid",
+      "params": {
+        "value_pmf": {
+          "2": 25,
+          "3": 25,
+          "5": 20,
+          "10": 20,
+          "25": 10
+        },
+        "apply": "terminal_total"
+      }
+    }
+  ],
+  "pays": {
+    "paytable": {
+      "3": {
+        "3": 340006
+      },
+      "4": {
+        "3": 102023
+      },
+      "5": {
+        "3": 34008
+      },
+      "6": {
+        "2": 1020,
+        "3": 3401
+      },
+      "7": {
+        "3": 4761
+      },
+      "8": {
+        "3": 10202
+      },
+      "9": {
+        "3": 6802
+      }
+    },
+    "scatter_pay": {}
+  },
+  "provenance": {
+    "created": "2026-11-16",
+    "refs": [
+      "panel-global-iid-multiplier-reel"
+    ],
+    "type": "synthetic"
+  },
+  "schema": "game_spec_v2",
+  "slug": "hi-score-feature",
+  "symbols": [
+    {
+      "id": 1,
+      "label": "SC",
+      "role": "scatter"
+    },
+    {
+      "id": 2,
+      "label": "WD",
+      "role": "wild"
+    },
+    {
+      "id": 3,
+      "label": "P1",
+      "role": "premium"
+    },
+    {
+      "id": 4,
+      "label": "P2",
+      "role": "premium"
+    },
+    {
+      "id": 5,
+      "label": "P3",
+      "role": "premium"
+    },
+    {
+      "id": 6,
+      "label": "L1",
+      "role": "low"
+    },
+    {
+      "id": 7,
+      "label": "L2",
+      "role": "low"
+    },
+    {
+      "id": 8,
+      "label": "L3",
+      "role": "low"
+    },
+    {
+      "id": 9,
+      "label": "L4",
+      "role": "low"
+    }
+  ],
+  "targets": {
+    "quantization_tolerance": 0.001,
+    "rtp_requested": 0.96
+  },
+  "trigger": {
+    "feature_budget_rtp": 0,
+    "scatter_min": 3
+  }
+}
