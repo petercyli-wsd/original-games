@@ -18,7 +18,7 @@
   "winOverStakeRate": 0.1819747277938248,
   "avgFeatureWin": 46.03069679787856,
   "pWin100": 0.0008721658356669777,
-  "pMaxWin": 3.6882726589714455e-8,
+  "pMaxWin": 8.317416225158554e-9,
   "pMaxWinBounds": {
     "lower": 7.252510525430015e-9,
     "upper": 8.317416225158554e-9,
@@ -225,11 +225,9 @@
     {
       "key": "maxWinReach",
       "label": "P(reaching the max win) per round",
-      "value": 3.6882726589714455e-8,
+      "value": 8.317416225158554e-9,
       "display": "1 in 1.20e+8 to 1.38e+8 (exact_mixture bounds); MC 1 in 2.71e+7 (1 hits / 200,000)",
-      "tier": "mc",
-      "se": 3.688272658971445e-8,
-      "n": 200000,
+      "tier": "exact_mixture",
       "band": {
         "lo": 1e-9,
         "hi": 1,
