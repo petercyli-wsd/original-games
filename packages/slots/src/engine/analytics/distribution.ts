@@ -17,14 +17,22 @@
 // probability is a product of window frequencies). Its mean equals exactRtp × bet, which the
 // tests check on every pack example.
 //
+// Mechanics (./mechanics.ts): the window maps and mixtures are already in the model's components
+// (reel set × mixture outcome, windows transformed), so the walk above runs unchanged on them. The
+// multipliers of the evaluator coins are applied exactly at assembly: global_iid convolves each
+// entry's evaluator coins with the multiplier pmf; global_additive needs the visible wild count
+// N of the board, which the walk carries next to the scatter count (aux = K + 256·N, additive
+// reel by reel, so the early-stop suffix is the joint (K, N) convolution) and each entry is
+// convolved with the pmf of base + V_1 + … + V_N. The scatter pay is never multiplied.
+//
 // Otherwise (a spec too large to enumerate, e.g. 6×5 scatter pays on 86-stop strips), the
 // honest fallback is Monte Carlo over uniform stops with the same board evaluator: tier 'mc'
 // with n. Specs with no closed form at all (mechanics, cascades) go through the engine's
 // canonicalSpin in mc.ts.
 
 import type { SlotSpec } from '../types';
-import { convolve, reelCountPmf } from './exact';
-import { asModel, boardAt, boardCoins, NoClosedForm, type Component, type SlotModel } from './model';
+import { hasPost, multiplierPmf, sampleMultiplier } from './mechanics';
+import { asModel, boardAt, boardCoins, NoClosedForm, targetCount, type Component, type SlotModel } from './model';
 import { mulberry32 } from './rng';
 
 /** Distribution of one spin's (total coins, visible scatter count). Entries are distinct (coins, k) pairs. */
@@ -54,30 +62,50 @@ export interface DistributionOptions {
   forceMc?: boolean;
 }
 
-const KMUL = 256; // key = lineCoins * KMUL + k (k ≤ 255 visible scatters)
+// accumulator key = evaluatorCoins * KMUL + aux, aux = K + AUXN * N (K visible scatters ≤ 255,
+// N visible targets of global_additive ≤ 255; N = 0 without one)
+const AUXN = 256;
+const KMUL = AUXN * 256;
 
 type Acc = Map<number, number>;
 
-function add(acc: Acc, coins: number, k: number, p: number): void {
-  const key = coins * KMUL + k;
+function add(acc: Acc, coins: number, aux: number, p: number): void {
+  const key = coins * KMUL + aux;
   acc.set(key, (acc.get(key) ?? 0) + p);
 }
 
-/** Per-reel scatter-count pmfs and their suffix convolutions (suffix[c] = reels c..cols-1). */
-function scatterSuffix(m: SlotModel, comp: Component): number[][] {
-  const sc = new Set<number>(m.scatter !== null ? [m.scatter] : []);
-  const per = comp.windows.map((w) => reelCountPmf(w, sc));
-  const suffix: number[][] = new Array(m.cols + 1);
-  suffix[m.cols] = [1];
-  for (let c = m.cols - 1; c >= 0; c--) suffix[c] = convolve([per[c], suffix[c + 1]]);
-  return suffix;
+/** A sparse pmf over aux values. */
+interface Sparse {
+  v: number[];
+  p: number[];
 }
 
-function windowScatters(m: SlotModel, win: number[]): number {
-  if (m.scatter === null) return 0;
-  let n = 0;
-  for (const v of win) if (v === m.scatter) n++;
-  return n;
+/** The aux (K + 256·N) of one window. */
+function windowAux(m: SlotModel, win: number[]): number {
+  const target = m.post.affine?.target;
+  let a = 0;
+  for (const v of win) {
+    if (v === m.scatter) a++;
+    if (target && target.has(v)) a += AUXN;
+  }
+  return a;
+}
+
+/** Per-reel aux pmfs and their suffix convolutions (suffix[c] = reels c..cols-1). */
+function auxSuffix(m: SlotModel, comp: Component): Sparse[] {
+  const suffix: Sparse[] = new Array(m.cols + 1);
+  suffix[m.cols] = { v: [0], p: [1] };
+  for (let c = m.cols - 1; c >= 0; c--) {
+    const acc = new Map<number, number>();
+    const nxt = suffix[c + 1];
+    for (const { win, p } of comp.windows[c]) {
+      const a = windowAux(m, win);
+      for (let i = 0; i < nxt.v.length; i++) acc.set(a + nxt.v[i], (acc.get(a + nxt.v[i]) ?? 0) + p * nxt.p[i]);
+    }
+    const keys = [...acc.keys()].sort((x, y) => x - y);
+    suffix[c] = { v: keys, p: keys.map((k) => acc.get(k)!) };
+  }
+  return suffix;
 }
 
 // --------------------------------------------------------------------------- payline (left/left)
@@ -87,7 +115,7 @@ function enumeratePayline(m: SlotModel, comp: Component, weight: number, acc: Ac
   if (law.kind !== 'payline') throw new Error('unreachable');
   const cols = m.cols;
   const nl = law.rowsIdx.length;
-  const suffix = scatterSuffix(m, comp);
+  const suffix = auxSuffix(m, comp);
   const wildOwn = (k: number) => (k > 0 ? law.wildOwn[String(k)] ?? 0 : 0);
   // paytable lookup by symbol → by run length (0 when absent); null = no row (eval_line's `if tbl`)
   const rowOf = new Map<number, number[] | null>();
@@ -105,7 +133,7 @@ function enumeratePayline(m: SlotModel, comp: Component, weight: number, acc: Ac
   };
   // per reel, per window: the symbol each line reads, and the scatter count
   const lineSym = comp.windows.map((wins, c) => wins.map(({ win }) => law.rowsIdx.map((ri) => win[ri[c]])));
-  const winScat = comp.windows.map((wins) => wins.map(({ win }) => windowScatters(m, win)));
+  const winScat = comp.windows.map((wins) => wins.map(({ win }) => windowAux(m, win)));
   // per-depth line state: head (-1 = all wild so far), run length; alive list
   const NONE = -1;
   const head: Int32Array[] = [];
@@ -137,7 +165,7 @@ function enumeratePayline(m: SlotModel, comp: Component, weight: number, acc: Ac
   const dfs = (c: number, p: number, coins: number, scat: number): void => {
     if (aliveN[c] === 0) {
       const suf = suffix[c];
-      for (let r = 0; r < suf.length; r++) if (suf[r]) add(acc, coins, scat + r, weight * p * suf[r]);
+      for (let r = 0; r < suf.v.length; r++) add(acc, coins, scat + suf.v[r], weight * p * suf.p[r]);
       return;
     }
     if (c === cols) {
@@ -201,7 +229,7 @@ function enumerateWaysLeft(m: SlotModel, comp: Component, weight: number, acc: A
   if (law.kind !== 'ways') throw new Error('unreachable');
   const cols = m.cols;
   const ns = m.paying.length;
-  const suffix = scatterSuffix(m, comp);
+  const suffix = auxSuffix(m, comp);
   const pay = m.paying.map((s) => {
     const row: number[] = [];
     for (let k = 0; k <= cols; k++) row.push(m.paytable[String(s)][String(k)] ?? 0);
@@ -218,7 +246,7 @@ function enumerateWaysLeft(m: SlotModel, comp: Component, weight: number, acc: A
       }),
     ),
   );
-  const winScat = comp.windows.map((wins) => wins.map(({ win }) => windowScatters(m, win)));
+  const winScat = comp.windows.map((wins) => wins.map(({ win }) => windowAux(m, win)));
   const prod: Float64Array[] = [];
   const alive: Int32Array[] = [];
   const aliveN = new Int32Array(cols + 1);
@@ -234,7 +262,7 @@ function enumerateWaysLeft(m: SlotModel, comp: Component, weight: number, acc: A
   const dfs = (c: number, p: number, coins: number, scat: number): void => {
     if (aliveN[c] === 0) {
       const suf = suffix[c];
-      for (let r = 0; r < suf.length; r++) if (suf[r]) add(acc, coins, scat + r, weight * p * suf[r]);
+      for (let r = 0; r < suf.v.length; r++) add(acc, coins, scat + suf.v[r], weight * p * suf.p[r]);
       return;
     }
     if (c === cols) {
@@ -275,7 +303,8 @@ function enumerateFull(m: SlotModel, comp: Component, weight: number, acc: Acc):
     if (c === cols) {
       const { coins, k } = boardCoins(m, board);
       const sp = m.scatter !== null ? m.scatterPay[String(k)] ?? 0 : 0;
-      add(acc, coins - sp, k, weight * p);
+      const n = m.post.affine ? targetCount(board, m.post.affine.target) : 0;
+      add(acc, coins - sp, k + AUXN * n, weight * p);
       return;
     }
     for (const { win, p: q } of comp.windows[c]) {
@@ -288,20 +317,35 @@ function enumerateFull(m: SlotModel, comp: Component, weight: number, acc: Acc):
 
 // --------------------------------------------------------------------------- assembly
 
-function toDist(m: SlotModel, acc: Acc, tier: 'exact' | 'mc', method: string, n?: number): SpinDist {
+/**
+ * Assemble (evaluator coins, aux) entries into (coins, K): the evaluator coins × the mechanics'
+ * multiplier law (exactly, as a convolution with its pmf given N; skipped for sampled entries,
+ * which already carry their sampled multiplier), + the scatter pay of K.
+ */
+function toDist(m: SlotModel, acc: Acc, tier: 'exact' | 'mc', method: string, n?: number, multiplied = false): SpinDist {
   const merged = new Map<number, number>();
-  for (const [key, p] of acc) {
-    const k = key % KMUL;
-    const line = (key - k) / KMUL;
-    const coins = line + (m.scatter !== null ? m.scatterPay[String(k)] ?? 0 : 0);
-    const nk = coins * KMUL + k;
+  const post = !multiplied && hasPost(m.post) ? m.post : null;
+  const memo = new Map<number, Map<number, number>>();
+  const put = (coins: number, k: number, p: number) => {
+    const nk = coins * AUXN + k;
     merged.set(nk, (merged.get(nk) ?? 0) + p);
+  };
+  for (const [key, p] of acc) {
+    const aux = key % KMUL;
+    const line = (key - aux) / KMUL;
+    const k = aux % AUXN;
+    const sp = m.scatter !== null ? m.scatterPay[String(k)] ?? 0 : 0;
+    if (!post || line === 0) {
+      put(line + sp, k, p);
+      continue;
+    }
+    for (const [mult, q] of multiplierPmf(post, (aux - k) / AUXN, memo)) put(line * mult + sp, k, p * q);
   }
   const keys = [...merged.keys()].sort((a, b) => a - b);
-  const out: SpinDist = { coins: [], k: [], p: [], tier, method };
+  const out: SpinDist = { coins: [], k: [], p: [], tier, method: post ? `${method}; × the mechanics' multiplier law (exact convolution)` : method };
   for (const key of keys) {
-    const k = key % KMUL;
-    out.coins.push((key - k) / KMUL);
+    const k = key % AUXN;
+    out.coins.push((key - k) / AUXN);
     out.k.push(k);
     out.p.push(merged.get(key)!);
   }
@@ -313,22 +357,44 @@ function windowProduct(comp: Component): number {
   return comp.windows.reduce((a, w) => a * w.length, 1);
 }
 
+/**
+ * Upper bound on the window combinations the ways (anchor left) walk visits: past reel d it goes
+ * on only while some paying symbol (or a wild) shows on every reel 0..d, so the nodes at depth d+1
+ * are ≤ Π_{c≤d} |W_c| · min(1, Σ_s Π_{c<d+1} P(reel c shows s or a wild)).
+ */
+function waysWalkBound(m: SlotModel, comp: Component): number {
+  const hit = m.paying.map((s) => comp.windows.map((wins) => wins.reduce((a, { win, p }) => (win.some((v) => v === s || m.wilds.has(v)) ? a + p : a), 0)));
+  let nodes = 0;
+  let prefix = 1;
+  for (let d = 0; d < m.cols; d++) {
+    prefix *= comp.windows[d].length;
+    let alive = 0; // P(some run alive after reels 0..d-1)
+    if (d === 0) alive = 1;
+    else for (const h of hit) alive += h.slice(0, d).reduce((a, x) => a * x, 1);
+    nodes += prefix * Math.min(1, alive);
+  }
+  return nodes;
+}
+
 /** Can the exact distribution be enumerated within the budget? (reason when not) */
 export function enumerationPlan(specOrModel: SlotSpec | SlotModel, opts: DistributionOptions = {}): { exact: boolean; method: string } {
   const m = asModel(specOrModel);
   if (m.closedFormRefusal) return { exact: false, method: `no closed form (${m.closedFormRefusal})` };
   const maxBoards = opts.maxBoards ?? 5e8;
   const maxFull = opts.maxFullBoards ?? 6e7;
-  const boards = m.components.reduce((a, c) => a + windowProduct(c), 0);
   const law = m.law;
   const pruned =
     (law.kind === 'payline' && law.direction === 'left' && law.anchor === 'left') || (law.kind === 'ways' && law.anchor === 'left');
-  if (pruned && boards <= maxBoards)
-    return { exact: true, method: `exact enumeration of ${boards.toExponential(2)} window combinations, stopped early once the ${law.kind} total is decided` };
+  const boards = m.components.reduce((a, c) => a + windowProduct(c), 0);
+  // ways (anchor left) walks past reel d only while some symbol's run is alive: bound the walk by
+  // the union bound on that (never above the full product)
+  const work = law.kind === 'ways' && pruned ? m.components.reduce((a, c) => a + Math.min(windowProduct(c), waysWalkBound(m, c)), 0) : boards;
+  const what = work < boards ? `${boards.toExponential(2)} window combinations (at most ${work.toExponential(2)} walked)` : `${boards.toExponential(2)} window combinations`;
+  if (pruned && work <= maxBoards) return { exact: true, method: `exact enumeration of ${what}, stopped early once the ${law.kind} total is decided` };
   if (!pruned && boards <= maxFull) return { exact: true, method: `exact enumeration of all ${boards.toExponential(2)} window combinations` };
   return {
     exact: false,
-    method: `${boards.toExponential(2)} window combinations exceed the enumeration budget (${(pruned ? maxBoards : maxFull).toExponential(0)})`,
+    method: `${what} exceed the enumeration budget (${(pruned ? maxBoards : maxFull).toExponential(0)})`,
   };
 }
 
@@ -366,9 +432,11 @@ export function sampledSpinDistribution(specOrModel: SlotSpec | SlotModel, n = 2
     const board = boardAt(m, comp, stops);
     const { coins, k } = boardCoins(m, board);
     const sp = m.scatter !== null ? m.scatterPay[String(k)] ?? 0 : 0;
-    add(acc, coins - sp, k, 1 / n);
+    let line = coins - sp;
+    if (line && hasPost(m.post)) line *= sampleMultiplier(m.post, m.post.affine ? targetCount(board, m.post.affine.target) : 0, rng);
+    add(acc, line, k, 1 / n);
   }
-  return toDist(m, acc, 'mc', `Monte Carlo over ${n.toLocaleString('en-US')} uniform-stop spins (seed ${seed}), closed-form board evaluator`, n);
+  return toDist(m, acc, 'mc', `Monte Carlo over ${n.toLocaleString('en-US')} uniform-stop spins (seed ${seed}), closed-form board evaluator${hasPost(m.post) || m.mechanicLabels.length ? ' with the mechanics\' laws' : ''}`, n, true);
 }
 
 /** Exact when enumerable, else the stop-sampling Monte Carlo (throws NoClosedForm for specs with no closed-form evaluator). */

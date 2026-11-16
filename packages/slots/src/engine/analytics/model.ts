@@ -10,11 +10,18 @@
 //   scatter_pays `scatter_analytics.evaluator.evaluate_board` (count anywhere, no tumble)
 // plus the scatter pay on the total visible scatter count (`scatter_pay[str(n)]`, 0 when absent).
 //
-// Anything outside that (mechanics, cluster, connected ways, height laws, a top reel, per-reel
-// pools, window catalogs) has no closed form here: `closedFormRefusal` names the reason and the
-// caller falls back to Monte Carlo (analytics/mc.ts).
+// The mechanic families with an exact law (walking_wild, expanding_wild, mystery_reveal,
+// global_iid, global_additive; ./mechanics.ts) are folded in: their window maps / mixtures expand
+// `components` (reel set × mixture outcome, windows transformed), and their multipliers of the
+// evaluator coins are `post`. The closed forms and the enumeration read the WINDOWS, never the
+// strips (the strips stay for stop sampling, with `colMap`).
+//
+// Anything outside that (other mechanics, cluster, connected ways, height laws, a top reel,
+// per-reel pools, window catalogs) has no closed form here: `closedFormRefusal` names the reason
+// and the caller falls back to Monte Carlo (analytics/mc.ts).
 
 import type { SlotSpec } from '../types';
+import { expandComponents, expansionSize, MAX_COMPONENTS, mechanicLaws, type PostLaw } from './mechanics';
 
 export type PaylineDirection = 'left' | 'both_max' | 'both_additive';
 export type Anchor = 'left' | 'any';
@@ -37,13 +44,18 @@ export interface ReelWindow {
   p: number;
 }
 
-/** A product-form component: one weighted reel set. */
+/** A product-form component: one weighted reel set (× one mixture outcome of the mechanics). */
 export interface Component {
-  /** Set weight ÷ total weight. */
+  /** Set weight ÷ total weight (× the outcome's probability). */
   weight: number;
+  /** The reel set's physical strips (stop sampling only: the closed forms read `windows`). */
   strips: number[][];
-  /** Per reel, its distinct windows. */
+  /** Per reel, its distinct windows (after the mechanics' window maps). */
   windows: ReelWindow[][];
+  /** The mechanics' window maps for a sampled column (absent = identity). */
+  colMap?: (c: number, col: number[]) => number[];
+  /** The mixture outcome, when the mechanics expanded the set. */
+  label?: string;
 }
 
 export interface SlotModel {
@@ -61,6 +73,12 @@ export interface SlotModel {
   scatterPay: Record<string, number>;
   triggerMin: number | null;
   components: Component[];
+  /** What multiplies the evaluator coins (global_iid / global_additive); never the scatter pay. */
+  post: PostLaw;
+  /** 'exact_mixture' when a mixture term (walking_wild, mystery_reveal) is involved. */
+  tier: 'exact' | 'exact_mixture';
+  /** One line per mechanic law. */
+  mechanicLabels: string[];
   /** Non-null when this spec has no closed form here (the reason, by name). */
   closedFormRefusal: string | null;
 }
@@ -124,8 +142,8 @@ export function buildModel(spec: SlotSpec): SlotModel {
     law = { kind: 'scatter_pays', minCount: Number.POSITIVE_INFINITY };
   }
 
-  const mech = spec.mechanics ?? [];
-  if (mech.length) refusals.push(`mechanics ${JSON.stringify(mech.map((m) => (m as Record<string, unknown>).id ?? m.family))}: not ported to the TypeScript closed forms`);
+  const laws = mechanicLaws(spec, cols, wilds, scatter);
+  refusals.push(...laws.refusals);
   const hl = (spec as Record<string, unknown>).height_law as { kind?: string } | undefined;
   if (hl && hl.kind && hl.kind !== 'fixed') refusals.push(`height_law ${hl.kind}`);
   if ((spec.geometry as Record<string, unknown>).top_reel != null) refusals.push('geometry.top_reel');
@@ -145,6 +163,10 @@ export function buildModel(spec: SlotSpec): SlotModel {
   } else {
     refusals.push(`board_law ${bl.kind}: only global reel-set mixtures are ported`);
   }
+  const nComp = expansionSize(components.length, laws.transforms);
+  let expanded = components;
+  if (nComp > MAX_COMPONENTS) refusals.push(`mechanics mixture of ${nComp} components exceeds ${MAX_COMPONENTS}`);
+  else if (!laws.refusals.length) expanded = expandComponents(components, laws.transforms);
 
   const paytable: Record<string, Record<string, number>> = {};
   for (const [k, tbl] of Object.entries(spec.pays.paytable)) {
@@ -170,7 +192,10 @@ export function buildModel(spec: SlotSpec): SlotModel {
     paying,
     scatterPay,
     triggerMin,
-    components,
+    components: expanded,
+    post: laws.post,
+    tier: laws.transforms.some((t) => t.kind === 'mixture') ? 'exact_mixture' : 'exact',
+    mechanicLabels: laws.labels,
     closedFormRefusal: refusals.length ? refusals.join('; ') : null,
   };
 }
@@ -315,12 +340,19 @@ export function boardCoins(m: SlotModel, board: number[][]): { coins: number; k:
   return { coins: evaluatorCoins(m, board) + sp, k };
 }
 
-/** The board shown by stops on a component's strips. */
+/** The board shown by stops on a component's strips (after the component's window maps, if any). */
 export function boardAt(m: SlotModel, comp: Component, stops: number[]): number[][] {
   return comp.strips.map((strip, c) => {
     const L = strip.length;
     const col: number[] = [];
     for (let i = 0; i < m.rows[c]; i++) col.push(strip[(stops[c] + i) % L]);
-    return col;
+    return comp.colMap ? comp.colMap(c, col) : col;
   });
+}
+
+/** Visible cells of `target` on a board. */
+export function targetCount(board: number[][], target: Set<number>): number {
+  let n = 0;
+  for (const col of board) for (const v of col) if (target.has(v)) n++;
+  return n;
 }
