@@ -48,7 +48,7 @@ The maths authority is the manager's **Slot Math engine pack** (`/Users/petercyl
 | Measure | What it means | Healthy band |
 |---|---|---|
 | RTP | Long-run return | 95.5–96.5% |
-| Hit rate | Spins that pay anything | 20–45%. Classic 3×3: 10–25%; cluster/scatter pays: 25–45% |
+| Hit rate | Spins that pay anything | 20–45%. Classic 3×3: 10–30% (a medium-volatility 3×3 needs ~25%+ to meet its dry-streak limit); cluster/scatter pays: 25–45% |
 | Win > stake rate | Spins that return more than the stake | 8–25% |
 | Volatility (SD of win per spin, in stakes) | Swinginess | Low 2–5, medium 5–10, high 10–20, extreme > 20. It must match the theme's promise and the manifest |
 | Feature frequency | 1 in N spins | 1 in 80–300 for free spins; 1 in 40–120 for smaller features |
