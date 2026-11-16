@@ -24,6 +24,58 @@ const svg = (size: number, body: ReactElement) => (
   </svg>
 );
 
+// A skyline over water, flat shapes only, a shade off the window tone so symbols stay readable.
+// Base: night navy. Feature: dusk, with a few flat bursts (stars of round-cap strokes) in the sky.
+const BUILDINGS = [
+  [0.0, 0.10, 0.30], [0.08, 0.08, 0.20], [0.15, 0.12, 0.38], [0.27, 0.07, 0.24], [0.33, 0.11, 0.33],
+  [0.44, 0.09, 0.18], [0.52, 0.12, 0.42], [0.64, 0.08, 0.26], [0.71, 0.11, 0.34], [0.82, 0.08, 0.20], [0.89, 0.11, 0.30],
+];
+function scene(w: number, h: number, dusk: boolean) {
+  const sky = dusk ? '#210F2C' : '#112238';
+  const city = dusk ? '#150822' : '#0A1623';
+  const water = dusk ? '#1E0D29' : '#0F2033';
+  const wave = dusk ? '#2E1640' : '#1A3048';
+  const lit = dusk ? '#4A2358' : '#24405C';
+  const horizon = h * 0.72;
+  const bursts = dusk
+    ? [[0.2, 0.2, 0.09], [0.78, 0.15, 0.11], [0.52, 0.32, 0.07]]
+    : [];
+  return (
+    <g>
+      <rect width={w} height={h} fill={sky} />
+      {bursts.map(([bx, by, br], i) => {
+        const r = br * w;
+        return (
+          <g key={i} stroke={lit} strokeWidth={Math.max(2, w * 0.006)} strokeLinecap="round">
+            {Array.from({ length: 8 }, (_, k) => {
+              const a = (k * Math.PI) / 4;
+              return (
+                <line
+                  key={k}
+                  x1={bx * w + Math.cos(a) * r * 0.45}
+                  y1={by * h + Math.sin(a) * r * 0.45}
+                  x2={bx * w + Math.cos(a) * r}
+                  y2={by * h + Math.sin(a) * r}
+                />
+              );
+            })}
+          </g>
+        );
+      })}
+      {BUILDINGS.map(([x, bw, bh], i) => (
+        <g key={i}>
+          <rect x={x * w} y={horizon - bh * h} width={bw * w + 1} height={bh * h} fill={city} />
+          <rect x={x * w + bw * w * 0.3} y={horizon - bh * h + h * 0.04} width={Math.max(2, bw * w * 0.12)} height={h * 0.03} fill={lit} />
+        </g>
+      ))}
+      <rect y={horizon} width={w} height={h - horizon} fill={water} />
+      {[0.08, 0.16, 0.24].map((f, i) => (
+        <rect key={i} x={w * (0.1 + i * 0.3)} y={horizon + h * f} width={w * 0.22} height={Math.max(2, h * 0.012)} rx={2} fill={wave} />
+      ))}
+    </g>
+  );
+}
+
 export const finaleTheme: SlotTheme = {
   name: 'Grand Finale',
   palette: {
@@ -37,6 +89,8 @@ export const finaleTheme: SlotTheme = {
     featureTile: C.duskTile,
   },
   window: { cell: 'tile', separators: 'gap', frameWidth: 5, radius: 4, cellRadius: 4 },
+  backdrop: (w, h) => scene(w, h, false),
+  featureBackdrop: (w, h) => scene(w, h, true),
 };
 
 // Spokes of a round burst: [x1, y1, x2, y2] lines from the centre outwards.

@@ -11,7 +11,7 @@ const facts = parseSlotFacts(factsRaw);
 
 // Short lines only: every line is under 9 words.
 const copy: SlotCopy = {
-  featureName: 'Grand Finale spins',
+  featureName: 'Finale spins',
   introNote: 'More rockets. Bigger numbers.',
   rule: '10 or more anywhere pay. Rockets multiply.',
   wildText: 'Any firework. Its +N joins the multiplier.',
