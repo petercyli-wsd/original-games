@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot, type SpinResult } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, combinedMultiplierChip, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -544,5 +544,16 @@ describe('a grid that opens locked rows (expanding_grid_structural)', () => {
   it('a cell that falls may not change symbol', () => {
     expect(terminalMaps(res([6, 5, 11], [0, 1]))).not.toBeNull(); // 5 falls one row: fine
     expect(terminalMaps(res([6, 8, 11], [0, 1]))).toBeNull(); // 5 falls and turns into 8: not a fall
+  });
+});
+
+describe('round 13: combined multiplier chip', () => {
+  const rockets: { total: number; parts: number[]; kind: 'additive' } = { total: 9, parts: [8], kind: 'additive' };
+  it('shows the feature multiplier and the spin multiplier and their product, under 9 words', () => {
+    expect(combinedMultiplierChip({ ...rockets }, 9, { additive: 'Rockets' })).toBe('Spin ×9 · Rockets ×9 = ×81');
+    expect(combinedMultiplierChip({ total: 5, kind: 'reel' }, 3, { reel: 'Marquee', spin: 'Free' })).toBe('Free ×3 · Marquee ×5 = ×15');
+    expect(wordCount(combinedMultiplierChip({ ...rockets }, 9, { additive: 'Rockets' })!)).toBeLessThan(9);
+    expect(combinedMultiplierChip({ ...rockets }, 9, { spin: 'Free spin multiplier', additive: 'Rocket wilds' })).toBe('Multiplier ×81');
+    expect(combinedMultiplierChip({ ...rockets }, 1)).toBe('Multiplier ×9 (1 + 8)');
   });
 });

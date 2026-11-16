@@ -180,6 +180,7 @@ export function SlotGame(props: SlotGameProps) {
   const [card, setCard] = useState<CardProps | null>(null);
   const [feat, setFeat] = useState<FeatureState | null>(null);
   const [rmult, setRmult] = useState<RoundMultiplier | null>(null);
+  const [overlayStep, setOverlayStep] = useState<{ step: number; steps: number } | undefined>(undefined);
   const [overlayDecor, setOverlayDecor] = useState<Record<string, unknown> | undefined>(undefined);
   const mrCfg = copy?.multiplierReel;
   // The marquee's values per phase: given by the game, else each phase's own `global_iid` (the feature spec's, else the base's).
@@ -475,6 +476,9 @@ export function SlotGame(props: SlotGameProps) {
     const steps = res.steps;
     const rm = roundMultiplier(res.decor);
     setNoWin(res.totalCoins === 0);
+    // The overlay hook sees the spin's decor from the moment it lands, and the step on show as the cascade or chain advances.
+    setOverlayDecor(res.decor);
+    setOverlayStep({ step: 0, steps: res.steps.length });
     // A respin chain can also run inside a free spin: it holds cells and counts ticks, but has no cards of its own.
     const mod = modifierOf(res, customDetect);
     const full = isBase && !!mod;
@@ -511,11 +515,12 @@ export function SlotGame(props: SlotGameProps) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
       if (ov.size) setOverlays(ov);
       setOverlayDecor(res.decor);
-      const chipText = rm && res.totalCoins > 0 ? combinedMultiplierChip(rm, m, { ...copy?.multiplierLabels, reel: copy?.multiplierLabels?.reel ?? copy?.multiplierReel?.label }) : null;
-      if (chipText) {
-        setChip({ text: chipText, event: true });
-        await wait(T(800));
-      }
+    }
+    // The multiplier a spin carries shows once, before its wins (cascades included), combined with the feature's own.
+    const chipText = !mod && rm && rm.kind !== 'orbs' && res.totalCoins > 0 ? combinedMultiplierChip(rm, m, { ...copy?.multiplierLabels, reel: copy?.multiplierLabels?.reel ?? copy?.multiplierReel?.label }) : null;
+    if (chipText) {
+      setChip({ text: chipText, event: true });
+      await wait(T(800));
     }
 
     const factors = stepMults(res.decor);
@@ -543,6 +548,7 @@ export function SlotGame(props: SlotGameProps) {
             setLine(null);
             setBreakdown([]);
           });
+          if (alive.current) setOverlayStep({ step: i + 1, steps: steps.length });
           if (alive.current && badges) setOverlays(badges[i + 1]);
         }
       } else if (next) {
@@ -611,6 +617,7 @@ export function SlotGame(props: SlotGameProps) {
         }
         // A chain tick takes about half a second in Manual (a press on Skip fast-forwards the rest of it).
         if (only.size) await r?.spin({ board: next.board, only, turbo: fastNow(), speed: (mod ? 0.55 : 1) * k });
+        if (alive.current) setOverlayStep({ step: i + 1, steps: steps.length });
         if (mod && heldSets && alive.current && full) setFeat((f) => (f ? { ...f, held: heldSets[i + 1].size } : f));
         if (mod && pending && alive.current && i + 1 < steps.length - 1) await showPending(i + 1);
         else if (mod && landed && alive.current) {
@@ -1008,6 +1015,7 @@ export function SlotGame(props: SlotGameProps) {
             chain={feat?.kind === 'respin'}
             renderOverlay={renderOverlay}
             overlayDecor={overlayDecor}
+            overlayStep={overlayStep}
             held={held}
             marks={marks}
             wildIds={wildIds}

@@ -197,8 +197,8 @@ export const slotStyles = /* css */ `
 .sl-facts dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 @container (max-width: 760px) {
-  .sl-mreel { gap: 3px; }
-  .sl-mreel-v { flex: 1 1 0; padding: 4px 2px; font-size: var(--fs-1); }
+  .sl-mreel { gap: 5px; }
+  .sl-mreel-v { flex: 1 1 0; padding: 4px 3px; font-size: var(--fs-1); }
   .sl-mreel-label { margin-right: var(--sp-1); }
   .sl-card { padding: var(--sp-4); }
   .sl-card-amount { font-size: var(--fs-5); }
