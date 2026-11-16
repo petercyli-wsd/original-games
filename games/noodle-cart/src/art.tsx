@@ -108,29 +108,103 @@ export const noodleTheme: SlotTheme = {
     featureTile: '#ffe2a0',
   },
   window: { cell: 'tile', separators: 'gap', frameWidth: 10, radius: 10, cellRadius: 8, backdropMargin: 22 },
-  backdrop: (w, h) => stall(w, h, { awnA: '#561b11', awnB: '#471810', lantern: '#5e2314', cord: '#4e1c11', counter: '#2f110a', post: '#451810' }),
+  backdrop: (w, h) => stall(w, h, { awnA: '#7e2a16', awnB: '#5a1e10', lantern: '#7c3418', cord: '#622414', counter: '#5a2012', post: '#64241a' }),
   featureBackdrop: rush,
 };
 
-/** A greyed, torn order ticket with a tag, drawn on a cook's tile where a ticket was hidden. */
-export const ticketHidden = (
-  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-    <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
-      <g transform="rotate(12 80 40)">
-        <path d="M66 12 H94 V50 L88 44 L82 50 L76 44 L70 50 L66 44 Z" fill="#b9b2a4" stroke="#6d665a" strokeWidth="3" strokeLinejoin="round" strokeDasharray="6 3" />
-        <path d="M70 24 L90 36 M90 24 L70 36" stroke="#6d665a" strokeWidth="3.5" strokeLinecap="round" />
-      </g>
-    </svg>
-    <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap', font: '700 8px/1.3 system-ui, sans-serif', background: C.ink, color: C.cream, padding: '1px 0' }}>Ticket hidden</span>
-  </div>
+/** The cook (the wild): a tall puffed hat over a smiling face. */
+function cookArt(): ReactElement {
+  return (
+    <>
+      <path d="M14 96 C14 80 28 76 50 78 C72 76 86 80 86 96 Z" fill={C.red} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
+      <circle cx="50" cy="60" r="17" fill={C.amber} stroke={C.ink} strokeWidth="3.5" />
+      <path d="M24 44 C8 40 8 14 30 16 C34 4 66 4 70 16 C92 14 92 40 76 44 Z" fill={C.white} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
+      <rect x="26" y="42" width="48" height="10" rx="2" fill={C.pink} stroke={C.ink} strokeWidth="3.5" />
+      <circle cx="43" cy="62" r="3.2" fill={C.ink} />
+      <circle cx="57" cy="62" r="3.2" fill={C.ink} />
+      <path d="M42 69 Q50 76 58 69" stroke={C.ink} strokeWidth="3.5" strokeLinecap="round" fill="none" />
+    </>
+  );
+}
+
+const RUSH_TILE = '#ffe2a0';
+const GHOST = '#f0b9a6'; // a faded lantern red: the ticket a cook stands on
+const GHOST_LINE = '#b5634c';
+
+/** A band of short text across the top or bottom of a cell, sized to the cell (container units). */
+const band = (text: string, at: 'top' | 'bottom', bg: string, fg: string, key?: string) => (
+  <span
+    key={key}
+    style={{
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      [at]: 0,
+      textAlign: 'center',
+      // Narrow cells (420 px frames) wrap to two lines rather than clip.
+      font: '800 clamp(9px, 14cqw, 13px)/1.2 system-ui, sans-serif',
+      padding: '1px 0',
+      background: bg,
+      color: fg,
+    }}
+  >
+    {text}
+  </span>
 );
 
-/** The tag on a cook that landed on its own in Dinner rush and filled its reel. */
-export const extraCookTag = (
-  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-    <span style={{ position: 'absolute', left: 0, right: 0, top: 0, textAlign: 'center', font: '700 9px/1.2 system-ui, sans-serif', background: C.pink, color: C.white, padding: '1px 0' }}>Extra cook!</span>
-  </div>
-);
+/**
+ * One cell of a cook's reel: together the three cells draw one lantern-red frame round the whole reel, with a
+ * "Wild cook" band on top ("Extra cook" for a cook that filled its reel in Dinner rush). Where the cook stands on
+ * an order ticket, the ticket shows as a large faded ghost behind him, tagged "Ticket hidden".
+ */
+export function cookOverlay(o: { kind: 'walker' | 'extra'; row: number; rows: number; hidden: boolean; rush: boolean }): ReactNode {
+  const first = o.row === 0;
+  const last = o.row === o.rows - 1;
+  const edge = `5px solid ${C.red}`;
+  return (
+    <div style={{ position: 'absolute', inset: 0, containerType: 'size' }}>
+      {o.hidden && (
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 8, overflow: 'hidden', background: o.rush ? RUSH_TILE : C.cream }}>
+          <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+            <g transform="rotate(-10 50 50)">
+              <path d="M14 4 H86 V88 L76 80 L66 88 L56 80 L46 88 L36 80 L26 88 L14 80 Z" fill={GHOST} stroke={GHOST_LINE} strokeWidth="3.5" strokeLinejoin="round" strokeDasharray="7 4" />
+              <circle cx="50" cy="26" r="12" fill="none" stroke={GHOST_LINE} strokeWidth="3.5" strokeDasharray="5 4" />
+            </g>
+            <g transform="translate(50 60) scale(0.62) translate(-50 -50)">{cookArt()}</g>
+          </svg>
+          {band('Ticket hidden', 'bottom', C.ink, C.cream)}
+        </div>
+      )}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top: first ? 0 : -4,
+          bottom: last ? 0 : -4,
+          borderLeft: edge,
+          borderRight: edge,
+          borderTop: first ? edge : undefined,
+          borderBottom: last ? edge : undefined,
+          borderRadius: `${first ? 8 : 0}px ${first ? 8 : 0}px ${last ? 8 : 0}px ${last ? 8 : 0}px`,
+          overflow: 'hidden',
+        }}
+      >
+        {first && band(o.kind === 'walker' ? 'WILD COOK' : 'EXTRA COOK', 'top', C.red, C.white)}
+      </div>
+    </div>
+  );
+}
+
+/** A new order in Dinner rush: the ticket gets an amber frame, "+1 spin" on top and the next spin's multiplier below. */
+export function orderBadge(o: { addedSpins: number; nextMultiplier: number | null }): ReactNode {
+  return (
+    <div style={{ position: 'absolute', inset: 0, containerType: 'size', border: `4px solid ${C.amber}`, borderRadius: 8, overflow: 'hidden' }}>
+      {o.addedSpins > 0 && band(`+${o.addedSpins} spin`, 'top', C.ink, C.amber)}
+      {o.nextMultiplier !== null && band(`Next ×${o.nextMultiplier}`, 'bottom', C.ink, C.amber)}
+    </div>
+  );
+}
 
 const rawSymbols: SlotSymbols = {
   // Scatter: an order ticket, a red slip with a torn edge and a stamp
@@ -153,19 +227,7 @@ const rawSymbols: SlotSymbols = {
   // Wild: the cook, a tall puffed hat over a smiling face
   2: {
     name: 'The cook',
-    render: (s) =>
-      svg(
-        s,
-        <>
-          <path d="M14 96 C14 80 28 76 50 78 C72 76 86 80 86 96 Z" fill={C.red} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
-          <circle cx="50" cy="60" r="17" fill={C.amber} stroke={C.ink} strokeWidth="3.5" />
-          <path d="M24 44 C8 40 8 14 30 16 C34 4 66 4 70 16 C92 14 92 40 76 44 Z" fill={C.white} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
-          <rect x="26" y="42" width="48" height="10" rx="2" fill={C.pink} stroke={C.ink} strokeWidth="3.5" />
-          <circle cx="43" cy="62" r="3.2" fill={C.ink} />
-          <circle cx="57" cy="62" r="3.2" fill={C.ink} />
-          <path d="M42 69 Q50 76 58 69" stroke={C.ink} strokeWidth="3.5" strokeLinecap="round" fill="none" />
-        </>,
-      ),
+    render: (s) => svg(s, cookArt()),
   },
   // P1 (top pay): golden noodle bowl, wide and low, noodles lifted on chopsticks
   3: {

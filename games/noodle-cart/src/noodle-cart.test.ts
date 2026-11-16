@@ -14,7 +14,7 @@ import { scatterCountDist, triggerProbability } from '../../../packages/slots/sr
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
 import { checkCopy } from '../../../packages/slots/src/ui';
 import { copy } from './copy';
-import { holdsTicket, noteSpin } from './walker';
+import { cookAt, holdsTicket, noteRound, noteSpin, orderAt } from './walker';
 import { createSeedSource, seededRng32 } from '../../../packages/slots/src/ui/engine-bridge';
 
 const base = spec as unknown as SlotSpec;
@@ -190,6 +190,76 @@ describe('the ticket in the cook\'s hand', () => {
   it('is not drawn on a decor the engine never reported', () => {
     expect(holdsTicket(undefined, 0, 0, 2)).toBe(false);
     expect(holdsTicket({ 'walking_wild.walker': 0 }, 0, 0, 2)).toBe(false);
+  });
+});
+
+describe('Dinner rush: every new ticket adds a spin and +1 multiplier', () => {
+  it('is the declared law: 5 spins, +1 spin per ticket spin, multiplier 1 + earlier ticket spins, cap 20', () => {
+    expect(feature.awards).toEqual({ '3': 5 });
+    expect(feature.retrigger).toEqual({ '1': 1 });
+    expect(feature.multiplier).toEqual({ kind: 'per_retrigger', start: 1, step: 1 });
+    expect(feature.maxSpins).toBe(20);
+    expect(alg.expectedSpinsGivenTrigger).toBeGreaterThan(7); // the rush runs past its 5 spins on average
+  });
+  it('plays exactly that in playRound, and the board notes name the order', () => {
+    const slot = createSlot({ spec: base, featureSpecs: { 'feature.spec.json': feat }, feature, maxWinStakes: 1e9 });
+    let rounds = 0, longest = 0, top = 0, orders = 0;
+    for (let seed = 1; rounds < 400; seed++) {
+      const r = slot.playRound(seed, seededRng32(seed * 31));
+      if (!r.feature) continue;
+      rounds++;
+      noteRound(base, feat, r);
+      const spins = r.feature.spins;
+      let tickets = 0;
+      let granted = 5;
+      spins.forEach((s, i) => {
+        expect(s.multiplier).toBe(1 + tickets); // orders so far raise the multiplier
+        const shown = s.result.steps[0].board.flat().filter((v) => v === 1).length;
+        if (shown > 0) {
+          tickets++;
+          orders++;
+          const add = Math.min(1, 20 - granted);
+          expect(s.retrigger).toBe(add);
+          granted += add;
+          // The badge sits on the first ticket and names what the next spin really uses.
+          const at = s.result.steps[0].board.findIndex((col) => col.includes(1));
+          const row = s.result.steps[0].board[at].indexOf(1);
+          const o = orderAt(s.result.decor, at, row, 1);
+          expect(o).not.toBeNull();
+          expect(o!.addedSpins).toBe(add);
+          expect(o!.nextMultiplier).toBe(spins[i + 1]?.multiplier ?? null);
+        } else {
+          expect(s.retrigger).toBe(0);
+          for (let c = 0; c < 5; c++) for (let row = 0; row < 3; row++) expect(orderAt(s.result.decor, c, row, 1)).toBeNull();
+        }
+        top = Math.max(top, s.multiplier);
+      });
+      expect(spins.length).toBe(granted);
+      longest = Math.max(longest, spins.length);
+    }
+    expect(orders).toBeGreaterThan(400); // tickets keep coming: about one spin in three
+    expect(longest).toBeGreaterThan(10);
+    expect(top).toBeGreaterThanOrEqual(5);
+  }, 60_000);
+  it('a cook on a base reel is the walker, and in the rush a cook symbol on reels 2-4 is an extra cook', () => {
+    const fe = new SlotEngine(feat);
+    let extra = 0;
+    for (let seed = 0; seed < 3000; seed++) {
+      const r = fe.spin(seed);
+      noteSpin(feat, r, true);
+      const w = r.decor['walking_wild.walker'] as number;
+      expect(cookAt(r.decor, w, 2)).toBe('walker');
+      const ex = (r.decor['expanding_wild.expandedReels'] as number[] | undefined) ?? [];
+      for (const c of ex) {
+        expect([1, 2, 3]).toContain(c);
+        expect(r.finalBoard[c].every((v) => v === 2)).toBe(true);
+        if (c !== w) {
+          expect(cookAt(r.decor, c, 2)).toBe('extra');
+          extra++;
+        }
+      }
+    }
+    expect(extra).toBeGreaterThan(0);
   });
 });
 
