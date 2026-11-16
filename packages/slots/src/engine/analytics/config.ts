@@ -53,8 +53,44 @@ export interface FreeSpinsConfig {
 
 export type FeatureConfig = FreeSpinsConfig;
 
+/**
+ * A feature that a spec MECHANIC runs inside one paid spin (hold-and-spin, sticky respins, an
+ * expanding-wild respin …), as opposed to free spins on a second spec. Declaring it lets
+ * slots:eval report its frequency, share of RTP and average win, and lets the kit name it.
+ *
+ * The feature's win on a spin is X − B0: the spin's total coins minus what the same initial
+ * board pays with the mechanic switched off (the spec without `mechanic`).
+ */
+export interface ModifierFeatureConfig {
+  /** Player-facing name, e.g. "Honey Harvest". */
+  name: string;
+  /** The spec mechanic id that runs it, e.g. "hold_and_spin_lock_respin". */
+  mechanic: string;
+  /**
+   * How to see that it ran on a spin; any matching signal counts. Default (omitted): a decor key
+   * starting with `${mechanic}.` is present on the spin.
+   */
+  detect?: {
+    /** A decor key present on the spin, e.g. "hold_and_spin_lock_respin.respins". */
+    decor?: string;
+    /** An extras label starting with this text, e.g. "HOLD & SPIN". */
+    extraPrefix?: string;
+    /** A flag starting with this text. */
+    flagPrefix?: string;
+    /** At least this many steps (base board + respins / cascades). */
+    minSteps?: number;
+  };
+  /**
+   * Optional exact trigger: it runs exactly when the INITIAL board shows at least `minCount` cells
+   * of `symbols`. Enables the exact P(trigger) and the trigger-conditional Monte Carlo
+   * (RTP = E[B0] exact + P(trigger) exact × E[X − B0 | trigger] by MC over triggering boards only).
+   */
+  trigger?: { symbols: number[]; minCount: number };
+}
+
 export interface SlotConfig {
   feature?: FeatureConfig;
+  modifierFeature?: ModifierFeatureConfig;
   /** The max-win cap, in stakes (docs/SLOTS.md §2.7: typically 5,000–25,000). */
   maxWinStakes: number;
   /** The band the theme promises (§3: SD per spin low 2–5, medium 5–10, high 10–20, extreme > 20). */
@@ -107,6 +143,14 @@ export function validateSlotConfig(c: unknown): string[] {
     errs.push("volatility must be 'low' | 'medium' | 'high' | 'extreme'");
   if (typeof o.targetRtp !== 'number' || !(o.targetRtp > 0.5 && o.targetRtp < 1))
     errs.push('targetRtp must be a fraction in (0.5, 1)');
+  if (o.modifierFeature !== undefined) {
+    const mf = o.modifierFeature as Record<string, unknown>;
+    if (!mf || typeof mf.name !== 'string' || !mf.name) errs.push('modifierFeature.name must be a non-empty string');
+    if (!mf || typeof mf.mechanic !== 'string' || !mf.mechanic) errs.push('modifierFeature.mechanic must be the mechanic id');
+    const t = mf?.trigger as Record<string, unknown> | undefined;
+    if (t !== undefined && !(Array.isArray(t.symbols) && t.symbols.every((s) => Number.isInteger(s)) && Number.isInteger(t.minCount) && (t.minCount as number) >= 1))
+      errs.push('modifierFeature.trigger must be { symbols: int[], minCount: int ≥ 1 }');
+  }
   if (o.feature !== undefined) {
     const f = o.feature as Record<string, unknown>;
     if (!f || f.kind !== 'free_spins') errs.push("feature.kind must be 'free_spins'");
