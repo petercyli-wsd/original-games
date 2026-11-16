@@ -25,25 +25,20 @@ const svg = (size: number, body: ReactElement) => (
   </svg>
 );
 
-// Paper landscape: layered folded hills and a paper sun, each a shade off the window tone.
-const hills = (w: number, h: number, c: { far: string; mid: string; near: string; sun: string; ray: string }) => {
+// Paper landscape: a sheet creased into big triangular facets, folded hills, and and no sun: nothing round sits behind a reel.
+// Everything sits a shade off the window tone.
+const hills = (w: number, h: number, c: { far: string; mid: string; near: string; sun: string; ray: string; facet: string }) => {
   const peaks = (base: number, amp: number, n: number, phase: number) => {
     const step = w / n;
     let d = `M0 ${h} L0 ${base}`;
     for (let i = 0; i <= n; i++) d += ` L${(i * step).toFixed(1)} ${(base - (i % 2 === phase ? amp : 0)).toFixed(1)}`;
     return d + ` L${w} ${h} Z`;
   };
-  const r = Math.min(w, h) * 0.11;
-  const cx = w * 0.78;
-  const cy = h * 0.2;
-  const rays = Array.from({ length: 8 }, (_, i) => {
-    const a = (i * Math.PI) / 4;
-    return `M${cx + Math.cos(a) * (r * 1.4)} ${cy + Math.sin(a) * (r * 1.4)} L${cx + Math.cos(a) * (r * 1.9)} ${cy + Math.sin(a) * (r * 1.9)}`;
-  }).join(' ');
   return (
     <>
-      <path d={rays} stroke={c.ray} strokeWidth={Math.max(2, r * 0.18)} strokeLinecap="round" fill="none" />
-      <circle cx={cx} cy={cy} r={r} fill={c.sun} />
+      <path d={`M0 0 L${w} 0 L${w} ${h * 0.5} Z`} fill={c.facet} />
+      <path d={`M0 ${h} L0 ${h * 0.35} L${w * 0.5} ${h} Z`} fill={c.facet} />
+      <path d={`M0 0 L${w} ${h} M${w} 0 L0 ${h}`} stroke={c.ray} strokeWidth="2" fill="none" />
       <path d={peaks(h * 0.62, h * 0.16, 4, 1)} fill={c.far} />
       <path d={peaks(h * 0.74, h * 0.14, 5, 0)} fill={c.mid} />
       <path d={peaks(h * 0.88, h * 0.1, 3, 1)} fill={c.near} />
@@ -64,9 +59,9 @@ export const unfoldTheme: SlotTheme = {
     featureTile: C.fTile,
   },
   // Soft fold lines between reels instead of bars: thin gap, small radii.
-  backdrop: (w, h) => hills(w, h, { far: '#34385A', mid: '#383C60', near: '#3D4268', sun: '#6B4A52', ray: '#4A3F55' }),
-  featureBackdrop: (w, h) => hills(w, h, { far: '#1E4A4D', mid: '#215357', near: '#285E60', sun: '#4F7F6E', ray: '#2F6560' }),
-  window: { cell: 'plain', separators: 'none', frameWidth: 6, radius: 6, cellRadius: 4 },
+  backdrop: (w, h) => hills(w, h, { far: '#34385A', mid: '#383C60', near: '#3D4268', sun: '#6B4A52', ray: '#33375A', facet: '#30344F' }),
+  featureBackdrop: (w, h) => hills(w, h, { far: '#1E4A4D', mid: '#215357', near: '#285E60', sun: '#3C6E66', ray: '#1C4549', facet: '#1B4448' }),
+  window: { cell: 'tile', separators: 'gap', frameWidth: 6, radius: 4, cellRadius: 0, backdropMargin: 14 },
 };
 
 export const unfoldSymbols: SlotSymbols = {
@@ -248,4 +243,21 @@ export const unfoldSymbols: SlotSymbols = {
         </>,
       ),
   },
+};
+
+// Every cell is a square of folded paper: a turned-down top-right corner, drawn over the tile (not the symbol).
+export const unfoldCorner = () => (
+  <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true" style={{ position: 'absolute', inset: 0 }}>
+    <path d="M80 0 H100 V20 Z" fill={C.ink} />
+    <path d="M80 0 L100 20 H80 Z" fill={C.indigo} />
+  </svg>
+);
+
+// The folded sun lands with a short burst of paper rays.
+export const unfoldFx = {
+  1: (size: number) => (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M50 0 L56 30 L50 40 L44 30 Z M50 100 L56 70 L50 60 L44 70 Z M0 50 L30 44 L40 50 L30 56 Z M100 50 L70 44 L60 50 L70 56 Z" fill={C.gold} />
+    </svg>
+  ),
 };

@@ -8,6 +8,8 @@ import type { FreeSpinsConfig } from '../../../packages/slots/src/engine/analyti
 import { scatterCountDist } from '../../../packages/slots/src/engine/analytics/exact';
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
 import type { SpinDist } from '../../../packages/slots/src/engine/analytics/distribution';
+import { checkCopy } from '@originals/slots/ui';
+import { copy } from './copy';
 import { components, mixtureRtp } from './mixture';
 import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
@@ -142,5 +144,11 @@ describe('backdrops', () => {
     const feat = JSON.stringify(unfoldTheme.featureBackdrop?.(600, 480));
     expect(base.length).toBeGreaterThan(100);
     expect(feat).not.toEqual(base);
+  });
+});
+
+describe('copy', () => {
+  it('has no line of 9 or more words', () => {
+    expect(checkCopy(copy)).toEqual([]);
   });
 });
