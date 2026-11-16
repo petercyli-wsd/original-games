@@ -44,6 +44,9 @@ Read these, and pass the relevant parts on in the subagent tasks:
 > - **The mechanic is the theme's action.** The modifier and the feature should be what the theme does (the tide washes symbols down as tumbles), not generic free spins in costume.
 > - **Not a reskin.** No two slots may share all of: evaluation law and board size, the modifier set (feature included), and the volatility band. That applies against the roster and within this batch.
 > - **No trademarked mechanic names** anywhere: not "Megaways" (call the variable-rows board something of your own), not "Hold & Win", not "Cash Collect".
+> - **A feature a player would describe to a friend** (batch 1 lesson: all 9 games scored excitement and fun ≤ 3, and every reviewer asked for this). Give the feature one theme-native rule that changes how it plays: revealed symbols stay sticky, a chime doubles the board, a queen spreads honey. "Free spins with a multiplier" or "respins that lock coins" alone read as a reskin of a known slot (uniqueness 2). The rule must still fit the runtime: a ported mechanic, a feature reel set, or the free-spins law. If it needs a new mechanic, say so; the screen then rejects it or flags it for porting.
+> - **The feature must clearly beat the base game.** Its average win should be at least about 25× at low volatility and 40× or more at medium and above, and it should look like a different place (a different backdrop or palette, its own counter).
+> - **A reachable max win.** State the path to the max win and estimate P(reach) per round. It must be better than 1 in 10⁹. In batch 1, 4 of 9 concept max wins (5,000×–10,000×) were unreachable and had to be cut to 1,000–3,000×. A big max win needs a fat top end, such as rare high multipliers or a fillable board, not just high pays.
 > - **It must explain itself in short lines.** The blind reviewer can't see any text of 9 or more words. Each paytable rule and feature card line must be under 9 words ("3 chests = 8 free spins"), and symbols must have distinct silhouettes readable at 48 px.
 >
 > For each concept, write a card in the format of `docs/slot-batches/batch-1-concepts.md`:
@@ -68,7 +71,8 @@ A different subagent screens, so the proposer never grades itself:
 > - **Runtime.** Every modifier is in `packages/slots/src/engine/mechanics/`, and the feature fits the free-spins law in `packages/slots/src/engine/analytics/config.ts`.
 > - **Feasibility.** Can it reach RTP 95.5–96.5% and every §3 band at once? In particular, does the hit rate meet the dry-streak limit of its volatility (compute the exact p95 of the longest losing run in 100 spins), and do the feature's frequency and average win fit its share of the RTP?
 > - **Theme–maths fit.** Do the volatility, feature and max win deliver what the theme promises?
-> - **Fun.** Is there anticipation, escalation and variety, and is the feature a different place from the base game?
+> - **Fun.** Is there anticipation, escalation and variety, and is the feature a different place from the base game? Does the feature have one theme-native rule a player would describe to a friend? Without one, fail the concept: batch 1 showed that safe features cap fun at 3.
+> - **Max-win reach.** Is the stated path to the max win plausible at better than 1 in 10⁹ per round? If not, fail it or cut the max win.
 > - **Readability.** Can it be read at 420 px wide? Do its rules fit in lines under 9 words?
 > - **Distinct.** Is it a reskin of the roster or of another concept? Use the same signature rule.
 > - **Trademarks.** Does it use a trademarked mechanic name anywhere?
