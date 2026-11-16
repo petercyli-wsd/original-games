@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "overall": 3,
+  "overall": 3.24,
   "scores": {
     "theme": 3,
     "readability": 4,
@@ -8,35 +8,33 @@
     "excitement": 3,
     "fun": 3,
     "creativity": 3,
-    "maths_fit": 2,
+    "maths_fit": 4,
     "uniqueness": 2,
     "polish": 3
   },
   "gate": false,
   "gateReasons": [
-    "overall 3.00 < 3.5",
-    "P(reaching the max win) per round 1 in 3.42e+9 to 4.79e+9 (mc bounds); MC 0 (0 hits / 200,000) outside > 1 in 10⁹"
+    "overall 3.24 < 3.5"
   ],
-  "verdict": "A competent, well-tuned fireworks scatter-pays slot whose rocket-wild multiplier is clear and whose finale delivers, but it sits close to Midnight Zone and the Gates of Olympus family, and it caps its climax too low to feel grand.",
+  "verdict": "A competent, fully in-band pays-anywhere slot whose multiplier-wild Rocket the player understood at once, but it plays as Gates of Olympus without tumbles, with a flat base game and a finale that doesn't build, so it needs a signature twist to earn its place.",
   "pros": [
-    "The Rocket's double job is easy to read: it lights up inside several symbol groups at once, and the caption shows how the multiplier is built ('Multiplier x10 (1 + 9)').",
-    "The feature really changes gear: +5/+10 rockets turn the same board into x16 to x56 spins and results of 46x to 127x, so the finale is a real climax.",
-    "Every measured band is met, at medium volatility as declared, with a 43.5% feature share and a dry-streak p95 of 14.",
-    "The blind player understood the top pay, the trigger and the wild completely; all on-screen rule text is under 9 words."
+    "Every measured band is in range, with a medium shape that fits a show: 35% hit rate, free spins 1 in 193 paying 83× on average, and 45% of the RTP in the feature.",
+    "The Rocket is a clear, on-theme hook: one wild that counts for every symbol and adds its +N to a multiplier shown as a sum ('x10 (1 + 9)'). The blind player understood it completely.",
+    "The win presentation is easy to read: the board dims, counted cells get frames, a per-symbol caption appears ('Willow x12 = 1.90'), and the end card breaks the feature total down.",
+    "All on-screen rule text is under 9 words, so nothing was hidden from the blind player."
   ],
   "cons": [
-    "Raise the max win to 5,000x or more and add a path that can reach it: for example, let feature rockets also roll +25/+50 rarely, or make the multiplier persist across the Finale spins, so the 1,000x cap is reachable more often than 1 in a billion.",
-    "Make the fireworks go off: play a short burst animation when a rocket lands, and a bigger burst on wins above 5x, and make the skyline backdrop visible around the grid (or remove it from behind the tile gaps, where it shows as stray dark dashes).",
-    "Separate the lows: recolour Palm or Peony away from magenta (the Rocket's colour), and lift the grey Willow and the Sparkler's stick to a lighter tone so they read on navy tiles.",
-    "Show the multiplier only when there's a win to apply it to, or label it 'no win to multiply'; and on multi-win spins, list each paying group (e.g. 'Palm x10 = 0.55, Ring x12 = ...') instead of only '5 wins = 15.60'.",
-    "Cap: maths_fit 3 → 2: P(reaching the max win) per round 1 in 3.42e+9 to 4.79e+9 (mc bounds); MC 0 (0 hits / 200,000) vs > 1 in 10⁹ (a §3 band missed by more than its width)"
+    "Make the finale build. For example, keep each Rocket's +N on a 'Finale multiplier' that grows across the free spins, or let rockets stick for the rest of the feature, so 'Finale' is a climax rather than 12 independent spins. Re-tune the Rocket value table to hold the 96% RTP.",
+    "Stop showing large multipliers on dead spins. Grey out the Multiplier readout, or show 'no win', when no symbol reaches 10. Also consider making a landed Rocket raise the count of the symbols around it, so an x12 or x71 never reads as a lost prize.",
+    "Give the base game tension and rhythm. Add a fuse counter ('Fuses 2/4') or a reel slow-down when 3 fuses are down and the 4th can still land, and shift strip weight so premiums reach 10 visibly more often (none won in 87 spins).",
+    "Fix the art weak spots. Remove the stray gold dashes between tiles, let the skyline and water show around the grid, and give the Rocket a shape far from the Roman candle (both are small magenta tubes). Also define the 7-fuse award, or cap the fuse count at 6, and explain the base vs feature 7-fuse pay (77.7× vs 1,842.7×)."
   ],
   "confusions": [
-    "Before the paytable it was not obvious that 10+ of a symbol were needed; some boards with 8-9 of a symbol paid nothing.",
-    "Base spins often showed a large multiplier (x10, x11) with no win, and I first wondered whether the multiplier was a meter that carried over; it does not.",
-    "Multi-win spins only showed a total ('5 wins = 15.60'), not which symbol paid what."
+    "Early on the Multiplier readout showed values like x12 on spins that paid nothing, so it was not clear at first that the multiplier only matters when a 10+ symbol count also lands.",
+    "A rocket counting toward two different symbols' wins in the same spin ('2 wins') was surprising until I worked out it is a wild for every firework.",
+    "The Win readout sometimes showed a running total mid-presentation that did not yet match the single caption under the board (e.g. Win 1.00 while the caption read Ring x10 = 0.57, before the second win was shown)."
   ],
   "players": 1,
-  "codeHash": "5e2fd28d8c2a7333",
+  "codeHash": "a15c7f317e379fb8",
   "date": "2026-11-16"
 }

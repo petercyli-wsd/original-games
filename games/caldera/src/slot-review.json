@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "overall": 3.24,
+  "scores": {
+    "theme": 4,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 3,
+    "uniqueness": 2,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.24 < 3.5"
+  ],
+  "verdict": "A tidy, correctly tuned cluster tumble whose x140 Eruption ladder gives a genuine climax, but it is Gonzo's avalanche ladder on a Reactoonz board, with a sub-par base game and a 3,000x cap that undersell the volcano.",
+  "pros": [
+    "Every one of the 11 measured bands passes, with no gate failures: RTP 95.94%, SD 11.3 (high as declared), feature 1 in 235 carrying 48.8% of the RTP at a 110x average.",
+    "The Eruption-spins ladder (x4, x8, x17, x35, x70, x140) is a real climax: all three players named a single free spin climbing the ladder as their best moment, with features paying 28x to 232x.",
+    "The rules are easy to read: all three players got the top pay, the trigger and the wild right. The on-screen rule lines are short, and the trigger card states spins, scatters and the starting Pressure in one line.",
+    "The theme vocabulary runs through everything (Pressure, Eruption spins, Fumarole, Lava pool, real rock and mineral names), so the cascade-to-climax story reads without explanation."
+  ],
+  "cons": [
+    "Make the maths keep the volcano promise: raise the max-win cap to 5,000-10,000x, or cap the paytable rows that exceed 3,000x (Sulphur 27-49 at 5,782x, Obsidian 27-49 at 3,084x) so no unreachable figure is shown, and move about 6-8 points of RTP from the feature into the base game (for example a base ladder of x1, x2, x4, x6, x10, x15, or one more wild per strip) so the base returns about 55% and does not bleed 0.3-0.8x sub-stake wins for 200 spins.",
+    "Fix the win display on cascade chains: clear the previous step's breakdown line when a new chip appears, keep the frames on the cells that paid (not on the cells that drop in), show the multiplier applied in the chip ('Fire opal x5 · Pressure x2 = 2.58'), show a running chain total next to the chip, and reset the base ladder highlight to empty when the feature ends.",
+    "Make the premiums look premium: move Basalt (L1) off the bright orange cube to a dull grey-brown column, and give Sulphur, Obsidian and Fire opal a lit tile or gold rim. Brighten the Obsidian blade's crack and widen its silhouette so it no longer blends with the dark Scoria at grid size.",
+    "Say and show the remaining feature rules: add a short line 'Pressure resets each free spin' to the feature card, add an honest tease (a slower final reel with a glowing frame) when two Fumaroles are showing and the third can still land, turn the feature board visibly red the moment the trigger card shows, and let the trigger spin's cascades finish before the card enables Start."
+  ],
+  "confusions": [
+    "The paytable's top line says 5,782x for 27-49 Sulphur crystals, but the same paytable lists max win as 3,000x; it is not explained how those fit.",
+    "The base Pressure ladder goes x1 x2 x3 x5 x8 x12, and it was not clear until I watched several spins that it steps up once per cascade within a single spin and resets each spin.",
+    "In Eruption spins the ladder changes to x4 x8 x17 x35 x70 x140 and resets to x4 every free spin; the card only says it 'starts at x4', so I first expected it to carry over between spins.",
+    "'Basalt x6 = 1.94': the 'x6' is the symbol count, but the ladder also uses 'x2', 'x5' for multipliers, and the pill doesn't say the pressure multiplier was applied.",
+    "The paytable lists Sulphur crystals 27-49 at 5,782x, but 'The numbers' says Max win 3,000x.",
+    "On one feature trigger the gold frames were on two fumaroles and a pumice stone, while the third fumarole sat unframed lower in the same column.",
+    "Winning-cluster frames sometimes sat on the new symbols that had dropped in, not on the paying ones (e.g. 'Steam ×11 = 2.00' with frames over basalt, pumice and scoria), so in those frames I could not see what had paid.",
+    "Under a new win chip, the previous step's breakdown (e.g. 'Scoria ×6 = 0.64  Basalt ×5 = 0.77') stayed visible, which looked like it belonged to the current win.",
+    "Paytable says max win 3,000× but lists Sulphur crystals 27–49 at 5,782× (and Obsidian at 3,084×)."
+  ],
+  "players": 3,
+  "codeHash": "4dd32b1344bb8e2b",
+  "date": "2026-11-16"
+}
