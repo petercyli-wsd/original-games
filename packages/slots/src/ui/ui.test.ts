@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, heldByStep, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -309,7 +309,7 @@ describe('round 5: no spoilers, ladder, ways', () => {
   it('a chain announces its opening respins, and counts what is left from the past only', () => {
     const spec = (params: object) => ({ mechanics: [{ id: 'hold_and_spin_lock_respin', params }] }) as never;
     expect(modifierStartTitle(spec({ respins: 3 }))).toEqual({ title: '3 respins', initial: 3 });
-    expect(modifierStartTitle({ mechanics: [{ id: 'sticky_respin', params: { max_respins: 4 } }] } as never)).toEqual({ title: 'Up to 4 respins', initial: null });
+    expect(modifierStartTitle({ mechanics: [{ id: 'sticky_respin', params: { max_respins: 4 } }] } as never)).toEqual({ title: 'Up to 4 respins', initial: null, max: 4 });
     expect(modifierStartTitle({ mechanics: [] } as never)).toBeNull();
     // coins land at steps 1 and 4: respins left reset to 3 each time a new coin lands
     expect([0, 1, 2, 3, 4, 5].map((j) => respinsLeft([0, 10, 10, 10, 20, 20], j, 3))).toEqual([3, 3, 2, 1, 3, 2]);
@@ -369,5 +369,24 @@ describe('round 6: win labels from every evaluator', () => {
     expect(parseWinLabel('WD x3 (wild own pay)')).toEqual({ symbol: 'WD', count: 3 });
     expect(parseWinLabel('L2 x3 (4 paths, connected)')).toEqual({ symbol: 'L2', count: 3 });
     expect(parseWinLabel('cluster L1 x10')).toEqual({ symbol: 'L1', count: 10 });
+  });
+});
+
+describe('round 7: held cells and copy check', () => {
+  it('held cells are coins that have landed or locked cells, from the step they hold their final symbol', () => {
+    const b = (...c: number[][]) => c;
+    const steps = [b([1, 0], [0, 0]), b([1, 0], [0, 9]), b([1, 9], [0, 9])];
+    const res = { steps: steps.map((board) => ({ board, stepCoins: 0, wins: [] })), finalBoard: steps[2], decor: { 'x.heldVals': { '0,0': 1, '1,1': 2, '0,1': 3 } }, extras: [], flags: [], set: 0, stops: [], totalCoins: 0, trigger: null } as never;
+    expect(heldByStep(res).map((s) => [...s].sort())).toEqual([['0,0'], ['0,0', '1,1'], ['0,0', '0,1', '1,1']]);
+    const locked = { ...(res as object), decor: { 'sticky_respin.locked': [[0, 0], [1, 1]] } } as never;
+    expect(heldByStep(locked).map((s) => s.size)).toEqual([1, 2, 2]);
+  });
+  it('checkCopy names every game line of 9 or more words (blind reviewers cannot see them)', () => {
+    expect(checkCopy({ rule: 'Match three on a line to win', wildText: 'The worker bee stands in for every symbol except honey cells.', modifierRules: ['Short one', 'This rule line has far too many words to be read'] })).toEqual([
+      { field: 'wildText', text: 'The worker bee stands in for every symbol except honey cells.', words: 11 },
+      { field: 'modifierRules[1]', text: 'This rule line has far too many words to be read', words: 11 },
+    ]);
+    expect(checkCopy(undefined)).toEqual([]);
+    expect(checkCopy({ extrasLabels: { A: 'one two three four five six seven eight nine' } })).toHaveLength(1);
   });
 });

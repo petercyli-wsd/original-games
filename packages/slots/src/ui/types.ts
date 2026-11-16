@@ -124,7 +124,11 @@ export interface SlotCopy {
    * A multiplier reel (`global_iid`: the marquee) shown spinning with the reels. `values` default to the spec's
    * `global_iid` value_pmf keys; `decorKey` defaults to "global_iid.mult".
    */
-  multiplierReel?: { label?: string; values?: number[] | { base?: number[]; feature?: number[] }; decorKey?: string };
+  multiplierReel?: { label?: string; values?: number[] | { base?: number[]; feature?: number[] }; decorKey?: string; dimOnLoss?: boolean };
+  /** The counter's label where respins reset on a new coin (hold and spin). Default "Respins left". */
+  respinsLeftLabel?: string;
+  /** The fill counter's word for hold and spin ("Filled 9/25"). Default "Filled". */
+  fillLabel?: string;
 }
 
 /** What a cell overlay hook gets to draw on top of a symbol (for example a ticket in a cook's hand). */
@@ -181,6 +185,8 @@ export interface SlotGameProps {
   symbols: SlotSymbols;
   /** Names and one-line texts (optional). */
   copy?: SlotCopy;
+  /** A short flat burst played when that symbol lands: `symbolFx[symbolId](size)` returns SVG (flat shapes, no glow). */
+  symbolFx?: Record<number, (size: number) => ReactElement>;
   /** Draws extra content over a symbol's tile: return null for none. It sits above the symbol and below the win frame. */
   renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
   /** Test and demo only: use this engine instead of `createSlot(...)`. */

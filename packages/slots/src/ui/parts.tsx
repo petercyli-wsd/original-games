@@ -88,15 +88,17 @@ export interface CardProps {
   lines?: string[];
   /** 1 or 2 for the big-win tiers (a thicker border at 2). */
   tier?: 0 | 1 | 2;
+  /** Where the card sits: 'center' (default), or 'top' / 'bottom' to keep clear of cells that must stay in view. */
+  placement?: 'center' | 'top' | 'bottom' | 'below';
   /** A button label: the card waits for a press. null: the card closes by itself or on a click. */
   button?: string | null;
   onContinue?: () => void;
 }
 
 /** A solid card centred over the reel window. */
-export function Card({ kicker, title, amount, lines, tier = 0, button, onContinue }: CardProps) {
+export function Card({ kicker, title, amount, lines, tier = 0, button, onContinue, placement = 'center' }: CardProps) {
   return (
-    <div className={`sl-card t${tier}`} role="status" onClick={onContinue}>
+    <div className={`sl-card t${tier} at-${placement}`} role="status" onClick={onContinue}>
       {kicker && <span className="sl-card-kicker">{kicker}</span>}
       {title != null && <b className="sl-card-title">{title}</b>}
       {amount != null && <b className="sl-card-amount">{amount}</b>}
@@ -118,7 +120,7 @@ export function Card({ kicker, title, amount, lines, tier = 0, button, onContinu
  * A multiplier reel (the marquee: ×1 ×2 ×3 ×5 ×10) in a row above the window. While the reels spin the highlight
  * steps along the values; when they stop it rests on the spin's value (or on none if the spin has none).
  */
-export function MultiplierReel({ label, values, spinning, value, turbo }: { label: string; values: number[]; spinning: boolean; value: number | null; turbo: boolean }) {
+export function MultiplierReel({ label, values, spinning, value, turbo, dim }: { label: string; values: number[]; spinning: boolean; value: number | null; turbo: boolean; dim?: boolean }) {
   const [at, setAt] = useState(0);
   useEffect(() => {
     if (!spinning) return;
@@ -130,7 +132,7 @@ export function MultiplierReel({ label, values, spinning, value, turbo }: { labe
     <div className="sl-mreel" role="img" aria-label={`${label}${!spinning && value ? ` ×${value}` : ''}`}>
       <span className="sl-mreel-label">{label}</span>
       {values.map((v) => (
-        <span key={v} className={'sl-mreel-v' + (v === on ? ' on' : '')}>
+        <span key={v} className={'sl-mreel-v' + (v === on ? ' on' : '') + (v === on && dim && !spinning ? ' dim' : '')}>
           ×{v}
         </span>
       ))}

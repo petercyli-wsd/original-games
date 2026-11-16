@@ -576,11 +576,11 @@ export function mixHex(a: string, b: string, t: number): string {
 // ---------------------------------------------------------------- what a chain announces (never its length)
 
 /** The respins a modifier chain starts with, from the mechanic's params: "3 respins", or "Up to 4 respins". Null if it names none. */
-export function modifierStartTitle(spec: SlotSpec): { title: string; initial: number | null } | null {
+export function modifierStartTitle(spec: SlotSpec): { title: string; initial: number | null; max?: number } | null {
   const m = spec.mechanics.find((x) => /respin|hold_and_spin/.test(x.id));
   const p = (m?.params ?? {}) as Record<string, unknown>;
   if (typeof p.respins === 'number') return { title: `${p.respins} respins`, initial: p.respins };
-  if (typeof p.max_respins === 'number') return { title: `Up to ${p.max_respins} respins`, initial: null };
+  if (typeof p.max_respins === 'number') return { title: `Up to ${p.max_respins} respins`, initial: null, max: p.max_respins };
   return null;
 }
 
@@ -612,4 +612,53 @@ export function stepMults(decor: Record<string, unknown> | undefined): number[] 
 export function waysOf(heights: (number | null)[]): number | null {
   const done = heights.filter((h): h is number => h !== null);
   return done.length ? done.reduce((a, b) => a * b, 1) : null;
+}
+
+// ---------------------------------------------------------------- held cells in a respin chain
+
+/**
+ * The cells held at each step of a respin chain: coins that have landed (hold and spin) and the cells in the spin's
+ * `*.locked` decor (sticky respins), once they hold their final symbol from that step on. Those are the cells that do
+ * not spin on the way to the next board.
+ */
+export function heldByStep(res: SpinResult): Set<string>[] {
+  const fin = res.finalBoard;
+  const cand = new Set<string>();
+  for (const [k, v] of Object.entries(res.decor ?? {})) {
+    if (/(held|coin|cash)vals?$/i.test(k) && isMoneyMap(v)) Object.keys(v).forEach((c) => cand.add(c));
+    if (/(^|\.)locked$/.test(k) && Array.isArray(v)) for (const c of v) if (Array.isArray(c) && c.length === 2) cand.add(`${c[0]},${c[1]}`);
+  }
+  return res.steps.map((_, j) => {
+    const out = new Set<string>();
+    for (const cell of cand) {
+      const [c, r] = cell.split(',').map(Number);
+      let stays = fin[c]?.[r] !== undefined;
+      for (let k = j; k < res.steps.length && stays; k++) stays = res.steps[k].board[c]?.[r] === fin[c][r];
+      if (stays) out.add(cell);
+    }
+    return out;
+  });
+}
+
+/** The cells of the grid in this spin (for a "Filled 9/25" counter). */
+export const gridCells = (res: SpinResult) => res.finalBoard.reduce((a, col) => a + col.length, 0);
+
+// ---------------------------------------------------------------- copy check
+
+/**
+ * Game-provided copy lines of 9 or more words (they are hidden from blind reviewers). Returns each offender with its
+ * field and word count; call it in a game's test: `expect(checkCopy(copy)).toEqual([])`.
+ */
+export function checkCopy(copy: SlotCopy | undefined): { field: string; text: string; words: number }[] {
+  if (!copy) return [];
+  const out: { field: string; text: string; words: number }[] = [];
+  const add = (field: string, text: unknown) => {
+    if (typeof text === 'string' && wordCount(text) >= 9) out.push({ field, text, words: wordCount(text) });
+  };
+  for (const k of ['featureName', 'introNote', 'rule', 'wildText', 'scatterText', 'modifierName', 'modifierIntro', 'respinLabel', 'respinsLeftLabel', 'fillLabel', 'pendingLabel', 'featureRule', 'chainRule'] as const) add(k, copy[k]);
+  copy.modifierRules?.forEach((t, i) => add(`modifierRules[${i}]`, t));
+  if (copy.extrasLabels && typeof copy.extrasLabels === 'object') Object.entries(copy.extrasLabels).forEach(([k, v]) => add(`extrasLabels.${k}`, v));
+  if (typeof copy.ladder === 'object') add('ladder.label', copy.ladder.label);
+  add('multiplierReel.label', copy.multiplierReel?.label);
+  return out;
 }

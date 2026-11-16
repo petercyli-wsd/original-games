@@ -73,6 +73,15 @@ export interface ReelWindowProps {
   feature?: boolean;
   /** A modifier chain (respins): the chain palette, a light tint of the base unless the theme sets one. */
   chain?: boolean;
+  /** Held cells ("col,row"): kept fixed and visible, with a lock frame, while the other positions spin (hold and spin, sticky respins). */
+  held?: ReadonlySet<string> | null;
+  /** Symbols that just landed and have a landing effect (see `SlotGameProps.symbolFx`), with a key per burst. */
+  fx?: { k: number; col: number; row: number; symbol: number }[];
+  symbolFx?: Record<number, (size: number) => ReactNode>;
+  /** A kit burst over the window; change the number to play it again (wins of 5× or more). */
+  burst?: number;
+  /** Called when a reel lands, with its cells. */
+  onLand?: (cells: { col: number; row: number; symbol: number }[]) => void;
   /** Called as reels stop: each reel's visible rows, null while it spins (for the ways readout of variable-height reels). */
   onHeights?: (heights: (number | null)[]) => void;
   /** Draws over a symbol's tile (see `SlotGameProps.renderOverlay`). */
@@ -93,7 +102,7 @@ const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights, held, fx, symbolFx, burst, onLand },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -132,6 +141,8 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
     return () => ro.disconnect();
   }, []);
 
+  const landRef = useRef(onLand);
+  landRef.current = onLand;
   const heightsRef = useRef(onHeights);
   heightsRef.current = onHeights;
   useEffect(() => {
@@ -230,6 +241,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
         stopped[c] = true;
         boardRef.current = boardRef.current.map((col, i) => (i === c ? newCells[c] : col));
         setBoard(boardRef.current);
+        landRef.current?.(next[c].map((symbol, row) => ({ col: c, row, symbol })));
         setPlans((p) => p.map((x, i) => (i === c ? null : x)));
         setAnt((a) => a.map((x, i) => (i === c ? false : x)));
         const nx = nextSpinning(c);
@@ -368,6 +380,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
     '--sl-frame': chain ? (t.chainFrame ?? mixHex(t.frame, '#ffffff', 0.18)) : feature && t.featureFrame ? t.featureFrame : t.frame,
     '--sl-tile': chain ? (t.chainTile ?? mixHex(t.tile ?? t.frame, '#ffffff', 0.12)) : feature && t.featureTile ? t.featureTile : (t.tile ?? t.frame),
     '--sl-hi': t.colors[0],
+    '--sl-lock': t.colors[1] ?? t.colors[0],
     '--sl-ink': t.ink ?? 'var(--text)',
     '--sl-fw': `${w.frameWidth}px`,
     '--sl-r': `${w.radius}px`,
@@ -380,7 +393,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
   const margin = backdropFnPresent(theme) ? Math.max(0, Math.min(48, w.backdropMargin ?? 0)) : 0;
   const backdropFn = feature && theme.featureBackdrop ? theme.featureBackdrop : theme.backdrop;
   const dimmed = !!win && win.size > 0;
-  const renderCell = (cell: Cell, c: number, r: number, h: number) => {
+  const renderCell = (cell: Cell, c: number, r: number, h: number, over = false) => {
     const art = symbols[cell.s];
     const size = Math.max(8, Math.min(cellW, h) * 0.88);
     const id = `${c},${r}`;
@@ -393,7 +406,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
           if (el) cellEls.current.set(cell.k, el);
           else cellEls.current.delete(cell.k);
         }}
-        className={'sl-cell' + (isWin ? ' win' : dimmed ? ' dim' : '')}
+        className={'sl-cell' + (isWin ? ' win' : dimmed ? ' dim' : '') + (held?.has(id) ? ' held' : '') + (over ? ' over' : '')}
         style={{ height: h, transform: `translateY(${r * h}px)` }}
       >
         <div className="sl-tile">
@@ -451,6 +464,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
                 ) : (
                   col.map((cell, r) => renderCell(cell, c, r, h))
                 )}
+                {plan && held && col.map((cell, r) => (held.has(`${c},${r}`) ? renderCell(cell, c, r, h, true) : null))}
               </div>
             );
           })}
@@ -471,6 +485,23 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
                 </>
               );
             })()}
+          </svg>
+        )}
+        {width > 0 && symbolFx && fx?.map((f) => {
+          const draw = symbolFx[f.symbol];
+          const rows = Math.max(1, board[f.col]?.length ?? maxRows);
+          const size = Math.min(cellW, height / rows) * 1.5;
+          return draw ? (
+            <div key={f.k} className="sl-fx" style={{ left: (f.col + 0.5) * cellW - size / 2, top: ((f.row + 0.5) * height) / rows - size / 2, width: size, height: size }}>
+              {draw(size)}
+            </div>
+          ) : null;
+        })}
+        {width > 0 && burst !== undefined && burst > 0 && (
+          <svg key={burst} className="sl-burst" viewBox="-50 -50 100 100" style={{ width: Math.min(width, height) * 0.9, height: Math.min(width, height) * 0.9 }} aria-hidden="true">
+            {Array.from({ length: 12 }, (_, i) => (
+              <polygon key={i} points="-4,-18 4,-18 0,-48" transform={`rotate(${i * 30})`} fill={t.colors[i % 2 === 0 ? 0 : Math.min(1, t.colors.length - 1)]} />
+            ))}
           </svg>
         )}
         </div>

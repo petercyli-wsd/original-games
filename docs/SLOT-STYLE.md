@@ -177,6 +177,16 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Standard moments.** The spin that triggers a feature frames the symbols that caused it (the scatters, or the coins of a hold-and-spin) for about a second, in Turbo briefly, before the card. Anticipation also covers hold-and-spin entry and checks the remaining reels' strips for the symbol. A cascade ladder (`cascade_step_ladder`) shows its rungs as a row that lights the paying step on show (the readout reads `copy.ladder.label`, default "Step": "Pressure ×5", or "Pressure ×5 · spin ×3"; free spins use the feature spec's own ladder, and six rungs fit one line at 420 px); a variable-height ways game shows "Ways n" as the reels stop. `copy.paytableFirst` (symbol ids) lists key symbols first, with the special symbols before the pays. The history chips are labelled "Recent rounds".
 
+**Respin chains.** Held cells (coins that have landed, or the cells a sticky chain locked) stay fixed and visible through every respin with a lock frame and their value badges; only the other positions spin. Hold and spin reads "Respins left: 3" and "Filled 9/25" (`copy.respinsLeftLabel`, `copy.fillLabel`); a sticky chain reads "Tick 2/4" (`copy.respinLabel`). A chain never waits for a press: it plays by itself, its intro card closes on its own, and a sticky chain has no card at all, only the badge. The line win that started a sticky chain shows first, then "Pending win". The chain's total and the big-win tier are one card, so a big win does not count up twice.
+
+**Several wins at once.** In Manual each win shows in turn (its cells, its line path, the chip "Symbol × count = amount"), then the summary "3 wins = 1.35" stays with a list under it of which win paid what ("Line 3 · Crab ×4 = 0.45"). Turbo shows the summary alone.
+
+**Cards keep clear.** The free-spins Start card never covers the trigger cells: it goes to the half of the window that has none, or below the window when every half has one. The trigger cells stay framed for 1 s (0.6 s in Turbo) before it appears. A mystery reveal ends with the chip "Squares → <name>", before any win counts. A multiplier reel dims its landed value on a spin that pays nothing (`copy.multiplierReel.dimOnLoss`, default on).
+
+**Landing effects.** `symbolFx={{ [symbolId]: (size) => <svg/> }}` plays a short flat burst over a symbol's cell when it lands, and the kit adds its own burst (rays in `colors[0]` and `colors[1]`) as the first win of a spin of 5× or more shows. Flat shapes, no glow.
+
+**Copy the blind reviewer can read.** A game's own copy lines of 9 or more words are hidden from blind reviewers. In development the kit warns for each one; `checkCopy(copy)` returns the offenders so a game test can assert `expect(checkCopy(copy)).toEqual([])`.
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

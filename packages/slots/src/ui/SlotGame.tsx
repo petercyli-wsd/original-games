@@ -59,6 +59,9 @@ import {
   cellsUnion,
   decorOverlays,
   fmtX,
+  checkCopy,
+  gridCells,
+  heldByStep,
   idleBoard,
   idsWithRole,
   ladderOf,
@@ -88,6 +91,10 @@ interface FeatureState {
   kind?: 'spins' | 'respin';
   /** Landed coin value so far, in money (respins). */
   total?: number;
+  /** Cells held in the chain, the grid's size, and the chain's declared maximum ("Tick 2/4"). */
+  held?: number;
+  cells?: number;
+  max?: number;
   /** Respins left in a chain whose respins reset (known from what has played, never the chain's length). */
   left?: number;
   /** The counter shows a pending win (a respin chain without coin values). */
@@ -183,7 +190,27 @@ export function SlotGame(props: SlotGameProps) {
   // Ways of variable-height reels, as the reels stop.
   const variableHeights = !!(spec as { height_law?: unknown }).height_law && spec.evaluation.kind === 'ways';
   const [ways, setWays] = useState<number | null>(null);
-  const [mr, setMr] = useState<{ spinning: boolean; value: number | null }>({ spinning: false, value: null });
+  const [mr, setMr] = useState<{ spinning: boolean; value: number | null; dim?: boolean }>({ spinning: false, value: null });
+  // Held cells in a respin chain, landing effects, the big-win burst, and the list of which win paid what.
+  const [held, setHeld] = useState<ReadonlySet<string> | null>(null);
+  const [fx, setFx] = useState<{ k: number; col: number; row: number; symbol: number }[]>([]);
+  const [burst, setBurst] = useState(0);
+  const [breakdown, setBreakdown] = useState<string[]>([]);
+  const fxSeq = useRef(0);
+  const cardShown = useRef(false);
+  const symbolFx = props.symbolFx;
+  const onLand = (cells: { col: number; row: number; symbol: number }[]) => {
+    if (!symbolFx) return;
+    const batch = cells.filter((c) => symbolFx[c.symbol]).map((c) => ({ k: ++fxSeq.current, ...c }));
+    if (!batch.length) return;
+    setFx((f) => [...f, ...batch]);
+    setTimeout(() => alive.current && setFx((f) => f.filter((x) => !batch.includes(x))), 650);
+  };
+  // In development, say so when game copy would be hidden from blind reviewers (9 or more words).
+  useEffect(() => {
+    if (!(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) return;
+    for (const p of checkCopy(copy)) console.warn(`[slots] copy.${p.field} is ${p.words} words; blind reviewers can't see 9 or more: "${p.text}"`);
+  }, [copy]);
   const [busy, setBusy] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [mode, setMode] = useState<'manual' | 'auto'>('manual');
@@ -295,6 +322,8 @@ export function SlotGame(props: SlotGameProps) {
     setOverlayDecor(undefined);
     setRmult(null);
     setSlide(null);
+    setBreakdown([]);
+    setBurst(0);
     if (mrCfg) setMr({ spinning: true, value: null });
     await reels.current?.spin({ board, strips: st, turbo: turboRef.current, anticipate: ant });
     if (!alive.current) return;
@@ -302,16 +331,53 @@ export function SlotGame(props: SlotGameProps) {
       // The reveal: every mystery square flips into its symbol at once, before any win shows.
       await wait(T(350));
       if (alive.current) await reels.current?.reveal(board0, pre.cells, turboRef.current);
-      await wait(T(300));
+      // Say what the squares became, before any win counts.
+      const rev = res.decor?.['mystery_reveal.mysteryReveal'];
+      const art = typeof rev === 'number' ? symbols[rev] : undefined;
+      if (alive.current && art) {
+        setChip({ art, text: `Squares → ${art.name}`, event: true });
+        await wait(T(800));
+      } else await wait(T(300));
     }
     if (mrCfg) {
       const v = res.decor?.[mrCfg.decorKey ?? 'global_iid.mult'];
-      setMr({ spinning: false, value: typeof v === 'number' ? v : null });
+      // A multiplier on a spin that pays nothing is shown dimmed: it applied to nothing.
+      setMr({ spinning: false, value: typeof v === 'number' ? v : null, dim: (mrCfg.dimOnLoss ?? true) && res.totalCoins === 0 });
     }
   }
 
   const linePath = (w: SpinWin): [number, number][] | null => (w.lineIdx !== null && w.cells.length > 1 ? [...w.cells].sort((a, b) => a[0] - b[0]) : null);
   const keys = (cells: [number, number][]) => new Set(cells.map(([c, r]) => `${c},${r}`));
+
+  /**
+   * Where a card goes so it never covers the cells that must stay in view: the half of the window with none of them
+   * (a card covers about 40% of the height), else below the window.
+   */
+  const placementFor = (cells: [number, number][], board: number[][]): 'top' | 'bottom' | 'below' | 'center' => {
+    if (!cells.length) return 'center';
+    const hits = (lo: number, hi: number) =>
+      cells.filter(([c, row]) => {
+        const n = Math.max(1, board[c]?.length ?? 1);
+        return row / n < hi && (row + 1) / n > lo;
+      }).length;
+    const top = hits(0.08, 0.48);
+    const bottom = hits(0.52, 0.92);
+    if (top === 0 && bottom === 0) return 'center';
+    if (bottom === 0) return 'bottom';
+    if (top === 0) return 'top';
+    return 'below';
+  };
+
+  /** The chip for one win: its symbol on a tile, then "name ×count = amount". */
+  const winChipOf = (w: SpinWin, m: number, stake: number): ChipState => {
+    const p = parseWinLabel(w.label);
+    const id = p ? metas.find((x) => x.label === p.symbol)?.id : undefined;
+    const art = id !== undefined ? symbols[id] : undefined;
+    const name = art?.name ?? p?.symbol ?? w.label;
+    const count = p ? ` ×${p.count}` : '';
+    const ways = w.ways && w.ways > 1 ? ` · ${w.ways} ways` : '';
+    return { art, text: `${name}${count}${ways} = ${money(((w.coins * m) / bc) * stake)}` };
+  };
 
   /** Shows every win of one step, rolling the counter up by the step's coins. Returns the running coins. */
   async function presentWins(st: SpinStep, m: number, stake: number, running: number, limit: number, k = 1): Promise<number> {
@@ -320,37 +386,34 @@ export function SlotGame(props: SlotGameProps) {
     const m$ = (c: number) => (Math.min(c, limit) / bc) * stake;
     const ms = rollTo(counter.current, m$(to), rollMs(add / bc, turboRef.current) * k);
     const wins = st.wins;
-    const chipFor = (w: SpinWin): ChipState => {
-      const p = parseWinLabel(w.label);
-      const id = p ? metas.find((x) => x.label === p.symbol)?.id : undefined;
-      const art = id !== undefined ? symbols[id] : undefined;
-      const name = art?.name ?? p?.symbol ?? w.label;
-      const count = p ? ` ×${p.count}` : '';
-      const ways = w.ways && w.ways > 1 ? ` · ${w.ways} ways` : '';
-      return { art, text: `${name}${count}${ways} = ${money(((w.coins * m) / bc) * stake)}` };
-    };
+    const chipFor = (w: SpinWin): ChipState => winChipOf(w, m, stake);
     const all = keys(cellsUnion(wins));
     const total = `${wins.length} wins = ${money((add / bc) * stake)}`;
-    if (wins.length === 1 || turboRef.current || wins.length > 4) {
+    // Which win paid what, kept on screen under the summary (Manual only; Turbo shows the summary alone).
+    const lines = wins.map((w) => `${w.lineIdx !== null ? `Line ${w.lineIdx + 1} · ` : ''}${chipFor(w).text}`);
+    const list = lines.length > 6 ? [...lines.slice(0, 6), `+${lines.length - 6} more`] : lines;
+    if (wins.length === 1 || turboRef.current || wins.length > 8) {
       setWin(all);
       setLine(wins.length === 1 ? linePath(wins[0]) : null);
       setChip(wins.length === 1 ? chipFor(wins[0]) : { text: total });
+      if (wins.length > 1 && !turboRef.current) setBreakdown(list);
       await Promise.all([ms, wait(T(700) * k)]);
     } else {
-      // A few wins: each in turn (its cells, its line, its chip), then all of them together.
+      // Each win in turn (its cells, its line path, its chip "Symbol × count = amount"), then the summary.
       const ep = epoch.current;
       for (const w of wins) {
         if (!alive.current || ep !== epoch.current) break;
         setWin(keys(w.cells));
         setLine(linePath(w));
         setChip(chipFor(w));
-        await wait(Math.max(520, 1100 / Math.max(1, wins.length - 1)) * k);
+        await wait(900 * k);
       }
       await ms;
       if (alive.current) {
         setWin(all);
         setLine(null);
         setChip({ text: total });
+        setBreakdown(list);
       }
     }
     return to;
@@ -365,9 +428,11 @@ export function SlotGame(props: SlotGameProps) {
     const mod = isBase ? modifierOf(res, customDetect) : null;
     const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
     const landedC = mod ? landedCoins(res) : null;
+    const heldSets = mod ? heldByStep(res) : null;
     // Without coin values on cells (sticky respins), the chain shows what each board would pay as it stands.
     const pending = mod && landedC && landedC.every((v) => v === 0) && evalEngine ? pendingByStep(res, (b) => evalEngine.evalBoardLines(b)) : null;
     const pendingLabel = copy?.pendingLabel ?? 'Pending win';
+    const money$ = (c: number) => (Math.min(c, limit) / bc) * stake;
     const showPending = async (j: number) => {
       if (!pending) return;
       setFeat((f) => (f ? { ...f, pending: true } : f));
@@ -379,8 +444,14 @@ export function SlotGame(props: SlotGameProps) {
       }
       await rollTo(counter.current, money$(p.coins), T(250));
     };
-    const money$ = (c: number) => (Math.min(c, limit) / bc) * stake;
-
+    // The big-win burst plays once, as the first win of a spin of 5× or more shows.
+    let burstDone = false;
+    const bigBurst = () => {
+      if (!burstDone && (res.totalCoins * m) / bc >= 5) {
+        burstDone = true;
+        setBurst((b) => b + 1);
+      }
+    };
     // Decor that belongs to the whole spin shows before the wins: the rockets' +N, the multiplier they add up to.
     if (steps.length === 1 && !mod) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
@@ -405,6 +476,7 @@ export function SlotGame(props: SlotGameProps) {
       if (st.wins.length) {
         const f = factors[paying++];
         if (f) setSlide(f);
+        bigBurst();
         running = await presentWins(st, m, stake, running, limit, k);
         if (next) {
           await r?.tumble(next.board, cellsUnion(st.wins), turboRef.current, k);
@@ -414,40 +486,58 @@ export function SlotGame(props: SlotGameProps) {
           }
         }
       } else if (next) {
-        // No win, but the board changes: a respin. Only the reels that changed spin.
-        if (mod && !introduced) {
+        // No win, but the board changes: a respin.
+        if (mod && !introduced && heldSets) {
           introduced = true;
           if (landed) setOverlays(landed[0]);
           setChip(null);
           setLine(null);
-          // The cells that started it, framed for a moment before the card.
-          const tcells = triggerTarget ? steps[0].board.flatMap((col, c) => col.flatMap((sym, row) => (triggerTarget.ids.includes(sym) ? [[c, row] as [number, number]] : []))) : [];
-          setWin(tcells.length ? keys(tcells) : null);
-          await wait(T(1000));
-          // The card says what starts (the mechanic's opening respins), never how long the chain turns out to be.
           const start = modifierStartTitle(spec);
-          const resets = /hold_and_spin/.test(spec.mechanics.map((x) => x.id).join(' '));
-          const note = copy?.modifierIntro ?? (resets ? 'Each new coin resets the respins' : '');
           initialLeft = start?.initial ?? null;
-          await showCard(
-            { kicker: modName, title: start?.title ?? modName, lines: note ? [note] : [], button: 'Start' },
-            { autoMs: autoAdvance() ? T(1400) : null },
-          );
-          setFeat({ kind: 'respin', n: 0, of: 0, mult: 1, total: 0, pending: !!pending, left: initialLeft ?? undefined });
-          if (pending) await showPending(0);
-          else if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
+          const total = gridCells(res);
+          const featInit: FeatureState = { kind: 'respin', n: 0, of: 0, mult: 1, total: 0, pending: !!pending, left: initialLeft ?? undefined, max: start?.max, held: heldSets[0].size, cells: total };
+          if (pending && evalEngine) {
+            // A sticky chain plays by itself, with a small badge: no card to press. The line win that started it shows first.
+            setFeat(featInit);
+            const [startWins] = evalEngine.evalBoardLines(steps[0].board);
+            for (const w of startWins) {
+              if (!alive.current) break;
+              setWin(keys(w.cells));
+              setLine(linePath(w));
+              setChip(winChipOf(w, 1, stake));
+              await wait(T(900));
+            }
+            await showPending(0);
+            await wait(T(300));
+            setLine(null);
+          } else {
+            // The cells that started it, framed before the card; the card keeps clear of them and closes by itself.
+            const tcells = triggerTarget ? steps[0].board.flatMap((col, c) => col.flatMap((sym, row) => (triggerTarget.ids.includes(sym) ? [[c, row] as [number, number]] : []))) : [];
+            setWin(tcells.length ? keys(tcells) : null);
+            await wait(turboRef.current ? 600 : 1000);
+            // The card says what starts (the mechanic's opening respins), never how long the chain turns out to be.
+            const resets = /hold_and_spin/.test(spec.mechanics.map((x) => x.id).join(' '));
+            const note = copy?.modifierIntro ?? (resets ? 'Each new coin resets the respins' : '');
+            await showCard({ kicker: modName, title: start?.title ?? modName, lines: note ? [note] : [], placement: placementFor(tcells, steps[0].board) }, { autoMs: T(1400) });
+            setWin(null);
+            setFeat(featInit);
+            if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
+          }
         }
         const only = new Set<number>();
         next.board.forEach((col, c) => {
           if (JSON.stringify(col) !== JSON.stringify(st.board[c])) only.add(c);
         });
-        if (mod) {
-          setFeat((f) => (f ? { ...f, n: i + 1, left: initialLeft !== null && landedC ? respinsLeft(landedC, i, initialLeft) : f.left } : f));
+        if (mod && heldSets) {
+          // Held cells stay fixed and visible, with a lock frame, while the other positions spin.
+          setHeld(heldSets[i]);
+          setFeat((f) => (f ? { ...f, n: i + 1, held: heldSets[i].size, left: initialLeft !== null && landedC ? respinsLeft(landedC, i, initialLeft) : f.left } : f));
           setWin(null);
           setLine(null);
           setChip(null);
         }
         if (only.size) await r?.spin({ board: next.board, only, turbo: turboRef.current, speed: k });
+        if (mod && heldSets && alive.current) setFeat((f) => (f ? { ...f, held: heldSets[i + 1].size } : f));
         if (mod && pending && alive.current && i + 1 < steps.length - 1) await showPending(i + 1);
         else if (mod && landed && landedC && alive.current) {
           // Coin values show as they land, and the live total rolls up with them.
@@ -459,7 +549,10 @@ export function SlotGame(props: SlotGameProps) {
     if (!alive.current) return running;
     const last = steps[steps.length - 1]?.board;
     if (last && JSON.stringify(last) !== JSON.stringify(res.finalBoard)) r?.set(res.finalBoard);
-    if (mod) setFeat(null);
+    if (mod) {
+      setFeat(null);
+      setHeld(null);
+    }
     // Decor first (the orb values on their cells), then the multiplier event that uses them.
     if (steps.length > 1 || mod) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
@@ -478,12 +571,15 @@ export function SlotGame(props: SlotGameProps) {
       }
       await Promise.all([rollTo(counter.current, (Math.min(running, limit) / bc) * stake, rollMs(add / bc, turboRef.current)), wait(T(900))]);
     }
-    if (mod && alive.current) {
+    if (mod && !pending && alive.current) {
+      // One card for the total and the tier: a big win does not count up a second time.
       const stakes = Math.min(running, limit) / bc;
+      const tier = bigWinTier(stakes);
       await showCard(
-        { kicker: modName, title: 'Total win', amount: money(stakes * stake), lines: [`${mod.respins} respins`, `${fmtX(stakes)} your bet`], tier: bigWinTier(stakes) },
-        { autoMs: autoAdvance() ? T(1800) : null },
+        { kicker: tier ? TIER_LABEL[tier] : modName, title: 'Total win', amount: money(stakes * stake), lines: [`${fmtX(stakes)} your bet`], tier },
+        { autoMs: T(1800) },
       );
+      if (tier) cardShown.current = true;
     }
     return running;
   }
@@ -507,6 +603,7 @@ export function SlotGame(props: SlotGameProps) {
   /** The whole animated round. All amounts are already decided by `round`. */
   async function runRound(round: ReturnType<typeof engine.playRound>, stake: number) {
     const base = round.base;
+    cardShown.current = false;
     await spinOne(base, spec, true);
     if (!alive.current) return;
     setStatus(round.feature ? { text: featureName, tone: 'live' } : base.totalCoins > 0 ? { text: 'Win', tone: 'won' } : { text: 'No win', tone: 'idle' });
@@ -517,7 +614,7 @@ export function SlotGame(props: SlotGameProps) {
 
     const fr = round.feature;
     if (!fr) {
-      await bigWin(round.totalCoins, stake, round.capped);
+      if (!cardShown.current) await bigWin(round.totalCoins, stake, round.capped);
       return;
     }
 
@@ -532,9 +629,9 @@ export function SlotGame(props: SlotGameProps) {
     (base.steps[0]?.board ?? base.finalBoard).forEach((col, c) => col.forEach((sym, row) => scatterIds.includes(sym) && sc.push([c, row])));
     setWin(sc.length ? keys(sc) : null);
     setLine(null);
-    await wait(T(1000));
+    await wait(turboRef.current ? 600 : 1000);
     await showCard(
-      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote), button: 'Start' },
+      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
       { autoMs: autoAdvance() ? T(1600) : null },
     );
     if (!alive.current) return;
@@ -676,8 +773,13 @@ export function SlotGame(props: SlotGameProps) {
   const readouts = feat
     ? feat.kind === 'respin'
       ? [
-          { label: copy?.respinLabel ?? 'Respin', value: feat.left !== undefined ? `${feat.n} · ${feat.left} left` : `${feat.n}` },
+          // "Respins left: 3" where respins reset on a new coin; "Tick 2/4" where the chain has a declared maximum.
+          {
+            label: feat.left !== undefined ? (copy?.respinsLeftLabel ?? 'Respins left') : (copy?.respinLabel ?? 'Respin'),
+            value: feat.left !== undefined ? `${feat.left}` : feat.max ? `${feat.n}/${feat.max}` : `${feat.n}`,
+          },
           { label: feat.pending ? (copy?.pendingLabel ?? 'Pending win') : 'Bonus total', value: <RollNumber ref={counter} format={money} /> },
+          ...(feat.held !== undefined && feat.cells && !feat.pending ? [{ label: copy?.fillLabel ?? 'Filled', value: `${feat.held}/${feat.cells}` }] : []),
           ...multItem,
         ]
       : [
@@ -775,7 +877,7 @@ export function SlotGame(props: SlotGameProps) {
       <Readouts items={readouts} />
       <Board>
         <div className="sl-stage" style={themeVars(theme)}>
-          {mrCfg && (feat && feat.kind !== 'respin' ? mrFeature : mrBase).length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={feat && feat.kind !== 'respin' ? mrFeature : mrBase} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
+          {mrCfg && (feat && feat.kind !== 'respin' ? mrFeature : mrBase).length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={feat && feat.kind !== 'respin' ? mrFeature : mrBase} spinning={mr.spinning} value={mr.value} dim={mr.dim} turbo={turbo} />}
           {ladder.length > 0 && <MultiplierReel label={ladderLabel} values={slide !== null && !ladder.includes(slide) ? [...ladder, slide] : ladder} spinning={false} value={slide} turbo={turbo} />}
           {variableHeights && (
             <div className="sl-ways" aria-live="polite">
@@ -798,9 +900,21 @@ export function SlotGame(props: SlotGameProps) {
             chain={feat?.kind === 'respin'}
             renderOverlay={renderOverlay}
             overlayDecor={overlayDecor}
+            held={held}
+            fx={fx}
+            symbolFx={symbolFx}
+            burst={burst}
+            onLand={onLand}
           />
           <div className="sl-winbar" aria-live="polite">
             {chip && <WinChip art={chip.art} text={chip.text} event={chip.event} />}
+            {breakdown.length > 0 && (
+              <ul className="sl-breakdown" aria-label="Which win paid what">
+                {breakdown.map((t, i) => (
+                  <li key={i}>{t}</li>
+                ))}
+              </ul>
+            )}
           </div>
           {card && <Card {...card} />}
         </div>

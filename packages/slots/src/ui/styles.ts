@@ -55,6 +55,16 @@ export const slotStyles = /* css */ `
 /* Win: the winners get a frame in the theme's first colour and everything else steps back. */
 .sl-cell.win .sl-tile { outline: 3px solid var(--sl-hi); outline-offset: -3px; }
 .sl-cell.dim .sl-tile { opacity: 0.4; }
+/* A held cell stays put with a lock frame; over a spinning reel it is drawn on top of the strip. */
+.sl-cell.held .sl-tile { outline: 3px solid var(--sl-lock); outline-offset: -3px; }
+.sl-cell.over { z-index: 2; }
+.cell-plain .sl-cell.over .sl-tile { background: var(--sl-bg); }
+/* Landing effects: a flat burst that grows and goes. */
+.sl-fx { position: absolute; z-index: 4; pointer-events: none; display: grid; place-items: center; animation: sl-pop 520ms ease-out both; }
+.sl-fx svg { display: block; width: 100%; height: 100%; }
+.sl-burst { position: absolute; left: 50%; top: 50%; z-index: 5; pointer-events: none; margin: 0; transform: translate(-50%, -50%); animation: sl-burst 700ms ease-out both; }
+@keyframes sl-pop { from { transform: scale(0.4); opacity: 1; } to { transform: scale(1.35); opacity: 0; } }
+@keyframes sl-burst { from { transform: translate(-50%, -50%) scale(0.3); opacity: 1; } to { transform: translate(-50%, -50%) scale(1.15); opacity: 0; } }
 
 /* Real anticipation: the reel that can still complete the trigger is outlined while it spins. */
 .sl-reel.ant { outline: 2px solid var(--sl-hi); outline-offset: -2px; }
@@ -83,6 +93,7 @@ export const slotStyles = /* css */ `
 .sl-mreel { display: flex; align-items: center; justify-content: center; gap: var(--sp-1); flex-wrap: nowrap; max-width: 100%; }
 .sl-mreel-label { flex-shrink: 0; margin-right: var(--sp-2); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
 .sl-mreel-v { min-width: 0; padding: 4px var(--sp-2); white-space: nowrap; text-align: center; border: 1px solid var(--line); border-radius: 4px; font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.sl-mreel-v.on.dim { color: var(--muted); border-color: var(--line-strong); background: transparent; }
 .sl-mreel-v.on { color: var(--text); border-color: var(--text); background: var(--hover); }
 
 .sl-hist-label { flex-shrink: 0; align-self: center; margin-right: var(--sp-1); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
@@ -115,6 +126,7 @@ export const slotStyles = /* css */ `
 .sl-chip.event { border-color: var(--text); }
 .sl-mini { display: inline-grid; place-items: center; width: 26px; height: 26px; background: var(--sl-tile); border-radius: 4px; }
 .sl-mini svg { display: block; }
+.sl-breakdown { flex-basis: 100%; margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: 2px var(--sp-4); font-size: var(--fs-1); color: var(--muted); font-variant-numeric: tabular-nums; }
 .sl-hint { font-size: var(--fs-1); color: var(--muted); }
 
 /* ---------- Cards over the window ---------- */
@@ -139,6 +151,10 @@ export const slotStyles = /* css */ `
   animation: og-fade var(--dur-ui) ease both;
 }
 .sl-card.t2 { border-width: 2px; }
+.sl-card.at-top { top: calc(28% - 19px); }
+.sl-card.at-below { position: relative; left: auto; top: auto; transform: none; width: 100%; max-width: 100%; padding: var(--sp-3) var(--sp-4); flex-direction: row; flex-wrap: wrap; justify-content: center; gap: var(--sp-1) var(--sp-4); }
+.sl-card.at-below .og-btn { margin-top: 0; }
+.sl-card.at-bottom { top: calc(72% - 19px); }
 .sl-card-kicker { font-size: var(--fs-1); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .sl-card-title { font-size: var(--fs-5); font-weight: 700; line-height: 1.15; }
 .sl-card-amount { font-size: var(--fs-6); font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }

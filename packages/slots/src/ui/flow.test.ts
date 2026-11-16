@@ -121,7 +121,7 @@ describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
     expect(settled).toEqual([2.5]); // once, with the total (250 coins of a 100-coin stake)
   }, 15000);
 
-  it('the modifier intro card says what starts, and clicking Start advances the chain', async () => {
+  it('a respin chain announces what starts, plays by itself and ends on its outro', async () => {
     setupDom();
     const demo = reefDemo();
     // A hold-and-spin style mechanic that starts with 3 respins; the chain that plays has 2 (not to be announced).
@@ -145,17 +145,13 @@ describe.skipIf(!jsdom)('SlotGame flow (rendered)', () => {
     };
 
     button('Spin')!.click();
-    expect(await until(() => button('Start'))).toBeTruthy();
-    const card = sr.querySelector('.sl-card')!.textContent!;
-    expect(card).toContain('3 respins'); // what starts
-    expect(card).not.toContain('2 respins'); // never the length of the chain that is about to play
-    expect(sr.textContent).not.toMatch(/\d+ of \d+/); // and no "n of m" counter that reveals it
-
-    button('Start')!.click(); // a real click on the card's button
-    // The chain plays (2 respins) and ends on its outro card: Start advanced it.
-    const outro = await until(() => /Total win/.test(sr.querySelector('.sl-card')?.textContent ?? ''), 8000);
-    expect(outro).toBeTruthy();
-    expect(sr.querySelector('.sl-card')!.textContent).toContain('2 respins');
-    expect(button('Start')).toBeUndefined();
+    // The intro card says what starts and never the chain's length; a chain has no button to press (it plays by itself).
+    expect(await until(() => /3 respins/.test(sr.querySelector('.sl-card')?.textContent ?? ''))).toBeTruthy();
+    const card = sr.querySelector('.sl-card')!;
+    expect(card.textContent).not.toContain('2 respins');
+    expect(card.querySelector('button')).toBeNull();
+    expect(sr.textContent).not.toMatch(/\d+ of \d+/);
+    // The chain plays and ends on its outro card.
+    expect(await until(() => /Total win/.test(sr.querySelector('.sl-card')?.textContent ?? ''), 10000)).toBeTruthy();
   }, 25000);
 });

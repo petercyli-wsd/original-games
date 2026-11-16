@@ -6,6 +6,7 @@
 // not measured. A real game keeps these in `games/<id>/src` and reads the facts from `slot-facts.json`.
 
 import { seededSource } from '@originals/game-sdk';
+import { createElement, type ReactElement } from 'react';
 import { createSlot } from '../../engine';
 import type { SlotSpec } from '../../engine/types';
 import type { SlotCopy, SlotEngine, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from '../types';
@@ -22,6 +23,7 @@ export interface DemoGame {
   theme: SlotTheme;
   symbols: SlotSymbols;
   engine: SlotEngine;
+  symbolFx?: Record<number, (size: number) => ReactElement>;
 }
 
 type Counts = Record<number, number>;
@@ -119,6 +121,15 @@ export function reefDemo(variant?: 'mystery' | 'marquee'): DemoGame {
         : { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop, window: { ...reefTheme.window, backdropMargin: 16 } },
     symbols: reefSymbols,
     engine: createSlot({ spec, featureSpecs, feature: config.feature, maxWinStakes: config.maxWinStakes }),
+    // A flat burst of rays when a chest lands.
+    symbolFx: {
+      1: (size) =>
+        createElement(
+          'svg',
+          { width: size, height: size, viewBox: '-50 -50 100 100', 'aria-hidden': true },
+          Array.from({ length: 8 }, (_, i) => createElement('polygon', { key: i, points: '-5,-24 5,-24 0,-48', transform: `rotate(${i * 45})`, fill: i % 2 ? '#f3d9a4' : '#ff7a59' })),
+        ),
+    },
   };
 }
 
