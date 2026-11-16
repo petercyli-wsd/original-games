@@ -18,11 +18,11 @@
   "winOverStakeRate": 0.0900227419965254,
   "avgFeatureWin": 49.0253845,
   "pWin100": 0.0007709852785874909,
-  "pMaxWin": 1.579192746850373e-8,
+  "pMaxWin": 1.5791927468503727e-8,
   "pMaxWinSe": 1.0708896475753404e-9,
   "pMaxWinBounds": {
-    "lower": 1.3692983759256063e-8,
-    "upper": 1.78908711777514e-8,
+    "lower": 1.369298375925606e-8,
+    "upper": 1.7890871177751392e-8,
     "tier": "mc"
   },
   "dryStreakP95": 14,
@@ -224,7 +224,7 @@
     {
       "key": "maxWinReach",
       "label": "P(reaching the max win) per round",
-      "value": 1.579192746850373e-8,
+      "value": 1.5791927468503727e-8,
       "display": "1 in 6.33e+7 mc (p 1.58e-8 ± 1.1e-9) (7424 hits / 2,000,000)",
       "tier": "mc",
       "se": 1.0708896475753404e-9,
@@ -318,7 +318,7 @@
     "sessions": 20000,
     "seed": 20261116,
     "workers": 13,
-    "wallSeconds": 17.8,
+    "wallSeconds": 16.5,
     "stop": "fixed --mc-spins 2,000,000 per stream",
     "rtpSeTarget": 0.001,
     "budgetSeconds": 300,
@@ -327,15 +327,15 @@
         "n": 2000000,
         "chunks": 100,
         "chunk": 20000,
-        "perSecondWall": 112397,
-        "perSecondPerWorker": 16776
+        "perSecondWall": 121139,
+        "perSecondPerWorker": 18432
       },
       "tail": {
         "n": 2000000,
         "chunks": 100,
         "chunk": 20000,
-        "perSecondWall": 112397,
-        "perSecondPerWorker": 19632
+        "perSecondWall": 121139,
+        "perSecondPerWorker": 21272
       }
     }
   }

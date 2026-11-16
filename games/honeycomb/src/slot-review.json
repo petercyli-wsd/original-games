@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "overall": 3.15,
+  "overall": 3.24,
   "scores": {
     "theme": 4,
     "readability": 4,
-    "feature_clarity": 3,
+    "feature_clarity": 4,
     "excitement": 3,
     "fun": 3,
     "creativity": 3,
@@ -14,27 +14,26 @@
   },
   "gate": false,
   "gateReasons": [
-    "overall 3.15 < 3.5"
+    "overall 3.24 < 3.5"
   ],
-  "verdict": "A clean, well-tuned and well-understood slot, but a Wolf Gold-style coin respin in bee costume whose respin presentation hides the locked cells and whose full-comb climax is effectively out of reach.",
+  "verdict": "Honeycomb is a clean, correctly tuned and well explained hold-and-respin, but under the apiary skin it is Money Respin on a ways board, and its full-comb climax hardly ever happens.",
   "pros": [
-    "Every measured band passes, and the feature is well sized: 1 in 118 spins, a 49× average win, a 43% RTP share.",
-    "The trigger is simple and well understood: '6 honey cells' with values shown on lock and a '3 respins' Start card. The blind player got top pay, trigger, wild and feature all right.",
-    "Clean, consistent flat art, with clear single-win labels ('Sunflower ×4 · 54 ways = 1.96'), winners boxed and the rest dimmed.",
-    "Honey cells filling the comb is a natural fit for hold-and-respin."
+    "Every measured band is met, and the feature carries 43% of RTP at 1 in 118 with an average of 49x: a solid, honest hold-and-respin.",
+    "The feature state is always readable: locked cells are framed with xN badges, the rest of the board dims, and Respins left / Bonus total / Comb n/25 stay on screen. The panel player understood every rule correctly.",
+    "The comb framing gives the grid fill a themed goal (Comb n/25, full comb 1,000x), and the art palette is coherent."
   ],
   "cons": [
-    "Keep locked honey cells fixed and visible through every respin, with their ×N badges, and spin only the empty positions. Today all 25 cells spin as normal reels, so the locked honey vanishes and respins look like base spins.",
-    "The wild's text 'Worker bee. Stands in for every symbol except honey cells.' is 10 tokens and was hidden. Cut it to under 9, e.g. 'Worker bee: wild, not for honey cells.' Then make the Worker bee clearly unlike the Queen bee (a different body colour or a 'WILD' tag).",
-    "Replace the ambiguous 'Harvest 1 · 3 left' with 'Respins left: 3' plus a 'Comb 9/25' fill counter. State the cell values (×1 to ×500), the 1,000× full-comb bonus and the 2,000× cap on the intro card and paytable. Merge the Total win and Big Win cards so the second one doesn't count up from 0.00.",
-    "Give the theme its own twist rather than a stock coin respin, e.g. honey that spreads to an adjacent empty cell on each blank respin, so a full comb becomes a reachable climax. Add an honest tease when 4–5 cells show and the reels still to stop can complete 6."
+    "The feature is a near-copy of Money Respin / Lightning Link. Add one theme-native rule that changes how respins play, for example a Queen bee landing in a respin that fills or doubles the adjacent cells, or capped cells that spread honey to a neighbour. That gives the slot something a player would describe to a friend.",
+    "The full comb is effectively unreachable (the 1,016x round reached 11/25). Make filling the comb pay its way: add tiered fill bonuses at 15/20/25 cells, or a meter that unlocks extra rows of the comb, so the theme's climax drives the payout instead of the x500 draw.",
+    "The worker bee wild reads as a mushroom with no WILD mark: draw it as a clear bee in flight with a 'WILD' ribbon, and give premiums a framed or deeper-coloured tile so they stand apart from the gold/cream lows.",
+    "The base game is silent about the chase: show each honey cell's value badge in the base game, add a 'Honey n/6' counter, and tease when 4-5 cells land (only while 6 can still complete). Round pays like 0.0046x up to readable steps so the paytable doesn't show four decimals."
   ],
   "confusions": [
-    "The worker bee's paytable description was hidden; I had to infer from wins that it is a wild.",
-    "During respins the locked honey cells disappear: all 25 positions spin as normal reels, so you cannot see what is held until the reels stop.",
-    "The counter 'Harvest 1 . 3 left' / '2 . 2 left' / '3 . 1 left' is ambiguous: is the first number the respin played or the cells? The feature ended with '1 left' still showing."
+    "The worker bee looks like a mushroom and has no WILD label; I only learned it was wild from the paytable.",
+    "Honey cells show no value in the base game, so before the paytable I couldn't tell if they paid or what they did.",
+    "There's no on-board counter of honey cells toward the 6 needed: a spin with 5 cells passed silently."
   ],
   "players": 1,
-  "codeHash": "32971bdffe081b4b",
+  "codeHash": "48970e1d86625b00",
   "date": "2026-11-16"
 }
