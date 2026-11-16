@@ -11,7 +11,6 @@
 // multiplier, running total, retrigger notices, outro) → `ticket.settle` on the same ticket. While
 // anything animates, the ticket's fair value is the round's resolved multiplier (docs/BUILDING-GAMES.md).
 
-import { formatAmount } from '@originals/game-sdk';
 import { useBalance, useHost } from '@originals/game-sdk/react';
 import {
   ActionButton,
@@ -24,7 +23,6 @@ import {
   Label,
   PanelFoot,
   Readouts,
-  fmtMult,
   useBetInput,
   useHistory,
   useHotkeys,
@@ -59,6 +57,8 @@ import {
   cellsUnion,
   decorOverlays,
   fmtX,
+  fmtHist,
+  fmtMoney,
   checkCopy,
   gridCells,
   heldByStep,
@@ -79,7 +79,7 @@ import {
   symbolMetas,
 } from './util';
 
-const money = (x: number) => formatAmount(x, 2);
+const money = fmtMoney;
 
 interface ChipState {
   art?: SlotSymbolArt | null;
@@ -878,8 +878,8 @@ export function SlotGame(props: SlotGameProps) {
         <div className="og-history" aria-label="Recent round results">
           {history.length > 0 && <span className="sl-hist-label">Recent rounds</span>}
           {history.map((h) => (
-            <span key={h.id} className={'og-hist ' + (h.multiplier >= 1 ? 'w' : h.multiplier > 0 ? 'p' : 'l')} title={`Round paid ${fmtMult(h.multiplier)} the bet`}>
-              {fmtMult(h.multiplier)}
+            <span key={h.id} className={'og-hist ' + (h.multiplier >= 1 ? 'w' : h.multiplier > 0 ? 'p' : 'l')} title={`Round paid ${fmtHist(h.multiplier)} the bet`}>
+              {fmtHist(h.multiplier)}
             </span>
           ))}
         </div>

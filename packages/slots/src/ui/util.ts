@@ -676,3 +676,17 @@ export function mysterySymbol(spec: SlotSpec): number | null {
   const v = Number((spec.mechanics.find((m) => m.id === 'mystery_reveal')?.params as Record<string, unknown> | undefined)?.mystery_symbol);
   return Number.isFinite(v) ? v : null;
 }
+
+// ---------------------------------------------------------------- money
+
+/**
+ * An amount with 2 decimals, except that a paying amount is never shown as zero: under 0.01 it keeps two significant
+ * digits ("0.0045"). Zero is "0.00".
+ */
+export function fmtMoney(x: number): string {
+  if (x > 0 && x < 0.01) return (x >= 1e-6 ? x.toPrecision(2) : '<0.000001').replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+  return x.toFixed(2);
+}
+
+/** A history chip: a round's multiple of the bet, tiny ones keep their digits ("0.0045×"), a loss is "0.00×". */
+export const fmtHist = (m: number) => (m > 0 && m < 0.01 ? fmtX(m) : m.toFixed(2) + '×');
