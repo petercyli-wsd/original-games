@@ -69,6 +69,8 @@ export const slotStyles = /* css */ `
 /* Real anticipation: the reel that can still complete the trigger is outlined while it spins. */
 .sl-reel.ant { outline: 2px solid var(--sl-hi); outline-offset: -2px; }
 
+.sl-wild { position: absolute; left: 3px; bottom: 3px; padding: 0 4px; border-radius: 3px; background: var(--sl-bg); border: 1px solid var(--sl-hi); color: var(--sl-ink); font-weight: 700; letter-spacing: 0.04em; line-height: 1.3; pointer-events: none; }
+.sl-fold { position: absolute; right: 2px; top: 2px; pointer-events: none; }
 .sl-badge {
   position: absolute;
   right: 3px;

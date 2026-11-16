@@ -431,3 +431,15 @@ describe('round 9: a paying win is never shown as zero', () => {
     expect(fmtHist(3.36)).toBe('3.36×');
   });
 });
+
+describe('round 10: rules from the config', () => {
+  const f = (o: object) => ({ kind: 'free_spins', spec: 'x', awards: { '3': 5 }, maxSpins: 5, multiplier: { kind: 'constant', value: 1 }, ...o }) as never;
+  it('says "No retriggers" and shows the cap only where it can bind', () => {
+    expect(featureRules(f({}), 'Free folds')).toEqual(['3 scatters: 5 free folds', 'No retriggers']);
+    expect(featureRules(f({ maxSpins: 4 }), 'Free folds')).toContain('At most 4 spins');
+    const withRetrigger = featureRules(f({ retrigger: { '3': 2 } }), 'Free folds');
+    expect(withRetrigger).toContain('Retrigger: 3 scatters, +2 spins');
+    expect(withRetrigger).toContain('At most 5 spins in total');
+    expect(withRetrigger).not.toContain('No retriggers');
+  });
+});

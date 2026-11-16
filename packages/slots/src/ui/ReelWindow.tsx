@@ -51,7 +51,7 @@ export interface ReelWindowHandle {
   tumble(next: number[][], removed: [number, number][], turbo: boolean, speed?: number): Promise<void>;
   slam(): void;
   /** Flips these cells (all at once) from what they show into `next`'s symbols: the mystery reveal. */
-  reveal(next: number[][], cells: [number, number][], turbo: boolean): Promise<void>;
+  reveal(next: number[][], cells: [number, number][], turbo: boolean, ms?: number): Promise<void>;
 }
 
 export interface ReelWindowProps {
@@ -80,6 +80,11 @@ export interface ReelWindowProps {
   symbolFx?: Record<number, (size: number) => ReactNode>;
   /** A kit burst over the window; change the number to play it again (wins of 5× or more). */
   burst?: number;
+  /** Cells that were mystery squares: a small folded-corner marker stays on them. */
+  marks?: ReadonlySet<string> | null;
+  /** Symbol ids drawn with a small kit-made tag ("WILD"), and its text; `false` for none. */
+  wildIds?: ReadonlySet<number>;
+  wildTag?: string | false;
   /** Called when a reel lands, with its cells. */
   onLand?: (cells: { col: number; row: number; symbol: number }[]) => void;
   /** Called as reels stop: each reel's visible rows, null while it spins (for the ways readout of variable-height reels). */
@@ -102,7 +107,7 @@ const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights, held, fx, symbolFx, burst, onLand },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor, onHeights, held, fx, symbolFx, burst, onLand, marks, wildIds, wildTag },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -268,9 +273,9 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
       for (let c = 0; c < cols; c++) if (spinning(c)) finish(c);
     },
 
-    async reveal(next, cells, turbo) {
+    async reveal(next, cells, turbo, dur) {
       const old = boardRef.current;
-      const ms = turbo ? 80 : 240;
+      const ms = dur ?? (turbo ? 80 : 240);
       const flip = (c: number, r: number, from: number, to: number) => {
         const cell = boardRef.current[c]?.[r];
         const sym = cell && cellEls.current.get(cell.k)?.querySelector('.sl-sym');
@@ -413,6 +418,16 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
           <div className="sl-sym" role="img" aria-label={art?.name ?? `Symbol ${cell.s}`}>
             {art && <Glyph art={art} size={size} />}
           </div>
+          {wildTag !== false && wildIds?.has(cell.s) && size >= 34 && (
+            <span className="sl-wild" aria-hidden="true" style={{ fontSize: Math.max(7, Math.min(12, size * 0.2)) }}>
+              {wildTag ?? 'WILD'}
+            </span>
+          )}
+          {marks?.has(id) && (
+            <svg className="sl-fold" viewBox="0 0 10 10" aria-hidden="true" style={{ width: Math.max(8, size * 0.2), height: Math.max(8, size * 0.2) }}>
+              <polygon points="10,0 10,10 0,0" fill="var(--sl-hi)" />
+            </svg>
+          )}
           {renderOverlay && <CellOverlay node={renderOverlay({ col: c, row: r, symbol: cell.s, decor: overlayDecor })} />}
           {badge && (
             <span className="sl-badge" style={{ fontSize: Math.max(10, Math.min(18, size * 0.3)) }}>

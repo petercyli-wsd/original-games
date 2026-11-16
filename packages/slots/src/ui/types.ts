@@ -112,6 +112,8 @@ export interface SlotCopy {
   mainFeature?: 'free' | 'respin';
   /** Name of the pending win while a chain runs ("Winding"). Default "Pending win". */
   pendingLabel?: string;
+  /** A small "WILD" tag the kit draws on wild symbols (a text label over the art, not part of it). A string renames it, `false` hides it. Default on. */
+  wildTag?: string | false;
   /** A symbol's own paytable line (under 9 words), by id: replaces the generated one (a wild's, a scatter's, a value or mystery symbol's) or adds one under a paying symbol. */
   symbolText?: Record<number, string>;
   /** What the spin multiplier readouts do on a spin that pays nothing: 'dim' (default), 'hide', or 'label' (dimmed, with "No win to multiply"). */

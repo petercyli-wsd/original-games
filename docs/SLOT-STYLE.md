@@ -189,6 +189,10 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Paytable wording.** A pay-less symbol the spec names as the `mystery_reveal` symbol reads "Opens into one symbol"; `copy.symbolText` (`{ [id]: text }`, under 9 words) replaces any symbol's generated line. The feature rules and the trigger line name the scatter as the game does ("3 treasure chests: 12 free folds"), with "scatters" as the fallback. On a spin that pays nothing the multiplier readouts are dimmed (`copy.noWinMultiplier`: `'dim'` default, `'hide'`, or `'label'` for dimmed with "No win to multiply").
 
+**Chains, round 10.** The counter advances on every respin and says "Up to 4 ticks" beside it (the chain's declared maximum). The running amount is "Board pays now" (`copy.pendingLabel`), the pill shows the same total, and the lines that started a chain add up in the readout as they show. A chain tick takes about half a second in Manual; a press on Skip fast-forwards the rest of the chain, never ignored. A chain inside a free spin shows its tick next to "Free spin n of m", holds its cells, and has no cards. A feature with a per-spin multiplier schedule shows "Multiplier ×1" from spin 1. The feature's Total win card uses one total for its amount and its "× your bet" line, with "Feature X + trigger spin Y" under it. The rules say "No retriggers" when the config has none and show the spin cap only where it can bind.
+
+**Mystery reveal pacing.** The reels settle showing the folded squares outlined, hold 0.3 s, then flip one reel at a time; a small folded corner stays on those cells through the wins. Turbo also shows the per-win list under the summary. Wild symbols carry a small "WILD" tag the kit draws over the art (`copy.wildTag`: a string renames it, `false` hides it).
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

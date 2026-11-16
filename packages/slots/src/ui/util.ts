@@ -209,8 +209,14 @@ export function featureRules(f: FeatureConfig, name = 'free spins', scatterName 
   keys.forEach((k, i) => out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${scatterName}: ${f.awards[String(k)]} ${nm}`));
   const note = multiplierNote(f);
   if (note) out.push(note);
-  sortedKeys(f.retrigger).forEach((k) => out.push(`Retrigger: ${k} ${scatterName}, +${f.retrigger![String(k)]} spins`));
-  out.push(`At most ${f.maxSpins} spins in total`);
+  const rk = sortedKeys(f.retrigger);
+  rk.forEach((k) => out.push(`Retrigger: ${k} ${scatterName}, +${f.retrigger![String(k)]} spins`));
+  // Say what the config says: retriggers yes or no, and the cap only where it can bind.
+  if (!rk.length) {
+    out.push('No retriggers');
+    const top = Math.max(0, ...keys.map((k) => f.awards[String(k)]));
+    if (f.maxSpins < top) out.push(`At most ${f.maxSpins} spins`);
+  } else out.push(`At most ${f.maxSpins} spins in total`);
   return out;
 }
 
