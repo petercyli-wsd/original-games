@@ -22,7 +22,7 @@ Online casinos run on two kinds of in-house content: **slots** and **Originals**
 
 | Folder | What it is | Relation to this repo |
 |---|---|---|
-| `slot-math-engine-pack` | The manager's **Slot Math engine pack v1.0.0** (Python 3.12, not a git repo; built 2026-10-01 from Slot Math commit `8c46f01dbafb`). A base-round reel engine (payline, ways/megaways, scatter, cluster, static grid, hold-and-spin) and a generic bonus engine (`bonus_spec_v1`), restricted to verified scope: `enginepack.base.build` refuses anything outside it, by name. Spins are deterministic integer JSON per seed; `base.analytics` gives RTP with a tier (`exact`, `exact_mixture`, `mc` + se, n); `composability` says which mechanic families combine (96 of 97 families, 16,456 verified pair cells, 133 example games). | Not used by this repo yet. It is the slot side of the project. Start with its `README.md`, `AGENTS.md` (ground rules: build only through `enginepack`, never edit the vendored engines, report RTP with its tier) and `python tools/verify_pack.py`. Our own slots (`reels`; archived `wild-double`, `holdfast`) are hand-built in TypeScript, not on this engine. |
+| `slot-math-engine-pack` | The manager's **Slot Math engine pack v1.0.0** (Python 3.12, not a git repo; built 2026-10-01 from Slot Math commit `8c46f01dbafb`). A base-round reel engine (payline, ways/megaways, scatter, cluster, static grid, hold-and-spin) and a generic bonus engine (`bonus_spec_v1`), restricted to verified scope: `enginepack.base.build` refuses anything outside it, by name. Spins are deterministic integer JSON per seed; `base.analytics` gives RTP with a tier (`exact`, `exact_mixture`, `mc` + se, n); `composability` says which mechanic families combine (96 of 97 families, 16,456 verified pair cells, 133 example games). | **The maths authority for our slots (since 2026-11-16)**; see "Slots" below. Run it with `cd …/slot-math-engine-pack && PYTHONPATH=src .venv/bin/python`. Ground rules (`AGENTS.md`): build only through `enginepack`, never edit the vendored engines, report RTP with its tier. The older hand-built slots (`reels` in Classics; archived `wild-double`, `holdfast`) don't use it. |
 | `foundry-eval-kit` | The manager's play-to-learn clarity eval, from the "Octane Originals Foundry" (not a git repo). A blind Claude player sees screenshots and button labels in an MCP arena; code scores its stated odds and a picture quiz against the game's maths (LLM grading capped at 5/100). The Foundry's generator (genome breeding, MAP-Elites) is not included. | Doesn't plug in as is: games mount in an open shadow root (`packages/game-sdk/src/mount.ts`) and the kit uses plain `document.querySelector`. It fits single-reveal and cash-out ladders only, not per-step choices or live crash. Peter's preference: don't bring it up unless it's directly relevant. |
 | `octane-rgs`, `frontend`, `octane-iac`, `octane-tools` | The company's live-casino stack (remote gaming server with wallets and provably fair RNG, a Next.js live-dealer frontend, OpenTofu infrastructure). | Where Originals would plug in as a game provider for real money. Today Originals run client-side in a demo wallet; see "Known limit" in the maths contract. |
 
@@ -148,6 +148,38 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 - **The blind sandbox hides any element whose own text is 9+ space-separated tokens, and never shows it again** once hidden (a MutationObserver only hides). A status line that starts long stays invisible for the whole session; `=` and `·` count as words, and JSX splitting `{a}, {b}` into several text nodes adds tokens. Keep on-board text and status lines under 9 tokens, or render them as one template string. Board marks need a short key too (Pivot's red × on a waiting block means "if it joins next, you lose", and nothing on the board says so).
 - **Reviews go stale when code changes,** including a manifest `status` or `revision` edit. If only metadata changed, point `evidence.json` at the current files and hash and resubmit. Local `review.json` can be from a rejected iteration round: check its hash before submitting.
 
+## Slots (since 2026-11-16)
+
+A third collection, `collection: 'slots'`, with its own lobby section "Slots". It is a full production pipeline modelled on the Originals one. Read `docs/SLOTS.md` (the contract), `docs/SLOT-STYLE.md` (the look; the kit's features are in §7b), `docs/SLOT-EVALUATOR.md` (the review) and `docs/SLOT-CATALOGUE.md` (the roster, drops and lessons).
+
+- **The maths is the pack's.** Each slot's maths is one pack `game_spec_v2` file (`games/<id>/src/slot.spec.json`, plus `feature.spec.json`), plus `slot.config.json`: the free-spins law, `modifierFeature`, `maxWinStakes`, the declared volatility and `targetRtp` 0.96.
+- **`npm run slots:oracle -- --game <id>`** (`scripts/slots/oracle.py`, run in the pack's venv) builds every spec through `enginepack.base.build`, which refuses anything outside the verified scope. It writes `oracle.json`: the pack's RTP with its tier, and 2,000 seeded spins. Game tests replay it. CI has no pack, so `oracle.json` is committed.
+- **The engine port** (`packages/slots/src/engine`, `@originals/slots`) is byte-identical to the pack: Mulberry32 and the draw order; the payline, ways, cluster and scatter-pays evaluators; the board laws (reel sets, per-reel pools, heights, top reel); 14 modifier families. Parity is proved in `parity.test.ts` on 69 specs × 2,000 seeds, and a family counts only when its parity passes. To port one, use `npm run slots:oracle -- --example|--exemplar <name> --out <fixture>.json.gz --full-seeds 100`. Each spin's seed is a crypto draw taken after `place()`, so the pack can replay any spin.
+- **Analytics** (`packages/slots/src/engine/analytics`):
+  - exact RTP where a closed form exists, matching the pack to 1e-9;
+  - exact free-spins algebra (DP; a multiplier only by spin index or retrigger count, nothing outcome-dependent across spins);
+  - otherwise Monte Carlo in worker threads, with an SE target and a time budget; respin features are sampled only on triggering boards;
+  - the max-win tail by importance sampling, never reported as 0.
+- **`npm run slots:eval -- <id> [--budget-s 600]`** writes `slot-facts.json`: RTP with its tier, hit rate, SD, feature 1 in N and share, max-win reach, dry streak and the bands. **Noise rule:** an MC band fails only when it is more than 3 SE outside.
+- **`npm run slots:tune -- <id>`**: exact for closed forms. Otherwise it scales the pays linearly with pooled trials, keeping the pay order and plateaus.
+- **Bands** (docs/SLOTS.md §3):
+  - RTP 95.5–96.5%;
+  - dry-streak p95 by volatility (low 12, medium 20, high 26, extreme 32);
+  - 3×3 hit rate 10–30%;
+  - max win reachable at better than 1 in 10⁹ per round.
+- **UI kit** (`packages/slots/src/ui`, `SlotGame`): reels, tumbles, respin chains with locked cells, mystery flips, multiplier reels and ladders, per-win presentation, feature cards, a paytable generated from the spec, backdrops, overlays, a WILD tag, and the dev hooks `?seed=`, `?feature=free|respin` and `?win=`. Games supply only the theme, the SVG symbols and the copy. Every line is under 9 words (`checkCopy`). It took 13 rounds of fixes, all from blind-review findings.
+- **Review** (`npm run slots:review -- …`, skill `/review-slot`). Three isolated Opus roles; code computes the overall and the gate:
+  - **weights:** fun ×3; excitement, theme, readability, creativity, maths fit ×2; feature clarity, uniqueness ×1.5; polish ×1;
+  - **gate:** overall ≥ 3.5, readability and feature clarity ≥ 3, facts from `slots:eval` with every band passing, no reskin, no trademarked names;
+  - **files:** results go to `games/<id>/src/slot-review.json` (local, file-based, never the production API). `codeHash` covers what reaches the player: game entries, specs, config and `packages/slots/src` minus analytics and tests.
+- **Generation:** `/generate-slots` (batch 1's lessons are in its concept and screen steps) and `/search-slots` (the loop; **on hold by Peter**).
+- **Rules learned:**
+  - never use "Megaways", "Hold & Win" or "Cash Collect";
+  - spec changes (pays, strips, features) need Peter's OK (given 2026-11-16 for batch-1 repairs);
+  - two repair rounds, then the game goes to the Archive;
+  - reviews run in a worktree that nobody else edits, because kit changes stale every review.
+- **Batch-1 finding:** every game reached readability and feature clarity 4. Excitement and fun stayed around 3, and **uniqueness is the blocker** (1–2). The designers name a famous near-twin, because pack-verified mechanics come from real games. A pass needs one theme-native signature rule ("a feature a player would describe to a friend").
+
 ## Lobby
 
 - **Statuses:** `live` / `beta` / `prototype` / `retired` / `template`. Retired games sit in a folded Archive section and stay playable.
@@ -155,7 +187,23 @@ npm install --package-lock-only --ignore-scripts    # after adding or removing a
 - **Collections:** `originals` and `classics` (casino classics and Stake/Roobet replicas, `docs/CLASSICS.md`).
 - **Forking:** team-reviewed games are forked rather than edited, so their reviews stay attached to the version reviewed. Games without a team rating may be edited in place.
 
-## Current state (2026-11-13; update this section as it changes)
+## Current state: slots (2026-11-16)
+
+| Branch / worktree | State |
+|---|---|
+| `main` | PR #9 merged and live: the slots pipeline and 9 batch-1 slots (prototype; Hi-Score retired after one repair, 3.12). |
+| `slots-r2`, worktree `../original-games-r2` | Repair round 2. Committed:<br>• noodle-cart, escapement, honeycomb, unfold, grand-finale: their final repair rounds, each with a theme-native rule;<br>• caldera round 1: "lava stays", with `power_wild_level` ported;<br>• `expanding_grid_structural` ported (for midnight-zone);<br>• kit rounds 11 and 12.<br>In progress, paused by the spend limit: midnight-zone and whiteout round 1, and kit round 13 (a combined multiplier chip). |
+| `slots-r2-reviews`, worktree `../original-games-review` | Reviews of grand-finale (3.24), whiteout (3.24), midnight-zone (3.15) and caldera (3.24). All fail on uniqueness. To be merged into `slots-r2`. |
+
+Next:
+1. Finish the repairs.
+2. Merge `slots-r2-reviews` into `slots-r2`.
+3. Give all 8 games fresh reviews, then decide keep or Archive.
+4. PR, CI, merge (Peter allows merging on green), and verify the deploy.
+
+Calibration from team and manager ratings comes later. Peter wants the manager to play and rate on the live site.
+
+## Current state: Originals (2026-11-13; update this section as it changes)
 
 | Branch / checkout | Owner | State |
 |---|---|---|
