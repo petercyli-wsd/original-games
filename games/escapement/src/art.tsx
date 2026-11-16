@@ -87,7 +87,8 @@ export const escapementTheme: SlotTheme = {
     bg: C.graphite,
     frame: C.walnut,
     tile: C.tile,
-    colors: [C.brass, C.enamel, C.teal, C.ruby],
+    // colors[0] frames wins, colors[1] frames held cells: enamel for wins, brass for locked gears
+    colors: [C.enamel, C.brass, C.teal, C.ruby],
     ink: C.enamel,
     featureBg: C.fBg,
     featureFrame: C.fFrame,
@@ -142,8 +143,12 @@ export const escapementSymbols: SlotSymbols = {
       svg(
         s,
         <>
-          <polygon points={cogPoints(12, 46, 38)} fill={C.brass} />
-          <circle cx="50" cy="50" r="32" fill={C.teal} />
+          <circle cx="50" cy="50" r="46" fill={C.brass} />
+          <circle cx="50" cy="50" r="40" fill={C.ruby} />
+          {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+            <circle key={i} cx={50 + 43 * Math.cos((i * Math.PI) / 4)} cy={50 + 43 * Math.sin((i * Math.PI) / 4)} r="2.2" fill={C.enamel} />
+          ))}
+          <circle cx="50" cy="50" r="33" fill={C.teal} />
           <circle cx="50" cy="50" r="24" fill={C.enamel} />
           <path d="M50 30 A20 20 0 1 0 50 70 A14 14 0 1 1 50 30 Z" fill={C.brass} />
           <circle cx="50" cy="50" r="7" fill={C.ruby} />
@@ -253,6 +258,7 @@ export const escapementSymbols: SlotSymbols = {
       svg(
         s,
         <>
+          <circle cx="50" cy="50" r="44" fill={C.walnut} />
           <path d="M50 6 C66 24 70 34 58 44 C54 40 52 40 52 44 V92 H48 V44 C48 40 46 40 42 44 C30 34 34 24 50 6 Z" fill={C.brass} />
           <circle cx="50" cy="76" r="9" fill={C.brass} />
           <circle cx="50" cy="76" r="4" fill={C.tile} />

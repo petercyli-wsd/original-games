@@ -12,6 +12,8 @@ import { distRtpReport, spinScatterCount } from '../../../packages/slots/src/eng
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
 import { validateSlotConfig, type SlotConfig } from '../../../packages/slots/src/engine/analytics/config';
 import { Mulberry32 } from '../../../packages/slots/src/engine/rng';
+import { checkCopy } from '@originals/slots/ui';
+import { copy } from './copy';
 import oracle from './oracle.json';
 import facts from './slot-facts.json';
 
@@ -210,5 +212,11 @@ describe('the spin flow draws after place()', () => {
     const game = readFileSync(join(here, 'Game.tsx'), 'utf8');
     expect(game).not.toMatch(/engine=/);
     expect(game).not.toMatch(/Math\.random/);
+  });
+});
+
+describe('escapement copy', () => {
+  it('has no line of 9 or more words', () => {
+    expect(checkCopy(copy)).toEqual([]);
   });
 });
