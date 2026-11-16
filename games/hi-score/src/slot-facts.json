@@ -2,31 +2,31 @@
   "schema": "slot_facts_v1",
   "game": "hi-score",
   "generatedBy": "npm run slots:eval (scripts/slots/eval.ts, packages/slots/src/engine/analytics)",
-  "specHash": "33ed734a8cadcea8439ac49917318e11bd91aba5df064cc02287bb1e7ca5b494",
-  "featureSpecHash": "6d5624154f9476c7966722041e1170a58ac745ef8d5283be415431b210ba957b",
-  "rtp": 0.9600000372736084,
+  "specHash": "87a3de396de89209f1cb4ba88ffd4da33e91b422f520312bb2f15ccd02482fec",
+  "featureSpecHash": "d527be8caea063a5552903e8564766de5428b2387f5a87419a612dbc303c6767",
+  "rtp": 0.9599999483049587,
   "rtpTier": "exact",
   "rtpSe": 0,
-  "hitRate": 0.249091986764193,
+  "hitRate": 0.24909198676419314,
   "volatility": "medium",
-  "volatilitySd": 7.553372046535505,
+  "volatilitySd": 6.793305593198868,
   "maxWin": 2500,
   "featureFreq": 95.99999999999994,
-  "featureShare": 0.2745455137031889,
+  "featureShare": 0.2794687140833719,
   "volatilityDeclared": "medium",
-  "winOverStakeRate": 0.17371443088991734,
-  "avgFeatureWin": 25.302115525282865,
-  "pWin100": 0.0004373484653635114,
-  "pMaxWin": 5.255749600583933e-9,
+  "winOverStakeRate": 0.17383910072016437,
+  "avgFeatureWin": 25.755835302997458,
+  "pWin100": 0.0003595359653635115,
+  "pMaxWin": 1.534992092014807e-9,
   "pMaxWinBounds": {
-    "lower": 5.255749600583933e-9,
-    "upper": 6.1521455773819674e-9,
+    "lower": 1.534992092014807e-9,
+    "upper": 1.7576641933457571e-9,
     "tier": "exact"
   },
   "dryStreakP95": 20,
-  "sessionMedian": 70.6202392578125,
-  "sessionBustRate": 0.05925,
-  "rtpUncapped": 0.9600000372736084,
+  "sessionMedian": 72.5120849609375,
+  "sessionBustRate": 0.05785,
+  "rtpUncapped": 0.9599999483049587,
   "rtpUncappedTier": "exact",
   "capLoss": {
     "value": 0,
@@ -35,13 +35,13 @@
     "n": 200000,
     "hits": 0,
     "exactPart": 0,
-    "method": "E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.042e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.04834% (Cauchy–Schwarz with the exact second moments and the reach upper bound)",
-    "upperBound": 0.00048340503135494193
+    "method": "E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.042e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.02192% (Cauchy–Schwarz with the exact second moments and the reach upper bound)",
+    "upperBound": 0.00021924163285852837
   },
   "rtpSplit": {
-    "base": 0.6964363338852451,
+    "base": 0.6917099972320684,
     "baseTier": "exact",
-    "feature": 0.2635637033883633,
+    "feature": 0.26828995107289033,
     "featureTier": "exact",
     "capLoss": 0
   },
@@ -56,16 +56,17 @@
     },
     "maxSpins": 30,
     "multiplier": {
-      "kind": "constant",
-      "value": 1
+      "kind": "per_spin",
+      "start": 2,
+      "step": 1
     },
     "tier": "exact",
     "triggerP": 0.010416666666666673,
-    "expectedSpins": 10.549398844892663,
-    "averageWinStakes": 25.302115525282865,
-    "sdWinStakes": 54.76689674541049,
+    "expectedSpins": 10.54939884489257,
+    "averageWinStakes": 25.755835302997458,
+    "sdWinStakes": 44.21642579977045,
     "pZero": 0.05830865639030059,
-    "featureRtp": 0.2635637033883633,
+    "featureRtp": 0.26828995107289033,
     "buy": false,
     "buyPriceStakes": null,
     "byK": [
@@ -73,8 +74,8 @@
         "k": 3,
         "pK": 0.010416666666666673,
         "spins": 10,
-        "expectedSpins": 10.549398844892663,
-        "averageWinStakes": 25.302115525282865,
+        "expectedSpins": 10.54939884489257,
+        "averageWinStakes": 25.755835302997454,
         "pZero": 0.05830865639030059
       }
     ]
@@ -84,7 +85,7 @@
     {
       "key": "rtp",
       "label": "RTP",
-      "value": 0.9600000372736084,
+      "value": 0.9599999483049587,
       "display": "96.000% exact",
       "tier": "exact",
       "band": {
@@ -94,12 +95,12 @@
       },
       "pass": true,
       "gate": true,
-      "method": "uncapped 96.0000% (exact) = base 69.644% + feature 26.356% − cap 0.0000%. Base: exact closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the exact feature distribution and the exact trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.042e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.04834% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
+      "method": "uncapped 96.0000% (exact) = base 69.171% + feature 26.829% − cap 0.0000%. Base: exact closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the exact feature distribution and the exact trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.042e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.02192% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
     },
     {
       "key": "hitRate",
       "label": "Hit rate",
-      "value": 0.249091986764193,
+      "value": 0.24909198676419314,
       "display": "24.91% exact",
       "tier": "exact",
       "band": {
@@ -114,10 +115,10 @@
     {
       "key": "winOverStake",
       "label": "Win > stake rate",
-      "value": 0.17371443088991734,
-      "display": "17.37% mc ± 0.00062%, n 200,000",
+      "value": 0.17383910072016437,
+      "display": "17.38% mc ± 0.00058%, n 200,000",
       "tier": "mc",
-      "se": 0.000006239176069727124,
+      "se": 0.000005801522357584444,
       "n": 200000,
       "band": {
         "lo": 0.08,
@@ -131,8 +132,8 @@
     {
       "key": "volatility",
       "label": "Volatility (SD per round, stakes)",
-      "value": 7.553372046535505,
-      "display": "7.55 (medium) exact",
+      "value": 6.793305593198868,
+      "display": "6.79 (medium) exact",
       "tier": "exact",
       "band": {
         "lo": 5,
@@ -161,8 +162,8 @@
     {
       "key": "featureShare",
       "label": "Feature share of RTP",
-      "value": 0.2745455137031889,
-      "display": "27.5% exact",
+      "value": 0.2794687140833719,
+      "display": "27.9% exact",
       "tier": "exact",
       "band": {
         "lo": 0.25,
@@ -176,8 +177,8 @@
     {
       "key": "averageFeatureWin",
       "label": "Average feature win",
-      "value": 25.302115525282865,
-      "display": "25.3× exact",
+      "value": 25.755835302997458,
+      "display": "25.76× exact",
       "tier": "exact",
       "band": {
         "lo": 15,
@@ -191,10 +192,10 @@
     {
       "key": "pWin100",
       "label": "P(win ≥ 100×) per round",
-      "value": 0.0004373484653635114,
-      "display": "1 in 2,287 (p 4.373e-4 mc ± 3.5e-6, n 200,000)",
+      "value": 0.0003595359653635115,
+      "display": "1 in 2,781 (p 3.595e-4 mc ± 2.9e-6, n 200,000)",
       "tier": "mc",
-      "se": 0.0000035470865337893717,
+      "se": 0.0000029481079585308924,
       "n": 200000,
       "band": {
         "lo": 0,
@@ -223,8 +224,8 @@
     {
       "key": "maxWinReach",
       "label": "P(reaching the max win) per round",
-      "value": 5.255749600583933e-9,
-      "display": "1 in 1.63e+8 to 1.90e+8 (exact bounds); MC 0 (0 hits / 200,000)",
+      "value": 1.534992092014807e-9,
+      "display": "1 in 5.69e+8 to 6.51e+8 (exact bounds); MC 0 (0 hits / 200,000)",
       "tier": "exact",
       "band": {
         "lo": 1e-9,
@@ -253,10 +254,10 @@
     {
       "key": "session",
       "label": "Session (median balance after 200 rounds from 100)",
-      "value": 70.6202392578125,
-      "display": "70.6 (95% CI 69.7–71.7), bust 5.9%, mc n 20,000",
+      "value": 72.5120849609375,
+      "display": "72.5 (95% CI 71.5–73.6), bust 5.8%, mc n 20,000",
       "tier": "mc",
-      "se": 0.5082733777104592,
+      "se": 0.5269576092155612,
       "n": 20000,
       "band": null,
       "pass": null,
@@ -287,28 +288,28 @@
         "name": "base",
         "file": "slot.spec.json",
         "ok": true,
-        "specHash": "33ed734a8cadcea8439ac49917318e11bd91aba5df064cc02287bb1e7ca5b494",
-        "oracleHash": "33ed734a8cadcea8439ac49917318e11bd91aba5df064cc02287bb1e7ca5b494",
-        "tsRtp": 0.6964363338852451,
+        "specHash": "87a3de396de89209f1cb4ba88ffd4da33e91b422f520312bb2f15ccd02482fec",
+        "oracleHash": "87a3de396de89209f1cb4ba88ffd4da33e91b422f520312bb2f15ccd02482fec",
+        "tsRtp": 0.6917099972320684,
         "tsTier": "exact",
-        "detail": "pack 0.6964363339 exact vs ours 0.6964363339 exact: |Δ| 2.22e-16 ≤ 1.0e-9",
-        "packRtp": 0.6964363338852453,
+        "detail": "pack 0.6917099972 exact vs ours 0.6917099972 exact: |Δ| 0.00e+0 ≤ 1.0e-9",
+        "packRtp": 0.6917099972320684,
         "packTier": "exact",
-        "diff": -2.220446049250313e-16,
+        "diff": 0,
         "tolerance": 1e-9
       },
       {
         "name": "feature",
         "file": "feature.spec.json",
         "ok": true,
-        "specHash": "6d5624154f9476c7966722041e1170a58ac745ef8d5283be415431b210ba957b",
-        "oracleHash": "6d5624154f9476c7966722041e1170a58ac745ef8d5283be415431b210ba957b",
-        "tsRtp": 2.3984414559823493,
+        "specHash": "d527be8caea063a5552903e8564766de5428b2387f5a87419a612dbc303c6767",
+        "oracleHash": "d527be8caea063a5552903e8564766de5428b2387f5a87419a612dbc303c6767",
+        "tsRtp": 0.3529132638939124,
         "tsTier": "exact",
-        "detail": "pack 2.3984414560 exact vs ours 2.3984414560 exact: |Δ| 8.88e-16 ≤ 1.0e-9",
-        "packRtp": 2.39844145598235,
+        "detail": "pack 0.3529132639 exact vs ours 0.3529132639 exact: |Δ| 1.11e-16 ≤ 1.0e-9",
+        "packRtp": 0.3529132638939123,
         "packTier": "exact",
-        "diff": -8.881784197001252e-16,
+        "diff": 1.1102230246251565e-16,
         "tolerance": 1e-9
       }
     ]
@@ -316,13 +317,13 @@
   "distributions": {
     "base": {
       "tier": "exact",
-      "entries": 398,
+      "entries": 396,
       "method": "exact enumeration of 2.35e+4 window combinations, stopped early once the payline total is decided; × the mechanics' multiplier law (exact convolution)"
     },
     "feature": {
       "tier": "exact",
-      "entries": 411,
-      "method": "exact enumeration of 2.35e+4 window combinations, stopped early once the payline total is decided; × the mechanics' multiplier law (exact convolution)"
+      "entries": 89,
+      "method": "exact enumeration of 2.35e+4 window combinations, stopped early once the payline total is decided"
     }
   },
   "mc": {

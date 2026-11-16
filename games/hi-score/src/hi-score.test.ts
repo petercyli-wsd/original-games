@@ -9,6 +9,7 @@ import { checkParity, type OracleFixture } from '../../../packages/slots/src/eng
 import { spinDistribution, type SpinDist } from '../../../packages/slots/src/engine/analytics/distribution';
 import { exactRtp } from '../../../packages/slots/src/engine/analytics/exact';
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
+import { checkCopy } from '@originals/slots/ui';
 import { scatterCountDist } from '../../../packages/slots/src/engine/analytics/exact';
 
 const dir = dirname(fileURLToPath(import.meta.url));
@@ -28,6 +29,7 @@ const strip = (s: SlotSpec): SlotSpec => ({ ...s, mechanics: [] });
 /** The exact (coins, K) law of one spin with the marquee folded in (the marquee is independent of the board). */
 function withMarquee(s: SlotSpec): SpinDist {
   const d = spinDistribution(strip(s));
+  if (!s.mechanics.length) return d; // the feature spec has no marquee: its multiplier is the level-up schedule
   const pmf = (s.mechanics[0] as unknown as { params: { value_pmf: Record<string, number> } }).params.value_pmf;
   const tot = Object.values(pmf).reduce((a, b) => a + b, 0);
   const acc = new Map<number, number>();
@@ -142,5 +144,21 @@ describe('the spin flow draws after place()', () => {
     const game = readFileSync(join(dir, 'Game.tsx'), 'utf8');
     expect(game).toContain('<SlotGame');
     expect(game).not.toMatch(/Math\.random|playRound|\.spin\(/);
+  });
+});
+
+describe('the arcade feature', () => {
+  it('levels up each free spin and retriggers for extra lives', () => {
+    expect(config.feature!.multiplier).toEqual({ kind: 'per_spin', start: 2, step: 1 });
+    expect(config.feature!.retrigger).toEqual({ '3': 5 });
+    expect(fspec.mechanics).toEqual([]);
+  });
+});
+
+describe('copy', () => {
+  it('every game line is under 9 words (checkCopy)', async () => {
+    const { copy } = await import('./Game');
+    expect(checkCopy(copy)).toEqual([]);
+    expect(copy.symbolText?.[6]).toBe('Hearts pay from 2.');
   });
 });

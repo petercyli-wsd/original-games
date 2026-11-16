@@ -10,8 +10,9 @@
     },
     "maxSpins": 30,
     "multiplier": {
-      "kind": "constant",
-      "value": 1
+      "kind": "per_spin",
+      "start": 2,
+      "step": 1
     }
   },
   "maxWinStakes": 2500,

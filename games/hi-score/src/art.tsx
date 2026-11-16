@@ -201,19 +201,23 @@ export const hiScoreSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // P1: the neon 7, seven-segment strokes on a plate (the top pay)
+  // P1: the neon 7, bold multicolour segments on a gold plate (the top pay)
   3: {
     name: 'Neon seven',
     render: (s) =>
       svg(
         s,
         <>
-          <rect x="8" y="8" width="84" height="84" rx="8" fill={C.scan} />
-          <rect x="16" y="16" width="68" height="68" rx="4" fill={C.crt} />
-          <rect x="28" y="26" width="46" height="11" fill={C.amber} />
-          <rect x="63" y="26" width="11" height="26" fill={C.amber} />
-          <rect x="53" y="52" width="11" height="22" fill={C.amber} />
-          <rect x="43" y="64" width="11" height="10" fill={C.amber} />
+          <rect x="3" y="3" width="94" height="94" rx="8" fill={C.amber} />
+          <rect x="12" y="12" width="76" height="76" rx="3" fill={C.crt} />
+          <rect x="6" y="6" width="6" height="6" fill={C.crt} />
+          <rect x="88" y="6" width="6" height="6" fill={C.crt} />
+          <rect x="6" y="88" width="6" height="6" fill={C.crt} />
+          <rect x="88" y="88" width="6" height="6" fill={C.crt} />
+          <rect x="20" y="20" width="60" height="16" fill={C.magenta} />
+          <rect x="64" y="36" width="16" height="22" fill={C.cyan} />
+          <rect x="64" y="58" width="16" height="22" fill={C.lime} />
+          <rect x="44" y="46" width="14" height="10" fill={C.amber} />
         </>,
       ),
   },

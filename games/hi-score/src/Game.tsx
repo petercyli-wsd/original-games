@@ -10,18 +10,20 @@ import factsRaw from './slot-facts.json';
 
 const facts = parseSlotFacts(factsRaw);
 
-const copy: SlotCopy = {
+export const copy: SlotCopy = {
   featureName: 'Bonus stage',
-  introNote: 'Bonus marquee: ×2 to ×25',
-  rule: 'Match 3 on a line. Marquee multiplies wins.',
+  introNote: 'Level up: ×2, ×3, ×4 each spin',
+  rule: 'Match 3 on a line. Hearts from 2.',
+  featureRule: 'Each spin levels up. 3 tokens: extra life.',
   wildText: 'Glitch block on reel 2 is wild',
   extrasLabels: (raw) => {
     if (/scatter/i.test(raw)) return 'Scatter pay';
     const m = /\bx\s*(\d+)/i.exec(raw);
     return m ? `Marquee ×${m[1]}` : 'Marquee total';
   },
-  multiplierReel: { label: 'Marquee' },
-  scatterText: '3 golden tokens start the bonus stage.',
+  multiplierReel: { label: 'Marquee', dimOnLoss: true, values: { base: [1, 2, 3, 5, 10], feature: [1] } },
+  scatterText: '3 golden tokens: bonus stage, extra lives.',
+  symbolText: { 6: 'Hearts pay from 2.' },
 };
 
 export default function Game() {
