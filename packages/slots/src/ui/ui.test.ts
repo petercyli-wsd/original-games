@@ -346,7 +346,7 @@ describe('round 6: win labels from every evaluator', () => {
     ['payline', () => reefDemo(), (s) => s],
     ['ways', () => megaDemo(), (s) => s],
     ['scatter pays (count)', () => emberDemo(6), (s) => s],
-    ['cluster', () => emberDemo(6), (s) => ({ ...s, evaluation: { kind: 'cluster', min_size: 5, adjacency: '4' }, pays: { ...s.pays, paytable: Object.fromEntries(Object.entries(s.pays.paytable).map(([id, p]) => [id, Object.fromEntries([5, 6, 7, 8, 9].map((k) => [String(k), 10 * k]))])) } })],
+    ['cluster', () => emberDemo(6), (s) => ({ ...s, evaluation: { kind: 'cluster', min_size: 5, adjacency: '4' }, pays: { ...s.pays, paytable: Object.fromEntries(Object.entries(s.pays.paytable).map(([id]) => [id, Object.fromEntries([5, 6, 7, 8, 9].map((k) => [String(k), 10 * k]))])) } })],
   ];
   for (const [name, make, tweak] of cases) {
     it(`${name}: every real label parses to a known symbol label and a count`, () => {
