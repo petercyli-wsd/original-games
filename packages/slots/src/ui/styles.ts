@@ -27,11 +27,11 @@ export const slotStyles = /* css */ `
 .sl-reels {
   position: relative;
   width: 100%;
-  aspect-ratio: var(--sl-ratio, 5 / 3);
   overflow: hidden;
   background: var(--sl-bg);
   border-radius: max(0px, calc(var(--sl-r, 8px) - 3px));
 }
+.sl-grid { position: relative; width: 100%; aspect-ratio: var(--sl-ratio, 5 / 3); }
 .sl-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .sl-ov { position: absolute; inset: 0; pointer-events: none; }
 .sl-reel { position: absolute; top: 0; bottom: 0; overflow: hidden; }

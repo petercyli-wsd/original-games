@@ -35,6 +35,11 @@ export interface SlotWindowStyle {
   radius: number;
   /** Corner radius of the tiles in px (0–10). */
   cellRadius: number;
+  /**
+   * Px of margin (0–48) between the frame and the reel grid, filled with the theme's backdrop, so a scene frames the
+   * reels without sitting under the symbols. Only with `theme.backdrop`. Default 0.
+   */
+  backdropMargin?: number;
 }
 
 /** A game's palette: a background tone, a frame tone and 2–4 theme colours. Hex strings only, no gradients. */
@@ -111,7 +116,7 @@ export interface SlotCopy {
    * A multiplier reel (`global_iid`: the marquee) shown spinning with the reels. `values` default to the spec's
    * `global_iid` value_pmf keys; `decorKey` defaults to "global_iid.mult".
    */
-  multiplierReel?: { label?: string; values?: number[]; decorKey?: string };
+  multiplierReel?: { label?: string; values?: number[] | { base?: number[]; feature?: number[] }; decorKey?: string };
 }
 
 /** What a cell overlay hook gets to draw on top of a symbol (for example a ticket in a cook's hand). */

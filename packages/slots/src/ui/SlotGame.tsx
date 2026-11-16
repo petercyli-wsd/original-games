@@ -151,7 +151,15 @@ export function SlotGame(props: SlotGameProps) {
   const [rmult, setRmult] = useState<RoundMultiplier | null>(null);
   const [overlayDecor, setOverlayDecor] = useState<Record<string, unknown> | undefined>(undefined);
   const mrCfg = copy?.multiplierReel;
-  const mrValues = useMemo(() => mrCfg?.values ?? multiplierValues(spec), [mrCfg, spec]);
+  // The marquee's values per phase: given by the game, else each phase's own `global_iid` (the feature spec's, else the base's).
+  const mrBase = useMemo(() => (Array.isArray(mrCfg?.values) ? mrCfg!.values : mrCfg?.values?.base) ?? multiplierValues(spec), [mrCfg, spec]);
+  const mrFeature = useMemo(() => {
+    const v = mrCfg?.values;
+    if (Array.isArray(v)) return v;
+    if (v?.feature) return v.feature;
+    const f = multiplierValues(featureSpec);
+    return f.length ? f : mrBase;
+  }, [mrCfg, featureSpec, mrBase]);
   const [mr, setMr] = useState<{ spinning: boolean; value: number | null }>({ spinning: false, value: null });
   const [busy, setBusy] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
@@ -220,8 +228,8 @@ export function SlotGame(props: SlotGameProps) {
         await wait(30);
         await opts.during();
       }
-      // A card that waits for a press still moves on by itself after 6 s, so a round can't hang on it.
-      if (opts.autoMs === null) await Promise.race([pressed, wait(6000)]);
+      // In Manual a card waits for the press (button, click or Space); Autoplay and Turbo pass `autoMs`.
+      if (opts.autoMs === null) await pressed;
       else await Promise.race([pressed, wait(opts.autoMs)]);
     } finally {
       skipFns.current.delete(done);
@@ -705,7 +713,7 @@ export function SlotGame(props: SlotGameProps) {
       <Readouts items={readouts} />
       <Board>
         <div className="sl-stage" style={themeVars(theme)}>
-          {mrCfg && mrValues.length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={mrValues} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
+          {mrCfg && (feat && feat.kind !== 'respin' ? mrFeature : mrBase).length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={feat && feat.kind !== 'respin' ? mrFeature : mrBase} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
           <ReelWindow
             ref={reels}
             cols={cols}

@@ -79,6 +79,8 @@ export interface ReelWindowProps {
   overlayDecor?: Record<string, unknown>;
 }
 
+const backdropFnPresent = (t: SlotTheme) => !!(t.backdrop || t.featureBackdrop);
+
 const Glyph = memo(function Glyph({ art, size }: { art: SlotSymbolArt; size: number }) {
   return art.render(size);
 });
@@ -366,6 +368,8 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
     '--sl-w': String(cols / maxRows),
   } as CSSProperties;
 
+  // A margin around the grid, inside the window, where the backdrop shows even with tiles and small gaps.
+  const margin = backdropFnPresent(theme) ? Math.max(0, Math.min(48, w.backdropMargin ?? 0)) : 0;
   const backdropFn = feature && theme.featureBackdrop ? theme.featureBackdrop : theme.backdrop;
   const dimmed = !!win && win.size > 0;
   const renderCell = (cell: Cell, c: number, r: number, h: number) => {
@@ -401,12 +405,13 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
 
   return (
     <div className={`sl-frame sep-${w.separators} cell-${w.cell}` + (feature ? ' feature' : '') + (chain ? ' chain' : '')} style={style}>
-      <div ref={rootRef} className="sl-reels" role="group" aria-label="Reels">
+      <div className="sl-reels" role="group" aria-label="Reels" style={{ padding: margin }}>
         {width > 0 && backdropFn && (
-          <svg className="sl-backdrop" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            {backdropFn(width, height)}
+          <svg className="sl-backdrop" viewBox={`0 0 ${width + 2 * margin} ${height + 2 * margin}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            {backdropFn(width + 2 * margin, height + 2 * margin)}
           </svg>
         )}
+        <div ref={rootRef} className="sl-grid">
         {width > 0 &&
           Array.from({ length: cols }, (_, c) => {
             const plan = plans[c];
@@ -460,6 +465,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
             })()}
           </svg>
         )}
+        </div>
       </div>
     </div>
   );

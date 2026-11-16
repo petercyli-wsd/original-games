@@ -115,7 +115,7 @@ export function reefDemo(variant?: 'mystery' | 'marquee'): DemoGame {
     theme:
       variant === 'mystery'
         ? { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop, window: { cell: 'plain', separators: 'line', frameWidth: 8, radius: 10, cellRadius: 0 } }
-        : { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop },
+        : { ...reefTheme, backdrop: reefBackdrop, featureBackdrop: reefFeatureBackdrop, window: { ...reefTheme.window, backdropMargin: 16 } },
     symbols: reefSymbols,
     engine: createSlot({ spec, featureSpecs, feature: config.feature, maxWinStakes: config.maxWinStakes }),
   };

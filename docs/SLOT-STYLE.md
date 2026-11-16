@@ -165,13 +165,13 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Engine extras labels are never shown raw.** "HOLD & SPIN: 9 coins" and "ORB SUM x35" are engine text. Map them with `copy.extrasLabels` (a function, or a record keyed by the label or its start). The neutral default is "Scatter pay", "Bonus ×35" or "Bonus total"; a label already in the game's own words passes through.
 
-**The multiplier readout shows what is applied.** The feature's multiplier times the spin's own: a `global_iid` reel value, the `global_additive` total, or the sum of orbs. A plain ×1 is not shown. `global_additive` rockets show their "+N" badges and a chip "Multiplier ×6 (1 + 5)" before the wins. A game can add the multiplier reel (the marquee) above the window with `copy.multiplierReel`: its values step along while the reels spin and rest on the spin's value.
+**The multiplier readout shows what is applied.** The feature's multiplier times the spin's own: a `global_iid` reel value, the `global_additive` total, or the sum of orbs. A plain ×1 is not shown. `global_additive` rockets show their "+N" badges and a chip "Multiplier ×6 (1 + 5)" before the wins. A game can add the multiplier reel (the marquee) above the window with `copy.multiplierReel` (`values` is one list, or `{ base, feature }`; each phase defaults to its own spec's `global_iid`): its values step along while the reels spin and rest on the spin's value.
 
 **Mystery reveal.** The reels stop on the board with the mystery symbols visible (rebuilt from the stops and strips), then every mystery cell flips into the revealed symbol at once, before any win shows.
 
 **Cell overlays.** `renderOverlay({ col, row, symbol, decor })` draws extra content over a symbol's tile (a ticket in a cook's hand). It sits above the symbol, below the win frame, and takes no pointer events.
 
-**Backdrop.** `theme.backdrop(w, h)` (and optional `theme.featureBackdrop`) returns flat SVG shapes for the window's size, drawn behind the symbols: a seabed, a skyline over water. Palette colours a shade off the window tone, no gradients, glows or filters. It shows through the gaps between tiles and fully with `window.cell: 'plain'`. Keep it quiet: if a symbol is harder to read with it, make it quieter. Check it at 420 px.
+**Backdrop.** `theme.backdrop(w, h)` (and optional `theme.featureBackdrop`) returns flat SVG shapes for the window's size, drawn behind the symbols: a seabed, a skyline over water. Palette colours a shade off the window tone, no gradients, glows or filters. It shows through the gaps between tiles and fully with `window.cell: 'plain'`; with tiles, set `window.backdropMargin` (0 to 48 px) to leave a band around the grid where the scene frames the reels without sitting under the symbols. Keep it quiet: if a symbol is harder to read with it, make it quieter. Check it at 420 px.
 
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
