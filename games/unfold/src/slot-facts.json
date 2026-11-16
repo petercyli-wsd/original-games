@@ -1,0 +1,13 @@
+{
+  "rtp": 0.9599999483174237,
+  "rtpTier": "exact_mixture",
+  "hitRate": 0.42563827579557995,
+  "maxWinStakes": 1500,
+  "featureOneIn": 86.70925110132377,
+  "volatility": "low",
+  "sdStakes": 3.861031810405486,
+  "featureShare": 0.2574851053505629,
+  "averageFeatureWin": 21.433285874622253,
+  "dryStreakP95": 11,
+  "note": "PROVISIONAL: computed by games/unfold/tools/stats.ts (exact mixture over reveal_pmf). Replace with npm run slots:eval -- unfold once it handles mystery_reveal."
+}
