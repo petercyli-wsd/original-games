@@ -1,0 +1,353 @@
+{
+  "schema": "slot_facts_v1",
+  "game": "unfold",
+  "generatedBy": "npm run slots:eval (scripts/slots/eval.ts, packages/slots/src/engine/analytics)",
+  "specHash": "23497cbd670e4abdf75b6594eff27aabdadd3d23d93e839c5c79ef53c47df8c8",
+  "featureSpecHash": "3cab9d58cf9e25842bae2353af572feace6cb2bdbef730c14278dbd41f1a837f",
+  "rtp": 0.9599999483145978,
+  "rtpTier": "exact_mixture",
+  "rtpSe": 0,
+  "hitRate": 0.42563827579028546,
+  "volatility": "low",
+  "volatilitySd": 3.861031810385464,
+  "maxWin": 1500,
+  "featureFreq": 86.70925110132156,
+  "featureShare": 0.25748510534837715,
+  "volatilityDeclared": "low",
+  "winOverStakeRate": 0.23773084134560363,
+  "avgFeatureWin": 21.433285874376665,
+  "pWin100": 0.00018331377330695113,
+  "pMaxWin": 1.508407872065832e-8,
+  "pMaxWinBounds": {
+    "lower": 1.508407872065832e-8,
+    "upper": 1.5378071033969244e-8,
+    "tier": "exact_mixture"
+  },
+  "dryStreakP95": 11,
+  "sessionMedian": 81.38703125,
+  "sessionBustRate": 0.0017,
+  "rtpUncapped": 0.9599999483145978,
+  "rtpUncappedTier": "exact_mixture",
+  "capLoss": {
+    "value": 0,
+    "tier": "mc",
+    "se": 0,
+    "n": 200000,
+    "hits": 0,
+    "exactPart": 0,
+    "method": "E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.153e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.04524% (Cauchy–Schwarz with the exact second moments and the reach upper bound)",
+    "upperBound": 0.00045240367497784075
+  },
+  "rtpSplit": {
+    "base": 0.7128142604883769,
+    "baseTier": "exact_mixture",
+    "feature": 0.24718568782622083,
+    "featureTier": "exact_mixture",
+    "capLoss": 0
+  },
+  "feature": {
+    "kind": "free_spins",
+    "spec": "feature.spec.json",
+    "awards": {
+      "3": 12,
+      "4": 18,
+      "5": 24
+    },
+    "retrigger": {
+      "3": 5
+    },
+    "maxSpins": 36,
+    "multiplier": {
+      "kind": "constant",
+      "value": 1
+    },
+    "tier": "exact_mixture",
+    "triggerP": 0.011532794797541029,
+    "expectedSpins": 13.126849974875595,
+    "averageWinStakes": 21.433285874376665,
+    "sdWinStakes": 26.195289953616196,
+    "pZero": 0.0011548942827169194,
+    "featureRtp": 0.24718568782622083,
+    "buy": false,
+    "buyPriceStakes": null,
+    "byK": [
+      {
+        "k": 3,
+        "pK": 0.010838456197395388,
+        "spins": 12,
+        "expectedSpins": 12.734273509453665,
+        "averageWinStakes": 20.79229404259333,
+        "pZero": 0.0012261937429816259
+      },
+      {
+        "k": 4,
+        "pK": 0.0006774035123372114,
+        "spins": 18,
+        "expectedSpins": 19.100165534250902,
+        "averageWinStakes": 31.186408691122086,
+        "pZero": 0.000042937686772152655
+      },
+      {
+        "k": 5,
+        "pK": 0.000016935087808430282,
+        "spins": 24,
+        "expectedSpins": 25.443165469897746,
+        "averageWinStakes": 41.54314554589519,
+        "pZero": 0.0000015035510953272898
+      }
+    ]
+  },
+  "modifierFeature": null,
+  "stats": [
+    {
+      "key": "rtp",
+      "label": "RTP",
+      "value": 0.9599999483145978,
+      "display": "96.000% exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 0.955,
+        "hi": 0.965,
+        "text": "95.5–96.5%"
+      },
+      "pass": true,
+      "gate": true,
+      "method": "uncapped 96.0000% (exact_mixture) = base 71.281% + feature 24.719% − cap 0.0000%. Base: exact_mixture closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the exact feature distribution and the exact trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 1.153e-2, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.04524% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
+    },
+    {
+      "key": "hitRate",
+      "label": "Hit rate",
+      "value": 0.42563827579028546,
+      "display": "42.56% exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 0.2,
+        "hi": 0.45,
+        "text": "20–45%"
+      },
+      "pass": true,
+      "gate": true,
+      "method": "P(B > 0) + Σ_k P(B = 0, K = k)·(1 − P(F = 0 | k)) over the base distribution, P(F = 0) from the feature DP"
+    },
+    {
+      "key": "winOverStake",
+      "label": "Win > stake rate",
+      "value": 0.23773084134560363,
+      "display": "23.77% mc ± 0.00019%, n 200,000",
+      "tier": "mc",
+      "se": 0.0000018732002084516899,
+      "n": 200000,
+      "band": {
+        "lo": 0.08,
+        "hi": 0.25,
+        "text": "8–25%"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "P(X > stake): exact part 2.2693e-1 (base spin already > the stake) + Monte Carlo of the 1.086e-2 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the exact base and exact feature distributions (features simulated spin by spin), weighted by that exact mass"
+    },
+    {
+      "key": "volatility",
+      "label": "Volatility (SD per round, stakes)",
+      "value": 3.861031810385464,
+      "display": "3.86 (low) exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 2,
+        "hi": 5,
+        "text": "2–5 (declared low)"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "UNCAPPED: √(E[X²] − E[X]²), E[X²] = E[B²] + 2Σ_k E[B·1{K=k}]·E[F|k] + Σ_k P(K=k)·E[F²|k] (B ⟂ F given K), exact moments from the feature DP; the cap only lowers it"
+    },
+    {
+      "key": "featureFrequency",
+      "label": "Feature frequency",
+      "value": 86.70925110132156,
+      "display": "1 in 86.71 exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 80,
+        "hi": 300,
+        "text": "1 in 80–300 (free spins)"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "1 / P(K ≥ 3), P from the exact scatter-count convolution"
+    },
+    {
+      "key": "featureShare",
+      "label": "Feature share of RTP",
+      "value": 0.25748510534837715,
+      "display": "25.7% exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 0.25,
+        "hi": 0.55,
+        "text": "25–55%"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "featureRtp / rtpUncapped (exact free-spins algebra)"
+    },
+    {
+      "key": "averageFeatureWin",
+      "label": "Average feature win",
+      "value": 21.433285874376665,
+      "display": "21.43× exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 15,
+        "hi": 150,
+        "text": "15–150×"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "E[F | trigger] / bet, uncapped (exact free-spins algebra)"
+    },
+    {
+      "key": "pWin100",
+      "label": "P(win ≥ 100×) per round",
+      "value": 0.00018331377330695113,
+      "display": "1 in 5,455 (p 1.833e-4 mc ± 3.2e-6, n 200,000)",
+      "tier": "mc",
+      "se": 0.000003225311298356626,
+      "n": 200000,
+      "band": {
+        "lo": 0,
+        "hi": 0.0002,
+        "text": "1 in 5,000 or rarer (low)"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "P(X ≥ 100·stake): exact part 0.0000e+0 (base spin already ≥ 100×) + Monte Carlo of the 1.153e-2 mass of triggered rounds that still depend on the feature: 200,000 rounds sampled from the exact base and exact feature distributions (features simulated spin by spin), weighted by that exact mass"
+    },
+    {
+      "key": "maxWin",
+      "label": "Max win (declared cap)",
+      "value": 1500,
+      "display": "1,500×",
+      "tier": "exact",
+      "band": {
+        "lo": 1000,
+        "hi": 25000,
+        "text": "1,000–25,000×"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "slot.config.json maxWinStakes; a round that reaches it ends and pays it"
+    },
+    {
+      "key": "maxWinReach",
+      "label": "P(reaching the max win) per round",
+      "value": 1.508407872065832e-8,
+      "display": "1 in 6.50e+7 to 6.63e+7 (exact_mixture bounds); MC 0 (0 hits / 200,000)",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 1e-9,
+        "hi": 1,
+        "text": "> 1 in 10⁹"
+      },
+      "pass": true,
+      "gate": true,
+      "method": "exact bounds: P(B ≥ cap) + Σ over triggered entries with B < cap of P(F ≥ cap − B), bounded below and above by the free-spins DP (retriggers and multipliers included) with each spin's m·W rounded down / up to a 3-stake grid (500 bins up to the cap); P(B ≥ cap) exact + Monte Carlo of the triggered rounds with B < cap (0 of 200,000 reached the cap)"
+    },
+    {
+      "key": "dryStreakP95",
+      "label": "Dry streak p95 (longest miss run in 100)",
+      "value": 11,
+      "display": "11 rounds exact_mixture",
+      "tier": "exact_mixture",
+      "band": {
+        "lo": 0,
+        "hi": 12,
+        "text": "≤ 12 (low)"
+      },
+      "pass": true,
+      "gate": true,
+      "method": "exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = 0.574362; p95 = smallest L with P(longest ≤ L) ≥ 0.95"
+    },
+    {
+      "key": "session",
+      "label": "Session (median balance after 200 rounds from 100)",
+      "value": 81.38703125,
+      "display": "81.4 (95% CI 80.7–82.2), bust 0.2%, mc n 20,000",
+      "tier": "mc",
+      "se": 0.3809814453124984,
+      "n": 20000,
+      "band": null,
+      "pass": null,
+      "gate": false,
+      "method": "20,000 sessions of 200 rounds at 1 stake from 100 stakes, rounds sampled from the exact base and exact feature distributions, capped per round; a player whose balance is below 1 stake stops (bust); median with a distribution-free order-statistic 95% CI"
+    }
+  ],
+  "bandsPassed": [
+    "rtp",
+    "hitRate",
+    "winOverStake",
+    "volatility",
+    "featureFrequency",
+    "featureShare",
+    "averageFeatureWin",
+    "pWin100",
+    "maxWin",
+    "maxWinReach",
+    "dryStreakP95"
+  ],
+  "bandsFailed": [],
+  "gateFailed": [],
+  "withinNoise": [],
+  "oracle": {
+    "status": "pass",
+    "detail": "oracle.json matches the current specs and the pack RTP",
+    "checks": [
+      {
+        "name": "base",
+        "file": "slot.spec.json",
+        "ok": true,
+        "specHash": "23497cbd670e4abdf75b6594eff27aabdadd3d23d93e839c5c79ef53c47df8c8",
+        "oracleHash": "23497cbd670e4abdf75b6594eff27aabdadd3d23d93e839c5c79ef53c47df8c8",
+        "tsRtp": 0.7128142604883769,
+        "tsTier": "exact_mixture",
+        "detail": "pack 0.7128142605 exact_mixture vs ours 0.7128142605 exact_mixture: |Δ| 1.11e-16 ≤ 1.0e-9",
+        "packRtp": 0.712814260488377,
+        "packTier": "exact_mixture",
+        "diff": -1.1102230246251565e-16,
+        "tolerance": 1e-9
+      },
+      {
+        "name": "feature",
+        "file": "feature.spec.json",
+        "ok": true,
+        "specHash": "3cab9d58cf9e25842bae2353af572feace6cb2bdbef730c14278dbd41f1a837f",
+        "oracleHash": "3cab9d58cf9e25842bae2353af572feace6cb2bdbef730c14278dbd41f1a837f",
+        "tsRtp": 1.6327821156951081,
+        "tsTier": "exact_mixture",
+        "detail": "pack 1.6327821157 exact_mixture vs ours 1.6327821157 exact_mixture: |Δ| 4.44e-16 ≤ 1.0e-9",
+        "packRtp": 1.6327821156951077,
+        "packTier": "exact_mixture",
+        "diff": 4.440892098500626e-16,
+        "tolerance": 1e-9
+      }
+    ]
+  },
+  "distributions": {
+    "base": {
+      "tier": "exact",
+      "entries": 6020,
+      "method": "exact enumeration of 5.41e+8 window combinations (at most 1.57e+8 walked), stopped early once the ways total is decided"
+    },
+    "feature": {
+      "tier": "exact",
+      "entries": 36132,
+      "method": "exact enumeration of 5.28e+8 window combinations (at most 1.50e+8 walked), stopped early once the ways total is decided"
+    }
+  },
+  "mc": {
+    "rounds": 200000,
+    "sessions": 20000,
+    "seed": 20261116,
+    "stop": "no Monte Carlo of spins needed (closed forms)"
+  }
+}

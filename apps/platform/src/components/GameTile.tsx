@@ -1,5 +1,7 @@
 import { formatMultiplier, formatPercent, type GameManifest } from '@originals/game-sdk';
 import type { CSSProperties, PointerEvent } from 'react';
+import { slotFactsLine } from '../lib/slotInfo';
+import { isSlot, slotFacts } from '../registry';
 import { Link } from 'react-router-dom';
 import { AiScoreChip } from './AiScoreChip';
 import { Emblem } from './Emblem';
@@ -31,8 +33,14 @@ export function GameTile({ manifest, index }: { manifest: GameManifest; index: n
         <AiScoreChip gameId={manifest.id} />
       </div>
       <div className="tile-foot">
-        <span className="tile-chip">RTP {formatPercent(manifest.rtp)}</span>
-        <span className="tile-chip">Max {formatMultiplier(manifest.maxMultiplier)}</span>
+        {isSlot(manifest) ? (
+          <span className="tile-chip tile-slot-facts">{slotFactsLine(slotFacts(manifest))}</span>
+        ) : (
+          <>
+            <span className="tile-chip">RTP {formatPercent(manifest.rtp)}</span>
+            <span className="tile-chip">Max {formatMultiplier(manifest.maxMultiplier)}</span>
+          </>
+        )}
         {manifest.supersededBy && <span className="tile-chip">Earlier version</span>}
         <span className="tile-play">Play →</span>
       </div>

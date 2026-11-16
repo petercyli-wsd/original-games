@@ -1159,3 +1159,29 @@ button:disabled {
     gap: 6px;
   }
 }
+
+/* Slots */
+.tile-slot-facts {
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.slot-facts {
+  margin-bottom: 12px;
+}
+.slot-gate {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.slot-gate.pass {
+  color: var(--og-green);
+}
+.slot-gate.fail {
+  color: var(--og-red);
+}
+.slot-verdict {
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--og-text-muted);
+}

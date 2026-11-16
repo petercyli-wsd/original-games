@@ -1,0 +1,22 @@
+{
+  "feature": {
+    "kind": "free_spins",
+    "spec": "feature.spec.json",
+    "awards": {
+      "4": 15,
+      "5": 20,
+      "6": 25
+    },
+    "retrigger": {
+      "4": 5
+    },
+    "maxSpins": 45,
+    "multiplier": {
+      "kind": "constant",
+      "value": 1
+    }
+  },
+  "maxWinStakes": 15000,
+  "volatility": "extreme",
+  "targetRtp": 0.96
+}

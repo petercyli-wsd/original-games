@@ -1,0 +1,39 @@
+{
+  "version": 2,
+  "overall": 3.24,
+  "scores": {
+    "theme": 4,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 3,
+    "uniqueness": 2,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.24 < 3.5"
+  ],
+  "verdict": "Honeycomb is a clean, correctly tuned and well explained hold-and-respin, but under the apiary skin it is Money Respin on a ways board, and its full-comb climax hardly ever happens.",
+  "pros": [
+    "Every measured band is met, and the feature carries 43% of RTP at 1 in 118 with an average of 49x: a solid, honest hold-and-respin.",
+    "The feature state is always readable: locked cells are framed with xN badges, the rest of the board dims, and Respins left / Bonus total / Comb n/25 stay on screen. The panel player understood every rule correctly.",
+    "The comb framing gives the grid fill a themed goal (Comb n/25, full comb 1,000x), and the art palette is coherent."
+  ],
+  "cons": [
+    "The feature is a near-copy of Money Respin / Lightning Link. Add one theme-native rule that changes how respins play, for example a Queen bee landing in a respin that fills or doubles the adjacent cells, or capped cells that spread honey to a neighbour. That gives the slot something a player would describe to a friend.",
+    "The full comb is effectively unreachable (the 1,016x round reached 11/25). Make filling the comb pay its way: add tiered fill bonuses at 15/20/25 cells, or a meter that unlocks extra rows of the comb, so the theme's climax drives the payout instead of the x500 draw.",
+    "The worker bee wild reads as a mushroom with no WILD mark: draw it as a clear bee in flight with a 'WILD' ribbon, and give premiums a framed or deeper-coloured tile so they stand apart from the gold/cream lows.",
+    "The base game is silent about the chase: show each honey cell's value badge in the base game, add a 'Honey n/6' counter, and tease when 4-5 cells land (only while 6 can still complete). Round pays like 0.0046x up to readable steps so the paytable doesn't show four decimals."
+  ],
+  "confusions": [
+    "The worker bee looks like a mushroom and has no WILD label; I only learned it was wild from the paytable.",
+    "Honey cells show no value in the base game, so before the paytable I couldn't tell if they paid or what they did.",
+    "There's no on-board counter of honey cells toward the 6 needed: a spin with 5 cells passed silently."
+  ],
+  "players": 1,
+  "codeHash": "48970e1d86625b00",
+  "date": "2026-11-16"
+}

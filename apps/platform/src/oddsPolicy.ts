@@ -2,7 +2,7 @@
 // Only the 'ladder' and 'paytable' groups may be hidden by the operator;
 // every other group always shows its probability numbers.
 
-import type { OddsReadout } from '@originals/game-sdk';
+import type { Collection, OddsReadout } from '@originals/game-sdk';
 
 export type OddsGroup = 'input' | 'choice' | 'timing' | 'ladder' | 'paytable' | 'table' | 'skill';
 
@@ -40,8 +40,13 @@ export function operatorOddsReadout(raw: string | undefined = import.meta.env.VI
   return raw?.trim().toLowerCase() === 'off' ? 'off' : 'on';
 }
 
+/** A game's group: listed explicitly, else every slot (collection 'slots') is a paytable game. */
+export function oddsGroupOf(gameId: string, collection?: Collection): OddsGroup | undefined {
+  return ODDS_GROUPS[gameId] ?? (collection === 'slots' ? 'paytable' : undefined);
+}
+
 /** The value a game actually gets: 'off' only for hideable groups, and unknown games stay 'on'. */
-export function resolveOddsReadout(gameId: string, operator: OddsReadout = operatorOddsReadout()): OddsReadout {
-  const group = ODDS_GROUPS[gameId];
+export function resolveOddsReadout(gameId: string, operator: OddsReadout = operatorOddsReadout(), collection?: Collection): OddsReadout {
+  const group = oddsGroupOf(gameId, collection);
   return operator === 'off' && group && HIDEABLE_GROUPS.includes(group) ? 'off' : 'on';
 }

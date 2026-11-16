@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "overall": 3.44,
+  "scores": {
+    "theme": 4,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 4,
+    "uniqueness": 3,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.44 < 3.5"
+  ],
+  "verdict": "A competent, honest, well-explained cosy line slot whose cook-hides-ticket twist and x5 last free spin give it a hook, but its parts are familiar and its base game is a sub-stake grind with a wild reel that looks like three ordinary tiles.",
+  "pros": [
+    "Every measured band passes, and the shape matches the cosy theme: high hit rate, medium volatility, and a feature that pays something 98% of the time and averages 46x.",
+    "The cook-covers-ticket rule is a genuine in-world interaction that creates honest tension (two tickets showing, waiting on reel 5, a 'Ticket hidden' near-miss), and all three players understood it.",
+    "Dinner rush has a clear build: the multiplier rises to x5, and extra cook reels can stack beside the random wild reel, so the last spin is the one to watch (58x, 72x and 37x endings across the panel).",
+    "The premium/low tiers separate instantly (gold-rimmed full-size tiles vs. smaller plain-tile lows), and all three players read the top pay, trigger and wild correctly."
+  ],
+  "cons": [
+    "Make the wild reel an event, not three stacked tiles: draw one framed column over the cook's reel (a lantern-red border, a steam or ray burst, a short 'Cook!' band) so a guaranteed wild reel still reads as something happening every spin.",
+    "The 'Ticket hidden' mark is a tiny grey X with an unreadable label: show the covered ticket as a large faded ghost behind the cook with a readable tag ('Ticket hidden'), and add a paytable line under 9 words such as 'Cook on reel 1, 3 or 5 hides tickets'.",
+    "Fix the feature readouts: show 'Multiplier x1' from free spin 1, make the end card's amount and its 'x your bet' figure use the same total (or label one as the trigger spin), and replace 'At most 5 spins in total' with 'No retriggers', since nothing ever adds spins.",
+    "Lift the base game above the sub-stake drip (hit 40.6% but win > stake only 18%): move some weight from 3-of-a-kind lows into 3- and 4-of-a-kind premiums so more hits clear the stake. Bring the night-market backdrop (awning, lanterns) up in contrast so the stall is visible behind the reels, and theme the Dinner rush intro card."
+  ],
+  "confusions": [
+    "The Big Win card showed 57.54 but '58.2x your bet' at a 1.00 bet; it took the next screen (Won 58.20) to see the trigger spin's 0.66 was included.",
+    "On free spin 1 no Multiplier readout appeared; it only showed up from spin 2 (x2), so I assumed x1 from the paytable.",
+    "The paytable says 'At most 5 spins in total' for Dinner Rush; unclear whether retriggers exist or why a cap is mentioned.",
+    "'Ticket hidden' on a cook reel: at first I didn't know whether a hidden ticket still counts toward the 3 (the paytable 'It hides tickets' suggests it doesn't).",
+    "The cook column showed up on reels 1 and 5 too, but the feature card says extra cooks spread on reels 2-4; it's unclear which reels a cook can land on in the base game.",
+    "Dinner Rush spin 1: no multiplier shown, and the win tag (0.89) didn't match the feature total jump (1.77) until the second line flashed.",
+    "Does a cook reel on reel 1, 3 or 5 actually cancel a ticket that would have triggered the feature? The 'Ticket hidden' tag suggests it does, but I wasn't sure whether a hidden ticket ever counts.",
+    "The paytable says 'Tickets on reels 1, 3, 5', yet the cook can land on any reel, so it was unclear how often a cook would block a near-trigger.",
+    "During Dinner Rush it wasn't clear when extra cooks appear (every spin? at random?). Only one feature spin out of ten showed them."
+  ],
+  "players": 3,
+  "codeHash": "166e3e0d713598a6",
+  "date": "2026-11-16"
+}

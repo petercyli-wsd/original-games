@@ -1,6 +1,6 @@
 import type { GameManifest, GameModule } from '@originals/game-sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { buildRegistry, inLobbyOrder } from './registry';
+import { buildRegistry, inLobbyOrder, lobbySection } from './registry';
 
 const manifest = (id: string, extra: Partial<GameManifest> = {}): GameManifest => ({
   id,
@@ -54,5 +54,26 @@ describe('inLobbyOrder', () => {
       entry('classic-b', { status: 'live', collection: 'classics' }),
     ]);
     expect(ordered.map((g) => g.manifest.id)).toEqual(['core', 'classic-a', 'classic-b', 'proto']);
+  });
+});
+
+describe('slots collection', () => {
+  it('sits between classics and experimental; retired slots go to the archive, template slots to templates', () => {
+    const slot = { collection: 'slots' as const, mechanic: 'slots' as const };
+    expect(lobbySection(manifest('s', { ...slot, status: 'live' }))).toBe(2);
+    expect(lobbySection(manifest('s', { ...slot, status: 'prototype' }))).toBe(2);
+    expect(lobbySection(manifest('s', { ...slot, status: 'retired' }))).toBe(4);
+    expect(lobbySection(manifest('s', { ...slot, status: 'template' }))).toBe(5);
+    expect(lobbySection(manifest('reels', { status: 'live', collection: 'classics', mechanic: 'slots' }))).toBe(1);
+  });
+  it('orders core, classics, slots, experimental', () => {
+    const entry = (id: string, extra: Partial<GameManifest>) => ({ manifest: manifest(id, extra), load });
+    const ordered = inLobbyOrder([
+      entry('proto', {}),
+      entry('slot', { status: 'live', collection: 'slots' }),
+      entry('classic', { status: 'live', collection: 'classics' }),
+      entry('core', { status: 'live' }),
+    ]);
+    expect(ordered.map((g) => g.manifest.id)).toEqual(['core', 'classic', 'slot', 'proto']);
   });
 });

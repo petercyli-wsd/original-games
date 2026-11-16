@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "overall": 2.88,
+  "scores": {
+    "theme": 3,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 2,
+    "fun": 2,
+    "creativity": 3,
+    "maths_fit": 3,
+    "uniqueness": 2,
+    "polish": 4
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 2.88 < 3.5"
+  ],
+  "verdict": "A handsome, well-tuned low-volatility origami slot that plays like Mystery Reels on a Buffalo board: its signature 'unfold' happens too fast to see and its free spins barely differ from the base game.",
+  "pros": [
+    "Every measured band passes, and the low volatility matches the calm origami theme: 42.6% hit rate, dry-streak p95 of 11, 0.2% bust over 200 rounds.",
+    "Coherent, crafted flat-origami art. Every symbol is distinct at size, the animals read as premiums over the paper toys, and the folded tile corner carries the theme onto every cell.",
+    "Very readable wins: gold frames with the rest dimmed, plus a per-win breakdown chip ('Crane x3 · 2 ways = 3.93') that the player checked by hand and found correct.",
+    "Clear feature flow: the trigger bar ('12 free spins · 3 folded suns'), 'Free spin X of 12', a running 'Feature total' and a total-win card with the multiple of the bet."
+  ],
+  "cons": [
+    "Make the unfold visible. Let the reels settle showing the blank Folded squares, hold for about 300 ms with the squares outlined, then flip them one reel at a time into the drawn symbol, and keep a small folded-corner marker on cells that were squares. Today the player never saw which tiles had been squares, and 'Squares → Koi' with no win was confusing.",
+    "Give Free folds a real difference from the base game. For example, make revealed squares sticky for the rest of the feature, or draw only premiums (Crane/Fox/Koi/Frog) in free spins instead of 68% lows. Then rebalance the strips so the feature carries 35–45% of the RTP with an average of about 30–40x, instead of 25.7% and 21x. Also change the intro line, since 'Folded squares open every spin' describes the base game too.",
+    "Add honest anticipation: when 2 suns are down and a later reel can still show one (every reel carries a sun), slow the remaining reels and glow the landed suns. Never slow when the trigger can no longer complete.",
+    "Make the special symbols easier to tell apart: put a short 'WILD' fold-label on the Gold foil diamond so it no longer reads as a second Paper star, and make the creased-paper landscape visible behind the board (lighten it a step or let it show through the frame) so the screen isn't just a navy box. Keep the per-win breakdown line in Turbo."
+  ],
+  "confusions": [
+    "The 'Squares -> Koi / Water bomb / Paper star' label appeared on many spins, but by the time the reels settled I couldn't see which tiles had been folded squares, so I didn't know what the reveal had changed (often nothing won).",
+    "Before opening the paytable I wasn't sure the gold foil diamond was the wild; nothing on the board labels it.",
+    "In Turbo, multi-win spins only showed '2 wins = 7.07' without the per-symbol breakdown that normal speed gives."
+  ],
+  "players": 1,
+  "codeHash": "0ea3dbe1cee69dff",
+  "date": "2026-11-16"
+}
