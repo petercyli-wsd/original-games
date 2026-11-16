@@ -180,14 +180,14 @@ export function playTotals(log: PlayLogEntry[]) {
 }
 
 /** What a blind session lacks against the brief (≥ 60 spins incl. Turbo and Autoplay, a feature, the paytable). */
-export function sessionShortfalls(log: PlayLogEntry[]): string[] {
+export function sessionShortfalls(log: PlayLogEntry[], hasFeature = true): string[] {
   const t = playTotals(log);
   const out: string[] = [];
   // Autoplay spins are watched, not pressed: each watch shot counts as about one spin.
   if (t.spins + t.watches < 60) out.push(`about ${t.spins + t.watches} spins (< 60)`);
   if (!t.turbo) out.push('no Turbo');
   if (!t.autoplay) out.push('no Autoplay');
-  if (!t.feature) out.push('no feature run');
+  if (hasFeature && !t.feature) out.push('no feature run');
   if (!t.paytable) out.push('never opened the paytable');
   return out;
 }

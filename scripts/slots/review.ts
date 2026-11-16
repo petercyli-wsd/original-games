@@ -249,7 +249,7 @@ async function judgePrompt() {
     const meta = metaOf(id)!;
     if (meta.codeHash !== e.codeHash) fail(`${id}: the panel played older code; run player-prompt ${id} again`);
     const merged = mergePanel(reviews);
-    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a))));
+    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature));
     shortfalls.forEach((s, i) => s.length && console.log(`! ${id}: player ${panelLabel(i)} (${aliases[i]}) fell short of the session brief: ${s.join('; ')}`));
     const entries = await catalogueEntries(id);
     const twins = twinsOf(e.signature, entries);
@@ -324,7 +324,9 @@ async function score() {
       players: merged.players,
       trademarks: [...e.trademarks, ...(Array.isArray(review.trademarks) ? review.trademarks.filter((t) => typeof t === 'string' && t.trim()).map((t) => `${t} (designer)`) : [])],
     });
-    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a))));
+    const shortfalls = aliases.map((a) => sessionShortfalls(readPlayLog(join(BLIND, a)), e.hasFeature));
+    // A player who didn't play the session (from the play log, not its own account) hasn't reviewed the slot.
+    shortfalls.forEach((s, i) => s.length && reasons.push(`review incomplete: player ${panelLabel(i)}'s session fell short (${s.join(', ')}); replace the panel`));
     const misreads = review.comprehension.filter((c) => c.grade !== 'correct').map((c) => `Player ${c.player} ${c.grade}: ${c.reasoning}`);
     const out = {
       version: SLOT_REVIEW_VERSION,
