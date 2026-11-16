@@ -12,6 +12,7 @@ import { checkParity, type OracleFixture } from '../../../packages/slots/src/eng
 import { distMean, distProb, exactSpinDistribution } from '../../../packages/slots/src/engine/analytics/distribution';
 import { scatterCountDist, triggerProbability } from '../../../packages/slots/src/engine/analytics/exact';
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
+import { holdsTicket, noteSpin } from './walker';
 import { createSeedSource, seededRng32 } from '../../../packages/slots/src/ui/engine-bridge';
 
 const base = spec as unknown as SlotSpec;
@@ -69,18 +70,19 @@ describe('exact RTP equals the pack', () => {
   });
 });
 
-describe('the band of a low game', () => {
+describe('the band of a medium game', () => {
   it('has the declared shape', () => {
-    expect(cfg.volatility).toBe('low');
-    expect(facts.sd).toBeGreaterThan(2);
-    expect(facts.sd).toBeLessThan(5);
+    expect(cfg.volatility).toBe('medium');
+    expect(facts.volatilitySd).toBeGreaterThan(5);
+    expect(facts.volatilitySd).toBeLessThan(10);
     expect(facts.hitRate).toBeGreaterThan(0.2);
     expect(facts.hitRate).toBeLessThan(0.45);
-    expect(facts.featureOneIn).toBeGreaterThan(85);
-    expect(facts.featureOneIn).toBeLessThan(95);
-    expect(facts.avgFeatureWin).toBeGreaterThan(22);
-    expect(facts.avgFeatureWin).toBeLessThan(28);
-    expect(facts.dryStreakP95).toBeLessThanOrEqual(12);
+    const oneIn = facts.featureFreq as number;
+    expect(oneIn).toBeGreaterThan(80);
+    expect(oneIn).toBeLessThan(300);
+    expect(facts.avgFeatureWin).toBeGreaterThan(40); // the rush clearly beats the old 25x
+    expect(facts.avgFeatureWin).toBeLessThan(150);
+    expect(facts.dryStreakP95).toBeLessThanOrEqual(20);
     expect(distProb(bd, (c) => c > 0)).toBeGreaterThan(0.4);
   });
 });
@@ -161,5 +163,30 @@ describe('spin flow', () => {
       expect(r.finalBoard[j].every((v) => v === 2)).toBe(true);
     }
     expect(walked.size).toBe(5);
+  });
+});
+
+describe('the ticket in the cook\'s hand', () => {
+  it('is shown exactly where the walk covered a scatter, and nowhere else', () => {
+    const eng = new SlotEngine(base);
+    const strips = (base as unknown as { board_law: { reel_sets: { strips: number[][] }[] } }).board_law.reel_sets[0].strips;
+    let withTicket = 0;
+    for (let seed = 0; seed < 3000; seed++) {
+      const r = eng.spin(seed);
+      const j = r.decor['walking_wild.walker'] as number;
+      noteSpin(base, r);
+      for (let row = 0; row < 3; row++) {
+        const raw = strips[j][(r.stops[j] + row) % strips[j].length];
+        const shown = holdsTicket(r.decor, j, row, 2);
+        expect(shown).toBe(raw === 1);
+        if (shown) withTicket++;
+        for (let c = 0; c < 5; c++) if (c !== j) expect(holdsTicket(r.decor, c, row, 2)).toBe(false);
+      }
+    }
+    expect(withTicket).toBeGreaterThan(0);
+  });
+  it('is not drawn on a decor the engine never reported', () => {
+    expect(holdsTicket(undefined, 0, 0, 2)).toBe(false);
+    expect(holdsTicket({ 'walking_wild.walker': 0 }, 0, 0, 2)).toBe(false);
   });
 });

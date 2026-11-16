@@ -3,6 +3,7 @@
 // tall cook with a puffed hat (wild), slip with a torn edge (scatter). Lows are one-colour objects.
 
 import type { ReactElement } from 'react';
+import type { ReactNode } from 'react';
 import type { SlotSymbols, SlotTheme } from '@originals/slots/ui';
 
 /** The theme's tones. The window palette below is built from exactly these. */
@@ -16,12 +17,81 @@ export const NC = {
   white: '#fff7e6', // paper white (hat, ticket stamp)
 } as const;
 const C = NC;
+const GOLD = '#f7c948'; // flat gold for the bowl's rim
+const GLAZE = '#e8892b'; // roast duck glaze, a flat tone between red and amber
 
 const svg = (size: number, body: ReactElement) => (
   <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true">
     {body}
   </svg>
 );
+
+/**
+ * A night-market stall behind the reels: a striped awning along the top, three paper lanterns on cords and a
+ * counter along the bottom. Every shape is a shade off the window tone, so the symbols stay the loudest thing.
+ */
+function stall(w: number, h: number, t: { awnA: string; awnB: string; lantern: string; cord: string; counter: string; post: string }): ReactNode {
+  const stripes = 8;
+  const sw = w / stripes;
+  const awnH = h * 0.14;
+  const lanternXs = [0.2, 0.5, 0.8];
+  return (
+    <>
+      <rect x={0} y={h * 0.9} width={w} height={h * 0.1} fill={t.counter} />
+      <rect x={w * 0.04} y={awnH} width={w * 0.02} height={h * 0.8} fill={t.post} />
+      <rect x={w * 0.94} y={awnH} width={w * 0.02} height={h * 0.8} fill={t.post} />
+      {lanternXs.map((fx, i) => {
+        const x = w * fx;
+        const len = h * (i === 1 ? 0.2 : 0.12);
+        const rx = Math.min(w * 0.05, h * 0.05);
+        return (
+          <g key={i}>
+            <rect x={x - 1} y={awnH} width={2} height={len} fill={t.cord} />
+            <ellipse cx={x} cy={awnH + len + rx * 1.2} rx={rx} ry={rx * 1.3} fill={t.lantern} />
+            <rect x={x - rx * 0.45} y={awnH + len - rx * 0.1} width={rx * 0.9} height={rx * 0.3} fill={t.cord} />
+          </g>
+        );
+      })}
+      {Array.from({ length: stripes }, (_, i) => (
+        <path
+          key={i}
+          d={`M${i * sw} 0 H${(i + 1) * sw} V${awnH} Q${i * sw + sw / 2} ${awnH + h * 0.05} ${i * sw} ${awnH} Z`}
+          fill={i % 2 ? t.awnA : t.awnB}
+        />
+      ))}
+    </>
+  );
+}
+
+/** The dinner rush: every lantern lit (a lighter body with a bright band), steam rising off the counter. */
+function rush(w: number, h: number): ReactNode {
+  const n = 7;
+  const rx = Math.min(w * 0.03, h * 0.04);
+  return (
+    <>
+      <rect x={0} y={0} width={w} height={h * 0.12} fill="#7a1e0e" />
+      <rect x={0} y={h * 0.9} width={w} height={h * 0.1} fill="#7a1e0e" />
+      {Array.from({ length: n }, (_, i) => {
+        const x = (w * (i + 0.5)) / n;
+        const len = h * (i % 2 ? 0.12 : 0.2);
+        const cy = h * 0.12 + len + rx * 1.2;
+        return (
+          <g key={`l${i}`}>
+            <rect x={x - 1} y={h * 0.12} width={2} height={len} fill="#a8461a" />
+            <ellipse cx={x} cy={cy} rx={rx} ry={rx * 1.3} fill="#c4651f" />
+            <rect x={x - rx * 0.6} y={cy - rx * 0.25} width={rx * 1.2} height={rx * 0.5} fill="#e0a040" />
+          </g>
+        );
+      })}
+      {[0.14, 0.38, 0.62, 0.86].map((fx, i) => {
+        const x = w * fx;
+        const y = h * 0.9;
+        const u = h * 0.07;
+        return <path key={`s${i}`} d={`M${x} ${y} q${u * 0.6} ${-u} 0 ${-u * 2} q${-u * 0.6} ${-u} 0 ${-u * 2}`} stroke="#b0502a" strokeWidth={Math.max(3, h * 0.012)} strokeLinecap="round" fill="none" />;
+      })}
+    </>
+  );
+}
 
 export const noodleTheme: SlotTheme = {
   name: 'Noodle Cart',
@@ -37,7 +107,21 @@ export const noodleTheme: SlotTheme = {
     featureTile: '#ffe2a0',
   },
   window: { cell: 'tile', separators: 'gap', frameWidth: 10, radius: 10, cellRadius: 8 },
+  backdrop: (w, h) => stall(w, h, { awnA: '#561b11', awnB: '#471810', lantern: '#5e2314', cord: '#4e1c11', counter: '#2f110a', post: '#451810' }),
+  featureBackdrop: rush,
 };
+
+/** The order ticket the cook holds up when he walks over a scatter (an overlay on his tile, in his hand). */
+export const ticketInHand = (
+  <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+    <g transform="rotate(12 80 66)">
+      <path d="M66 46 H94 V84 L88 90 L82 84 L76 90 L70 84 L66 90 Z" fill={C.white} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
+      <circle cx="80" cy="58" r="6" fill={C.pink} />
+      <rect x="71" y="70" width="18" height="3.5" rx="1.7" fill={C.red} />
+    </g>
+    <circle cx="66" cy="70" r="6" fill={C.amber} stroke={C.ink} strokeWidth="3" />
+  </svg>
+);
 
 export const noodleSymbols: SlotSymbols = {
   // Scatter: an order ticket, a red slip with a torn edge and a stamp
@@ -89,6 +173,7 @@ export const noodleSymbols: SlotSymbols = {
           <path d="M66 54 C68 38 76 32 72 14" stroke={C.amber} strokeWidth="5" strokeLinecap="round" fill="none" />
           <path d="M8 52 H92 C92 80 74 92 50 92 C26 92 8 80 8 52 Z" fill={C.red} stroke={C.ink} strokeWidth="4" strokeLinejoin="round" />
           <rect x="10" y="60" width="80" height="8" fill={C.amber} />
+          <rect x="5" y="48" width="90" height="9" rx="4.5" fill={GOLD} stroke={C.ink} strokeWidth="3.5" />
         </>,
       ),
   },
@@ -114,11 +199,12 @@ export const noodleSymbols: SlotSymbols = {
       svg(
         s,
         <>
-          <path d="M50 4 V16" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round" />
+          <path d="M50 16 V6 C50 0 62 0 62 6" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round" fill="none" />
           <path d="M60 28 L76 33 L60 38 Z" fill={C.amber} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
           <circle cx="50" cy="28" r="12" fill={C.red} stroke={C.ink} strokeWidth="4" />
           <ellipse cx="50" cy="62" rx="24" ry="30" fill={C.red} stroke={C.ink} strokeWidth="4" />
           <path d="M36 54 C36 70 44 80 54 82" stroke={C.amber} strokeWidth="6" strokeLinecap="round" fill="none" />
+          <ellipse cx="60" cy="56" rx="6" ry="13" fill={GLAZE} transform="rotate(14 60 56)" />
           <circle cx="54" cy="25" r="3" fill={C.white} />
           <path d="M42 92 V97 M58 92 V97" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round" />
         </>,
@@ -185,7 +271,7 @@ export const noodleSymbols: SlotSymbols = {
         s,
         <>
           <circle cx="50" cy="50" r="40" fill={C.white} stroke={C.ink} strokeWidth="4" />
-          <path d="M50 50 m0 -6 a6 6 0 1 1 -6 6 a14 14 0 1 1 14 14 a22 22 0 1 1 -22 -22" stroke={C.pink} strokeWidth="6" strokeLinecap="round" fill="none" />
+          <path d="M50 50 m0 -6 a6 6 0 1 1 -6 6 a14 14 0 1 1 14 14 a22 22 0 1 1 -22 -22" stroke={C.red} strokeWidth="6" strokeLinecap="round" fill="none" />
         </>,
       ),
   },
