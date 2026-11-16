@@ -341,7 +341,7 @@ describe('slot-facts.json', () => {
     expect(f.avgFeatureWin).toBe(s.feature!.averageWinStakes);
     expect(f.bigWinOneIn).toBeCloseTo(1 / s.pWin100.value, 6);
     expect(f.maxWin).toBe(CFG.maxWinStakes);
-    expect(f.maxWinOneIn).toBeCloseTo(1 / s.reach.best, 0);
+    expect(f.maxWinOneIn).toBeCloseTo(1 / s.reach.best!, 0);
     expect(f.dryStreakP95).toBe(s.dryStreakP95);
     expect(f.sessionMedian).toBe(s.session.medianStakes);
     expect(facts.stats).toHaveLength(s.rows.length);
@@ -430,5 +430,47 @@ describe('flat award tables: the exact feature anchor', () => {
     const anchored = computeSlotStats({ spec: BASE, featureSpec: FEAT, config: cfg, featureAnchor: { ...a, featureRtp: a.featureRtp + 0.01 }, mc: { rounds: 2000, sessions: 200 } });
     expect(anchored.featureRtp).toBeCloseTo(s.featureRtp + 0.01, 12);
     expect(anchored.featureRtpTier).toBe('exact');
+  });
+});
+
+describe('max-win reach: no hit is never P = 0', () => {
+  const c = cases.find((x) => x.panel === 'panel-plain-ways-substitution-no-overlay')!;
+  const spec = c.spec as SlotSpec;
+  const bet = spec.bet.coins;
+  const cfg: SlotConfig = { maxWinStakes: 5000, volatility: 'medium', targetRtp: 0.96 };
+  const sampled = (n: number): SpinDist => ({ coins: [0, 5 * bet], k: [0, 0], p: [0.7, 0.3], tier: 'mc', n, method: 'synthetic' });
+
+  it('a sample with no hit reports the interval [0, 3/n]: unresolved (passes, within noise) while 3/n > 1e-9', () => {
+    const s = computeSlotStats({ spec, config: cfg, baseDist: sampled(1_000_000), mc: { sessions: 200 } });
+    const r = row(s, 'maxWinReach');
+    expect(r).toMatchObject({ value: null, pass: true, withinNoise: true, gate: true, tier: 'mc' });
+    expect(s.reach.best).toBeNull();
+    expect(s.reach.interval[0]).toBe(0);
+    expect(s.reach.interval[1]).toBeCloseTo(3e-6, 12);
+    const facts = buildSlotFacts({ game: 't', specHash: 'x', config: cfg, stats: s, oracle: { status: 'pass', detail: '', checks: [] } });
+    expect(facts.pMaxWin).toBeNull();
+    expect(facts.pMaxWinBounds).toMatchObject({ lower: 0, unresolved: true });
+    // 3/n below 1e-9: even the upper bound says unreachable
+    const big = computeSlotStats({ spec, config: cfg, baseDist: sampled(1e10), mc: { sessions: 200 } });
+    expect(row(big, 'maxWinReach')).toMatchObject({ value: null, pass: false });
+    expect(big.gateFailed).toContain('maxWinReach');
+  });
+
+  it('an exact distribution that never reaches the cap is exactly 0 and fails', () => {
+    const exact: SpinDist = { ...sampled(0), tier: 'exact', n: undefined };
+    const s = computeSlotStats({ spec, config: cfg, baseDist: exact, baseRtp: { rtp: 1.5, tier: 'exact' }, mc: { sessions: 200 } });
+    expect(row(s, 'maxWinReach')).toMatchObject({ value: 0, pass: false, tier: 'exact' });
+  });
+
+  it('the split with an importance-sampled tail reports P(T)·P(X ≥ cap | T) with its SE', () => {
+    const exactDist: SpinDist = { coins: [0, bet], k: [0, 0], p: [0.6, 0.4], tier: 'exact', method: 'synthetic' };
+    const cond = { n: 1000, x: [3 * bet], b0: [0], k: [0], k0: [0], count: [1000] };
+    const tail = { n: 1_000_000, hits: 5000, p: 2e-6, pSe: 2e-7, loss: 1e-6 * bet, lossSe: 1e-7 * bet, method: 'test' };
+    const s = computeSlotStats({ spec, config: cfg, split: { exactDist, pT: 0.01, cond, method: 'test', tail }, mc: { sessions: 200 } });
+    const r = row(s, 'maxWinReach');
+    expect(r.value).toBeCloseTo(0.01 * 2e-6, 15);
+    expect(r.se).toBeCloseTo(0.01 * 2e-7, 15);
+    expect(r.pass).toBe(true);
+    expect(s.capLoss.value).toBeCloseTo(0.01 * 1e-6, 15);
   });
 });

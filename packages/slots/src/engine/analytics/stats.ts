@@ -165,6 +165,11 @@ export interface SplitInput {
   /** The paired conditional sample: (X, B0, K of the spin, K0 of the mechanic-free board) → count. */
   cond: { n: number; x: number[]; b0: number[]; k: number[]; k0?: number[]; count: number[] };
   method: string;
+  /**
+   * The importance-sampled max-win tail over triggering boards (conditional.ts tailChunk): p =
+   * P(X ≥ cap | T), loss = E[(X − cap)+ | T] in coins, with SEs; hits = unweighted spins at the cap.
+   */
+  tail?: { n: number; hits: number; p: number; pSe: number; loss: number; lossSe: number; method: string };
 }
 
 /** Plain Monte-Carlo tally of a modifier feature's detect signal over n base spins. */
@@ -278,7 +283,11 @@ export interface SlotStats {
   winOverStake: McEstimate;
   sdStakes: number;
   pWin100: McEstimate;
-  reach: { lowerBound: number; upperBound: number; boundTier: Tier; mc: McEstimate | null; best: number; method: string };
+  /**
+   * best: the best evidence for P(X ≥ cap) per round, null when no hit was seen and nothing bounds it
+   * away from 0 (then `interval` = [0, upper]); interval: the reported [lower, upper].
+   */
+  reach: { lowerBound: number; upperBound: number; boundTier: Tier; mc: McEstimate | null; best: number | null; interval: [number, number]; method: string };
   dryStreakP95: number;
   session: SessionStats;
   distributions: { base: { tier: 'exact' | 'mc'; n?: number; entries: number; method: string }; feature: { tier: 'exact' | 'mc'; n?: number; entries: number; method: string } | null };
@@ -804,13 +813,47 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
   let upperBound: number;
   let lowerBoundTier: Tier = jointTier;
   let reachMethod: string;
+  let reachInterval: [number, number] = [0, 0];
   {
     // exact part: untriggered (B − cap)+, triggered with B ≥ cap: B − cap + E[F|k]
     const lossG = (e: Entry) => (e.B >= capCoins ? e.B - capCoins + (trig(e) ? e.ef : 0) : 0);
     const exactLoss = wVar(es, lossG);
     const exactReach = wVar(es, (e) => (e.B >= capCoins ? 1 : 0));
     const sim = conditional((e) => e.B < capCoins, [(x) => Math.max(0, x - capCoins), (x) => (x >= capCoins ? 1 : 0), (x) => (x > capCoins ? 1 : 0)]);
-    if (!sim) {
+    const tail = split?.tail ?? null;
+    if (!sim && split && tail) {
+      // the split's tail (header, max-win reach): the exact and B0 parts of the signed law + P(T) × the
+      // importance-sampled P(X ≥ cap | T) and E[(X − cap)+ | T]
+      const xs = new Set(pairs.map((q) => q.x));
+      const nonX = (g: (e: Entry) => number) => es.reduce((acc, e) => acc + (xs.has(e) ? 0 : e.p * g(e)), 0);
+      const reachFixed = nonX((e) => (e.B >= capCoins ? 1 : 0));
+      const lossFixed = nonX(lossG);
+      const reachVal = reachFixed + split.pT * tail.p;
+      capLoss = {
+        value: (lossFixed + split.pT * tail.loss) / bet,
+        tier: 'mc',
+        se: (split.pT * tail.lossSe) / bet,
+        n: tail.n,
+        hits: tail.hits,
+        exactPart: lossFixed / bet,
+        method: `E[(X − cap)+] / bet: the exact and B0 parts of the split + P(T) × E[(X − cap)+ | T] by importance sampling (${tail.method})`,
+      };
+      // the "bounds" are the part with no tail sampling; the estimate is reachMc (best evidence)
+      lowerBound = reachFixed;
+      upperBound = reachFixed;
+      lowerBoundTier = 'mc';
+      reachMc = {
+        value: reachVal,
+        tier: 'mc',
+        se: split.pT * tail.pSe,
+        n: tail.n,
+        hits: tail.hits,
+        exactPart: reachFixed,
+        mcMass: split.pT,
+        method: `P(T) exact × P(X ≥ cap | T) by importance sampling: ${tail.method}`,
+      };
+      reachMethod = `the split: P(B0 ≥ cap) parts (exact + paired sample) + P(T) (exact) × P(X ≥ cap | T)`;
+    } else if (!sim) {
       const anyAbove = es.some((e) => e.B > capCoins && e.p > 0);
       const splitHits = split ? split.cond.count.reduce((a, c, j) => a + (split.cond.x[j] > capCoins ? c : 0), 0) : 0;
       capLoss = {
@@ -1284,30 +1327,66 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       gate: false,
       method: 'slot.config.json maxWinStakes; a round that reaches it ends and pays it',
     });
-    const best = reachMc && (reachMc.hits ?? 0) > 0 ? Math.max(lowerBound, reachMc.value) : lowerBound;
-    const reachFromMc = !!reachMc && (reachMc.hits ?? 0) > 0 && reachMc.value > lowerBound;
-    const reachTier: Tier = reachFromMc ? 'mc' : lowerBoundTier;
     const isBound = upperBound > lowerBound;
-    rows.push({
-      key: 'maxWinReach',
-      label: 'P(reaching the max win) per round',
-      value: best,
-      display:
-        (isBound
-          ? `1 in ${(1 / upperBound).toExponential(2)} to ${lowerBound > 0 ? (1 / lowerBound).toExponential(2) : '∞'} (${lowerBoundTier} bounds)`
-          : lowerBound === 0 && lowerBoundTier === 'mc'
-            ? `none in ${nSample.toLocaleString('en-US')} sampled ${split ? 'triggering boards' : 'base spins'} (mc; no evidence the cap is reachable)`
-            : `${oneInSci(lowerBound)} ${lowerBoundTier}`) +
-        (reachMc ? `; MC ${reachMc.hits ? oneInSci(reachMc.value) : '0'} (${reachMc.hits} hits / ${reachMc.n?.toLocaleString('en-US')})` : ''),
-      tier: reachTier,
-      se: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.se : split ? seOf((e) => (e.B >= capCoins ? 1 : 0)) : Math.sqrt((best * (1 - best)) / nSample),
-      n: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.n : nSample,
-      band: { lo: 1e-9, hi: 1, text: '> 1 in 10⁹' },
-      // pass on the best evidence: the exact lower bound, or the MC estimate when it saw hits
-      pass: best > 1e-9,
-      gate: true,
-      method: reachMethod + (reachMc ? `; ${reachMc.method}` : ''),
-    });
+    const mcHit = !!reachMc && (reachMc.hits ?? 0) > 0;
+    // with bounds, the best evidence is the MC estimate clamped into them (else the lower bound)
+    const best = mcHit ? (isBound ? Math.min(upperBound, Math.max(lowerBound, reachMc!.value)) : Math.max(lowerBound, reachMc!.value)) : lowerBound;
+    const reachFromMc = mcHit && !isBound && reachMc!.value > lowerBound;
+    const reachTier: Tier = reachFromMc ? 'mc' : lowerBoundTier;
+    const mcTxt = reachMc ? `; MC ${reachMc.hits ? oneInSci(reachMc.value) : '0'} (${reachMc.hits} hits / ${reachMc.n?.toLocaleString('en-US')})` : '';
+    const reachBand: Band = { lo: 1e-9, hi: 1, text: '> 1 in 10⁹' };
+    // RULE (header, max-win reach): no evidence is never reported as P = 0. With no hit and a zero lower
+    // bound the evidence is an interval [0, upper]: the exact upper bound when there is one, else the
+    // rule of three on the sample (3/n of the sampled mass). Upper ≤ 1e-9 fails; else it is unresolved
+    // (within noise, counts as a pass) and slots:eval keeps sampling.
+    const exactZero = best === 0 && reachTier !== 'mc' && !isBound && !reachMc;
+    if (best > 0 || exactZero) {
+      const reachSe = reachTier !== 'mc' || isBound ? undefined : reachFromMc ? reachMc!.se : split ? seOf((e) => (e.B >= capCoins ? 1 : 0)) : Math.sqrt((best * (1 - best)) / nSample);
+      rows.push({
+        key: 'maxWinReach',
+        label: 'P(reaching the max win) per round',
+        value: best,
+        display:
+          (isBound
+            ? `1 in ${(1 / upperBound).toExponential(2)} to ${lowerBound > 0 ? (1 / lowerBound).toExponential(2) : '∞'} (${lowerBoundTier} bounds)`
+            : `${oneInSci(best)} ${reachTier}${reachSe !== undefined ? ` (p ${best.toExponential(2)} ± ${reachSe.toExponential(1)})` : ''}`) + (isBound ? mcTxt : reachMc ? ` (${reachMc.hits} hits / ${reachMc.n?.toLocaleString('en-US')})` : ''),
+        tier: reachTier,
+        se: reachSe,
+        n: reachTier !== 'mc' ? undefined : reachFromMc ? reachMc!.n : nSample,
+        band: reachBand,
+        pass: best > 1e-9,
+        gate: true,
+        method: reachMethod + (reachMc ? `; ${reachMc.method}` : '') + (exactZero ? '; exactly 0: the cap is unreachable' : ''),
+      });
+      // exact bounds when there are; else the estimate's 95% interval
+      reachInterval = isBound ? [lowerBound, upperBound] : reachSe !== undefined ? [Math.max(0, best - 1.96 * reachSe), best + 1.96 * reachSe] : [best, best];
+    } else {
+      // rule of three: the sampled mass that could reach the cap, × 3 / its sample size
+      const r3: number[] = [];
+      if (reachMc && reachMc.n) r3.push(reachMc.exactPart + reachMc.mcMass * (3 / reachMc.n));
+      if (split && !reachMc) r3.push(split.pT * (3 / split.cond.n));
+      if (baseMc && !reachMc) r3.push(3 / nBase);
+      const upper = Math.min(isBound ? upperBound : Infinity, ...(r3.length ? r3 : [isBound ? upperBound : 1]));
+      const nSeen = reachMc?.n ?? nSample;
+      const unresolved = upper > 1e-9;
+      reachInterval = [0, upper];
+      rows.push({
+        key: 'maxWinReach',
+        label: 'P(reaching the max win) per round',
+        value: null,
+        display: `no hit in ${nSeen.toLocaleString('en-US')} sampled ${split ? 'triggering boards' : reachMc ? 'triggered rounds' : 'rounds'}: ≤ 1 in ${(1 / upper).toExponential(2)} (${isBound && upper === upperBound ? 'exact upper bound' : 'rule of three'})${unresolved ? ', unresolved' : ''}`,
+        tier: 'mc',
+        n: nSeen,
+        band: reachBand,
+        pass: unresolved ? true : false,
+        ...(unresolved ? { withinNoise: true } : {}),
+        gate: true,
+        method:
+          reachMethod +
+          (reachMc ? `; ${reachMc.method}` : '') +
+          `; no hit seen, so P is reported as the interval [0, ${upper.toExponential(3)}], not as 0: ${unresolved ? 'the upper bound is above 1 in 10⁹, unresolved (counts as a pass; sample more)' : 'even the upper bound is below 1 in 10⁹'}`,
+      });
+    }
   }
   {
     const max = DRY_STREAK_MAX[declared];
@@ -1400,7 +1479,8 @@ export function computeSlotStats(input: SlotStatsInput): SlotStats {
       upperBound,
       boundTier: lowerBoundTier,
       mc: reachMc,
-      best: rows.find((r) => r.key === 'maxWinReach')!.value as number,
+      best: rows.find((r) => r.key === 'maxWinReach')!.value,
+      interval: reachInterval,
       method: reachMethod,
     },
     dryStreakP95: dry,

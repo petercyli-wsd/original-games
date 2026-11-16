@@ -447,3 +447,139 @@ export function validateSplit(
   }
   return { ok: violations.length === 0, n, triggered, violations };
 }
+
+// --------------------------------------------------------------------------- the max-win tail (importance sampling)
+//
+// P(X ≥ cap) of a modifier-feature spin is P(T)·P(X ≥ cap | T) (B0 alone never reaches a cap in
+// practice; its part is read off the paired sample). A cap far in the tail (honeycomb: about 1 in
+// 60M rounds) shows a handful of hits in a million triggering boards, so `tailChunk` samples the same
+// triggering boards with the mechanic's VALUE draws tilted toward large values and weights each spin
+// by its likelihood ratio:
+//   the engine's weighted pick over the mechanic's value_pmf (recognised by its cumulative weights)
+//   draws from q = (1 − ε)·p + ε·p̃, p̃_i ∝ p_i·v_i (the size-biased pmf), and the spin's weight is
+//   W = Π over its value draws of p_i / q_i.
+// Every other draw (the board, the respin stops) keeps its law, and which draws happen depends only
+// on draws whose law is unchanged, so E_q[W·1{X ≥ cap}] = P(X ≥ cap | T) (unbiased), with the SE of
+// the weighted mean. q ≥ (1 − ε)·p bounds each factor by 1/(1 − ε).
+
+/** The value_pmf draw of a mechanic as the engine picks it: candidate cumulative weights and the values behind them. */
+export interface ValueLaw {
+  cums: { cum: number[]; values: number[] }[];
+  p: number[];
+}
+
+/** The value_pmf of `mechanic` in the spec (null when it has none). */
+export function mechanicValueLaw(spec: SlotSpec, mechanic: string): { values: number[]; weights: number[] } | null {
+  const m = ((spec.mechanics ?? []) as unknown as { id: string; params?: Record<string, unknown> }[]).find((x) => x.id === mechanic);
+  const pmf = m?.params?.value_pmf as Record<string, number> | undefined;
+  if (!pmf || typeof pmf !== 'object') return null;
+  const items = Object.entries(pmf).map(([k, w]) => [Number(k), Number(w)] as [number, number]);
+  if (!items.length || items.some(([v, w]) => !Number.isFinite(v) || !(w > 0))) return null;
+  return { values: items.map(([v]) => v), weights: items.map(([, w]) => w) };
+}
+
+/** A SpinRng that tilts the weighted picks over one value law (header) and keeps the likelihood ratio. */
+export class TiltedValueRng implements SpinRng {
+  weight = 1;
+  draws = 0;
+  private readonly orders: { cum: number[]; q: number[]; qCum: number[]; ratio: number[] }[];
+  constructor(
+    private readonly inner: SpinRng,
+    law: { values: number[]; weights: number[] },
+    eps: number,
+    /** Optional tilt: q_i from (values, p) in the given order; default the size-biased mixture. */
+    tilt?: (values: number[], p: number[]) => number[],
+  ) {
+    const idx = law.values.map((_, i) => i);
+    const numeric = [...idx].sort((a, b) => law.values[a] - law.values[b] || law.weights[a] - law.weights[b]);
+    const str = [...idx].sort((a, b) => (String(law.values[a]) < String(law.values[b]) ? -1 : String(law.values[a]) > String(law.values[b]) ? 1 : 0));
+    const tot = law.weights.reduce((a, b) => a + b, 0);
+    const mean = idx.reduce((a, i) => a + (law.weights[i] / tot) * Math.max(0, law.values[i]), 0);
+    this.orders = [numeric, str].map((ord) => {
+      let run = 0;
+      const cum = ord.map((i) => (run += law.weights[i]));
+      const p = ord.map((i) => law.weights[i] / tot);
+      const q = tilt
+        ? tilt(ord.map((i) => law.values[i]), p)
+        : ord.map((i, j) => (1 - eps) * p[j] + (mean > 0 ? (eps * p[j] * Math.max(0, law.values[i])) / mean : eps * p[j]));
+      let qr = 0;
+      const qCum = q.map((x) => (qr += x));
+      return { cum, q, qCum, ratio: p.map((x, j) => x / q[j]) };
+    });
+  }
+  u32(): number {
+    return this.inner.u32();
+  }
+  randrange(n: number): number {
+    return this.inner.randrange(n);
+  }
+  pickWeighted(cum: readonly number[]): number {
+    const o = this.orders.find((x) => x.cum.length === cum.length && x.cum.every((c, i) => c === cum[i]));
+    if (!o) return this.inner.pickWeighted(cum);
+    const u = (this.inner.u32() / 4294967296) * o.qCum[o.qCum.length - 1];
+    let j = 0;
+    while (j < o.qCum.length - 1 && u >= o.qCum[j]) j++;
+    this.weight *= o.ratio[j];
+    this.draws++;
+    return j;
+  }
+}
+
+/** Weighted tail sums of a chunk of tilted triggering boards (header). */
+export interface TailCounts {
+  n: number;
+  /** Unweighted spins with X ≥ cap. */
+  hits: number;
+  /** Σ W·1{X ≥ cap}, Σ (W·1{X ≥ cap})². */
+  sumW: number;
+  sumW2: number;
+  /** Σ W·(X − cap)+ and its square (coins). */
+  sumLoss: number;
+  sumLoss2: number;
+  /** Σ W over all spins (≈ n: a check of the weights). */
+  sumAll: number;
+}
+
+/** n tilted trigger-conditional spins (header): the board as in conditionalChunk, the value draws tilted. */
+export function tailChunk(
+  engine: EngineLike,
+  split: SplitModel,
+  law: { values: number[]; weights: number[] },
+  capCoins: number,
+  n: number,
+  seed: number,
+  eps = 0.1,
+  tilt?: (values: number[], p: number[]) => number[],
+): TailCounts {
+  const g = new Mulberry32(seed >>> 0);
+  const u = () => g.u32() / 4294967296;
+  const out: TailCounts = { n, hits: 0, sumW: 0, sumW2: 0, sumLoss: 0, sumLoss2: 0, sumAll: 0 };
+  const tl = split.law;
+  for (let i = 0; i < n; i++) {
+    const { setIdx, stops } = sampleTriggerBoard(tl, u);
+    const tr = new TiltedValueRng(new Mulberry32(g.u32()), law, eps, tilt);
+    const rng = new ForcedStopsRng(setIdx, stops, tl.nSets, tl.lengths[setIdx], tr);
+    const r = engine.spinRaw(rng);
+    const w = tr.weight;
+    out.sumAll += w;
+    if (r.totalCoins >= capCoins) {
+      out.hits++;
+      out.sumW += w;
+      out.sumW2 += w * w;
+      const l = w * (r.totalCoins - capCoins);
+      out.sumLoss += l;
+      out.sumLoss2 += l * l;
+    }
+  }
+  return out;
+}
+
+export function mergeTail(into: TailCounts, p: TailCounts): void {
+  into.n += p.n;
+  into.hits += p.hits;
+  into.sumW += p.sumW;
+  into.sumW2 += p.sumW2;
+  into.sumLoss += p.sumLoss;
+  into.sumLoss2 += p.sumLoss2;
+  into.sumAll += p.sumAll;
+}

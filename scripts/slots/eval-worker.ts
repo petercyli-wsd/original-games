@@ -7,7 +7,9 @@
 //       plus, for the base with a modifier feature and no split, the detect tally (spins on which
 //       the mechanic ran, Σ(X − B0), Σ(X − B0)²; B0 = the mechanic-free board's pay);
 //   { stream: 'cond', chunk, n, seed }  n trigger-conditional spins (conditional.ts): the joint
-//       (X, B0, K, K0) counts.
+//       (X, B0, K, K0) counts;
+//   { stream: 'tail', chunk, n, seed }  n trigger-conditional spins with the mechanic's value draws
+//       tilted (conditional.ts tailChunk): the importance-weighted max-win tail sums.
 // Each chunk's seed is mc.ts chunkSeed(seed, stream, chunk), chosen by eval.ts; the result depends
 // only on the specs, the stream and that seed. eval.ts also imports `createTaskRunner` to run the
 // same tasks in-process (--workers 0, the validity check).
@@ -20,17 +22,20 @@ import {
   buildSplit,
   conditionalChunk,
   initialBoardValue,
+  mechanicValueLaw,
   modifierDetected,
   specWithoutMechanic,
+  tailChunk,
   splitRefusal,
   type CondCounts,
   type RawSpinLike,
   type SplitModel,
+  type TailCounts,
 } from '../../packages/slots/src/engine/analytics/conditional';
 import { spinChunk, spinScatterCount, type SpinCounts } from '../../packages/slots/src/engine/analytics/mc';
 import type { ModifierDetectTally } from '../../packages/slots/src/engine/analytics/stats';
 
-export type StreamName = 'base' | 'feature' | 'cond';
+export type StreamName = 'base' | 'feature' | 'cond' | 'tail';
 
 export interface WorkerInit {
   spec: SlotSpec;
@@ -38,6 +43,8 @@ export interface WorkerInit {
   modifier: ModifierFeatureConfig | null;
   /** Build the trigger-conditional split (eval.ts decided it is valid). */
   split: boolean;
+  /** The max-win cap in coins (the 'tail' stream). */
+  capCoins: number;
 }
 
 export interface Task {
@@ -57,6 +64,7 @@ export interface TaskResult {
   /** Detected spins whose B0 couldn't be computed (no mechanic-free spec). */
   detectNoB0?: number;
   cond?: CondCounts;
+  tail?: TailCounts;
 }
 
 /** The scatter count K of an engine spin (mc.ts rule, with the engine's own terminal/base board choice). */
@@ -91,6 +99,12 @@ export function createTaskRunner(init: WorkerInit): (t: Task) => TaskResult {
   const spinBase = (rng: Mulberry32) => engine.spinRaw(rng);
   return (t: Task): TaskResult => {
     const t0 = performance.now();
+    if (t.stream === 'tail') {
+      const law = mf ? mechanicValueLaw(init.spec, mf.mechanic) : null;
+      if (!split || !law) throw new Error('tail task without a split and a value law');
+      const tail = tailChunk(engine, split, law, init.capCoins, t.n, t.seed);
+      return { stream: t.stream, chunk: t.chunk, n: t.n, ms: performance.now() - t0, tail };
+    }
     if (t.stream === 'cond') {
       if (!split || !mf) throw new Error('cond task without a split');
       const cond = conditionalChunk(engine, split, mf, kBase, t.n, t.seed);

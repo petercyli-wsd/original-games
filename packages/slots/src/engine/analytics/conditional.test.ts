@@ -6,6 +6,8 @@ import {
   buildSplit,
   conditionalChunk,
   ForcedStopsRng,
+  mechanicValueLaw,
+  tailChunk,
   mergeCond,
   sampleTriggerBoard,
   splitRefusal,
@@ -163,5 +165,27 @@ describe('the trigger-conditional split', () => {
     expect(m.share).toBeCloseTo(m.rtpContribution / st.rtpUncapped, 12);
     expect(Math.abs(m.rtpContribution - (ex - exactRtp(split.spec0).rtp)) / m.rtpContributionSe!).toBeLessThan(4);
     expect(st.rows.find((r) => r.key === 'featureFrequency')!.label).toMatch(/Spread/);
+  });
+});
+
+describe('the importance-sampled max-win tail', () => {
+  it('is unbiased: tilted and plain estimates of P(X ≥ 150× | T) agree within 4 SE, the tilted one tighter', () => {
+    const split = buildSplit(HC, HC_MF);
+    const law = mechanicValueLaw(HC, HC_MF.mechanic)!;
+    expect(law.values).toHaveLength(8);
+    const eng = new SlotEngine(HC);
+    const cap = 150 * HC.bet.coins;
+    const est = (eps: number) => {
+      const t = tailChunk(eng, split, law, cap, 15_000, 77, eps);
+      const m = t.sumW / t.n;
+      return { m, se: Math.sqrt(Math.max(0, t.sumW2 / t.n - m * m) / t.n), meanW: t.sumAll / t.n, hits: t.hits };
+    };
+    const plain = est(0);
+    const tilted = est(0.1);
+    expect(plain.meanW).toBe(1);
+    expect(Math.abs(tilted.meanW - 1)).toBeLessThan(0.05);
+    expect(tilted.hits).toBeGreaterThan(plain.hits);
+    expect(Math.abs(tilted.m - plain.m) / Math.hypot(tilted.se, plain.se)).toBeLessThan(4);
+    expect(tilted.se).toBeLessThan(plain.se);
   });
 });

@@ -77,9 +77,14 @@ export interface SlotFacts {
   winOverStakeRate: number;
   avgFeatureWin: number | null;
   pWin100: number;
-  /** Best evidence for P(reaching the cap) per round (the exact lower bound, or the MC estimate when it saw hits). */
-  pMaxWin: number;
-  pMaxWinBounds: { lower: number; upper: number; tier: Tier };
+  /**
+   * Best evidence for P(reaching the cap) per round (the exact lower bound, the MC estimate when it saw
+   * hits, the split's importance-sampled tail); null when no hit was seen and nothing bounds it away
+   * from 0: never 0 for "not seen". pMaxWinBounds then holds [0, upper] (exact bound or rule of three).
+   */
+  pMaxWin: number | null;
+  pMaxWinSe?: number;
+  pMaxWinBounds: { lower: number; upper: number; tier: Tier; unresolved?: boolean };
   dryStreakP95: number;
   sessionMedian: number;
   sessionBustRate: number;
@@ -152,6 +157,7 @@ export function buildSlotFacts(args: {
   const { stats: s, config } = args;
   const f = s.feature;
   const m = s.modifier;
+  const reachRow = s.rows.find((r) => r.key === 'maxWinReach');
   const cfg = config.feature ?? null;
   return {
     schema: FACTS_SCHEMA,
@@ -176,7 +182,13 @@ export function buildSlotFacts(args: {
     avgFeatureWin: f ? f.averageWinStakes : m ? m.averageWinStakes : null,
     pWin100: s.pWin100.value,
     pMaxWin: s.reach.best,
-    pMaxWinBounds: { lower: s.reach.lowerBound, upper: s.reach.upperBound, tier: s.reach.boundTier },
+    ...(reachRow?.se !== undefined ? { pMaxWinSe: reachRow.se } : {}),
+    pMaxWinBounds: {
+      lower: s.reach.interval[0],
+      upper: s.reach.interval[1],
+      tier: reachRow?.tier ?? s.reach.boundTier,
+      ...(s.reach.best === null && reachRow?.withinNoise ? { unresolved: true } : {}),
+    },
     dryStreakP95: s.dryStreakP95,
     sessionMedian: s.session.medianStakes,
     sessionBustRate: s.session.pBust,

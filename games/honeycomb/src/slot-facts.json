@@ -4,59 +4,82 @@
   "generatedBy": "npm run slots:eval (scripts/slots/eval.ts, packages/slots/src/engine/analytics)",
   "specHash": "8676e2a34d35b08ca34bb1e3c538688c31adfb000df0e88fd8b0f10a77a1cd7a",
   "featureSpecHash": null,
-  "rtp": 0.9624302734099968,
+  "rtp": 0.9607118795725255,
   "rtpTier": "mc",
-  "rtpSe": 0.008134925441453935,
-  "rtpN": 2000000,
-  "hitRate": 0.3608929999999922,
+  "rtpSe": 0.0008149851772323867,
+  "rtpN": 1300000,
+  "hitRate": 0.3609423328561307,
   "volatility": "high",
-  "volatilitySd": 11.504521888198093,
+  "volatilitySd": 11.434520451059644,
   "maxWin": 2000,
-  "featureFreq": null,
-  "featureShare": 0,
+  "featureFreq": 118.14760477132106,
+  "featureShare": 0.43262229793445645,
   "volatilityDeclared": "high",
-  "winOverStakeRate": 0.08984650000000627,
-  "avgFeatureWin": null,
-  "pWin100": 0.0007924999999999961,
-  "pMaxWin": 0,
+  "winOverStakeRate": 0.09002177905507089,
+  "avgFeatureWin": 49.10519,
+  "pWin100": 0.0007726377096260487,
+  "pMaxWin": 1.4655655231175431e-8,
+  "pMaxWinSe": 1.9729141428314394e-9,
   "pMaxWinBounds": {
-    "lower": 0,
-    "upper": 0,
+    "lower": 1.0788743511225811e-8,
+    "upper": 1.852256695112505e-8,
     "tier": "mc"
   },
   "dryStreakP95": 14,
-  "sessionMedian": 45.017035,
-  "sessionBustRate": 0.24525,
-  "rtpUncapped": 0.9624302734099968,
+  "sessionMedian": 45.39729,
+  "sessionBustRate": 0.24355,
+  "rtpUncapped": 0.9607127942747562,
   "rtpUncappedTier": "mc",
-  "rtpUncappedSe": 0.008134925441453935,
+  "rtpUncappedSe": 0.0008149851710479146,
   "capLoss": {
-    "value": 0,
+    "value": 9.147022307697693e-7,
     "tier": "mc",
-    "se": 0,
-    "n": 2000000,
-    "hits": 0,
+    "se": 1.0040172402557106e-7,
+    "n": 540000,
+    "hits": 1990,
     "exactPart": 0,
-    "method": "exact over the base distribution: E[(B − cap)+] / bet (no base spin exceeds the cap)"
+    "method": "E[(X − cap)+] / bet: the exact and B0 parts of the split + P(T) × E[(X − cap)+ | T] by importance sampling (540,000 triggering boards with the hold_and_spin_lock_respin value draws from (1 − 0.1)·p + 0.1·(size-biased p), weighted by the likelihood ratio (1,990 at the cap; mean weight 1.0007))"
   },
   "rtpSplit": {
-    "base": 0.9624302734099968,
+    "base": 0.9607127942747562,
     "baseTier": "mc",
     "feature": 0,
     "featureTier": "exact",
-    "capLoss": 0
+    "capLoss": 9.147022307365305e-7,
+    "mechanicFree": 0.5450870175605725,
+    "modifier": 0.41562577671418366,
+    "modifierSe": 0.0008149851710479112
   },
   "feature": null,
-  "modifierFeature": null,
+  "modifierFeature": {
+    "name": "Honey Harvest",
+    "mechanic": "hold_and_spin_lock_respin",
+    "method": "conditional",
+    "role": "free_spins",
+    "pTrigger": 0.008463988770111218,
+    "freq": 118.14760477132106,
+    "share": 0.43262229793445645,
+    "shareSe": 0.000848313019150687,
+    "avgWin": 49.10519,
+    "avgWinSe": 0.0962885458834561,
+    "rtpContribution": 0.4156257767141777,
+    "rtpContributionSe": 0.0008149851710479112,
+    "n": 1300000,
+    "tiers": {
+      "freq": "exact",
+      "share": "mc",
+      "avgWin": "mc"
+    }
+  },
   "stats": [
     {
       "key": "rtp",
       "label": "RTP",
-      "value": 0.9624302734099968,
-      "display": "96.243% mc ± 0.81%, n 2,000,000",
+      "value": 0.9607118795725255,
+      "display": "96.071% mc ± 0.081%, n 1,300,000",
       "tier": "mc",
-      "se": 0.008134925441453935,
-      "n": 2000000,
+      "se": 0.0008149851772323867,
+      "n": 1300000,
       "band": {
         "lo": 0.955,
         "hi": 0.965,
@@ -64,16 +87,16 @@
       },
       "pass": true,
       "gate": true,
-      "method": "uncapped 96.2430% (mc ± 0.8135%) = base 96.243% + feature 0.000% − cap 0.0000%. Base: Monte Carlo (n 2000000); Cap loss: exact over the base distribution: E[(B − cap)+] / bet (no base spin exceeds the cap). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
+      "method": "uncapped 96.0713% (mc ± 0.0815%) = base 96.071% + feature 0.000% − cap 0.0001%. Base: trigger-conditional split: E[B0] 54.5087% exact (the spec without the modifier mechanic) + P(T)·E[X − B0 | T] 41.5626% ± 0.0815% (P(T) exact, n 1,300,000 triggering boards); Cap loss: E[(X − cap)+] / bet: the exact and B0 parts of the split + P(T) × E[(X − cap)+ | T] by importance sampling (540,000 triggering boards with the hold_and_spin_lock_respin value draws from (1 − 0.1)·p + 0.1·(size-biased p), weighted by the likelihood ratio (1,990 at the cap; mean weight 1.0007))."
     },
     {
       "key": "hitRate",
       "label": "Hit rate",
-      "value": 0.3608929999999922,
-      "display": "36.09% mc ± 0.034%, n 2,000,000",
+      "value": 0.3609423328561307,
+      "display": "36.09% mc ± 0.00027%, n 1,300,000",
       "tier": "mc",
-      "se": 0.00033959478982384123,
-      "n": 2000000,
+      "se": 0.0000026931753306450986,
+      "n": 1300000,
       "band": {
         "lo": 0.2,
         "hi": 0.45,
@@ -81,16 +104,16 @@
       },
       "pass": true,
       "gate": true,
-      "method": "P(B > 0) + Σ_k P(B = 0, K = k)·(1 − P(F = 0 | k)) over the base distribution, P(F = 0) from the feature DP"
+      "method": "P(B > 0) + Σ_k P(B = 0, K = k)·(1 − P(F = 0 | k)) over the base distribution, P(F = 0) from the feature DP; the base law is the trigger-conditional split (exact outside the trigger, paired conditional sample inside)"
     },
     {
       "key": "winOverStake",
       "label": "Win > stake rate",
-      "value": 0.08984650000000627,
-      "display": "8.98% mc ± 0.02%, n 2,000,000",
+      "value": 0.09002177905507089,
+      "display": "9.00% mc ± 0.00012%, n 1,300,000",
       "tier": "mc",
-      "se": 0.00020220547277182576,
-      "n": 2000000,
+      "se": 0.000001207551805452942,
+      "n": 1300000,
       "band": {
         "lo": 0.08,
         "hi": 0.25,
@@ -103,11 +126,11 @@
     {
       "key": "volatility",
       "label": "Volatility (SD per round, stakes)",
-      "value": 11.504521888198093,
-      "display": "11.50 (high) mc ± 0.208, n 2,000,000",
+      "value": 11.434520451059644,
+      "display": "11.43 (high) mc ± 0.023, n 1,300,000",
       "tier": "mc",
-      "se": 0.20762329678431185,
-      "n": 2000000,
+      "se": 0.023167861620322437,
+      "n": 1300000,
       "band": {
         "lo": 10,
         "hi": 20,
@@ -119,49 +142,61 @@
     },
     {
       "key": "featureFrequency",
-      "label": "Feature frequency",
-      "value": null,
-      "display": "— (no feature)",
-      "tier": null,
-      "band": null,
-      "pass": null,
-      "gate": false,
-      "method": "pure base game"
-    },
-    {
-      "key": "featureShare",
-      "label": "Feature share of RTP",
-      "value": 0,
-      "display": "0% exact",
+      "label": "Feature frequency (Honey Harvest)",
+      "value": 118.14760477132106,
+      "display": "1 in 118 exact",
       "tier": "exact",
       "band": {
-        "lo": 0,
-        "hi": 0,
-        "text": "0% (pure base game)"
+        "lo": 80,
+        "hi": 300,
+        "text": "1 in 80–300 (free-spins bands)"
       },
       "pass": true,
       "gate": false,
-      "method": "pure base game"
+      "method": "1 / P(T), P(T) = P(≥ 6 of symbols [11] on the initial board): exact count convolution over the reel windows"
+    },
+    {
+      "key": "featureShare",
+      "label": "Feature share of RTP (Honey Harvest)",
+      "value": 0.43262229793445645,
+      "display": "43.3% mc ± 0.08%, n 1,300,000",
+      "tier": "mc",
+      "se": 0.000848313019150687,
+      "n": 1300000,
+      "band": {
+        "lo": 0.25,
+        "hi": 0.55,
+        "text": "25–55%"
+      },
+      "pass": true,
+      "gate": false,
+      "method": "P(T)·E[X − B0 | T] / rtpUncapped: X the spin's coins, B0 the same initial board's pay without hold_and_spin_lock_respin (trigger-conditional Monte Carlo)"
     },
     {
       "key": "averageFeatureWin",
-      "label": "Average feature win",
-      "value": null,
-      "display": "— (no feature)",
-      "tier": null,
-      "band": null,
-      "pass": null,
+      "label": "Average feature win (Honey Harvest)",
+      "value": 49.10519,
+      "display": "49.11× mc ± 0.10, n 1,300,000",
+      "tier": "mc",
+      "se": 0.0962885458834561,
+      "n": 1300000,
+      "band": {
+        "lo": 15,
+        "hi": 150,
+        "text": "15–150×"
+      },
+      "pass": true,
       "gate": false,
-      "method": "pure base game"
+      "method": "E[X − B0 | the feature ran] / bet"
     },
     {
       "key": "pWin100",
       "label": "P(win ≥ 100×) per round",
-      "value": 0.0007924999999999961,
-      "display": "1 in 1,262 (p 7.925e-4 mc ± 2.0e-5, n 2,000,000)",
+      "value": 0.0007726377096260487,
+      "display": "1 in 1,294 (p 7.726e-4 mc ± 2.1e-6, n 1,300,000)",
       "tier": "mc",
-      "se": 0.000019898139909926206,
-      "n": 2000000,
+      "se": 0.000002103006473814636,
+      "n": 1300000,
       "band": {
         "lo": 0.0006666666666666666,
         "hi": 1,
@@ -189,19 +224,19 @@
     {
       "key": "maxWinReach",
       "label": "P(reaching the max win) per round",
-      "value": 0,
-      "display": "none in 2,000,000 sampled base spins (mc; no evidence the cap is reachable)",
+      "value": 1.4655655231175431e-8,
+      "display": "1 in 6.82e+7 mc (p 1.47e-8 ± 2.0e-9) (1990 hits / 540,000)",
       "tier": "mc",
-      "se": 0,
-      "n": 2000000,
+      "se": 1.9729141428314394e-9,
+      "n": 540000,
       "band": {
         "lo": 1e-9,
         "hi": 1,
         "text": "> 1 in 10⁹"
       },
-      "pass": false,
+      "pass": true,
       "gate": true,
-      "method": "exact: P(B ≥ cap) over the base distribution (no feature)"
+      "method": "the split: P(B0 ≥ cap) parts (exact + paired sample) + P(T) (exact) × P(X ≥ cap | T); P(T) exact × P(X ≥ cap | T) by importance sampling: 540,000 triggering boards with the hold_and_spin_lock_respin value draws from (1 − 0.1)·p + 0.1·(size-biased p), weighted by the likelihood ratio (1,990 at the cap; mean weight 1.0007)"
     },
     {
       "key": "dryStreakP95",
@@ -209,7 +244,7 @@
       "value": 14,
       "display": "14 rounds mc",
       "tier": "mc",
-      "n": 2000000,
+      "n": 1300000,
       "band": {
         "lo": 0,
         "hi": 26,
@@ -217,20 +252,20 @@
       },
       "pass": true,
       "gate": true,
-      "method": "exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = 0.639107; p95 = smallest L with P(longest ≤ L) ≥ 0.95; at hit rate ± 3 SE it is 14–14"
+      "method": "exact DP over the current miss run, rounds iid with P(miss) = 1 − hit rate = 0.639058; p95 = smallest L with P(longest ≤ L) ≥ 0.95; at hit rate ± 3 SE it is 14–14"
     },
     {
       "key": "session",
       "label": "Session (median balance after 200 rounds from 100)",
-      "value": 45.017035,
-      "display": "45.0 (95% CI 44.0–46.2), bust 24.5%, mc n 20,000",
+      "value": 45.39729,
+      "display": "45.4 (95% CI 44.4–46.5), bust 24.4%, mc n 20,000",
       "tier": "mc",
-      "se": 0.5633010204081633,
+      "se": 0.5385688775510206,
       "n": 20000,
       "band": null,
       "pass": null,
       "gate": false,
-      "method": "20,000 sessions of 200 rounds at 1 stake from 100 stakes, rounds sampled from the mc base distributions, capped per round; a player whose balance is below 1 stake stops (bust); median with a distribution-free order-statistic 95% CI"
+      "method": "20,000 sessions of 200 rounds at 1 stake from 100 stakes, rounds sampled from the split (clamped) base distributions, capped per round; a player whose balance is below 1 stake stops (bust); median with a distribution-free order-statistic 95% CI"
     }
   ],
   "bandsPassed": [
@@ -238,17 +273,16 @@
     "hitRate",
     "winOverStake",
     "volatility",
+    "featureFrequency",
     "featureShare",
+    "averageFeatureWin",
     "pWin100",
     "maxWin",
+    "maxWinReach",
     "dryStreakP95"
   ],
-  "bandsFailed": [
-    "maxWinReach"
-  ],
-  "gateFailed": [
-    "maxWinReach"
-  ],
+  "bandsFailed": [],
+  "gateFailed": [],
   "withinNoise": [],
   "oracle": {
     "status": "pass",
@@ -262,7 +296,7 @@
         "oracleHash": "8676e2a34d35b08ca34bb1e3c538688c31adfb000df0e88fd8b0f10a77a1cd7a",
         "tsRtp": 0.9847711380333333,
         "tsTier": "mc (pack seeds replayed)",
-        "detail": "pack 0.9847711380 mc (n 600000, seed 2164378797) replayed by the port: 0.9847711380, |Δ| 0.00e+0",
+        "detail": "pack 0.9847711380 mc (n 600000, seed 2164378797, Mulberry32(seed + i) per spin) replayed by the port: 0.9847711380, |Δ| 0.00e+0",
         "packRtp": 0.9847711380333333,
         "packTier": "mc",
         "diff": 0,
@@ -273,9 +307,9 @@
   "distributions": {
     "base": {
       "tier": "mc",
-      "n": 2000000,
-      "entries": 11362,
-      "method": "Monte Carlo over 2,000,000 engine spins (20 chunks of 100,000, chunk seeds from 20261116); K = the scatter count the pack's trigger read"
+      "n": 1300000,
+      "entries": 28685,
+      "method": "trigger-conditional split: exact mechanic-free (B0, K) law + P(T) × 1,300,000 paired triggering boards"
     },
     "feature": null
   },
@@ -284,17 +318,24 @@
     "sessions": 20000,
     "seed": 20261116,
     "workers": 13,
-    "wallSeconds": 1,
-    "stop": "fixed --mc-spins 2,000,000 per stream",
+    "wallSeconds": 8.9,
+    "stop": "RTP SE 0.090% ≤ target 0.100%, every gate row resolved, max-win reach ± 13%",
     "rtpSeTarget": 0.001,
     "budgetSeconds": 300,
     "streams": {
-      "base": {
-        "n": 2000000,
-        "chunks": 20,
-        "chunk": 100000,
-        "perSecondWall": 1913876,
-        "perSecondPerWorker": 204264
+      "cond": {
+        "n": 1300000,
+        "chunks": 65,
+        "chunk": 20000,
+        "perSecondWall": 146743,
+        "perSecondPerWorker": 16833
+      },
+      "tail": {
+        "n": 540000,
+        "chunks": 27,
+        "chunk": 20000,
+        "perSecondWall": 60955,
+        "perSecondPerWorker": 17675
       }
     }
   }

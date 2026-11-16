@@ -52,7 +52,7 @@ import { Worker } from 'node:worker_threads';
 import { Mulberry32, SlotEngine } from '../../packages/slots/src/engine/index';
 import type { RtpReport, SlotSpec } from '../../packages/slots/src/engine/types';
 import { award, validateSlotConfig, type FreeSpinsConfig, type ModifierFeatureConfig, type SlotConfig } from '../../packages/slots/src/engine/analytics/config';
-import { addCond, buildSplit, condFromMap, splitRefusal, validateSplit, type SplitValidation } from '../../packages/slots/src/engine/analytics/conditional';
+import { addCond, buildSplit, condFromMap, mechanicValueLaw, mergeTail, splitRefusal, validateSplit, type SplitValidation, type TailCounts } from '../../packages/slots/src/engine/analytics/conditional';
 import { distProb, enumerationPlan, exactSpinDistribution, spinDistribution, type SpinDist } from '../../packages/slots/src/engine/analytics/distribution';
 import { exactRtp, triggerProbability } from '../../packages/slots/src/engine/analytics/exact';
 import { buildSlotFacts, canonicalJson, type OracleCheck, type OracleCheckItem } from '../../packages/slots/src/engine/analytics/facts';
@@ -290,7 +290,7 @@ function localRunner(init: WorkerInit): Runner {
 
 // --------------------------------------------------------------------------- the Monte-Carlo state
 
-const STREAM_ID: Record<StreamName, number> = { base: 0, feature: 1, cond: 2 };
+const STREAM_ID: Record<StreamName, number> = { base: 0, feature: 1, cond: 2, tail: 3 };
 
 interface StreamState {
   name: StreamName;
@@ -305,6 +305,7 @@ interface StreamState {
   undetected: number;
   detect: ModifierDetectTally;
   detectNoB0: number;
+  tail: TailCounts;
 }
 
 const newStream = (name: StreamName, chunk: number): StreamState => ({
@@ -319,6 +320,7 @@ const newStream = (name: StreamName, chunk: number): StreamState => ({
   undetected: 0,
   detect: { n: 0, detected: 0, sumD: 0, sumD2: 0 },
   detectNoB0: 0,
+  tail: { n: 0, hits: 0, sumW: 0, sumW2: 0, sumLoss: 0, sumLoss2: 0, sumAll: 0 },
 });
 
 function absorb(s: StreamState, r: TaskResult): void {
@@ -337,6 +339,7 @@ function absorb(s: StreamState, r: TaskResult): void {
     s.detect.sumD2 += r.detect.sumD2;
   }
   s.detectNoB0 += r.detectNoB0 ?? 0;
+  if (r.tail) mergeTail(s.tail, r.tail);
 }
 
 // --------------------------------------------------------------------------- printing
@@ -492,6 +495,8 @@ async function main(): Promise<void> {
   const streams: StreamState[] = [];
   if (splitOn) streams.push(newStream('cond', chunkOpt ?? 20_000));
   else if (!baseClosed || mf) streams.push(newStream('base', chunkOpt ?? 100_000));
+  // the max-win tail of a split: importance-sampled triggering boards (conditional.ts tailChunk)
+  if (splitOn && mf && mechanicValueLaw(spec, mf.mechanic)) streams.push(newStream('tail', chunkOpt ?? 20_000));
   if (fspec && !featClosed) streams.push(newStream('feature', chunkOpt ?? 100_000));
   const byName = (n: StreamName) => streams.find((s) => s.name === n) ?? null;
   // a closed-form base with a modifier only needs the base stream for the detect tally
@@ -603,11 +608,27 @@ async function main(): Promise<void> {
     } else if (baseDistExact) input.baseDist = baseDistExact;
     if (f) input.featureDist = countsToDist(f.counts, f.n, `Monte Carlo over ${f.n.toLocaleString('en-US')} engine feature spins (${f.completed} chunks of ${f.chunk.toLocaleString('en-US')})`);
     else if (featDistExact) input.featureDist = featDistExact;
+    const tl = s('tail');
+    if (input.split && tl && tl.n > 0) {
+      const t = tl.tail;
+      const n = t.n;
+      const p = t.sumW / n;
+      const loss = t.sumLoss / n;
+      input.split.tail = {
+        n,
+        hits: t.hits,
+        p,
+        pSe: Math.sqrt(Math.max(0, t.sumW2 / n - p * p) / n),
+        loss,
+        lossSe: Math.sqrt(Math.max(0, t.sumLoss2 / n - loss * loss) / n),
+        method: `${n.toLocaleString('en-US')} triggering boards with the ${mf!.mechanic} value draws from (1 − 0.1)·p + 0.1·(size-biased p), weighted by the likelihood ratio (${t.hits.toLocaleString('en-US')} at the cap; mean weight ${(t.sumAll / n).toFixed(4)})`,
+      };
+    }
     if (mf) input.modifier = { name: mf.name, mechanic: mf.mechanic, detect: b && !c ? b.detect : undefined };
     return input;
   };
   if (streams.length) {
-    const init: WorkerInit = { spec, featureSpec: fspec, modifier: mf, split: splitOn };
+    const init: WorkerInit = { spec, featureSpec: fspec, modifier: mf, split: splitOn, capCoins: Math.floor(config.maxWinStakes * bet) };
     const runner = nWorkers > 0 ? workerPool(nWorkers, init) : localRunner(init);
     const deadline = tMc + budgetS * 1000;
     const minN = (s: StreamState) => (s.name === 'cond' ? 100_000 : baseForDetectOnly ? 1_000_000 : 200_000);
@@ -617,9 +638,21 @@ async function main(): Promise<void> {
     let evalEvery = 3000;
     let parts = { base: 1, feature: 1 } as Record<string, number>;
     let lastStats: SlotStats | null = null;
+    // the tail stream runs until the reach estimate is tight (rel SE ≤ 20%, ≥ 10 hits); the others until the RTP target
+    let tailWants = true;
+    let mainWants = true;
     const pick = (): StreamState | null => {
-      const open = streams.filter((s) => s.dispatched < quota(s));
+      let open = streams.filter((s) => s.dispatched < quota(s));
       if (!open.length) return null;
+      const tl = open.find((s) => s.name === 'tail');
+      if (tl) {
+        const rest = open.filter((s) => s !== tl);
+        const restN = Math.max(0, ...rest.map((s) => s.dispatched * s.chunk));
+        if (fixedN !== null || (tailWants && mainWants)) {
+          if (!rest.length || tl.dispatched * tl.chunk <= restN) return tl;
+        } else if (tailWants) return tl;
+        open = rest.length ? rest : open;
+      }
       if (open.length === 1) return open[0];
       // until each stream has its minimum, round-robin; then the largest variance cut per second
       const young = open.filter((s) => s.dispatched * s.chunk < minN(s));
@@ -664,13 +697,18 @@ async function main(): Promise<void> {
       // unresolved gate rows: within noise, or a reach the sample hasn't seen yet (0 hits, mc): sample on
       const noisy = st.rows.filter((r) => r.gate && (r.withinNoise || (r.key === 'maxWinReach' && r.tier === 'mc' && r.pass === false && r.value === 0))).map((r) => r.key);
       const enough = streams.every((s) => s.n >= minN(s));
+      const reach = st.rows.find((r) => r.key === 'maxWinReach')!;
+      const tlS = byName('tail');
+      const tailOk = !tlS || (reach.value !== null && reach.value > 0 && tlS.tail.hits >= 10 && (reach.se ?? Infinity) <= 0.2 * reach.value && !reach.withinNoise);
+      tailWants = !tailOk;
+      mainWants = !(se <= rtpSeTarget && !noisy.filter((k) => k !== 'maxWinReach').length);
       const elapsed = (Date.now() - tMc) / 1000;
       process.stderr.write(
         `  [mc ${elapsed.toFixed(0)} s] ${streams.map((s) => `${s.name} ${fmtInt(s.n)}`).join(', ')}; RTP ${pct(st.rtpUncapped, 3)} ${st.rtpUncappedTier === 'mc' ? `± ${pct(se, 3)}` : `${st.rtpUncappedTier} (sample mean ± ${pct(se, 3)})`}${noisy.length ? `; unresolved: ${noisy.join(', ')}` : ''}\n`,
       );
-      if (fixedN === null && enough && se <= rtpSeTarget && !noisy.length) {
+      if (fixedN === null && enough && se <= rtpSeTarget && !noisy.length && tailOk) {
         stopping = true;
-        stopReason = `${own ? 'base sample mean' : 'RTP'} SE ${pct(se, 3)} ≤ target ${pct(rtpSeTarget, 3)}, every gate row resolved`;
+        stopReason = `${own ? 'base sample mean' : 'RTP'} SE ${pct(se, 3)} ≤ target ${pct(rtpSeTarget, 3)}, every gate row resolved${tlS ? `, max-win reach ± ${(((reach.se ?? 0) / (reach.value ?? 1)) * 100).toFixed(0)}%` : ''}`;
       }
       evalEvery = Math.max(3000, 5 * (Date.now() - te));
       lastEval = Date.now();
@@ -769,7 +807,11 @@ async function main(): Promise<void> {
     );
   }
   const r = stats.reach;
-  console.log(`  Max-win reach: P(X ≥ ${stats.maxWinStakes}×) in [${r.lowerBound.toExponential(3)}, ${r.upperBound.toExponential(3)}] (${r.boundTier})${r.mc ? `, MC ${r.mc.hits} hits in ${r.mc.n?.toLocaleString('en-US')}` : ''}`);
+  const reachRow = stats.rows.find((x) => x.key === 'maxWinReach')!;
+  console.log(
+    `  Max-win reach: P(X ≥ ${stats.maxWinStakes}×) = ${r.best === null ? 'unresolved' : `${r.best.toExponential(3)}${reachRow.se !== undefined ? ` ± ${reachRow.se.toExponential(2)}` : ''} (1 in ${(1 / r.best).toExponential(3)})`}, ` +
+      `interval [${r.interval[0].toExponential(3)}, ${r.interval[1].toExponential(3)}] (${reachRow.tier})${r.mc ? `, ${r.mc.hits} hits in ${r.mc.n?.toLocaleString('en-US')}` : ''}`,
+  );
   console.log(`  Session: mean ${stats.session.meanStakes.toFixed(1)}, median ${stats.session.medianStakes.toFixed(1)} stakes, P(bust) ${pct(stats.session.pBust, 1)} ± ${pct(stats.session.seBust, 1)}`);
   console.log('');
   console.log(`  Oracle: ${oracle.status === 'pass' ? 'PASS' : 'FAIL'} (${oracle.detail})`);
