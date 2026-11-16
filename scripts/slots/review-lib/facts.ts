@@ -37,6 +37,8 @@ export interface SlotFactsN {
   bigWinOneIn?: number; // 1 in N spins pays >= 100x
   maxWin?: number; // stakes (declared cap)
   maxWinOneIn?: number; // 1 in N spins reaches the cap
+  /** slots:eval's bounds on P(max win) per spin, when it couldn't resolve a point value (pMaxWin null). */
+  maxWinBounds?: { lower: number; upper: number; unresolved: boolean };
   dryStreakP95?: number; // spins
   sessionMedian?: number; // balance after 200 spins from 100
 }
@@ -105,6 +107,10 @@ export function normaliseFacts(raw: unknown): { facts: SlotFactsN; missing: stri
     bigWinOneIn: prob(['pWin100', 'pBigWin', 'pWinGe100', 'p100x', 'bigWinP'], ['bigWinOneIn', 'win100OneIn', 'oneIn100x', 'win100xOneIn']),
     maxWin: n(['maxWinStakes', 'maxWin', 'maxMultiplier', 'maxWinCap']),
     maxWinOneIn: prob(['pMaxWin', 'maxWinP', 'pCap', 'maxWinProbability', 'pHitMaxWin'], ['maxWinOneIn', 'capOneIn']),
+    maxWinBounds: (() => {
+      const b = r.pMaxWinBounds;
+      return isObj(b) && typeof b.lower === 'number' && typeof b.upper === 'number' ? { lower: b.lower, upper: b.upper, unresolved: b.unresolved === true } : undefined;
+    })(),
     dryStreakP95: n(['dryStreakP95', 'dryP95', 'longestDryP95', 'dryStreak95']),
     sessionMedian: n(['sessionMedian', 'medianBalance200', 'sessionMedianBalance', 'session200Median']),
   };
@@ -119,7 +125,8 @@ export function normaliseFacts(raw: unknown): { facts: SlotFactsN; missing: stri
     ['bigWinOneIn', 'P(win ≥ 100×)'],
     ['sessionMedian', 'session median'],
   ];
-  return { facts, missing: labels.filter(([k]) => facts[k] === undefined).map(([, l]) => l) };
+  // P(max win) given only as bounds (pMaxWin null) is measured, not missing.
+  return { facts, missing: labels.filter(([k]) => facts[k] === undefined && !(k === 'maxWinOneIn' && facts.maxWinBounds)).map(([, l]) => l) };
 }
 
 /** What the game declares, from slot.config.json, the spec and the manifest. */
@@ -182,10 +189,13 @@ const EVAL_KEYS: Record<string, string> = {
  */
 export function evalBandRows(raw: unknown): BandRow[] | undefined {
   const stats = isObj(raw) && Array.isArray(raw.stats) ? (raw.stats as unknown[]).filter(isObj) : [];
-  if (!stats.length || !stats.every((r) => typeof r.key === 'string' && 'pass' in r)) return undefined;
+  if (!stats.length || !stats.every((r) => typeof r.key === 'string') || !stats.some((r) => 'pass' in r)) return undefined;
+  const bounds = isObj(raw) && isObj(raw.pMaxWinBounds) ? raw.pMaxWinBounds : undefined;
   return stats.map((r) => {
     const key = EVAL_KEYS[r.key as string] ?? (r.key as string);
-    const value = typeof r.value === 'number' && Number.isFinite(r.value) ? r.value : undefined;
+    let value = typeof r.value === 'number' && Number.isFinite(r.value) ? r.value : undefined;
+    // P(max win) unresolved (value null): judge the miss by the bounds slots:eval wrote; its verdict still decides.
+    if (value === undefined && key === 'maxWinOneIn' && typeof bounds?.upper === 'number') value = bounds.upper;
     const band = isObj(r.band) ? r.band : undefined;
     const lo = typeof band?.lo === 'number' ? band.lo : -Infinity;
     const hi = typeof band?.hi === 'number' ? band.hi : Infinity;
@@ -194,9 +204,19 @@ export function evalBandRows(raw: unknown): BandRow[] | undefined {
     const width =
       key === 'rtp' ? 0.01 : key === 'dryStreakP95' ? hi : key === 'maxWinOneIn' ? lo / 2 : Number.isFinite(hi) && Number.isFinite(lo) ? hi - lo : 10;
     const miss = value === undefined ? 0 : value < lo ? lo - value : value > hi ? value - hi : 0;
-    const withinNoise = r.withinNoise === true;
-    const status: BandRow['status'] =
-      r.pass === null || r.pass === undefined ? (value === undefined ? 'missing' : 'advisory') : r.pass ? 'in' : miss > width + 1e-12 ? 'wide' : 'out';
+    const withinNoise = r.withinNoise === true || (key === 'maxWinOneIn' && bounds?.unresolved === true);
+    const noVerdict = r.pass === null || r.pass === undefined;
+    const status: BandRow['status'] = noVerdict
+      ? r.gate === true && withinNoise
+        ? 'in' // a gated row slots:eval left open only because it is within noise
+        : value === undefined || r.gate === true
+          ? 'missing'
+          : 'advisory'
+      : r.pass
+        ? 'in'
+        : miss > width + 1e-12
+          ? 'wide'
+          : 'out';
     return {
       key,
       label: typeof r.label === 'string' ? r.label : key,
@@ -250,7 +270,15 @@ export function bandRows(f: SlotFactsN, d: Declared, raw?: unknown): BandRow[] {
   const maxWin = f.maxWin ?? d.maxWin;
   add('maxWin', 'Max win (cap)', maxWin, maxWin === undefined ? '—' : `${fmtN(maxWin)}×`, 1000, 25000, 24000, '1,000–25,000×');
   // Reachability: P(cap) > 1 in 10^9, as "1 in N" ≤ 10^9. One-sided; width taken as the bound.
-  add('maxWinOneIn', 'P(max win) per spin', f.maxWinOneIn, f.maxWinOneIn === undefined ? '—' : `1 in ${f.maxWinOneIn.toExponential(2)}`, 0, 1e9, 1e9, '> 1 in 10⁹');
+  const mb = f.maxWinOneIn === undefined ? f.maxWinBounds : undefined;
+  if (mb) {
+    // Only bounds on P(max win) (older facts without row verdicts): in band if even the lower bound reaches 1 in 10⁹,
+    // out if even the upper bound doesn't, and in (within noise) when slots:eval marked it unresolved.
+    const oneIn = (p: number) => (p > 0 ? 1 / p : Infinity);
+    const shown = `1 in ${oneIn(mb.upper).toExponential(2)} to ${oneIn(mb.lower).toExponential(2)} (bounds)`;
+    const status: BandRow['status'] = oneIn(mb.lower) <= 1e9 || mb.unresolved ? 'in' : oneIn(mb.upper) > 2e9 ? 'wide' : oneIn(mb.upper) > 1e9 ? 'out' : 'missing';
+    rows.push({ key: 'maxWinOneIn', label: 'P(max win) per spin', value: oneIn(mb.upper), shown: `${shown}${mb.unresolved ? ' (within noise)' : ''}`, lo: 0, hi: 1e9, width: 1e9, band: '> 1 in 10⁹', miss: Math.max(0, oneIn(mb.upper) - 1e9), status, withinNoise: mb.unresolved });
+  } else add('maxWinOneIn', 'P(max win) per spin', f.maxWinOneIn, f.maxWinOneIn === undefined ? '—' : `1 in ${f.maxWinOneIn.toExponential(2)}`, 0, 1e9, 1e9, '> 1 in 10⁹');
   // One-sided, by the declared volatility (§3); width taken as the bound (a p95 over twice the limit caps maths fit).
   if (d.volatility) {
     const max = DRY_STREAK_MAX[d.volatility];
@@ -270,7 +298,7 @@ export function factGateFailures(rows: BandRow[]): string[] {
   const out: string[] = [];
   for (const key of ['hitRate', 'dryStreakP95', 'maxWinOneIn'] as const) {
     const r = rows.find((x) => x.key === key);
-    if (r && r.status === 'missing' && r.value !== undefined) out.push(`${r.label} ${r.shown}: no declared volatility to judge it by (set volatility in slot.config.json)`);
+    if (r && r.key === 'dryStreakP95' && r.source !== 'slots:eval' && r.status === 'missing' && r.value !== undefined) out.push(`${r.label} ${r.shown}: no declared volatility to judge it by (set volatility in slot.config.json)`);
     else if (!r || r.status === 'missing') out.push(`${r?.label ?? key} not measured (rerun npm run slots:eval)`);
     else if (r.status !== 'in') out.push(`${r.label} ${r.shown} outside ${r.band}`);
   }

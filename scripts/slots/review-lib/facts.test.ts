@@ -171,3 +171,28 @@ describe("slots:eval's band verdicts decide", () => {
     expect(bandRows(normaliseFacts({ rtp: 0.96 }).facts, { feature: null }, { rtp: 0.96 })[0].source).toBe('review');
   });
 });
+
+describe('P(max win) given only as bounds (pMaxWin null)', () => {
+  const declared: Declared = { feature: null, volatility: 'medium' };
+  const reach = (pass: boolean | null, extra: Record<string, unknown> = {}) => ({
+    key: 'maxWinReach', label: 'P(reaching the max win) per round', value: null, display: '1 in 8e8 to 3e9 (bounds)', band: { lo: 1e-9, hi: 1, text: '> 1 in 10⁹' }, pass, gate: true, ...extra,
+  });
+  const facts = (row: Record<string, unknown>, unresolved = false) => ({ pMaxWin: null, pMaxWinBounds: { lower: 3.3e-10, upper: 1.25e-9, tier: 'mc', ...(unresolved ? { unresolved: true } : {}) }, stats: [row] });
+  const gate = (raw: Record<string, unknown>) => factGateFailures(bandRows(normaliseFacts(raw).facts, declared, raw)).filter((f) => /max win/i.test(f));
+  it('takes the row verdict instead of reading null as not measured', () => {
+    expect(gate(facts(reach(true)))).toEqual([]);
+    expect(gate(facts(reach(null, { withinNoise: true })))).toEqual([]);
+    expect(gate(facts(reach(null), true))).toEqual([]);
+    expect(gate(facts(reach(false)))).toEqual([expect.stringMatching(/outside/)]);
+    expect(normaliseFacts(facts(reach(true))).missing).not.toContain('P(max win)');
+  });
+  it('a gated row with no verdict and no noise mark is not measured', () => {
+    expect(gate(facts(reach(null)))).toEqual([expect.stringMatching(/not measured/)]);
+  });
+  it('judges by the bounds for facts without row verdicts', () => {
+    const old = (lower: number, upper: number, unresolved = false) => ({ pMaxWin: null, pMaxWinBounds: { lower, upper, unresolved } });
+    expect(gate(old(2e-9, 3e-9))).toEqual([]);
+    expect(gate(old(3.3e-10, 1.25e-9, true))).toEqual([]);
+    expect(gate(old(1e-10, 2e-10))).toEqual([expect.stringMatching(/outside/)]);
+  });
+});
