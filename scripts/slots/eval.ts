@@ -54,7 +54,8 @@ import type { RtpReport, SlotSpec } from '../../packages/slots/src/engine/types'
 import { award, validateSlotConfig, type FreeSpinsConfig, type ModifierFeatureConfig, type SlotConfig } from '../../packages/slots/src/engine/analytics/config';
 import { addCond, buildSplit, condFromMap, mechanicValueLaw, mergeTail, splitRefusal, validateSplit, type SplitValidation, type TailCounts } from '../../packages/slots/src/engine/analytics/conditional';
 import { distProb, enumerationPlan, exactSpinDistribution, spinDistribution, type SpinDist } from '../../packages/slots/src/engine/analytics/distribution';
-import { exactRtp, triggerProbability } from '../../packages/slots/src/engine/analytics/exact';
+import { exactRtp, scatterCountDist, triggerProbability } from '../../packages/slots/src/engine/analytics/exact';
+import { featureProfile } from '../../packages/slots/src/engine/analytics/features';
 import { buildSlotFacts, canonicalJson, type OracleCheck, type OracleCheckItem } from '../../packages/slots/src/engine/analytics/facts';
 import { chunkSeed, countsToDist, distRtpReport, mergeCounts } from '../../packages/slots/src/engine/analytics/mc';
 import { buildModel } from '../../packages/slots/src/engine/analytics/model';
@@ -509,7 +510,33 @@ async function main(): Promise<void> {
   // ---- the feature anchor (flat award tables): exact feature RTP from P(trigger) and E[W]
   let featureAnchor: FeatureAnchor | undefined;
   const cfg: FreeSpinsConfig | null = config.feature ?? null;
-  if (cfg && fspec && !(baseClosed && featClosed)) {
+  if (cfg && fspec && baseClosed && featClosed && (baseDistExact?.tier === 'mc' || featDistExact?.tier === 'mc')) {
+    // Both specs have closed forms but a joint distribution had to be sampled (too large to
+    // enumerate). The free-spins RTP is still exact: its first moment needs only E[W] of a feature
+    // spin and the scatter laws (features.ts: E[F] = Σ_j E[m_j 1{N ≥ j}]·E[W], and N depends on
+    // the spins only through their K), all three exact from the closed forms, any award tables.
+    const smin = Number(spec.trigger?.scatter_min);
+    const pk = scatterCountDist(spec);
+    const pkF = scatterCountDist(fspec);
+    const law: SpinDist = { coins: pkF.map(() => 0), k: pkF.map((_, i) => i), p: pkF, tier: 'exact', method: 'feature-spin scatter law' };
+    const ew = exactRtp(fspec).rtp * bet;
+    let pTrig = 0;
+    let eF = 0;
+    for (let k = smin; k < pk.length; k++) {
+      if (!pk[k]) continue;
+      pTrig += pk[k];
+      const n0 = Math.min(award(cfg.awards, k), cfg.maxSpins);
+      if (n0 > 0) eF += pk[k] * featureProfile(law, cfg, n0).expectedMultiplierSum * ew;
+    }
+    featureAnchor = {
+      featureRtp: eF / bet,
+      triggerP: pTrig,
+      averageWinStakes: pTrig > 0 ? eF / pTrig / bet : NaN,
+      tier: exactRtp(spec).tier === 'exact_mixture' || exactRtp(fspec).tier === 'exact_mixture' ? 'exact_mixture' : 'exact',
+      method: 'TS closed forms: P(K = k) base and feature, E[W] of a feature spin; Σ_k P(K=k)·Σ_j E[m_j 1{N ≥ j} | award(k)]·E[W]',
+    };
+    notes.push(`feature RTP anchored exactly: ${featureAnchor.method}`);
+  } else if (cfg && fspec && !(baseClosed && featClosed)) {
     const ft = flatTables(spec, fspec, cfg);
     const why = [...ft.why];
     const fSmin = fspec.trigger?.scatter_min != null ? Number(fspec.trigger.scatter_min) : null;

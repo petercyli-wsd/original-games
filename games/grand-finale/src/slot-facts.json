@@ -4,19 +4,18 @@
   "generatedBy": "npm run slots:eval (scripts/slots/eval.ts, packages/slots/src/engine/analytics)",
   "specHash": "60917b308212a70bf4f776ac7d9bdb70f2c65515f1c9e54c61d80088cdcd6dec",
   "featureSpecHash": "29e0a3322599576a49ccda391a14ce2491f925371a32fe525911c6ea3c1b01e8",
-  "rtp": 0.9606823581656857,
-  "rtpTier": "mc",
-  "rtpSe": 0.0007292691478377709,
-  "rtpN": 2000000,
+  "rtp": 0.9600011107690465,
+  "rtpTier": "exact",
+  "rtpSe": 0,
   "hitRate": 0.349862500000027,
   "volatility": "medium",
   "volatilitySd": 7.276850589243655,
   "maxWin": 1000,
   "featureFreq": 192.73335784097873,
-  "featureShare": 0.4349978517973993,
+  "featureShare": 0.4345969082586463,
   "volatilityDeclared": "medium",
   "winOverStakeRate": 0.1373679221599311,
-  "avgFeatureWin": 80.54226071631466,
+  "avgFeatureWin": 80.41096161803996,
   "pWin100": 0.0013890932100000491,
   "pMaxWin": 2.0874537123976877e-10,
   "pMaxWinBounds": {
@@ -27,9 +26,8 @@
   "dryStreakP95": 14,
   "sessionMedian": 61.0775,
   "sessionBustRate": 0.1869,
-  "rtpUncapped": 0.9606823581656857,
-  "rtpUncappedTier": "mc",
-  "rtpUncappedSe": 0.0007292691478377709,
+  "rtpUncapped": 0.9600011107690465,
+  "rtpUncappedTier": "exact",
   "capLoss": {
     "value": 0,
     "tier": "mc",
@@ -43,8 +41,8 @@
   "rtpSplit": {
     "base": 0.5427875961039527,
     "baseTier": "exact",
-    "feature": 0.41789476206173304,
-    "featureTier": "mc",
+    "feature": 0.4172135146650938,
+    "featureTier": "exact",
     "capLoss": 0
   },
   "feature": {
@@ -63,13 +61,13 @@
       "kind": "constant",
       "value": 1
     },
-    "tier": "mc",
+    "tier": "exact",
     "triggerP": 0.005188515424636997,
     "expectedSpins": 12.445721537471861,
-    "averageWinStakes": 80.54226071631466,
+    "averageWinStakes": 80.41096161803996,
     "sdWinStakes": 56.65095011850401,
     "pZero": 0.00001333975252044732,
-    "featureRtp": 0.41789476206173304,
+    "featureRtp": 0.4172135146650938,
     "buy": false,
     "buyPriceStakes": null,
     "byK": [
@@ -112,11 +110,9 @@
     {
       "key": "rtp",
       "label": "RTP",
-      "value": 0.9606823581656857,
-      "display": "96.068% mc ± 0.073%, n 2,000,000",
-      "tier": "mc",
-      "se": 0.0007292691478377709,
-      "n": 2000000,
+      "value": 0.9600011107690465,
+      "display": "96.000% exact",
+      "tier": "exact",
       "band": {
         "lo": 0.955,
         "hi": 0.965,
@@ -124,7 +120,7 @@
       },
       "pass": true,
       "gate": true,
-      "method": "uncapped 96.0682% (mc ± 0.0729%) = base 54.279% + feature 41.789% − cap 0.0000%. Base: exact closed form (exact.ts); feature: exact free-spins algebra (features.ts) over the mc feature distribution and the exact trigger law. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 5.141e-3, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.01205% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
+      "method": "uncapped 96.0001% (exact) = base 54.279% + feature 41.721% − cap 0.0000%. Base: exact closed form (exact.ts); feature: TS closed forms: P(K = k) base and feature, E[W] of a feature spin; Σ_k P(K=k)·Σ_j E[m_j 1{N ≥ j} | award(k)]·E[W]. Cap loss: E[(B + F − cap)+] / bet: exact over entries that need no simulation + Monte Carlo of the triggered rounds with B < cap (mass 5.141e-3, 200,000 rounds sampled from the exact distributions, 0 above the cap); exact upper bound 0.01205% (Cauchy–Schwarz with the exact second moments and the reach upper bound). No simulated round exceeded the cap, so the cap loss is reported as not observed and the RTP keeps the uncapped value and tier."
     },
     {
       "key": "hitRate",
@@ -195,10 +191,9 @@
     {
       "key": "featureShare",
       "label": "Feature share of RTP",
-      "value": 0.4349978517973993,
-      "display": "43.5% mc ± 0.08%, n 2,000,000",
-      "tier": "mc",
-      "se": 0.0007591157906034913,
+      "value": 0.4345969082586463,
+      "display": "43.5% exact",
+      "tier": "exact",
       "band": {
         "lo": 0.25,
         "hi": 0.55,
@@ -206,15 +201,14 @@
       },
       "pass": true,
       "gate": false,
-      "method": "featureRtp / rtpUncapped (exact free-spins algebra)"
+      "method": "featureRtp / rtpUncapped (TS closed forms: P(K = k) base and feature, E[W] of a feature spin; Σ_k P(K=k)·Σ_j E[m_j 1{N ≥ j} | award(k)]·E[W])"
     },
     {
       "key": "averageFeatureWin",
       "label": "Average feature win",
-      "value": 80.54226071631466,
-      "display": "80.54× mc ± 0.14, n 2,000,000",
-      "tier": "mc",
-      "se": 0.14055449163260272,
+      "value": 80.41096161803996,
+      "display": "80.41× exact",
+      "tier": "exact",
       "band": {
         "lo": 15,
         "hi": 150,
@@ -222,7 +216,7 @@
       },
       "pass": true,
       "gate": false,
-      "method": "E[F | trigger] / bet, uncapped (exact free-spins algebra)"
+      "method": "E[F | trigger] / bet, uncapped (TS closed forms: P(K = k) base and feature, E[W] of a feature spin; Σ_k P(K=k)·Σ_j E[m_j 1{N ≥ j} | award(k)]·E[W])"
     },
     {
       "key": "pWin100",
