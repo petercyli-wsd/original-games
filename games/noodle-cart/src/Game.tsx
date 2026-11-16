@@ -1,25 +1,18 @@
 import { SlotGame, parseSlotFacts } from '@originals/slots/ui';
-import type { SlotCopy, SlotGameConfig } from '@originals/slots/ui';
+import type { SlotGameConfig } from '@originals/slots/ui';
 import { createSlot } from '@originals/slots';
 import type { SlotSpec } from '@originals/slots';
 import manifest from './manifest';
-import { noodleSymbols, noodleTheme, ticketInHand } from './art';
+import { noodleSymbols, noodleTheme, ticketHidden, extraCookTag, cookFx } from './art';
 import { holdsTicket, noteRound } from './walker';
 import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
 import config from './slot.config.json';
+import { copy } from './copy';
 import factsRaw from './slot-facts.json';
 
 const facts = parseSlotFacts(factsRaw);
 
-const copy: SlotCopy = {
-  featureName: 'Dinner rush',
-  introNote: 'Cooks expand on reels 2-4',
-  rule: 'A cook steps in as a wild reel.',
-  wildText: 'Cook reel = wild. It hides tickets.',
-  scatterText: 'Tickets on reels 1, 3, 5.',
-  mainFeature: 'free',
-};
 
 const baseSpec = spec as unknown as SlotSpec;
 const rushSpec = featureSpec as unknown as SlotSpec;
@@ -50,7 +43,13 @@ export default function Game() {
       symbols={noodleSymbols}
       copy={copy}
       engine={engine}
-      renderOverlay={({ col, row, symbol, decor }) => (holdsTicket(decor, col, row, symbol) ? ticketInHand : null)}
+      symbolFx={{ 2: cookFx }}
+      renderOverlay={({ col, row, symbol, decor }) => {
+        if (holdsTicket(decor, col, row, symbol)) return ticketHidden;
+        const ex = decor?.['expanding_wild.expandedReels'];
+        if (symbol === 2 && row === 0 && Array.isArray(ex) && ex.includes(col)) return extraCookTag;
+        return null;
+      }}
     />
   );
 }

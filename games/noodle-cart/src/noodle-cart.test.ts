@@ -12,6 +12,8 @@ import { checkParity, type OracleFixture } from '../../../packages/slots/src/eng
 import { distMean, distProb, exactSpinDistribution } from '../../../packages/slots/src/engine/analytics/distribution';
 import { scatterCountDist, triggerProbability } from '../../../packages/slots/src/engine/analytics/exact';
 import { freeSpinsAnalytics } from '../../../packages/slots/src/engine/analytics/features';
+import { checkCopy } from '../../../packages/slots/src/ui';
+import { copy } from './copy';
 import { holdsTicket, noteSpin } from './walker';
 import { createSeedSource, seededRng32 } from '../../../packages/slots/src/ui/engine-bridge';
 
@@ -188,5 +190,11 @@ describe('the ticket in the cook\'s hand', () => {
   it('is not drawn on a decor the engine never reported', () => {
     expect(holdsTicket(undefined, 0, 0, 2)).toBe(false);
     expect(holdsTicket({ 'walking_wild.walker': 0 }, 0, 0, 2)).toBe(false);
+  });
+});
+
+describe('copy', () => {
+  it('every line is under 9 words', () => {
+    expect(checkCopy(copy)).toEqual([]);
   });
 });

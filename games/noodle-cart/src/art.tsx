@@ -18,6 +18,7 @@ export const NC = {
 } as const;
 const C = NC;
 const GOLD = '#f7c948'; // flat gold for the bowl's rim
+const WARM = '#ffd98a'; // the premium tile: a warmer cream
 const GLAZE = '#e8892b'; // roast duck glaze, a flat tone between red and amber
 
 const svg = (size: number, body: ReactElement) => (
@@ -106,24 +107,32 @@ export const noodleTheme: SlotTheme = {
     featureFrame: C.amber,
     featureTile: '#ffe2a0',
   },
-  window: { cell: 'tile', separators: 'gap', frameWidth: 10, radius: 10, cellRadius: 8 },
+  window: { cell: 'tile', separators: 'gap', frameWidth: 10, radius: 10, cellRadius: 8, backdropMargin: 22 },
   backdrop: (w, h) => stall(w, h, { awnA: '#561b11', awnB: '#471810', lantern: '#5e2314', cord: '#4e1c11', counter: '#2f110a', post: '#451810' }),
   featureBackdrop: rush,
 };
 
-/** The order ticket the cook holds up when he walks over a scatter (an overlay on his tile, in his hand). */
-export const ticketInHand = (
-  <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
-    <g transform="rotate(12 80 66)">
-      <path d="M66 46 H94 V84 L88 90 L82 84 L76 90 L70 84 L66 90 Z" fill={C.white} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
-      <circle cx="80" cy="58" r="6" fill={C.pink} />
-      <rect x="71" y="70" width="18" height="3.5" rx="1.7" fill={C.red} />
-    </g>
-    <circle cx="66" cy="70" r="6" fill={C.amber} stroke={C.ink} strokeWidth="3" />
-  </svg>
+/** A greyed, torn order ticket with a tag, drawn on a cook's tile where a ticket was hidden. */
+export const ticketHidden = (
+  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">
+      <g transform="rotate(12 80 40)">
+        <path d="M66 12 H94 V50 L88 44 L82 50 L76 44 L70 50 L66 44 Z" fill="#b9b2a4" stroke="#6d665a" strokeWidth="3" strokeLinejoin="round" strokeDasharray="6 3" />
+        <path d="M70 24 L90 36 M90 24 L70 36" stroke="#6d665a" strokeWidth="3.5" strokeLinecap="round" />
+      </g>
+    </svg>
+    <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, textAlign: 'center', whiteSpace: 'nowrap', font: '700 8px/1.3 system-ui, sans-serif', background: C.ink, color: C.cream, padding: '1px 0' }}>Ticket hidden</span>
+  </div>
 );
 
-export const noodleSymbols: SlotSymbols = {
+/** The tag on a cook that landed on its own in Dinner rush and filled its reel. */
+export const extraCookTag = (
+  <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+    <span style={{ position: 'absolute', left: 0, right: 0, top: 0, textAlign: 'center', font: '700 9px/1.2 system-ui, sans-serif', background: C.pink, color: C.white, padding: '1px 0' }}>Extra cook!</span>
+  </div>
+);
+
+const rawSymbols: SlotSymbols = {
   // Scatter: an order ticket, a red slip with a torn edge and a stamp
   1: {
     name: 'Order ticket',
@@ -192,21 +201,23 @@ export const noodleSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // P3: roast duck, tall and thin, hanging from a hook
+  // P3: roast duck, hung from a hook through its neck loop, head down with a long flat bill
   5: {
     name: 'Roast duck',
     render: (s) =>
       svg(
         s,
         <>
-          <path d="M50 16 V6 C50 0 62 0 62 6" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round" fill="none" />
-          <path d="M60 28 L76 33 L60 38 Z" fill={C.amber} stroke={C.ink} strokeWidth="3.5" strokeLinejoin="round" />
-          <circle cx="50" cy="28" r="12" fill={C.red} stroke={C.ink} strokeWidth="4" />
-          <ellipse cx="50" cy="62" rx="24" ry="30" fill={C.red} stroke={C.ink} strokeWidth="4" />
-          <path d="M36 54 C36 70 44 80 54 82" stroke={C.amber} strokeWidth="6" strokeLinecap="round" fill="none" />
-          <ellipse cx="60" cy="56" rx="6" ry="13" fill={GLAZE} transform="rotate(14 60 56)" />
-          <circle cx="54" cy="25" r="3" fill={C.white} />
-          <path d="M42 92 V97 M58 92 V97" stroke={C.ink} strokeWidth="4.5" strokeLinecap="round" />
+          <path d="M50 24 V10 C50 -1 70 -1 70 10" stroke={C.ink} strokeWidth="5" strokeLinecap="round" fill="none" />
+          <path d="M50 24 L50 30" stroke={C.ink} strokeWidth="5" strokeLinecap="round" />
+          <path d="M50 28 C20 30 14 52 22 64 C30 74 70 74 78 64 C86 52 80 30 50 28 Z" fill={C.red} stroke={C.ink} strokeWidth="4" strokeLinejoin="round" />
+          <path d="M26 46 C26 60 36 66 48 66" stroke={C.amber} strokeWidth="6" strokeLinecap="round" fill="none" />
+          <path d="M60 38 C72 40 74 56 66 62" stroke={GLAZE} strokeWidth="8" strokeLinecap="round" fill="none" />
+          <path d="M44 72 L40 84 M56 72 L58 80" stroke={C.ink} strokeWidth="10" strokeLinecap="round" />
+          <path d="M44 72 L40 84 M56 72 L58 80" stroke={C.red} strokeWidth="4" strokeLinecap="round" />
+          <circle cx="42" cy="86" r="8" fill={C.amber} stroke={C.ink} strokeWidth="3.5" />
+          <path d="M48 88 L66 92 L50 96 Z" fill={C.white} stroke={C.ink} strokeWidth="3" strokeLinejoin="round" />
+          <circle cx="40" cy="84" r="2" fill={C.ink} />
         </>,
       ),
   },
@@ -290,3 +301,29 @@ export const noodleSymbols: SlotSymbols = {
       ),
   },
 };
+
+// Pay hierarchy in the art: the four premiums fill a warm gold-rimmed tile at full size;
+// the five lows sit smaller on the plain tile, so a player can rank them at a glance.
+const PREMIUM_IDS = [3, 4, 5, 6];
+const inside = (node: ReactElement) => (node.props as { children: ReactNode }).children;
+export const noodleSymbols: SlotSymbols = Object.fromEntries(
+  Object.entries(rawSymbols).map(([k, art]) => {
+    const id = Number(k);
+    if (PREMIUM_IDS.includes(id)) {
+      return [id, { name: art.name, render: (s: number) => svg(s, <><rect x="2" y="2" width="96" height="96" rx="9" fill={WARM} stroke={GOLD} strokeWidth="5" /><g transform="translate(50 52) scale(0.88) translate(-50 -50)">{inside(art.render(100))}</g></>) }];
+    }
+    if (id >= 7) {
+      return [id, { name: art.name, render: (s: number) => svg(s, <g transform="translate(50 50) scale(0.7) translate(-50 -50)">{inside(art.render(100))}</g>) }];
+    }
+    return [id, art];
+  }),
+) as SlotSymbols;
+
+/** A short burst of cream and amber rays when a cook lands. */
+export const cookFx = (size: number): ReactElement =>
+  svg(
+    size,
+    <g stroke={C.amber} strokeWidth="6" strokeLinecap="round">
+      <path d="M50 4 V18 M50 82 V96 M4 50 H18 M82 50 H96 M17 17 L27 27 M73 73 L83 83 M83 17 L73 27 M27 73 L17 83" />
+    </g>,
+  );
