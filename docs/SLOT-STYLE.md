@@ -203,14 +203,17 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 ## 8. The paytable sheet
 
-`PayTableSheet` is generated from the spec and the facts. A game never writes it by hand.
+`PayTableSheet` is generated from the spec and the facts; a game never writes it by hand. It reads top to bottom, so the answer to "what is worth most?" is at a glance:
 
-1. **How to win:** the evaluation rule in one sentence (from the spec's evaluation), the number of paylines, "Pays are multiples of your total bet".
-2. **Symbols:** premiums then lows, highest pay first, each with its art on a tile and its pays by symbol count, in stakes ("5 10×, 4 3×, 3 1×"). Counts that pay the same merge into ranges ("8–9 0.5×"). Wilds and scatters are in their own section.
-3. **Special symbols:** the wild and scatter text from `copy.wildText` and `copy.scatterText` (defaults are minimal, role-only), the scatter's own pays.
-4. **The feature:** the rules as sentences generated from the law in `slot.config.json` (awards by scatter count, the multiplier, retriggers, the spin cap), so the text is the maths.
-5. **Paylines:** a small picture per line (a dotted grid with the line drawn).
-6. **The numbers:** RTP **with its tier** ("96.00% (exact)", "96.02% ± 0.03% (Monte Carlo, n = 100,000,000)"), hit rate ("31.0% of spins pay (1 in 3.2)"), max win ("5,000×"), the feature's frequency ("1 in 160 spins") and the volatility word. They come from `slot-facts.json`; if the facts file lacks one of RTP, hit rate or max win, the sheet refuses to build (`parseSlotFacts` throws) instead of showing a made-up number.
+1. **How to win:** one to three short lines and a tiny picture of the win law (a line, neighbouring ways, touching symbols, pay anywhere).
+2. **Special symbols** as cards, each with its art and one or two short lines: the wild, the scatter or feature trigger (with its pays as small chips), coins and orbs (their value range), the mystery square. `copy.symbolText` replaces a card's line.
+3. **The feature:** its rules generated from the config, a respin bonus, the multiplier ladders of each phase.
+4. **Symbol pays:** one compact row per symbol: art, name and four exact counts. Lines and ways show 3, 4 and 5 of a kind; cluster and pay-anywhere games show the smallest count and every 5 above it (5, 10, 15, 20), each an exact count from the spec. The best pay in a row is bold. Premiums come first and larger; the rest are grouped below, smaller. Each row's **All pays** opens the full per-count table (equal consecutive counts merged into ranges), so nothing is hidden or rounded away. A pay above the declared max win is shown at the cap with a small "cap" mark and a note. `copy.paytableFirst` lists key symbols first, among the cards and among the rows.
+5. **Paylines** (folded away behind a button), then **the numbers**: RTP with its tier ("96.00% (exact)", "96.02% ± 0.03% (Monte Carlo, n = 100,000,000)"), hit rate, max win, the feature's frequency, volatility. They come from `slot-facts.json`; if the facts lack RTP, hit rate or max win, `parseSlotFacts` throws instead of showing a made-up number.
+
+At 420 px a symbol row stays one per line (art, name, four counts), the cards stack, and there is no wall of columns. Every line is under 9 words.
+
+**The history row.** The status says the last round ("Won 24.64 · 0.77×", or "Paid back 24.64 · 0.77×" for a partial return, neutral, never red), the Win readout keeps that amount with its multiple of the bet until the next spin, and the row says "Last rounds · newest first →". The newest chip is outlined and reads "0.77× bet"; the others are bare multiples (hover for bet and paid). The button opens a small log of the last 8 rounds: time, bet, paid, multiple. At most 8 chips (6 at 420 px). Each round keeps its own stake, so a chip never uses a later bet.
 
 ## 9. Mobile (420 px)
 

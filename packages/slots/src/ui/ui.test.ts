@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot, type SpinResult } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, combinedMultiplierChip, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, orbSumsByStep, combinedMultiplierChip, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -325,14 +325,19 @@ describe('round 5: no spoilers, ladder, ways', () => {
 });
 
 describe('paytable order', () => {
-  it('copy.paytableFirst puts key symbols before the pays', () => {
+  it('copy.paytableFirst puts key symbols first, among the cards and among the pays', () => {
     const d = reefDemo();
     const html = (first?: number[]) => renderToStaticMarkup(createElement(PayTableSheet, { spec: d.spec, symbols: d.symbols, config: d.config, copy: { ...d.copy, paytableFirst: first }, facts: d.facts, theme: d.theme }));
     const plain = html(undefined);
-    expect(plain.indexOf('Angelfish')).toBeLessThan(plain.indexOf('Pearl in shell'));
-    const keyed = html([2, 1]);
-    expect(keyed.indexOf('Pearl in shell')).toBeLessThan(keyed.indexOf('Angelfish'));
+    // default: the special cards come before the pays; the best-paying symbol leads the pays; the wild leads the cards
+    expect(plain.indexOf('Pearl in shell')).toBeLessThan(plain.indexOf('Angelfish'));
+    expect(plain.indexOf('Angelfish')).toBeLessThan(plain.indexOf('Starfish'));
+    expect(plain.indexOf('Pearl in shell')).toBeLessThan(plain.indexOf('>Treasure chest<'));
+    const keyed = html([1, 6]);
+    expect(keyed.indexOf('>Treasure chest<')).toBeLessThan(keyed.indexOf('Pearl in shell'));
+    expect(keyed.indexOf('Starfish')).toBeLessThan(keyed.indexOf('Angelfish'));
   });
+
 });
 
 describe('round 6: win labels from every evaluator', () => {
@@ -555,5 +560,28 @@ describe('round 13: combined multiplier chip', () => {
     expect(wordCount(combinedMultiplierChip({ ...rockets }, 9, { additive: 'Rockets' })!)).toBeLessThan(9);
     expect(combinedMultiplierChip({ ...rockets }, 9, { spin: 'Free spin multiplier', additive: 'Rocket wilds' })).toBe('Multiplier ×81');
     expect(combinedMultiplierChip({ ...rockets }, 1)).toBe('Multiplier ×9 (1 + 8)');
+  });
+});
+
+describe('round 14: no terminal multiplier before its board', () => {
+  it('the orb sum grows as tumbles reveal orbs and reaches the total only on the last step', () => {
+    const d = emberDemo(6);
+    let grew = 0;
+    for (let seed = 1; seed <= 800 && grew < 5; seed++) {
+      const r = d.engine.playRound(seed, seededRng32(seed)).base;
+      const vals = r.decor['orb_sum_terminal.orbVals'] as Record<string, number> | undefined;
+      if (!vals || r.steps.length < 2) continue;
+      const sums = orbSumsByStep(r)!;
+      const total = Object.values(vals).reduce((a, b) => a + b, 0);
+      expect(sums[sums.length - 1]).toBe(total);
+      sums.forEach((s, j) => {
+        if (j > 0 && j < sums.length - 1) expect(s).toBeGreaterThanOrEqual(sums[j - 1]);
+        // the orbs on show at step j, each counted once
+        const orbsOnShow = r.steps[j].board.flat().filter((x) => x === 11).length;
+        if (j < sums.length - 1) expect(s === 0 || orbsOnShow > 0).toBe(true);
+      });
+      if (sums.slice(0, -1).some((s) => s < total)) grew++;
+    }
+    expect(grew).toBeGreaterThan(0);
   });
 });
