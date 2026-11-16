@@ -183,6 +183,7 @@ export function PayTableSheet({ spec, featureSpecs, symbols, config, copy, facts
           {featureRules(feature, featureName, scatterWord, copy?.featureSpins, symbols[idsWithRole(spec, 'scatter')[0]]?.name?.toLowerCase()).map((t, i) => (
             <p key={i}>{t}</p>
           ))}
+          {copy?.featureNotes?.map((t, i) => <p key={`n${i}`}>{t}</p>)}
         </InfoSection>
       )}
 

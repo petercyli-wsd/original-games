@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { PayTableSheet } from './PayTableSheet';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
-import { createSlot } from '../engine';
+import { createSlot, type SpinResult } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
 import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, ladderLines, terminalMaps, valueBadgesByStep, countNoun, spinsNounFor, fmtHist, fmtMoney, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
@@ -512,5 +512,37 @@ describe('round 12: cascade presentation', () => {
     const long = ladderLines('Eruption spins', [4, 8, 17, 35, 70, 140, 280, 560]);
     expect(long.length).toBeGreaterThan(1);
     for (const l of long) expect(wordCount(l)).toBeLessThan(9);
+  });
+});
+
+describe('a grid that opens locked rows (expanding_grid_structural)', () => {
+  // One reel of 3 rows; the bottom row is locked (blank 9) and opens on the first tumble, showing a jellyfish (11).
+  const res = (opened: number[], popped: [number, number] = [0, 0]) => ({
+    decor: { 'orb_sum_terminal.orbVals': { '0,2': 5 } },
+    extras: [],
+    finalBoard: [opened],
+    flags: [],
+    set: 0,
+    steps: [
+      { board: [[5, 7, 9]], wins: [{ label: 'x', coins: 1, cells: [popped], lineIdx: null, ways: null }], stepCoins: 1 },
+      { board: [opened], wins: [], stepCoins: 0 },
+    ],
+    stops: [0],
+    totalCoins: 1,
+    trigger: null,
+  }) as SpinResult;
+  it('a cell that stays in place may show a new symbol; it is not tracked back', () => {
+    const r = res([6, 7, 11]);
+    const maps = terminalMaps(r)!;
+    expect(maps).not.toBeNull();
+    expect(maps[0].get('0,1')).toBe('0,1');
+    expect(maps[0].has('0,2')).toBe(false);
+    const badges = valueBadgesByStep(r, {}, 100)!;
+    expect(badges[0].size).toBe(0);
+    expect(badges[1].get('0,2')).toBeTruthy();
+  });
+  it('a cell that falls may not change symbol', () => {
+    expect(terminalMaps(res([6, 5, 11], [0, 1]))).not.toBeNull(); // 5 falls one row: fine
+    expect(terminalMaps(res([6, 8, 11], [0, 1]))).toBeNull(); // 5 falls and turns into 8: not a fall
   });
 });

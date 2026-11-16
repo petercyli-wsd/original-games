@@ -683,6 +683,7 @@ export function checkCopy(copy: SlotCopy | undefined): { field: string; text: st
   for (const k of ['featureName', 'introNote', 'rule', 'wildText', 'scatterText', 'modifierName', 'modifierIntro', 'respinLabel', 'respinsLeftLabel', 'fillLabel', 'pendingLabel', 'featureRule', 'chainRule'] as const) add(k, copy[k]);
   Object.entries(copy.symbolText ?? {}).forEach(([id, t]) => add(`symbolText.${id}`, t));
   copy.modifierRules?.forEach((t, i) => add(`modifierRules[${i}]`, t));
+  copy.featureNotes?.forEach((t, i) => add(`featureNotes[${i}]`, t));
   if (copy.extrasLabels && typeof copy.extrasLabels === 'object') Object.entries(copy.extrasLabels).forEach(([k, v]) => add(`extrasLabels.${k}`, v));
   if (typeof copy.ladder === 'object') add('ladder.label', copy.ladder.label);
   add('multiplierReel.label', copy.multiplierReel?.label);
@@ -737,8 +738,11 @@ export function terminalMaps(res: SpinResult): Map<string, string>[] | null {
       if (!next.board[c] || next.board[c].length !== col.length) return null;
       const keep = col.map((_, r) => r).filter((r) => !gone.has(`${c},${r}`));
       const nNew = col.length - keep.length;
-      for (let i = 0; i < keep.length; i++) if (col[keep[i]] !== next.board[c][nNew + i]) return null;
-      keep.forEach((r, i) => step.set(`${c},${r}`, maps[j + 1].get(`${c},${nNew + i}`)!));
+      // A survivor that stays in place may show a new symbol (a locked row opening): a new symbol, not tracked back.
+      for (let i = 0; i < keep.length; i++) if (col[keep[i]] !== next.board[c][nNew + i] && keep[i] !== nNew + i) return null;
+      keep.forEach((r, i) => {
+        if (col[r] === next.board[c][nNew + i]) step.set(`${c},${r}`, maps[j + 1].get(`${c},${nNew + i}`)!);
+      });
     }
     maps[j] = step;
   }
@@ -781,4 +785,15 @@ export function ladderLines(label: string, values: number[]): string[] {
   const out: string[] = [];
   for (let i = 0; i < values.length; i += room) out.push((i === 0 ? head + ' ' : '') + values.slice(i, i + room).map((v) => `×${v}`).join(' '));
   return out;
+}
+
+/**
+ * The chip for a spin multiplier that combines with the feature's own: "Spin ×9 · Rockets ×9 = ×81". `labels` come from the
+ * game's copy. Under 9 words; if the labels make it longer it falls back to "Multiplier ×81".
+ */
+export function combinedMultiplierChip(rm: RoundMultiplier, spin: number, labels: { spin?: string; additive?: string; reel?: string; orbs?: string } = {}): string | null {
+  if (spin === 1) return multiplierChip(rm);
+  const part = rm.kind === 'additive' ? (labels.additive ?? 'Bonus') : rm.kind === 'reel' ? (labels.reel ?? 'Reel') : (labels.orbs ?? 'Orbs');
+  const text = `${labels.spin ?? 'Spin'} ×${spin} · ${part} ×${rm.total} = ×${spin * rm.total}`;
+  return wordCount(text) >= 9 ? `Multiplier ×${spin * rm.total}` : text;
 }

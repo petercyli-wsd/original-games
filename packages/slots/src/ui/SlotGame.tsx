@@ -48,7 +48,7 @@ import {
   modifierStartTitle,
   respinsLeft,
   pendingByStep,
-  multiplierChip,
+  combinedMultiplierChip,
   multiplierValues,
   preReveal,
   roundMultiplier,
@@ -154,6 +154,8 @@ export function SlotGame(props: SlotGameProps) {
   const cols = spec.geometry.cols;
   const bc = spec.bet.coins;
   const maxRows = useMemo(() => maxRowsOf(spec), [spec]);
+  // A feature spec with more rows (a grid that grows in the feature) makes the window taller while it plays.
+  const [playRows, setPlayRows] = useState<number | null>(null);
   const filler = useMemo(() => spec.symbols.map((s) => s.id), [spec]);
   const initial = useMemo(() => idleBoard(spec), [spec]);
   const metas = useMemo(() => symbolMetas(spec), [spec]);
@@ -509,7 +511,7 @@ export function SlotGame(props: SlotGameProps) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
       if (ov.size) setOverlays(ov);
       setOverlayDecor(res.decor);
-      const chipText = rm && res.totalCoins > 0 ? multiplierChip(rm) : null;
+      const chipText = rm && res.totalCoins > 0 ? combinedMultiplierChip(rm, m, { ...copy?.multiplierLabels, reel: copy?.multiplierLabels?.reel ?? copy?.multiplierReel?.label }) : null;
       if (chipText) {
         setChip({ text: chipText, event: true });
         await wait(T(800));
@@ -529,7 +531,8 @@ export function SlotGame(props: SlotGameProps) {
       // Long cascades and respin chains speed up: the first three steps at full length, then shorter, to 35%.
       const k = i < 3 ? 1 : Math.max(0.35, 1 - 0.12 * (i - 2));
       if (st.wins.length) {
-        const f = factors[paying++];
+        // A sticky chain pays once, on its final board: that board's factor, not the base board's.
+        const f = mod ? factors[factors.length - 1] : factors[paying++];
         if (f) setSlide(f);
         bigBurst();
         running = await presentWins(st, m, stake, running, limit, k, f, steps.length > 1);
@@ -722,6 +725,14 @@ export function SlotGame(props: SlotGameProps) {
     setChip(null);
     let of = initialSpins;
     let fcoins = 0;
+    const featureRows = maxRowsOf(featureSpec);
+    const regrid = featureRows !== maxRows;
+    if (regrid) {
+      // The window takes the feature grid's height before its first spin (two frames: layout, then the measured width).
+      setPlayRows(featureRows);
+      await new Promise<void>((res) => requestAnimationFrame(() => requestAnimationFrame(() => res())));
+      if (!alive.current) return;
+    }
     for (let i = 0; i < fr.spins.length && alive.current; i++) {
       const sp = fr.spins[i];
       setFeat({ n: i + 1, of, mult: sp.multiplier });
@@ -752,6 +763,11 @@ export function SlotGame(props: SlotGameProps) {
     );
     if (!alive.current) return;
     setFeat(null);
+    if (regrid) {
+      // Back to the base grid: its height, and the board that triggered the feature.
+      setPlayRows(null);
+      reels.current?.set(base.finalBoard);
+    }
     setSlide(null); // the base ladder starts empty again
     await rollTo(counter.current, (round.totalCoins / bc) * stake, T(500));
   }
@@ -980,7 +996,7 @@ export function SlotGame(props: SlotGameProps) {
             onHeights={variableHeights ? (h) => setWays(waysOf(h)) : undefined}
             ref={reels}
             cols={cols}
-            maxRows={maxRows}
+            maxRows={playRows ?? maxRows}
             symbols={symbols}
             theme={theme}
             fillerIds={filler}
