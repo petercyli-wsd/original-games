@@ -3,20 +3,21 @@
   "kind": "free_spins",
   "spec": "feature.spec.json",
   "awards": {
-   "3": 10,
-   "4": 15,
-   "5": 20
+   "3": 8,
+   "4": 10,
+   "5": 12
   },
   "retrigger": {
-   "3": 5
+   "3": 4
   },
-  "maxSpins": 40,
+  "maxSpins": 12,
   "multiplier": {
-   "kind": "constant",
-   "value": 1
+   "kind": "per_spin",
+   "start": 1,
+   "step": 1
   }
  },
- "maxWinStakes": 1000,
+ "maxWinStakes": 2500,
  "volatility": "medium",
  "targetRtp": 0.96
 }

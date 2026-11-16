@@ -13,6 +13,7 @@ export const C = {
   enamel: '#F2EFE6',
   teal: '#3E7C7B',
   ruby: '#B0243A',
+  pewter: '#8E8A80',
   // the feature room: the bench lamp goes out, the teal workshop lights up
   fBg: '#1C2E2D',
   fFrame: '#3E7C7B',
@@ -81,6 +82,38 @@ function benchScene(w: number, h: number, a: string, b: string, c: string) {
   );
 }
 
+/** The feature room: a great clock dial with its twelve hour marks behind the reels (each free spin strikes one hour higher). */
+function dialScene(w: number, h: number, a: string, b: string, c: string) {
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = Math.min(w, h) * 0.46;
+  return (
+    <>
+      <circle cx={cx} cy={cy} r={r} fill={c} />
+      <circle cx={cx} cy={cy} r={r * 0.9} fill="none" stroke={a} strokeWidth={Math.max(2, r * 0.02)} />
+      {Array.from({ length: 12 }, (_, i) => {
+        const ang = (i * Math.PI) / 6 - Math.PI / 2;
+        const long = i % 3 === 0;
+        const r1 = r * (long ? 0.7 : 0.78);
+        return (
+          <line
+            key={i}
+            x1={cx + r1 * Math.cos(ang)}
+            y1={cy + r1 * Math.sin(ang)}
+            x2={cx + r * 0.86 * Math.cos(ang)}
+            y2={cy + r * 0.86 * Math.sin(ang)}
+            stroke={b}
+            strokeWidth={Math.max(3, r * (long ? 0.05 : 0.03))}
+            strokeLinecap="round"
+          />
+        );
+      })}
+      {gear(w * 0.9, h * 0.15, Math.min(w, h) * 0.14, 12, a, c, 'fg1')}
+      {gear(w * 0.1, h * 0.85, Math.min(w, h) * 0.12, 10, a, c, 'fg2')}
+    </>
+  );
+}
+
 export const escapementTheme: SlotTheme = {
   name: 'Escapement',
   palette: {
@@ -100,7 +133,7 @@ export const escapementTheme: SlotTheme = {
   },
   window: { cell: 'plain', separators: 'none', frameWidth: 10, radius: 6, cellRadius: 4 },
   backdrop: (w, h) => benchScene(w, h, '#3A3535', '#403A37', '#343030'),
-  featureBackdrop: (w, h) => benchScene(w, h, '#274543', '#2D4D4B', '#223B39'),
+  featureBackdrop: (w, h) => dialScene(w, h, '#274543', '#2D4D4B', '#223B39'),
 };
 
 export const escapementSymbols: SlotSymbols = {
@@ -205,15 +238,15 @@ export const escapementSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // L1: a small cog with many teeth
+  // L1: a small plain cog, one dull tone (a low: it must not read as a premium)
   7: {
     name: 'Cog',
     render: (s) =>
       svg(
         s,
         <>
-          <polygon points={cogPoints(14, 44, 34)} fill={C.brass} />
-          <circle cx="50" cy="50" r="12" fill={C.tile} />
+          <polygon points={cogPoints(10, 32, 24)} fill={C.pewter} />
+          <circle cx="50" cy="50" r="9" fill={C.tile} />
         </>,
       ),
   },
@@ -238,16 +271,15 @@ export const escapementSymbols: SlotSymbols = {
         <polyline points="56.0,50.0 56.3,51.8 56.1,53.7 55.3,55.6 53.8,57.3 51.8,58.6 49.4,59.4 46.7,59.4 44.0,58.6 41.4,57.1 39.3,54.7 37.9,51.8 37.3,48.4 37.7,44.8 39.1,41.3 41.5,38.3 44.7,35.9 48.7,34.4 53.0,34.1 57.5,35.0 61.6,37.1 65.1,40.4 67.7,44.7 69.0,49.6 69.0,54.9 67.5,60.1 64.5,64.8 60.3,68.7 55.0,71.3 49.1,72.4 42.9,71.9 37.0,69.6 31.7,65.8 27.7,60.5 25.1,54.2 24.3,47.3 25.5,40.3 28.5,33.7 33.4,28.1 39.7,23.9 47.0,21.5 54.9,21.2 62.7,23.0 69.8,27.0 75.8,32.9 80.0,40.3 82.0,48.7 81.8,57.5 79.1,66.0 74.1,73.6 67.2,79.7 58.7,83.8 49.3,85.5 39.6,84.5 30.4,80.9 22.4,74.9 16.2,66.8 12.4,57.2 11.3,46.7 13.0,36.3 17.6,26.5" fill="none" stroke={C.enamel} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />,
       ),
   },
-  // L4: the jewel bearing, a red faceted stone
+  // L4: the jewel, a small plain cut stone (one tone: a low)
   10: {
     name: 'Jewel',
     render: (s) =>
       svg(
         s,
         <>
-          <polygon points="50,12 82,34 82,66 50,88 18,66 18,34" fill={C.ruby} />
-          <polygon points="50,12 66,34 50,50 34,34" fill={C.enamel} />
-          <polygon points="34,34 50,50 50,88 18,66 18,34" fill={C.walnut} />
+          <polygon points="38,28 62,28 76,44 50,76 24,44" fill={C.ruby} />
+          <rect x="30" y="42" width="40" height="4" fill={C.tile} />
         </>,
       ),
   },

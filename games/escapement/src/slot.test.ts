@@ -171,6 +171,41 @@ describe('feature algebra vs Monte Carlo', () => {
   }, 240_000);
 });
 
+describe('the hour climbs (Grand Complication)', () => {
+  it('the law: free spin n pays ×n, up to 12 spins (the twelve hours)', () => {
+    expect(config.feature!.multiplier).toEqual({ kind: 'per_spin', start: 1, step: 1 });
+    expect(config.feature!.maxSpins).toBe(12);
+    expect(Math.max(...Object.values(config.feature!.awards))).toBeLessThanOrEqual(12);
+  });
+  it('every played free spin pays its own spin win times its spin number', () => {
+    const host = new Mulberry32(31);
+    const seedRng = new Mulberry32(32);
+    let features = 0;
+    let multiplied = 0;
+    for (let tried = 0; features < 40 && tried < 400_000; tried++) {
+      const seed = seedRng.u32();
+      if (!slot.engine.spin(seed).trigger?.fired) continue;
+      const f = slot.playRound(seed, () => host.u32()).feature!;
+      features++;
+      expect(f.spins.length).toBeLessThanOrEqual(12);
+      f.spins.forEach((s, j) => {
+        expect(s.multiplier).toBe(j + 1);
+        expect(s.coins).toBe(s.result.totalCoins * (j + 1));
+        if (j > 0 && s.result.totalCoins > 0) multiplied++;
+      });
+    }
+    expect(features).toBe(40);
+    expect(multiplied).toBeGreaterThan(20);
+  });
+  it('pendulums stay on reels 2-4 in the feature: the respin pool has none, reels 1 and 5 have none', () => {
+    const sticky = featureSpec.mechanics.find((m) => m.id === 'sticky_respin')!;
+    expect(Object.keys(sticky.params!.cell_pool as Record<string, number>)).not.toContain('2');
+    const strips = (featureSpec.board_law as unknown as { reel_sets: { strips: number[][] }[] }).reel_sets[0].strips;
+    expect(strips[0]).not.toContain(2);
+    expect(strips[4]).not.toContain(2);
+  });
+});
+
 describe('the max-win cap', () => {
   it('no round pays more than the declared cap', () => {
     const host = new Mulberry32(5);

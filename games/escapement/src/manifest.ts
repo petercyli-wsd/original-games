@@ -4,11 +4,11 @@ import facts from './slot-facts.json';
 export default defineManifest({
   id: 'escapement',
   name: 'Escapement',
-  tagline: 'A clockmaker’s bench. Every win locks its gears while the rest of the clock respins, then the hour strikes.',
+  tagline: 'A clockmaker’s bench. Every win locks its gears while the rest of the clock respins. In Grand Complication each free spin strikes one hour higher.',
   mechanic: 'slots',
   status: 'prototype',
   collection: 'slots',
-  revision: { kind: 'new', date: '2026-11-16', note: 'Winning gears lock and the clock respins until nothing new clicks in. Sonnet-built, not yet rated by the team.' },
+  revision: { kind: 'new', date: '2026-11-16', note: 'Winning gears lock and the clock respins; in Grand Complication free spin n pays ×n, up to ×12. Not yet rated by the team.' },
   rtp: facts.rtp,
   maxMultiplier: facts.maxWin,
   volatility: ['medium'],
