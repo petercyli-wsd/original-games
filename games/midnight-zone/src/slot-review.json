@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "overall": 3.15,
+  "scores": {
+    "theme": 3,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 4,
+    "fun": 3,
+    "creativity": 2,
+    "maths_fit": 4,
+    "uniqueness": 1,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.15 < 3.5"
+  ],
+  "verdict": "A well-built, well-tuned and readable pay-anywhere tumble slot whose deep-sea costume sits on a near-exact copy of Gates of Olympus, so it needs a signature mechanic, ideally a board that really goes deeper, before it is worth keeping.",
+  "pros": [
+    "Every measured band is met with a coherent extreme shape: rare 100x+ rounds (1 in 687), a 131x average feature, and a reachable 15,000x top.",
+    "Win reporting is clear: winning symbols boxed in cyan, a chip naming each win ('Copepod x9 = 0.06'), the Jellyfish total shown as a multiplier, and the feature counter and running total always on screen.",
+    "The anglerfish lure as the scatter that pulls you into The Abyss is a good theme link, and the player understood every rule correctly.",
+    "Jellyfish landing on the board gives real 'what if' hope, and the feature produced two genuine sit-up moments (x172 and x253 spins)."
+  ],
+  "cons": [
+    "Give the slot a mechanic of its own instead of Gates of Olympus orbs, and make 'Deeper boards' literal: for example, each Abyss retrigger or each landed lure adds a row (6x5 to 6x6 to 6x7), or Jellyfish that land in the feature sink one row per spin and keep their value until they leave the bottom, so the depth is the feature's climax.",
+    "Make the pay hierarchy visible in the art: draw the Gulper eel large and bold (it is currently a thin pink outline that reads as a low), give the four premiums a glow or framed tile, and give the Sea gooseberry a shape that is not a striped oval like the Giant isopod.",
+    "Show each Jellyfish's value badge the moment it lands, win or not, and list the feature values (up to 500x) in the paytable so a 250x in The Abyss is not a surprise; fix the paytable line '4 anglerfish lures: 15 the abyss' to '4 lures: 15 free spins'.",
+    "Make the trigger consistent and felt: keep the lures highlighted on the trigger board, show the same Start card in Turbo as in normal play, and slow the remaining reels when 3 lures are visible and a 4th can still land."
+  ],
+  "confusions": [
+    "Jellyfish sometimes landed with no number on them; their multipliers only appeared on winning spins, so I was unsure at first whether they did anything.",
+    "Paytable line '4 anglerfish lures: 15 the abyss' reads like '15 free spins' with a word missing.",
+    "'Deeper boards. Bigger jellyfish.': the board in the feature looked the same 6x5 size, only the frame turned purple; I could not see what 'deeper' meant."
+  ],
+  "players": 1,
+  "codeHash": "3b2f911f40a723c1",
+  "date": "2026-11-16"
+}
