@@ -35,7 +35,7 @@
 //
 // Oracle check: oracle.json next to the spec (npm run slots:oracle -- <id>) must exist, its spec
 // hashes must match the current specs, and the pack's RTP must equal ours: to 1e-9 when both are
-// exact; for a pack mc RTP, the port replays the pack's own draw (its content seed + i, n_mc spins)
+// exact; for a pack mc RTP, the port replays the pack's own draw (its content seed, n_mc spins; one Mulberry32 stream for a cluster cascade, Mulberry32(seed + i) per spin otherwise)
 // and must match to 1e-12; else within 4·√(se_ts² + se_pack²).
 //
 // Exit 1 when the oracle check fails or a §5 gate band fails (RTP, hit rate, dry streak, max-win
@@ -95,7 +95,7 @@ interface PackAnalytics {
   se?: number;
   n_mc?: number;
   trigger_p?: number;
-  instrument?: { seed?: number; n_mc?: number };
+  instrument?: { seed?: number; n_mc?: number; method?: string };
 }
 interface OracleEntry {
   file?: string;
@@ -111,22 +111,39 @@ interface OracleDoc {
 const isPackExact = (a: PackAnalytics | undefined): a is PackAnalytics & { rtp: number } =>
   !!a && typeof a.rtp === 'number' && (a.tier === 'exact' || a.tier === 'exact_mixture');
 
-type Replay = (seed: number, n: number) => RtpReport;
+/** How the pack's Monte Carlo draws its spins (see packStream). */
+type PackStream = 'per_spin_seed' | 'one_stream';
+type Replay = (seed: number, n: number, pack: PackAnalytics) => RtpReport & { stream: PackStream };
 
-/** The pack's own mc draw replayed by the port (spin i on Mulberry32(seed + i)), cached engine. */
+/**
+ * The pack's mc stream semantics, by analytics kind (slot-math-engine-pack src/reelengine/analytics):
+ *   - a cluster evaluator (always a cascade) → analytics/cluster.py `mc_stream`: ONE Mulberry32(seed)
+ *     stream across all n_mc spins (its instrument method reads "…over the tumble cascade…");
+ *   - every other mc tier → analytics/mc.py `mc_analytics` (and the kernel hook battery,
+ *     slotlab/kernel/mech.py): spin i on its own Mulberry32(seed + i).
+ */
+function packStream(spec: SlotSpec, a: PackAnalytics): PackStream {
+  if (spec.evaluation.kind === 'cluster') return 'one_stream';
+  if (/tumble cascade/.test(a.instrument?.method ?? '')) return 'one_stream';
+  return 'per_spin_seed';
+}
+
+/** The pack's own mc draw replayed by the port (per its stream semantics), cached engine. */
 function replayer(spec: SlotSpec): Replay {
   const eng = new SlotEngine(spec);
-  return (seed, n) => {
+  return (seed, n, pack) => {
+    const stream = packStream(spec, pack);
     let s1 = 0;
     let s2 = 0;
+    const one = stream === 'one_stream' ? new Mulberry32(seed >>> 0) : null;
     for (let i = 0; i < n; i++) {
-      const c = eng.spinRaw(new Mulberry32((seed + i) >>> 0)).totalCoins;
+      const c = eng.spinRaw(one ?? new Mulberry32((seed + i) >>> 0)).totalCoins;
       s1 += c;
       s2 += c * c;
     }
     const bet = spec.bet.coins;
     const m = s1 / n;
-    return { rtp: m / bet, tier: 'mc', se: Math.sqrt(Math.max(0, s2 / n - m * m) / n) / bet, n };
+    return { rtp: m / bet, tier: 'mc', se: Math.sqrt(Math.max(0, s2 / n - m * m) / n) / bet, n, stream };
   };
 }
 
@@ -148,13 +165,13 @@ function compareRtp(name: string, file: string, specHash: string, entry: OracleE
   const nMc = a.n_mc ?? a.instrument?.n_mc;
   if (a.tier === 'mc' && replay && typeof seed === 'number' && typeof nMc === 'number') {
     // replay the pack's own Monte Carlo spin for spin: same seeds, same spins, same mean
-    const r = replay(seed, nMc);
+    const r = replay(seed, nMc, a);
     item.tsRtp = r.rtp;
-    item.tsTier = 'mc (pack seeds replayed)';
+    item.tsTier = `mc (pack ${r.stream === 'one_stream' ? 'stream' : 'seeds'} replayed)`;
     item.diff = r.rtp - a.rtp;
     item.tolerance = 1e-12;
     item.ok = Math.abs(item.diff) <= item.tolerance;
-    item.detail = `pack ${a.rtp.toFixed(10)} mc (n ${nMc}, seed ${seed}) replayed by the port: ${r.rtp.toFixed(10)}, |Δ| ${Math.abs(item.diff).toExponential(2)}${item.ok ? '' : ' (the port does not reproduce the pack spins)'}`;
+    item.detail = `pack ${a.rtp.toFixed(10)} mc (n ${nMc}, seed ${seed}, ${r.stream === 'one_stream' ? 'one Mulberry32 stream' : 'Mulberry32(seed + i) per spin'}) replayed by the port: ${r.rtp.toFixed(10)}, |Δ| ${Math.abs(item.diff).toExponential(2)}${item.ok ? '' : ' (the port does not reproduce the pack spins)'}`;
     return item;
   }
   item.diff = ts.rtp - a.rtp;
