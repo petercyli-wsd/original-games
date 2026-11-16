@@ -3,7 +3,7 @@ import type { SlotGameConfig } from '@originals/slots/ui';
 import type { SlotSpec } from '@originals/slots';
 import manifest from './manifest';
 import { copy } from './copy';
-import { unfoldCorner, unfoldFx, unfoldSymbols, unfoldTheme } from './art';
+import { unfoldFx, unfoldSymbols, unfoldTheme } from './art';
 import spec from './slot.spec.json';
 import featureSpec from './feature.spec.json';
 import config from './slot.config.json';
@@ -23,7 +23,6 @@ export default function Game() {
       symbols={unfoldSymbols}
       copy={copy}
       symbolFx={unfoldFx}
-      renderOverlay={unfoldCorner}
     />
   );
 }

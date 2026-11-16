@@ -17,6 +17,6 @@
     }
   },
   "maxWinStakes": 1500,
-  "volatility": "low",
+  "volatility": "medium",
   "targetRtp": 0.96
 }
