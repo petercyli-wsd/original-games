@@ -18,6 +18,7 @@ export const copy: SlotCopy = {
   rule: 'Drift rows change every spin. Wins slide away.',
   wildText: 'Cornice replaces all but beacons.',
   scatterText: '4 beacons anywhere start Whiteout spins.',
+  ladder: { label: 'Slide' },
 };
 
 const slotSpec = spec as unknown as SlotSpec;
