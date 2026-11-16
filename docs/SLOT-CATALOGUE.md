@@ -19,6 +19,8 @@ The kept slots, newest first. The signature is the evaluation law on its board l
 
 Concepts that failed the screen, and builds that failed the gate after two repair rounds. Write one line each: the date, the name, the signature, why it was dropped (the failing gate reason or screen check), and the lesson.
 
+- 2026-11-16 · **Hi-Score** (`hi-score`) · payline 3×3, 5 lines, global_iid multiplier reel, free spins with a per-spin level-up multiplier · medium. AI review 3.00, then 3.12 after one repair round (Peter allowed one): gate overall < 3.5. Readability 4 and feature clarity 4, but uniqueness 2 (base game reads as a classic multiplier-reel 3×3; a rising free-spin multiplier is already in the catalogue), fun 3, excitement 3. Lesson: a 3×3 classic needs a signature twist of its own; polish alone moves it from 3.00 to 3.12. Kept playable in the Archive (status `retired`) for team calibration, not deleted.
+
 ## Retired
 
 Kept slots later moved to the Archive (status `retired`). Write the reason for each.
