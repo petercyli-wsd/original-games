@@ -123,6 +123,6 @@ describe('spin flow', () => {
     expect(play).toContain('if (busyRef.current) return null;');
     const game = readFileSync(join(here, 'Game.tsx'), 'utf8');
     expect(game).toContain('createSlot(');
-    expect(game).not.toMatch(/rng|Math\.random/);
+    expect(game).not.toMatch(/useHost|Math\.random/);
   });
 });
