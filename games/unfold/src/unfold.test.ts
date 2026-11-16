@@ -134,3 +134,13 @@ describe('spin flow', () => {
     expect(plain).toBeGreaterThan(0);
   });
 });
+
+describe('backdrops', () => {
+  it('base and feature scenes are drawn and differ', async () => {
+    const { unfoldTheme } = await import('./art');
+    const base = JSON.stringify(unfoldTheme.backdrop?.(600, 480));
+    const feat = JSON.stringify(unfoldTheme.featureBackdrop?.(600, 480));
+    expect(base.length).toBeGreaterThan(100);
+    expect(feat).not.toEqual(base);
+  });
+});

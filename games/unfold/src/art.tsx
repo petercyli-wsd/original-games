@@ -25,6 +25,32 @@ const svg = (size: number, body: ReactElement) => (
   </svg>
 );
 
+// Paper landscape: layered folded hills and a paper sun, each a shade off the window tone.
+const hills = (w: number, h: number, c: { far: string; mid: string; near: string; sun: string; ray: string }) => {
+  const peaks = (base: number, amp: number, n: number, phase: number) => {
+    const step = w / n;
+    let d = `M0 ${h} L0 ${base}`;
+    for (let i = 0; i <= n; i++) d += ` L${(i * step).toFixed(1)} ${(base - (i % 2 === phase ? amp : 0)).toFixed(1)}`;
+    return d + ` L${w} ${h} Z`;
+  };
+  const r = Math.min(w, h) * 0.11;
+  const cx = w * 0.78;
+  const cy = h * 0.2;
+  const rays = Array.from({ length: 8 }, (_, i) => {
+    const a = (i * Math.PI) / 4;
+    return `M${cx + Math.cos(a) * (r * 1.4)} ${cy + Math.sin(a) * (r * 1.4)} L${cx + Math.cos(a) * (r * 1.9)} ${cy + Math.sin(a) * (r * 1.9)}`;
+  }).join(' ');
+  return (
+    <>
+      <path d={rays} stroke={c.ray} strokeWidth={Math.max(2, r * 0.18)} strokeLinecap="round" fill="none" />
+      <circle cx={cx} cy={cy} r={r} fill={c.sun} />
+      <path d={peaks(h * 0.62, h * 0.16, 4, 1)} fill={c.far} />
+      <path d={peaks(h * 0.74, h * 0.14, 5, 0)} fill={c.mid} />
+      <path d={peaks(h * 0.88, h * 0.1, 3, 1)} fill={c.near} />
+    </>
+  );
+};
+
 export const unfoldTheme: SlotTheme = {
   name: 'Unfold',
   palette: {
@@ -38,7 +64,9 @@ export const unfoldTheme: SlotTheme = {
     featureTile: C.fTile,
   },
   // Soft fold lines between reels instead of bars: thin gap, small radii.
-  window: { cell: 'tile', separators: 'gap', frameWidth: 6, radius: 6, cellRadius: 4 },
+  backdrop: (w, h) => hills(w, h, { far: '#34385A', mid: '#383C60', near: '#3D4268', sun: '#6B4A52', ray: '#4A3F55' }),
+  featureBackdrop: (w, h) => hills(w, h, { far: '#1E4A4D', mid: '#215357', near: '#285E60', sun: '#4F7F6E', ray: '#2F6560' }),
+  window: { cell: 'plain', separators: 'none', frameWidth: 6, radius: 6, cellRadius: 4 },
 };
 
 export const unfoldSymbols: SlotSymbols = {
@@ -104,17 +132,20 @@ export const unfoldSymbols: SlotSymbols = {
         </>,
       ),
   },
-  // P3: koi, a curved body and a swept tail
+  // P3: koi, a plump side-on fish: rounded head left, forked tail right, dorsal fin, cream back patch
   5: {
     name: 'Koi',
     render: (s) =>
       svg(
         s,
         <>
-          <path d="M8 30 C34 2 78 14 84 44 C88 66 66 82 44 76 C30 72 22 60 30 48 C38 38 54 40 56 50 C48 46 42 52 46 60 C60 64 70 54 66 44 C62 28 36 24 14 44 Z" fill={C.vermilion} />
-          <path d="M80 48 L96 34 L94 70 Z" fill={C.cream} />
-          <path d="M60 38 C70 36 76 44 74 52 C66 50 62 46 60 38 Z" fill={C.cream} />
-          <circle cx="20" cy="38" r="4" fill={C.ink} />
+          <path d="M70 50 L96 22 L88 50 L96 78 Z" fill={C.cream} />
+          <path d="M34 30 L52 12 L64 34 Z" fill={C.cream} />
+          <path d="M34 70 L50 86 L62 66 Z" fill={C.cream} />
+          <path d="M4 50 C4 30 28 26 48 28 C62 30 74 40 76 50 C74 60 62 70 48 72 C28 74 4 70 4 50 Z" fill={C.vermilion} />
+          <path d="M40 31 C54 30 66 38 68 48 C58 46 46 42 40 31 Z" fill={C.cream} />
+          <path d="M26 30 L26 70" stroke={C.ink} strokeWidth="3" strokeLinecap="round" />
+          <circle cx="16" cy="46" r="4.5" fill={C.ink} />
         </>,
       ),
   },
