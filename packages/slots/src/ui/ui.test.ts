@@ -8,7 +8,7 @@ import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, heldByStep, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, checkCopy, heldByStep, pluralOf, mysterySymbol, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -388,5 +388,27 @@ describe('round 7: held cells and copy check', () => {
     ]);
     expect(checkCopy(undefined)).toEqual([]);
     expect(checkCopy({ extrasLabels: { A: 'one two three four five six seven eight nine' } })).toHaveLength(1);
+  });
+});
+
+describe('round 8: paytable wording', () => {
+  const sheet = (d: ReturnType<typeof reefDemo>, copy = d.copy) => renderToStaticMarkup(createElement(PayTableSheet, { spec: d.spec, symbols: d.symbols, config: d.config, copy, facts: d.facts, theme: d.theme }));
+  it('a mystery symbol opens into one symbol, and symbolText overrides any line', () => {
+    const d = reefDemo('mystery');
+    expect(mysterySymbol(d.spec)).toBe(11);
+    expect(sheet(d)).toContain('Opens into one symbol');
+    expect(sheet(d, { ...d.copy, symbolText: { 11: 'A folded clam', 3: 'Top fish' } })).toMatch(/A folded clam[\s\S]*Top fish|Top fish[\s\S]*A folded clam/);
+    expect(sheet(d, { ...d.copy, symbolText: { 11: 'A folded clam' } })).not.toContain('Opens into one symbol');
+    expect(checkCopy({ symbolText: { 3: 'one two three four five six seven eight nine' } })).toHaveLength(1);
+  });
+  it('the rules name the scatter symbol, with "scatters" as the fallback', () => {
+    expect(pluralOf('Sun')).toBe('suns');
+    expect(pluralOf('Treasure chest')).toBe('treasure chests');
+    expect(pluralOf('Fox')).toBe('foxes');
+    expect(pluralOf('Berry')).toBe('berries');
+    expect(pluralOf(undefined)).toBe('scatters');
+    const d = reefDemo();
+    expect(sheet(d)).toContain('3 treasure chests: 8 tide spins');
+    expect(featureRules(d.config.feature!, 'Tide spins')[0]).toBe('3 scatters: 8 tide spins');
   });
 });

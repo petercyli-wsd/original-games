@@ -187,6 +187,8 @@ Spins in the feature use the same win presentation (with each win multiplied by 
 
 **Copy the blind reviewer can read.** A game's own copy lines of 9 or more words are hidden from blind reviewers. In development the kit warns for each one; `checkCopy(copy)` returns the offenders so a game test can assert `expect(checkCopy(copy)).toEqual([])`.
 
+**Paytable wording.** A pay-less symbol the spec names as the `mystery_reveal` symbol reads "Opens into one symbol"; `copy.symbolText` (`{ [id]: text }`, under 9 words) replaces any symbol's generated line. The feature rules and the trigger line name the scatter as the game does ("3 treasure chests: 12 free folds"), with "scatters" as the fallback. On a spin that pays nothing the multiplier readouts are dimmed (`copy.noWinMultiplier`: `'dim'` default, `'hide'`, or `'label'` for dimmed with "No win to multiply").
+
 **Tiny pays** keep their digits ("0.0045×", never "0×"); a ways game says "Pays shown are per way". Coin and orb symbols show their value range and most common value instead of pays.
 
 ## 8. The paytable sheet

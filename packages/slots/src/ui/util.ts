@@ -202,14 +202,14 @@ export const wordCount = (line: string) => line.trim().split(/\s+/).filter(Boole
  * The feature's rules as short lines (each under 9 words, so a blind player can read them), generated from the
  * law the engine runs: "3 scatters: 8 free spins", "Every win ×2", "Retrigger: 3 scatters, +4 spins".
  */
-export function featureRules(f: FeatureConfig, name = 'free spins'): string[] {
+export function featureRules(f: FeatureConfig, name = 'free spins', scatterName = 'scatters'): string[] {
   const out: string[] = [];
   const nm = name.toLowerCase();
   const keys = sortedKeys(f.awards);
-  keys.forEach((k, i) => out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} scatters: ${f.awards[String(k)]} ${nm}`));
+  keys.forEach((k, i) => out.push(`${k}${i === keys.length - 1 && keys.length > 1 ? '+' : ''} ${scatterName}: ${f.awards[String(k)]} ${nm}`));
   const note = multiplierNote(f);
   if (note) out.push(note);
-  sortedKeys(f.retrigger).forEach((k) => out.push(`Retrigger: ${k} scatters, +${f.retrigger![String(k)]} spins`));
+  sortedKeys(f.retrigger).forEach((k) => out.push(`Retrigger: ${k} ${scatterName}, +${f.retrigger![String(k)]} spins`));
   out.push(`At most ${f.maxSpins} spins in total`);
   return out;
 }
@@ -229,13 +229,13 @@ export function howToWinLines(spec: SlotSpec, copy?: SlotCopy): string[] {
 export const wildLines = (copy?: SlotCopy) => [copy?.wildText ?? 'Wild replaces paying symbols'];
 
 /** Default scatter text (a game's `copy.scatterText` replaces it). */
-export function scatterLines(min: number, featureName: string | null, copy?: SlotCopy): string[] {
+export function scatterLines(min: number, featureName: string | null, copy?: SlotCopy, scatterName = 'scatters'): string[] {
   if (copy?.scatterText) return [copy.scatterText];
-  return featureName ? ['Pays anywhere', `${min}+ scatters start ${featureName.toLowerCase()}`] : ['Pays anywhere'];
+  return featureName ? ['Pays anywhere', `${min}+ ${scatterName} start ${featureName.toLowerCase()}`] : ['Pays anywhere'];
 }
 
 /** Feature intro card lines. */
-export const introLines = (scatters: number, note: string) => [`${scatters} scatters`, ...(note ? [note] : [])];
+export const introLines = (scatters: number, note: string, scatterName = 'scatters') => [`${scatters} ${scatterName}`, ...(note ? [note] : [])];
 
 /** Feature outro card lines. */
 export const outroLines = (spins: number, stakes: number, capped: boolean) => [`${spins} free spins`, `${fmtX(stakes)} your bet`, ...(capped ? ['Max win reached'] : [])];
@@ -656,9 +656,23 @@ export function checkCopy(copy: SlotCopy | undefined): { field: string; text: st
     if (typeof text === 'string' && wordCount(text) >= 9) out.push({ field, text, words: wordCount(text) });
   };
   for (const k of ['featureName', 'introNote', 'rule', 'wildText', 'scatterText', 'modifierName', 'modifierIntro', 'respinLabel', 'respinsLeftLabel', 'fillLabel', 'pendingLabel', 'featureRule', 'chainRule'] as const) add(k, copy[k]);
+  Object.entries(copy.symbolText ?? {}).forEach(([id, t]) => add(`symbolText.${id}`, t));
   copy.modifierRules?.forEach((t, i) => add(`modifierRules[${i}]`, t));
   if (copy.extrasLabels && typeof copy.extrasLabels === 'object') Object.entries(copy.extrasLabels).forEach(([k, v]) => add(`extrasLabels.${k}`, v));
   if (typeof copy.ladder === 'object') add('ladder.label', copy.ladder.label);
   add('multiplierReel.label', copy.multiplierReel?.label);
   return out;
+}
+
+/** "Sun" → "suns", "Treasure chest" → "treasure chests": the scatter's name as the rules say it. Falls back to "scatters". */
+export function pluralOf(name: string | undefined): string {
+  const n = name?.trim().toLowerCase();
+  if (!n) return 'scatters';
+  return /(s|x|z|ch|sh)$/.test(n) ? n + (/s$/.test(n) ? '' : 'es') : /[^aeiou]y$/.test(n) ? n.slice(0, -1) + 'ies' : n + 's';
+}
+
+/** The mystery symbol's id, from the spec's `mystery_reveal` mechanic params. */
+export function mysterySymbol(spec: SlotSpec): number | null {
+  const v = Number((spec.mechanics.find((m) => m.id === 'mystery_reveal')?.params as Record<string, unknown> | undefined)?.mystery_symbol);
+  return Number.isFinite(v) ? v : null;
 }

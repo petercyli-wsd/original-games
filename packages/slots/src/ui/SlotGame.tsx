@@ -68,6 +68,7 @@ import {
   stepMults,
   waysOf,
   initialSpins as initialSpins_,
+  pluralOf,
   introLines,
   maxRowsOf,
   multiplierNote,
@@ -187,6 +188,8 @@ export function SlotGame(props: SlotGameProps) {
   const ladder = feat && feat.kind !== 'respin' && featLadder.length ? featLadder : baseLadder;
   const ladderLabel = typeof copy?.ladder === 'object' && copy.ladder.label ? copy.ladder.label : 'Step';
   const [slide, setSlide] = useState<number | null>(null);
+  // The spin paid nothing: its multipliers applied to nothing, and the readouts say so.
+  const [noWin, setNoWin] = useState(false);
   // Ways of variable-height reels, as the reels stop.
   const variableHeights = !!(spec as { height_law?: unknown }).height_law && spec.evaluation.kind === 'ways';
   const [ways, setWays] = useState<number | null>(null);
@@ -322,6 +325,7 @@ export function SlotGame(props: SlotGameProps) {
     setOverlayDecor(undefined);
     setRmult(null);
     setSlide(null);
+    setNoWin(false);
     setBreakdown([]);
     setBurst(0);
     if (mrCfg) setMr({ spinning: true, value: null });
@@ -425,6 +429,7 @@ export function SlotGame(props: SlotGameProps) {
     const steps = res.steps;
     const rm = roundMultiplier(res.decor);
     setRmult(rm);
+    setNoWin(res.totalCoins === 0);
     const mod = isBase ? modifierOf(res, customDetect) : null;
     const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
     const landedC = mod ? landedCoins(res) : null;
@@ -631,7 +636,7 @@ export function SlotGame(props: SlotGameProps) {
     setLine(null);
     await wait(turboRef.current ? 600 : 1000);
     await showCard(
-      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
+      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote, pluralOf(symbols[scatterIds[0]]?.name)), button: 'Start', placement: placementFor(sc, base.steps[0]?.board ?? base.finalBoard) },
       { autoMs: autoAdvance() ? T(1600) : null },
     );
     if (!alive.current) return;
@@ -764,12 +769,17 @@ export function SlotGame(props: SlotGameProps) {
   // rockets, orbs). A plain ×1 is not shown, so it can't mislead.
   const mult = (feat?.mult ?? 1) * (rmult?.total ?? 1);
   // With a cascade ladder the slide's factor leads: "×5 slide × ×3 spin".
+  // On a spin that pays nothing a multiplier applied to nothing: dimmed by default, or hidden, or dimmed with a note.
+  const nwMode = copy?.noWinMultiplier ?? 'dim';
+  const dimIf = (v: string) => (noWin ? <span className="sl-dim">{v}</span> : v);
   const multItem =
-    slide !== null && ladder.length
-      ? [{ label: ladderLabel, value: mult !== 1 ? `×${slide} · spin ×${mult}` : `×${slide}` }]
-      : mult !== 1
-        ? [{ label: 'Multiplier', value: `×${mult}` }]
-        : [];
+    noWin && nwMode === 'hide'
+      ? []
+      : slide !== null && ladder.length
+        ? [{ label: ladderLabel, value: dimIf(mult !== 1 ? `×${slide} · spin ×${mult}` : `×${slide}`), sub: noWin && nwMode === 'label' ? 'No win to multiply' : undefined }]
+        : mult !== 1
+          ? [{ label: 'Multiplier', value: dimIf(`×${mult}`), sub: noWin && nwMode === 'label' ? 'No win to multiply' : undefined }]
+          : [];
   const readouts = feat
     ? feat.kind === 'respin'
       ? [
