@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "overall": 3.24,
+  "scores": {
+    "theme": 3,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 4,
+    "uniqueness": 2,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.24 < 3.5"
+  ],
+  "verdict": "A clean, in-band, low-volatility origami reskin of the familiar mystery-reveal ways formula. The unfolding-reel feature is its one memorable moment, but it pays too little, and the base-game reveal is invisible and mislabelled.",
+  "pros": [
+    "Every §3 band is in range, with an exact RTP; the low-volatility shape matches the quiet origami theme.",
+    "The Great Fold's full-reel stacks of folded squares flipping into one symbol is a real sit-up moment that is visibly on-theme (the panel's best moment: two reels of frogs for 20.75x).",
+    "The flat washi symbol set is clean and distinct at size, and the win captions (symbol icon, count, ways, amount, 'Returned' for sub-stake) are honest and readable.",
+    "The feature flow is clear: scatter boxes, a start card, the 'Free spin N of 12' counter, a retrigger popup and an end total."
+  ],
+  "cons": [
+    "Replace the paytable's 'Carries a value' line for the Folded square with a short rule such as 'Opens into the spin's symbol' (under 9 words). Show it as a symbol tile with its art.",
+    "Make the base-game reveal visible: flip the squares with a brief beat and show the drawn symbol's icon above the reels (for example 'Squares → Fox') before wins are counted, so players see that squares in the base game matter.",
+    "Move or shrink the backdrop paper sun so it doesn't sit as an opaque disc behind reel 4. Keep it outside the reel window or reduce it to a faint outline.",
+    "Shift RTP from base to feature (for example, more squares per feature reel, a feature reveal weighted to premiums, or a growing multiplier per full-reel unfold). That would lift the feature share toward 35% and the average feature win toward 35-50x, and the base game should get fewer 0.3x 'Returned' hits. Also fix the rules wording '3 scatters: 12 great fold' to '3 suns: 12 free spins'."
+  ],
+  "confusions": [
+    "The paytable says the Folded square 'Carries a value', but in play the squares flipped open into a regular symbol (frogs, paper stars). I never saw a value on them.",
+    "Folded squares also landed in the base game (once two side by side), and I couldn't tell whether they did anything there.",
+    "The Great Fold rules read '3 scatters: 12 great fold', which is odd wording; only the start card made clear it means 12 free spins."
+  ],
+  "players": 1,
+  "codeHash": "acf3274abb393810",
+  "date": "2026-11-16"
+}
