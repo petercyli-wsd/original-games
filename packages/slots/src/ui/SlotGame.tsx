@@ -455,11 +455,12 @@ export function SlotGame(props: SlotGameProps) {
     const r = reels.current;
     const steps = res.steps;
     const rm = roundMultiplier(res.decor);
-    setRmult(rm);
     setNoWin(res.totalCoins === 0);
     // A respin chain can also run inside a free spin: it holds cells and counts ticks, but has no cards of its own.
     const mod = modifierOf(res, customDetect);
     const full = isBase && !!mod;
+    // No spoilers: a multiplier read off the chain's final board (orbs) shows once that board does, not from respin 1.
+    setRmult(full && rm?.kind === 'orbs' ? null : rm);
     const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
     const landedC = full ? landedCoins(res) : null;
     const heldSets = mod ? heldByStep(res) : null;
@@ -609,6 +610,7 @@ export function SlotGame(props: SlotGameProps) {
       const ov = decorOverlays(res.decor, copy?.decorLabels, bc);
       if (ov.size) setOverlays(ov);
       setOverlayDecor(res.decor);
+      if (full && rm?.kind === 'orbs') setRmult(rm);
     }
     for (const ex of res.extras) {
       const add = ex.coins * m;
