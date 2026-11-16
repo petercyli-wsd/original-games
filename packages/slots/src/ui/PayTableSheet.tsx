@@ -7,7 +7,7 @@ import { InfoSection, fmtChance } from '@originals/game-sdk/ui';
 import type { CSSProperties } from 'react';
 import type { SlotSpec } from '../engine/types';
 import type { SlotCopy, SlotFacts, SlotGameConfig, SlotSymbols, SlotTheme } from './types';
-import { featureRules, fmtCount, fmtX, idsWithRole, maxRowsOf, paylinesOf, payRows, ruleSentence, symbolMetas, topPay } from './util';
+import { featureRules, fmtCount, fmtX, howToWinLines, idsWithRole, maxRowsOf, paylinesOf, payRows, scatterLines, symbolMetas, topPay, wildLines } from './util';
 
 const TIER_WORDS = { exact: 'exact', exact_mixture: 'exact mixture', mc: 'Monte Carlo' } as const;
 
@@ -55,11 +55,7 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
   const art = (id: number, size: number) => symbols[id]?.render(size);
   const name = (id: number) => symbols[id]?.name ?? `Symbol ${id}`;
 
-  const evalKind = spec.evaluation.kind;
-  const how: string[] = [ruleSentence(spec, copy)];
-  if (evalKind === 'payline' && lines.length) how.push(`${lines.length} paylines. Wins are counted per line and added up.`);
-  if (evalKind === 'ways') how.push('Every way to match symbols across the reels pays, and the ways multiply.');
-  how.push('Pays are multiples of your total bet.');
+  const how = howToWinLines(spec, copy);
 
   const facts_: [string, string][] = [
     ['RTP', rtpText(facts)],
@@ -105,9 +101,12 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
           {wilds.map((id) => (
             <div key={id} className="sl-pt-special">
               <Tile id={id} size={44} />
-              <p>
-                <b>{name(id)}.</b> {copy?.wildText ?? 'A wild symbol. It can stand in for the paying symbols.'}
-              </p>
+              <div>
+                <b>{name(id)}</b>
+                {wildLines(copy).map((t, i) => (
+                  <p key={i}>{t}</p>
+                ))}
+              </div>
             </div>
           ))}
           {scatters.map((id) => {
@@ -116,9 +115,10 @@ export function PayTableSheet({ spec, symbols, config, copy, facts, theme }: { s
               <div key={id} className="sl-pt-special">
                 <Tile id={id} size={44} />
                 <div>
-                  <p>
-                    <b>{name(id)}.</b> {copy?.scatterText ?? (feature ? `Lands anywhere. ${spec.trigger?.scatter_min ?? 3} or more start the ${featureName.toLowerCase()}.` : 'Lands anywhere.')}
-                  </p>
+                  <b>{name(id)}</b>
+                  {scatterLines(spec.trigger?.scatter_min ?? 3, feature ? featureName : null, copy).map((t, i) => (
+                    <p key={i}>{t}</p>
+                  ))}
                   {rows_.length > 0 && (
                     <ul className="sl-pays inline">
                       {rows_.map((r) => (

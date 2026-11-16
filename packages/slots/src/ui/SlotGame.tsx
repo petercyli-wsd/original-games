@@ -49,8 +49,10 @@ import {
   idleBoard,
   idsWithRole,
   initialSpins as initialSpins_,
+  introLines,
   maxRowsOf,
   multiplierNote,
+  outroLines,
   parseWinLabel,
   rollMs,
   ruleSentence,
@@ -172,7 +174,8 @@ export function SlotGame(props: SlotGameProps) {
         await wait(30);
         await opts.during();
       }
-      if (opts.autoMs === null) await pressed;
+      // A card that waits for a press still moves on by itself after 6 s, so a round can't hang on it.
+      if (opts.autoMs === null) await Promise.race([pressed, wait(6000)]);
       else await Promise.race([pressed, wait(opts.autoMs)]);
     } finally {
       skipFns.current.delete(done);
@@ -344,7 +347,7 @@ export function SlotGame(props: SlotGameProps) {
     const introNote = copy?.introNote ?? (config.feature ? multiplierNote(config.feature) : '');
     await wait(T(500));
     await showCard(
-      { kicker: name, title: `${initialSpins} free spins`, lines: [`${nScatter} scatters`, ...(introNote ? [introNote] : [])], button: 'Start' },
+      { kicker: name, title: `${initialSpins} free spins`, lines: introLines(nScatter, introNote), button: 'Start' },
       { autoMs: autoAdvance() ? T(1600) : null },
     );
     if (!alive.current) return;
@@ -378,7 +381,7 @@ export function SlotGame(props: SlotGameProps) {
         tier,
         title: tier ? undefined : 'Total win',
         amount: money(((Math.min(fcoins, limit) / bc) * stake)),
-        lines: [`${fr.spins.length} free spins`, `${fmtX(round.totalCoins / bc)} your bet`, ...(round.capped ? ['Max win reached'] : [])],
+        lines: outroLines(fr.spins.length, round.totalCoins / bc, round.capped),
         button: 'Collect',
       },
       { autoMs: autoAdvance() ? T(2000) : null },

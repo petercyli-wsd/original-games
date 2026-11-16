@@ -2,8 +2,9 @@
 import { createRng, seededSource } from '@originals/game-sdk';
 import { describe, expect, it } from 'vitest';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
+import { rtpText } from './PayTableSheet';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, featureRules, fmtX, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, featureRules, fmtX, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -82,15 +83,37 @@ describe('parsing', () => {
 
 describe('the feature in words comes from the law', () => {
   const f = reefDemo().config.feature!;
-  it('says what the engine runs', () => {
+  it('says what the engine runs, in short lines', () => {
     expect(featureRules(f, 'Tide spins')).toEqual([
-      '3 scatters award 8, 4 scatters award 12, 5 or more scatters award 16 tide spins.',
-      'Every win pays ×2.',
-      '3 scatters add 4 more spins during the feature.',
-      'A feature has at most 20 spins.',
+      '3 scatters: 8 tide spins',
+      '4 scatters: 12 tide spins',
+      '5+ scatters: 16 tide spins',
+      'Every win ×2',
+      'Retrigger: 3 scatters, +4 spins',
+      'At most 20 spins in total',
     ]);
     expect(multiplierNote({ ...f, multiplier: { kind: 'constant', value: 1 } })).toBe('');
-    expect(multiplierNote({ ...f, multiplier: { kind: 'per_spin', start: 1, step: 1 } })).toMatch(/starts at ×1/);
+    expect(multiplierNote({ ...f, multiplier: { kind: 'per_spin', start: 1, step: 1 } })).toMatch(/starts ×1/);
+  });
+  it('every kit-generated line is under 9 words (the blind player hides longer text)', () => {
+    for (const d of [reefDemo(), emberDemo(6), megaDemo()]) {
+      const name = d.copy.featureName ?? 'Free spins';
+      const f = d.config.feature;
+      const lines = [
+        ...howToWinLines(d.spec, d.copy),
+        ...wildLines(d.copy),
+        ...scatterLines(d.spec.trigger?.scatter_min ?? 3, f ? name : null, d.copy),
+        ...(f ? [...featureRules(f, name), ...introLines(5, multiplierNote(f)), ...outroLines(20, 123.4, true)] : []),
+        ...scatterLines(3, 'A long feature name', undefined),
+        ...wildLines(undefined),
+        ...(['payline', 'ways', 'cluster', 'scatter_pays'] as const).map((kind) => ruleSentence({ ...d.spec, evaluation: { ...d.spec.evaluation, kind } }, undefined)),
+        rtpText(d.facts),
+      ];
+      for (const l of lines) expect(wordCount(l), l).toBeLessThan(9);
+    }
+    for (const m of [{ kind: 'per_spin', start: 1, step: 1 }, { kind: 'per_retrigger', start: 2, step: 2 }] as const) {
+      expect(wordCount(multiplierNote({ ...reefDemo().config.feature!, multiplier: m }))).toBeLessThan(9);
+    }
   });
   it('derives the opening spins from what was played, and from the awards if the cap cut it short', () => {
     expect(initialSpins(f, 12, 4, false, 3)).toBe(8);
@@ -120,6 +143,16 @@ describe('seed source and dev hooks', () => {
     const round = demo.engine.playRound(seed!, seededRng32(seed!));
     expect(round.feature).not.toBeNull();
     expect(src.next().seed).toBe(seed);
+  });
+  it('?feature=1 starts from a different seed on every call and stays replayable', () => {
+    const seen = new Set<number>();
+    for (let i = 1; i <= 6; i++) {
+      const src = createSeedSource(demo.engine, createRng(seededSource(100 + i)), demo.spec.bet.coins);
+      const seed = src.forceFeature()!;
+      seen.add(seed);
+      expect(demo.engine.playRound(seed, seededRng32(seed)).feature).not.toBeNull();
+    }
+    expect(seen.size).toBeGreaterThan(3);
   });
   it('forceWin finds a big round', () => {
     const e = emberDemo(6);

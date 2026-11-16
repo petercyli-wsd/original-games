@@ -46,6 +46,8 @@ export function createSeedSource(engine: SlotEngine, rng: Rng, betCoins: number,
   let cursor = 1;
   /** Searches seeds from the cursor on until `ok(round)`; forces that seed for the next spin. */
   const find = (ok: (r: SlotRound) => boolean): number | null => {
+    // A random start each time (from the host RNG), so every page load forces a different round; the seed found is still replayable.
+    cursor = rng.int(2 ** 32);
     const t0 = Date.now();
     for (let i = 0; i < search.maxSeeds && Date.now() - t0 < search.maxMs; i++, cursor++) {
       const s = cursor >>> 0;
