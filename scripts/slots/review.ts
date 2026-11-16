@@ -192,7 +192,7 @@ async function play() {
   if (!id) fail(`No player ${alias}`);
   let res;
   try {
-    res = runPlay(id, join(BLIND, alias), steps);
+    res = runPlay(id, join(BLIND, alias), steps, join(gameDir(id), 'play-errors.log'));
   } catch (err) {
     fail((err as Error).message);
   }

@@ -111,13 +111,14 @@ export const PLAY_TOOL = (alias: string) =>
   `npm run slots:review -- play ${alias} "<steps>"
 
 Steps are separated by ";" and run in order on a fresh page each call (include every step from the start):
-- spin: press ${LABELS.spin}, wait for the reels and the win count, and take a screenshot. spin×N does it N times (at most ${MAX_SPINS_PER_CALL} per call).
-- turbo: toggle Turbo (later spins in the same call wait less).
-- autoplay: press ${LABELS.autoplay}. Then watch×N takes N screenshots ${WATCH_WAIT / 1000} s apart while it runs (watch×N@ms changes the gap).
-- feature: load the game so that its next spin triggers the bonus feature (a test hook; put it anywhere in the call).
-- paytable: open the paytable or info sheet and take a screenshot. close: press Escape.
-- shot:<name> (screenshot), text:<label> (click the first enabled button whose visible text contains <label>), mouse:<x>,<y> (click at screen coordinates, 1280×800), key:<Space|Enter|Escape|letter>, wait:<ms>.
-The command prints the screenshot paths, plus contact sheets (the spin and watch screenshots, 6 per image, in order). Open them with Read. A spin×20 call takes about a minute; give the Bash call a timeout of 300000 ms.
+- spin: press ${LABELS.spin}, wait for the reels and the win count, and take a screenshot. spin×N does it N times (at most ${MAX_SPINS_PER_CALL} per call); spin×N@ms sets the wait after each press.
+- turbo: switch Turbo on (or off again). Later spins in the same call wait less.
+- autoplay: open the ${LABELS.autoplayTab} tab and press ${LABELS.autoplayStart}. Then watch×N takes N screenshots ${WATCH_WAIT / 1000} s apart while it runs (watch×N@ms changes the gap). Before starting, you can pick the number of spins with text:<number>. Stop it with text:Stop, and go back to single spins with text:Manual.
+- feature: load the game so that its next spin triggers the bonus feature (a test hook; put it anywhere in the call). When a card with a button appears (for example Continue), press it with text:<its label>.
+- paytable: open the paytable and take a screenshot. close: close it (Escape).
+- shot:<name> (screenshot), text:<label> (click the first enabled button or toggle whose visible text contains <label>), mouse:<x>,<y> (click at screen coordinates, 1280×800), key:<Enter|Escape|letter>, wait:<ms>.
+Don't press Space: it skips the presentation.
+The command prints the screenshot paths, plus contact sheets (the spin and watch screenshots, 6 per image, in order). Open them with Read. A line "text <label> ✗" means that click found no enabled button, often because the game was still busy; wait longer and try again. A spin×20 call takes about 80 seconds; give the Bash call a timeout of 300000 ms.
 Example: npm run slots:review -- play ${alias} "shot:start;spin×10;paytable;close;shot:after"`;
 
 export function playerUser(alias: string): string {

@@ -28,7 +28,22 @@ describe('expandSteps', () => {
 
   it('opens the paytable and watches autoplay', () => {
     const e = expandSteps('paytable;close;autoplay;watch×2@1000');
-    expect(e.steps).toEqual([`text:${LABELS.paytable}`, 'wait:700', 'shot:paytable', 'key:Escape', 'wait:300', `text:${LABELS.autoplay}`, 'wait:400', 'wait:1000', 'shot:watch-001', 'wait:1000', 'shot:watch-002']);
+    expect(e.steps).toEqual([
+      `text:${LABELS.paytable}`,
+      'wait:700',
+      'shot:paytable',
+      'key:Escape',
+      'wait:300',
+      `text:${LABELS.autoplayTab}`,
+      'wait:300',
+      `text:${LABELS.autoplayStart}`,
+      'wait:400',
+      'wait:1000',
+      'shot:watch-001',
+      'wait:1000',
+      'shot:watch-002',
+    ]);
+    expect(e.textTags).toEqual(['paytable', 'other', 'autoplay']);
     expect(e.counts).toMatchObject({ paytable: true, autoplay: true, watches: 2 });
   });
 

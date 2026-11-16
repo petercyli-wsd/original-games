@@ -14,9 +14,9 @@ import { PLAY_MJS, ROOT } from './paths';
  * Button labels in the slot kit (`@originals/slots/ui`). play.mjs's `text:` step clicks the
  * first enabled button whose text contains the label (case-insensitive).
  */
-export const LABELS = { spin: 'Spin', turbo: 'Turbo', autoplay: 'Auto', paytable: 'Paytable', close: 'Close' };
+export const LABELS = { spin: 'Spin', turbo: 'Turbo', autoplayTab: 'Autoplay', autoplayStart: 'Start autoplay', paytable: 'How to play' };
 /** Waits after a spin press, in ms: manual reels stop by 1.6 s (+0.7 s anticipation) and a win counts up for up to 3 s; Turbo about a quarter. */
-export const SPIN_WAIT = { normal: 3200, turbo: 1100 };
+export const SPIN_WAIT = { normal: 3500, turbo: 1100 };
 export const WATCH_WAIT = 1500;
 export const MAX_SPINS_PER_CALL = 40;
 export const SHEET = { cols: 2, rows: 3, thumbW: 640, thumbH: 400 };
@@ -77,7 +77,10 @@ export function expandSteps(input: string): Expanded {
       out.steps.push('wait:300');
     } else if (lower === 'autoplay' || lower === 'auto') {
       out.counts.autoplay = true;
-      text(LABELS.autoplay, 'autoplay');
+      // The kit's Autoplay tab, then its Start autoplay button.
+      text(LABELS.autoplayTab, 'other');
+      out.steps.push('wait:300');
+      text(LABELS.autoplayStart, 'autoplay');
       out.steps.push('wait:400');
     } else if (lower === 'feature') {
       out.query = 'feature=1';
@@ -186,7 +189,7 @@ export const readPlayLog = (aliasDir: string): PlayLogEntry[] => {
 };
 
 /** Runs one play call for the game behind an alias; prints what the player may see. */
-export function runPlay(gameId: string, aliasDir: string, input: string): { ok: boolean; output: string } {
+export function runPlay(gameId: string, aliasDir: string, input: string, errorLog?: string): { ok: boolean; output: string } {
   const ex = expandSteps(input);
   const uiDir = join(aliasDir, 'ui');
   mkdirSync(uiDir, { recursive: true });
@@ -201,9 +204,14 @@ export function runPlay(gameId: string, aliasDir: string, input: string): { ok: 
   });
   const lines = `${r.stdout ?? ''}${r.stderr ?? ''}`.split('\n');
   const textLines = lines.filter((l) => /^text\s/.test(l.trim()));
-  const spinsOk = textLines.filter((l, i) => ex.textTags[i] === 'spin' && l.includes('✓')).length;
+  const worked = (tag: Expanded['textTags'][number]) => textLines.filter((l, i) => ex.textTags[i] === tag && l.includes('✓')).length;
+  const spinsOk = worked('spin');
   const failedClicks = textLines.filter((l) => l.includes('✗')).length;
   const sandboxBroken = lines.some((l) => l.includes('slot sandbox patch did not apply'));
+  // A crash of the tool itself (not a page error): its details may name the game, so they go to a log
+  // outside the player's folder, and the player only learns that the run failed.
+  const crashed = lines.some((l) => /^(Error|TypeError|ReferenceError)\b|^\s+at /.test(l));
+  if (crashed && errorLog) writeFileSync(errorLog, `${new Date().toISOString()} run ${run}\n${r.stdout ?? ''}${r.stderr ?? ''}\n`, { flag: 'a' });
   // What the player sees: clicks that failed, screenshots, errors (details hidden by --blind). Successful spin clicks are summarised.
   const shown = lines
     .map((l) => l.trim())
@@ -218,10 +226,11 @@ export function runPlay(gameId: string, aliasDir: string, input: string): { ok: 
     spins: ex.counts.spins,
     spinsOk,
     watches: ex.counts.watches,
-    turbo: ex.counts.turbo,
-    autoplay: ex.counts.autoplay,
-    feature: ex.counts.feature,
-    paytable: ex.counts.paytable,
+    // Counted only when the click worked (and, for the feature, a spin followed).
+    turbo: worked('turbo') > 0,
+    autoplay: worked('autoplay') > 0,
+    feature: ex.counts.feature && spinsOk > 0,
+    paytable: worked('paytable') > 0,
     failedClicks,
   });
   writeFileSync(join(aliasDir, 'plays.json'), `${JSON.stringify(log, null, 2)}\n`);
@@ -233,5 +242,6 @@ export function runPlay(gameId: string, aliasDir: string, input: string): { ok: 
     `Session so far: ${t.calls} calls, ${t.spins} spins pressed, ${t.watches} autoplay watch shots, Turbo ${t.turbo ? 'yes' : 'no'}, Autoplay ${t.autoplay ? 'yes' : 'no'}, feature ${t.feature ? 'yes' : 'no'}, paytable ${t.paytable ? 'yes' : 'no'}.`,
   ];
   if (sandboxBroken) summary.push('✗ The sandbox could not be set up; stop and report this.');
-  return { ok: r.status === 0 && !sandboxBroken, output: summary.join('\n') };
+  if (crashed) summary.push('✗ The play tool failed during this run (details logged for the operator). Try once more; if it fails again, stop and report it.');
+  return { ok: r.status === 0 && !sandboxBroken && !crashed, output: summary.join('\n') };
 }
