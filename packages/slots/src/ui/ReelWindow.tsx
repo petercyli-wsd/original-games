@@ -14,7 +14,7 @@
 import { forwardRef, memo, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import type { CellOverlayInfo, SlotSymbolArt, SlotSymbols, SlotTheme } from './types';
 import type { ReactNode } from 'react';
-import { fillerSymbol, reelTimings } from './util';
+import { fillerSymbol, mixHex, reelTimings } from './util';
 
 interface Cell {
   k: number;
@@ -71,6 +71,8 @@ export interface ReelWindowProps {
   overlays?: ReadonlyMap<string, string> | null;
   /** The feature palette (flat swap). */
   feature?: boolean;
+  /** A modifier chain (respins): the chain palette, a light tint of the base unless the theme sets one. */
+  chain?: boolean;
   /** Draws over a symbol's tile (see `SlotGameProps.renderOverlay`). */
   renderOverlay?: (cell: CellOverlayInfo) => ReactNode;
   /** The spin's decor, passed to `renderOverlay` once the final board shows. */
@@ -87,7 +89,7 @@ const EASE_SPIN = 'cubic-bezier(0.4, 0, 0.2, 1)';
 const EASE_FALL = 'cubic-bezier(0.5, 0, 0.9, 0.55)';
 
 export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function ReelWindow(
-  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, renderOverlay, overlayDecor },
+  { cols, maxRows, symbols, theme, fillerIds, initial, win, line, overlays, feature, chain, renderOverlay, overlayDecor },
   ref,
 ) {
   const keySeq = useRef(0);
@@ -352,9 +354,9 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
   const t = theme.palette;
   const w = theme.window;
   const style = {
-    '--sl-bg': feature && t.featureBg ? t.featureBg : t.bg,
-    '--sl-frame': feature && t.featureFrame ? t.featureFrame : t.frame,
-    '--sl-tile': feature && t.featureTile ? t.featureTile : (t.tile ?? t.frame),
+    '--sl-bg': chain ? (t.chainBg ?? mixHex(t.bg, '#ffffff', 0.1)) : feature && t.featureBg ? t.featureBg : t.bg,
+    '--sl-frame': chain ? (t.chainFrame ?? mixHex(t.frame, '#ffffff', 0.18)) : feature && t.featureFrame ? t.featureFrame : t.frame,
+    '--sl-tile': chain ? (t.chainTile ?? mixHex(t.tile ?? t.frame, '#ffffff', 0.12)) : feature && t.featureTile ? t.featureTile : (t.tile ?? t.frame),
     '--sl-hi': t.colors[0],
     '--sl-ink': t.ink ?? 'var(--text)',
     '--sl-fw': `${w.frameWidth}px`,
@@ -398,7 +400,7 @@ export const ReelWindow = forwardRef<ReelWindowHandle, ReelWindowProps>(function
   };
 
   return (
-    <div className={`sl-frame sep-${w.separators} cell-${w.cell}` + (feature ? ' feature' : '')} style={style}>
+    <div className={`sl-frame sep-${w.separators} cell-${w.cell}` + (feature ? ' feature' : '') + (chain ? ' chain' : '')} style={style}>
       <div ref={rootRef} className="sl-reels" role="group" aria-label="Reels">
         {width > 0 && backdropFn && (
           <svg className="sl-backdrop" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="xMidYMid slice" aria-hidden="true">

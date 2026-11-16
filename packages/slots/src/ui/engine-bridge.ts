@@ -8,6 +8,7 @@ import type { Rng } from '@originals/game-sdk';
 import { createSlot } from '../engine';
 import type { SlotRound } from '../engine/types';
 import type { SlotGameProps, SlotEngine } from './types';
+import { modifierOf } from './util';
 
 export function resolveEngine({ engine, spec, featureSpecs, config }: Pick<SlotGameProps, 'engine' | 'spec' | 'featureSpecs' | 'config'>): SlotEngine {
   if (engine) return engine;
@@ -20,6 +21,8 @@ export function seededRng32(seed: number): () => number {
   return () => Math.floor(src() * 2 ** 32) >>> 0;
 }
 
+export type FeatureKind = 'free' | 'respin' | 'main';
+
 export interface Draw {
   seed: number;
   rng32: () => number;
@@ -30,8 +33,11 @@ export interface SeedSource {
   next(): Draw;
   /** Dev: the next spin uses this seed. */
   forceSeed(seed: number): void;
-  /** Dev: searches seeds with the engine until one triggers the feature, and forces it for the next spin. Returns it, or null. */
-  forceFeature(): number | null;
+  /**
+   * Dev: searches seeds with the engine until one triggers a feature, and forces it for the next spin. `kind` picks
+   * 'free' (free spins), 'respin' (a modifier chain) or 'main' / none (the game's declared main one). Returns the seed, or null.
+   */
+  forceFeature(kind?: FeatureKind): number | null;
   /** Dev: the same for a round that wins at least `stakes` × the bet (use it to see the big-win banners and tumbles). */
   forceWin(stakes: number): number | null;
 }
@@ -46,8 +52,8 @@ export function createSeedSource(
   rng: Rng,
   betCoins: number,
   search = { maxSeeds: 200000, maxMs: 5000 },
-  /** What counts as "the feature" for `?feature=1`. Default: a free-spins round; SlotGame also counts modifier-driven features. */
-  isFeature: (r: SlotRound) => boolean = (r) => !!r.feature,
+  /** What counts as the feature of that kind ('free', 'respin', or 'main' = the game's declared one). Default: free spins, or a respin chain. */
+  isFeature: (r: SlotRound, kind: FeatureKind) => boolean = (r, kind) => (kind === 'respin' ? !!modifierOf(r.base) : !!r.feature),
 ): SeedSource {
   let forced: number | null = null;
   let cursor = 1;
@@ -78,8 +84,8 @@ export function createSeedSource(
     forceSeed(seed) {
       forced = seed >>> 0;
     },
-    forceFeature() {
-      return find(isFeature);
+    forceFeature(kind = 'main') {
+      return find((r) => isFeature(r, kind));
     },
     forceWin(stakes) {
       return find((r) => r.totalCoins / betCoins >= stakes);
@@ -95,12 +101,12 @@ export function installDevHooks(src: SeedSource): () => void {
     const seed = q.get('seed');
     const win = q.get('win');
     if (seed !== null && /^\d+$/.test(seed)) src.forceSeed(Number(seed));
-    else if (q.get('feature') === '1') src.forceFeature();
+    else if (q.get('feature')) src.forceFeature(({ free: 'free', respin: 'respin' } as Record<string, FeatureKind>)[q.get('feature')!] ?? 'main');
     else if (win !== null && Number(win) > 0) src.forceWin(Number(win));
   } catch {
     /* no window.location (tests) */
   }
-  const hooks = { seed: (n: number) => src.forceSeed(n), feature: () => src.forceFeature(), win: (stakes: number) => src.forceWin(stakes) };
+  const hooks = { seed: (n: number) => src.forceSeed(n), feature: (kind?: FeatureKind) => src.forceFeature(kind), win: (stakes: number) => src.forceWin(stakes) };
   (window as unknown as { __slotDev?: typeof hooks }).__slotDev = hooks;
   return () => {
     delete (window as unknown as { __slotDev?: typeof hooks }).__slotDev;

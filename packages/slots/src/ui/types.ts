@@ -53,6 +53,10 @@ export interface SlotPalette {
   featureBg?: string;
   featureFrame?: string;
   featureTile?: string;
+  /** During a modifier chain (respins): defaults to a light tint of bg / frame / tile, not the feature palette. */
+  chainBg?: string;
+  chainFrame?: string;
+  chainTile?: string;
 }
 
 export interface SlotTheme {
@@ -97,6 +101,10 @@ export interface SlotCopy {
   /** Intro note and paytable rules for it (each under 9 words). Defaults are generated from the mechanic. */
   modifierIntro?: string;
   modifierRules?: string[];
+  /** Which feature `?feature=1` finds for a game that has both: free spins (default when the config has one) or the respin chain. */
+  mainFeature?: 'free' | 'respin';
+  /** Name of the pending win while a chain runs ("Winding"). Default "Pending win". */
+  pendingLabel?: string;
   /** The respin counter's word, default "Respin". */
   respinLabel?: string;
   /**

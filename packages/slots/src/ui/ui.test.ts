@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
-import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
+import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
 describe('timing rules', () => {
   it('Manual: first reel stops at 0.9 s, the last by 1.6 s, for any reel count', () => {
@@ -266,5 +266,37 @@ describe('round 2: modifier features, labels, multipliers, mystery reveal', () =
     const r = d.engine.playRound(seed, seededRng32(seed));
     expect(r.feature).toBeNull();
     expect(r.base.totalCoins).toBeGreaterThan(0);
+  });
+});
+
+describe('round 3: pending win in a chain, chain palette, feature kinds', () => {
+  it('derives a chain board\'s pending value from the step or the engine evaluator, never from cells', () => {
+    const step = (board: number[][], stepCoins: number, n: number) => ({ board, stepCoins, wins: Array.from({ length: n }, () => ({ cells: [[0, 0]] as [number, number][], coins: stepCoins, label: 'P1 x3', lineIdx: 0, ways: null })) });
+    const res = { steps: [step([[1], [2]], 0, 0), step([[1], [1]], 0, 0), step([[1], [1]], 70, 1)], decor: {}, extras: [], finalBoard: [[1], [1]], flags: [], set: 0, stops: [], totalCoins: 70, trigger: null } as never;
+    const seen: number[][][] = [];
+    const evalBoard = (b: number[][]): [never[], number] => (seen.push(b), [[], b[0][0] === b[1][0] ? 40 : 0]);
+    const p = pendingByStep(res, evalBoard as never);
+    expect(p.map((x) => x.coins)).toEqual([0, 40, 70]); // evaluator for boards without wins, the engine's own stepCoins where it has them
+    expect(seen).toHaveLength(2);
+  });
+  it('the chain palette is a light tint of the base', () => {
+    expect(mixHex('#000000', '#ffffff', 0.5)).toBe('#808080');
+    expect(mixHex('#0b2a3c', '#ffffff', 0)).toBe('#0b2a3c');
+    expect(mixHex('var(--x)', '#ffffff', 0.5)).toBe('var(--x)');
+  });
+  it('?feature=free, =respin and 1 (the declared main one) pick different rounds', () => {
+    const d = reefDemo();
+    const rounds = new Map<number, boolean>();
+    const isFeature = (r: { feature: unknown; base: { totalCoins: number } }, kind: string) => (kind === 'respin' ? r.base.totalCoins > 0 && !r.feature : !!r.feature);
+    const mk = (kind?: 'free' | 'respin' | 'main') => {
+      const src = createSeedSource(d.engine, createRng(seededSource(9)), d.spec.bet.coins, undefined, isFeature as never);
+      const seed = src.forceFeature(kind)!;
+      const r = d.engine.playRound(seed, seededRng32(seed));
+      rounds.set(seed, !!r.feature);
+      return r;
+    };
+    expect(mk('free').feature).not.toBeNull();
+    expect(mk('respin').feature).toBeNull();
+    expect(mk().feature).not.toBeNull(); // 'main' here is free spins
   });
 });

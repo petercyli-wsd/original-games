@@ -1,7 +1,7 @@
 // Pure helpers behind the slot UI: timing rules, anticipation, tiers, decor parsing,
 // facts parsing and paytable rows. No React, no DOM, so they are unit-tested directly.
 
-import type { SlotSpec, SpecSymbol, SpinResult } from '../engine/types';
+import type { SlotSpec, SpecSymbol, SpinResult, SpinWin } from '../engine/types';
 import { award, multiplierAt, type FeatureConfig } from '../engine';
 import type { SlotCopy, SlotFacts } from './types';
 
@@ -530,4 +530,41 @@ export function preReveal(spec: SlotSpec, res: SpinResult): PreReveal | null {
   });
   if (!cells.length || board.some((col) => col.some((v) => Number.isNaN(v)))) return null;
   return { board, cells };
+}
+
+// ---------------------------------------------------------------- pending win in a respin chain
+
+export interface Pending {
+  /** What the board pays as it stands, in coins. */
+  coins: number;
+  /** The cells that would pay. */
+  cells: [number, number][];
+}
+
+/**
+ * What each board of a respin chain would pay, derived honestly: the step's own `stepCoins` and wins when the engine
+ * reports them, otherwise the engine's own evaluator run over that board (`SlotEngine.evalBoardLines`). Nothing is
+ * attributed to cells by guesswork.
+ */
+export function pendingByStep(res: SpinResult, evalBoard: (board: number[][]) => [SpinWin[], number]): Pending[] {
+  return res.steps.map((st) => {
+    if (st.wins.length) return { coins: st.stepCoins, cells: cellsUnion(st.wins) };
+    const [wins, coins] = evalBoard(st.board);
+    return { coins, cells: cellsUnion(wins) };
+  });
+}
+
+// ---------------------------------------------------------------- colour
+
+const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+const rgb = (h: string) => {
+  const x = h.length === 4 ? [...h.slice(1)].map((c) => c + c).join('') : h.slice(1);
+  return [0, 2, 4].map((i) => parseInt(x.slice(i, i + 2), 16));
+};
+
+/** A flat mix of two hex colours (t = 0 is `a`, 1 is `b`); a non-hex colour is returned as it is. Used for the chain tint. */
+export function mixHex(a: string, b: string, t: number): string {
+  if (!HEX.test(a) || !HEX.test(b)) return a;
+  const [x, y] = [rgb(a), rgb(b)];
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }

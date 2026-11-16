@@ -6,6 +6,6 @@ export { ReelWindow, type ReelWindowHandle, type ReelWindowProps, type SpinOpts 
 export { PayTableSheet, rtpText, themeVars } from './PayTableSheet';
 export { Card, RollNumber, WinChip, type CardProps, type RollHandle } from './parts';
 export { slotGameStyles, slotStyles } from './styles';
-export { createSeedSource, installDevHooks, resolveEngine, seededRng32, type Draw, type SeedSource } from './engine-bridge';
+export { createSeedSource, installDevHooks, resolveEngine, seededRng32, type Draw, type FeatureKind, type SeedSource } from './engine-bridge';
 export { TIER_LABEL, anticipationPlan, bigWinTier, decorOverlays, parseSlotFacts, reelTimings, rollMs } from './util';
 export type * from './types';

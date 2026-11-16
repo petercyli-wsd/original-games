@@ -33,6 +33,7 @@ import {
   type StatusTone,
 } from '@originals/game-sdk/ui';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SlotEngine } from '../engine';
 import type { SpinResult, SpinStep, SpinWin } from '../engine/types';
 import { installDevHooks, createSeedSource, resolveEngine } from './engine-bridge';
 import { PayTableSheet, themeVars } from './PayTableSheet';
@@ -46,6 +47,7 @@ import {
   landedByStep,
   landedCoins,
   modifierOf,
+  pendingByStep,
   multiplierChip,
   multiplierValues,
   preReveal,
@@ -81,6 +83,8 @@ interface FeatureState {
   kind?: 'spins' | 'respin';
   /** Landed coin value so far, in money (respins). */
   total?: number;
+  /** The counter shows a pending win (a respin chain without coin values). */
+  pending?: boolean;
   n: number;
   of: number;
   mult: number;
@@ -103,10 +107,27 @@ export function SlotGame(props: SlotGameProps) {
   const customDetect = typeof mf?.detect === 'function' ? (mf.detect as (r: SpinResult) => boolean) : undefined;
   const modName = mf?.name ?? copy?.modifierName ?? 'Bonus';
   const seeds = useMemo(
-    () => createSeedSource(engine, rng, spec.bet.coins, undefined, (r) => !!r.feature || !!modifierOf(r.base, customDetect)),
+    () => {
+      // `?feature=1` finds the game's main feature (free spins when it has them, else the respin chain);
+      // `?feature=free` and `?feature=respin` pick one.
+      const main: 'free' | 'respin' = copy?.mainFeature ?? (config.feature ? 'free' : 'respin');
+      return createSeedSource(engine, rng, spec.bet.coins, undefined, (r, kind) => {
+        const k = kind === 'main' ? main : kind;
+        return k === 'free' ? !!r.feature : !!modifierOf(r.base, customDetect);
+      });
+    },
     [engine, rng, spec.bet.coins], // eslint-disable-line react-hooks/exhaustive-deps
   );
   useEffect(() => installDevHooks(seeds), [seeds]);
+
+  // The engine's own evaluator, to say what a respin chain's current board would pay.
+  const evalEngine = useMemo(() => {
+    try {
+      return new SlotEngine(spec);
+    } catch {
+      return null;
+    }
+  }, [spec]);
 
   const cols = spec.geometry.cols;
   const bc = spec.bet.coins;
@@ -309,6 +330,20 @@ export function SlotGame(props: SlotGameProps) {
     const mod = isBase ? modifierOf(res, customDetect) : null;
     const landed = mod ? landedByStep(res, bc, copy?.decorLabels) : null;
     const landedC = mod ? landedCoins(res) : null;
+    // Without coin values on cells (sticky respins), the chain shows what each board would pay as it stands.
+    const pending = mod && landedC && landedC.every((v) => v === 0) && evalEngine ? pendingByStep(res, (b) => evalEngine.evalBoardLines(b)) : null;
+    const pendingLabel = copy?.pendingLabel ?? 'Pending win';
+    const showPending = async (j: number) => {
+      if (!pending) return;
+      setFeat((f) => (f ? { ...f, pending: true } : f));
+      const p = pending[j];
+      if (j + 1 < steps.length) {
+        // A chain board that pays: its cells and the sum show now; the payment itself is made on the final board.
+        setWin(p.coins > 0 ? keys(p.cells) : null);
+        setChip(p.coins > 0 ? { text: `${pendingLabel} · ${money(money$(p.coins))}` } : null);
+      }
+      await rollTo(counter.current, money$(p.coins), T(250));
+    };
     const money$ = (c: number) => (Math.min(c, limit) / bc) * stake;
 
     // Decor that belongs to the whole spin shows before the wins: the rockets' +N, the multiplier they add up to.
@@ -352,16 +387,23 @@ export function SlotGame(props: SlotGameProps) {
             { kicker: modName, title: `${mod.respins} respins`, lines: note ? [note] : [], button: 'Start' },
             { autoMs: autoAdvance() ? T(1400) : null },
           );
-          setFeat({ kind: 'respin', n: 0, of: mod.respins, mult: 1, total: 0 });
-          if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
+          setFeat({ kind: 'respin', n: 0, of: mod.respins, mult: 1, total: 0, pending: !!pending });
+          if (pending) await showPending(0);
+          else if (landedC) await rollTo(counter.current, money$(landedC[0]), T(250));
         }
         const only = new Set<number>();
         next.board.forEach((col, c) => {
           if (JSON.stringify(col) !== JSON.stringify(st.board[c])) only.add(c);
         });
-        if (mod) setFeat((f) => (f ? { ...f, n: i + 1 } : f));
+        if (mod) {
+          setFeat((f) => (f ? { ...f, n: i + 1 } : f));
+          setWin(null);
+          setLine(null);
+          setChip(null);
+        }
         if (only.size) await r?.spin({ board: next.board, only, turbo: turboRef.current, speed: k });
-        if (mod && landed && landedC && alive.current) {
+        if (mod && pending && alive.current && i + 1 < steps.length - 1) await showPending(i + 1);
+        else if (mod && landed && landedC && alive.current) {
           // Coin values show as they land, and the live total rolls up with them.
           setOverlays(landed[i + 1]);
           await rollTo(counter.current, money$(landedC[i + 1]), T(250) * k);
@@ -578,7 +620,7 @@ export function SlotGame(props: SlotGameProps) {
     ? feat.kind === 'respin'
       ? [
           { label: copy?.respinLabel ?? 'Respin', value: `${feat.n} of ${feat.of}` },
-          { label: 'Bonus total', value: <RollNumber ref={counter} format={money} /> },
+          { label: feat.pending ? (copy?.pendingLabel ?? 'Pending win') : 'Bonus total', value: <RollNumber ref={counter} format={money} /> },
           ...multItem,
         ]
       : [
@@ -675,7 +717,8 @@ export function SlotGame(props: SlotGameProps) {
             win={win}
             line={line}
             overlays={overlays}
-            feature={!!feat}
+            feature={!!feat && feat.kind !== 'respin'}
+            chain={feat?.kind === 'respin'}
             renderOverlay={renderOverlay}
             overlayDecor={overlayDecor}
           />
