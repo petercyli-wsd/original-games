@@ -174,7 +174,11 @@ export function SlotGame(props: SlotGameProps) {
     return f.length ? f : mrBase;
   }, [mrCfg, featureSpec, mrBase]);
   // The cascade ladder: its rungs from the spec, and the factor of the paying step on show (from the spin's decor).
-  const ladder = useMemo(() => (copy?.ladder === false ? [] : ladderOf(spec)), [copy, spec]);
+  // Free spins may have their own ladder (the feature spec's); the base spec's runs the rest of the time.
+  const baseLadder = useMemo(() => (copy?.ladder === false ? [] : ladderOf(spec)), [copy, spec]);
+  const featLadder = useMemo(() => (copy?.ladder === false ? [] : ladderOf(featureSpec)), [copy, featureSpec]);
+  const ladder = feat && feat.kind !== 'respin' && featLadder.length ? featLadder : baseLadder;
+  const ladderLabel = typeof copy?.ladder === 'object' && copy.ladder.label ? copy.ladder.label : 'Step';
   const [slide, setSlide] = useState<number | null>(null);
   // Ways of variable-height reels, as the reels stop.
   const variableHeights = !!(spec as { height_law?: unknown }).height_law && spec.evaluation.kind === 'ways';
@@ -665,7 +669,7 @@ export function SlotGame(props: SlotGameProps) {
   // With a cascade ladder the slide's factor leads: "×5 slide × ×3 spin".
   const multItem =
     slide !== null && ladder.length
-      ? [{ label: 'Multiplier', value: mult !== 1 ? `×${slide} slide × ×${mult} spin` : `×${slide} slide` }]
+      ? [{ label: ladderLabel, value: mult !== 1 ? `×${slide} · spin ×${mult}` : `×${slide}` }]
       : mult !== 1
         ? [{ label: 'Multiplier', value: `×${mult}` }]
         : [];
@@ -772,7 +776,7 @@ export function SlotGame(props: SlotGameProps) {
       <Board>
         <div className="sl-stage" style={themeVars(theme)}>
           {mrCfg && (feat && feat.kind !== 'respin' ? mrFeature : mrBase).length > 0 && <MultiplierReel label={mrCfg.label ?? 'Multiplier'} values={feat && feat.kind !== 'respin' ? mrFeature : mrBase} spinning={mr.spinning} value={mr.value} turbo={turbo} />}
-          {ladder.length > 0 && <MultiplierReel label={typeof copy?.ladder === 'object' && copy.ladder.label ? copy.ladder.label : 'Slide'} values={slide !== null && !ladder.includes(slide) ? [...ladder, slide] : ladder} spinning={false} value={slide} turbo={turbo} />}
+          {ladder.length > 0 && <MultiplierReel label={ladderLabel} values={slide !== null && !ladder.includes(slide) ? [...ladder, slide] : ladder} spinning={false} value={slide} turbo={turbo} />}
           {variableHeights && (
             <div className="sl-ways" aria-live="polite">
               Ways <b>{ways === null ? '–' : ways.toLocaleString('en-US')}</b>

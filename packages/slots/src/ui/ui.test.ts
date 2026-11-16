@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { PayTableSheet } from './PayTableSheet';
 import { emberDemo, megaDemo, reefDemo } from './demo/demos';
 import { rtpText } from './PayTableSheet';
+import { createSlot } from '../engine';
 import { createSeedSource, resolveEngine, seededRng32 } from './engine-bridge';
 import { anticipationPlan, bigWinTier, decorOverlays, extraLabel, featureRules, ladderOf, stepMults, waysOf, modifierStartTitle, respinsLeft, mixHex, pendingByStep, fmtX, landedCoins, landedByStep, modifierOf, modifierRuleLines, multiplierChip, multiplierValues, preReveal, roundMultiplier, valueDistribution, valueLines, howToWinLines, introLines, outroLines, ruleSentence, scatterLines, wildLines, wordCount, initialSpins, multiplierNote, parseSlotFacts, parseWinLabel, payRows, reelStopMs, reelTimings, rollMs } from './util';
 
@@ -331,5 +332,42 @@ describe('paytable order', () => {
     expect(plain.indexOf('Angelfish')).toBeLessThan(plain.indexOf('Pearl in shell'));
     const keyed = html([2, 1]);
     expect(keyed.indexOf('Pearl in shell')).toBeLessThan(keyed.indexOf('Angelfish'));
+  });
+});
+
+describe('round 6: win labels from every evaluator', () => {
+  const labelsOf = (spec: never, n = 400) => {
+    const slot = createSlot({ spec, maxWinStakes: 5000 });
+    const out = new Set<string>();
+    for (let s = 1; s <= n; s++) for (const st of slot.playRound(s, seededRng32(s)).base.steps) for (const w of st.wins) out.add(w.label);
+    return [...out];
+  };
+  const cases: [string, () => ReturnType<typeof reefDemo>, (spec: ReturnType<typeof reefDemo>['spec']) => unknown][] = [
+    ['payline', () => reefDemo(), (s) => s],
+    ['ways', () => megaDemo(), (s) => s],
+    ['scatter pays (count)', () => emberDemo(6), (s) => s],
+    ['cluster', () => emberDemo(6), (s) => ({ ...s, evaluation: { kind: 'cluster', min_size: 5, adjacency: '4' }, pays: { ...s.pays, paytable: Object.fromEntries(Object.entries(s.pays.paytable).map(([id, p]) => [id, Object.fromEntries([5, 6, 7, 8, 9].map((k) => [String(k), 10 * k]))])) } })],
+  ];
+  for (const [name, make, tweak] of cases) {
+    it(`${name}: every real label parses to a known symbol label and a count`, () => {
+      const d = make();
+      const labels = labelsOf(tweak(d.spec) as never);
+      expect(labels.length).toBeGreaterThan(0);
+      const known = new Set(d.spec.symbols.map((s) => s.label));
+      for (const l of labels) {
+        const p = parseWinLabel(l);
+        expect(p, l).not.toBeNull();
+        expect(known.has(p!.symbol), l).toBe(true);
+        expect(p!.count).toBeGreaterThan(0);
+      }
+      if (name === 'cluster') expect(labels.every((l) => l.startsWith('cluster '))).toBe(true);
+    });
+  }
+  it('also reads the suffix forms', () => {
+    expect(parseWinLabel('P1 x4 (from reel 2)')).toEqual({ symbol: 'P1', count: 4 });
+    expect(parseWinLabel('P1 x4 (right)')).toEqual({ symbol: 'P1', count: 4 });
+    expect(parseWinLabel('WD x3 (wild own pay)')).toEqual({ symbol: 'WD', count: 3 });
+    expect(parseWinLabel('L2 x3 (4 paths, connected)')).toEqual({ symbol: 'L2', count: 3 });
+    expect(parseWinLabel('cluster L1 x10')).toEqual({ symbol: 'L1', count: 10 });
   });
 });
