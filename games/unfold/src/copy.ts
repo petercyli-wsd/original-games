@@ -2,6 +2,7 @@ import type { SlotCopy } from '@originals/slots/ui';
 
 export const copy: SlotCopy = {
   featureName: 'Free folds',
+  featureSpins: 'free folds',
   introNote: 'Squares open into animals only',
   featureRule: 'Free folds: squares open into animals only',
   rule: 'Ways pay. Folded squares open into one symbol.',
