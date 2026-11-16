@@ -131,6 +131,8 @@ export interface GateInput {
   oraclePresent: boolean;
   /** The game's RTP (fraction) and where it came from, or null when unknown. */
   rtp: number | null;
+  /** slots:eval's verdict on the RTP band (it fails an mc reading only when more than 3 SE outside); decides when given. */
+  rtpInBand?: boolean;
   /** Why the gated §3 facts fail (hit rate, dry streak p95, max-win reachability); empty when they pass. */
   factFailures: string[];
   /** Catalogue slots this one reskins (code twins + the designer's duplicate_of); empty when none. */
@@ -153,7 +155,7 @@ export function gateReasons(g: GateInput): string[] {
   if (g.hasFeature && (g.scores.feature_clarity ?? 0) < GATE.featureClarity) r.push(`feature clarity ${g.scores.feature_clarity ?? '—'} < ${GATE.featureClarity}`);
   if (!g.oraclePresent) r.push('no oracle.json (run npm run slots:oracle)');
   if (g.rtp == null) r.push('RTP unknown (no RTP in slot-facts.json or oracle.json)');
-  else if (g.rtp < GATE.rtp[0] - 1e-12 || g.rtp > GATE.rtp[1] + 1e-12) r.push(`RTP ${(g.rtp * 100).toFixed(2)}% outside 95.5–96.5%`);
+  else if (!(g.rtpInBand ?? (g.rtp >= GATE.rtp[0] - 1e-12 && g.rtp <= GATE.rtp[1] + 1e-12))) r.push(`RTP ${(g.rtp * 100).toFixed(2)}% outside 95.5–96.5%`);
   r.push(...g.factFailures);
   if (g.reskinOf.length) r.push(`reskin of ${g.reskinOf.join(', ')}`);
   if (g.trademarks?.length) r.push(`trademarked mechanic name: ${g.trademarks.join('; ')}`);

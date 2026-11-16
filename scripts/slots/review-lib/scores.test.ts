@@ -99,6 +99,9 @@ describe('gate', () => {
   it('includes the RTP band edges', () => {
     expect(gateReasons({ ...passing, rtp: 0.955 })).toEqual([]);
     expect(gateReasons({ ...passing, rtp: 0.965 })).toEqual([]);
+    // slots:eval's verdict decides (an mc RTP within 3 SE of the band passes there).
+    expect(gateReasons({ ...passing, rtp: 0.9534, rtpInBand: true })).toEqual([]);
+    expect(gateReasons({ ...passing, rtp: 0.96, rtpInBand: false })[0]).toMatch(/outside/);
   });
 
   it("doesn't gate feature clarity for a pure base game", () => {

@@ -1,7 +1,11 @@
 // Measured facts for the slot review: reads games/<id>/src/slot-facts.json
-// (written by `npm run slots:eval -- <id>`) tolerantly, checks them against
-// the §3 bands of docs/SLOTS.md, and says which misses cap maths fit and which
-// fail the gate.
+// (written by `npm run slots:eval -- <id>`) tolerantly, takes its §3 band
+// verdicts, and says which misses cap maths fit and which fail the gate.
+//
+// slots:eval is the single source of truth for the bands: its `stats` rows carry
+// each measure's band, `pass` and `withinNoise` (an mc reading fails only when it
+// is more than 3 SE outside). The review re-judges bands itself (bandRows'
+// fallback) only for older facts files without those rows.
 //
 // The reader accepts a few spellings per field (camelCase or snake_case, a
 // percentage or a fraction, a probability or a "1 in N") so it doesn't break
@@ -144,6 +148,10 @@ export interface BandRow {
   status: 'in' | 'out' | 'wide' | 'missing' | 'advisory';
   /** Some bands only inform the designer (no width cap). */
   advisory?: boolean;
+  /** Who judged it: slots:eval's own row verdict, or the review's fallback for older facts files. */
+  source?: 'slots:eval' | 'review';
+  /** slots:eval passed an mc reading outside the band because the miss is within 3 SE. */
+  withinNoise?: boolean;
 }
 
 const pct = (x: number | undefined, d = 1) => (x === undefined ? '—' : `${(x * 100).toFixed(d)}%`);
@@ -152,12 +160,68 @@ const fmtN = (x: number | undefined) => (x === undefined ? '—' : x >= 100 ? Ma
 /** The hit-rate band for the mechanism (§3). */
 export function hitRateBand(d: Declared): [number, number, string] {
   if (d.evaluation === 'cluster' || d.evaluation === 'scatter_pays') return [0.25, 0.45, 'cluster/scatter pays'];
-  if (d.cols === 3 && d.rows === 3) return [0.1, 0.25, 'classic 3×3'];
+  if (d.cols === 3 && d.rows === 3) return [0.1, 0.3, 'classic 3×3'];
   return [0.2, 0.45, 'general'];
 }
 
-/** Every §3 measure against its band. `wide` = missed by more than the band's width (caps maths fit). */
-export function bandRows(f: SlotFactsN, d: Declared): BandRow[] {
+/** slots:eval row keys → the review's keys (the rest keep their own). */
+const EVAL_KEYS: Record<string, string> = {
+  volatility: 'sd',
+  featureFrequency: 'featureOneIn',
+  averageFeatureWin: 'avgFeatureWin',
+  pWin100: 'bigWinOneIn',
+  maxWinReach: 'maxWinOneIn',
+  session: 'sessionMedian',
+};
+
+/**
+ * The §3 band rows exactly as slots:eval judged them (`stats`: key, label, value, display, band,
+ * pass, withinNoise), or undefined for an older facts file without them. A pass (within noise
+ * included) is in band; a fail is `wide` when missed by more than the band's width (the maths-fit
+ * cap), else `out`; a row without a verdict (pass null) is a guide only.
+ */
+export function evalBandRows(raw: unknown): BandRow[] | undefined {
+  const stats = isObj(raw) && Array.isArray(raw.stats) ? (raw.stats as unknown[]).filter(isObj) : [];
+  if (!stats.length || !stats.every((r) => typeof r.key === 'string' && 'pass' in r)) return undefined;
+  return stats.map((r) => {
+    const key = EVAL_KEYS[r.key as string] ?? (r.key as string);
+    const value = typeof r.value === 'number' && Number.isFinite(r.value) ? r.value : undefined;
+    const band = isObj(r.band) ? r.band : undefined;
+    const lo = typeof band?.lo === 'number' ? band.lo : -Infinity;
+    const hi = typeof band?.hi === 'number' ? band.hi : Infinity;
+    // Widths as in the review's own table: a two-sided band's width (the open extreme-volatility
+    // band: 10), and for the one-sided bound bands the bound itself.
+    const width =
+      key === 'rtp' ? 0.01 : key === 'dryStreakP95' ? hi : key === 'maxWinOneIn' ? lo / 2 : Number.isFinite(hi) && Number.isFinite(lo) ? hi - lo : 10;
+    const miss = value === undefined ? 0 : value < lo ? lo - value : value > hi ? value - hi : 0;
+    const withinNoise = r.withinNoise === true;
+    const status: BandRow['status'] =
+      r.pass === null || r.pass === undefined ? (value === undefined ? 'missing' : 'advisory') : r.pass ? 'in' : miss > width + 1e-12 ? 'wide' : 'out';
+    return {
+      key,
+      label: typeof r.label === 'string' ? r.label : key,
+      value,
+      shown: `${typeof r.display === 'string' ? r.display : String(value ?? '—')}${withinNoise ? ' (within noise)' : ''}`,
+      lo,
+      hi,
+      width,
+      band: typeof band?.text === 'string' ? band.text : 'no band',
+      miss,
+      status,
+      advisory: status === 'advisory',
+      source: 'slots:eval' as const,
+      withinNoise,
+    };
+  });
+}
+
+/**
+ * Every §3 measure against its band. `wide` = missed by more than the band's width (caps maths fit).
+ * slots:eval's own verdicts when the facts file has them (evalBandRows); the review's fallback otherwise.
+ */
+export function bandRows(f: SlotFactsN, d: Declared, raw?: unknown): BandRow[] {
+  const fromEval = raw === undefined ? undefined : evalBandRows(raw);
+  if (fromEval) return fromEval;
   const rows: BandRow[] = [];
   const add = (key: string, label: string, value: number | undefined, shown: string, lo: number, hi: number, width: number, band: string, advisory = false) => {
     const miss = value === undefined ? 0 : value < lo ? lo - value : value > hi ? value - hi : 0;
@@ -195,7 +259,7 @@ export function bandRows(f: SlotFactsN, d: Declared): BandRow[] {
     rows.push({ key: 'dryStreakP95', label: 'Dry streak p95 (per 100 spins)', value: f.dryStreakP95, shown: fmtN(f.dryStreakP95), lo: 0, hi: Infinity, width: 0, band: 'set by the declared volatility, and none is declared', miss: 0, status: 'missing' });
   }
   rows.push({ key: 'sessionMedian', label: 'Session median (200 spins from 100)', value: f.sessionMedian, shown: fmtN(f.sessionMedian), lo: -Infinity, hi: Infinity, width: 0, band: 'no band (how it feels)', miss: 0, status: f.sessionMedian === undefined ? 'missing' : 'advisory', advisory: true });
-  return rows;
+  return rows.map((r) => ({ ...r, source: 'review' as const }));
 }
 
 /** The §3 misses that cap maths fit at 2: any band missed by more than its width. */

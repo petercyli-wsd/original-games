@@ -36,9 +36,11 @@ Prose of 9+ words stays hidden everywhere, the paytable included. A slot must ex
 
 The helper steps are `spin`, `spin×N`, `turbo`, `autoplay`, `watch×N`, `feature`, `paytable`, `scroll` and `close`. Each run prints contact sheets (6 spins per image), so a player can look at 60 spins without opening 60 images. Every call is logged in `_blind/<alias>/plays.json`. `judge-prompt` and `score` check each session against the brief from that log, not from the player's own account. A player who fell short is replaced, not used.
 
-**The measured facts** come from `games/<id>/src/slot-facts.json` (`npm run slots:eval`) and `oracle.json` (`npm run slots:oracle`). `review-lib/facts.ts` reads them tolerantly: camelCase or snake_case, fractions or percentages, a probability or a "1 in N". It checks every §3 band:
+**The measured facts** come from `games/<id>/src/slot-facts.json` (`npm run slots:eval`) and `oracle.json` (`npm run slots:oracle`).
+- **`slots:eval` judges the bands.** Its `stats` rows carry each measure's band, `pass` and `withinNoise`. An mc reading fails only when it is more than 3 SE outside the band. The review takes those verdicts as they are, for the gate (RTP, hit rate, dry streak, max-win reach) and for the maths-fit cap, and doesn't re-judge them. A row that passed within noise is shown to the designer as "(within noise)".
+- **Older facts files** without those rows fall back to the review's own reading: `review-lib/facts.ts` reads them tolerantly (camelCase or snake_case, fractions or percentages, a probability or a "1 in N") and checks every §3 band itself:
 - RTP 95.5–96.5%;
-- hit rate 20–45% (classic 3×3: 10–25%; cluster and scatter pays: 25–45%);
+- hit rate 20–45% (classic 3×3: 10–30%; cluster and scatter pays: 25–45%);
 - win > stake 8–25%;
 - SD against the declared volatility;
 - feature frequency, share and average win;

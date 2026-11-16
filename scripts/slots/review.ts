@@ -336,6 +336,7 @@ async function score() {
       hasFeature: e.hasFeature,
       oraclePresent: e.oracle.present,
       rtp: e.rtp,
+      rtpInBand: e.rtpInBand,
       factFailures: e.factFailures,
       reskinOf,
       players: merged.players,

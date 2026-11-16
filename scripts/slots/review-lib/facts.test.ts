@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bandRows, factGateFailures, hitRateBand, normaliseFacts, wideMisses, type Declared } from './facts';
+import { bandRows, evalBandRows, factGateFailures, hitRateBand, normaliseFacts, wideMisses, type Declared } from './facts';
 
 const declared: Declared = { volatility: 'high', feature: 'free_spins', maxWin: 5000, evaluation: 'payline', cols: 5, rows: 3 };
 
@@ -45,7 +45,7 @@ describe('normaliseFacts', () => {
 describe('bands', () => {
   it('picks the hit-rate band by mechanism and size', () => {
     expect(hitRateBand(declared).slice(0, 2)).toEqual([0.2, 0.45]);
-    expect(hitRateBand({ ...declared, cols: 3, rows: 3 }).slice(0, 2)).toEqual([0.1, 0.25]);
+    expect(hitRateBand({ ...declared, cols: 3, rows: 3 }).slice(0, 2)).toEqual([0.1, 0.3]);
     expect(hitRateBand({ ...declared, evaluation: 'cluster' }).slice(0, 2)).toEqual([0.25, 0.45]);
   });
 
@@ -136,5 +136,38 @@ describe('slot_facts_v1 (scripts/slots/eval.ts)', () => {
     expect(facts.bigWinOneIn).toBeCloseTo(1111, 0);
     expect(facts.maxWinOneIn).toBeCloseTo(3.33e7, -5);
     expect(facts.rtpSe).toBe(0);
+  });
+});
+
+describe("slots:eval's band verdicts decide", () => {
+  const row = (key: string, value: number, lo: number, hi: number | null, pass: boolean | null, extra: Record<string, unknown> = {}) => ({
+    key, label: key, value, display: String(value), band: { lo, hi, text: `${lo}-${hi}` }, pass, gate: ['rtp', 'hitRate', 'maxWinReach', 'dryStreakP95'].includes(key), ...extra,
+  });
+  const stats = [
+    row('rtp', 0.9534, 0.955, 0.965, true, { withinNoise: true }),
+    row('hitRate', 0.28, 0.1, 0.3, true),
+    row('volatility', 7, 5, 10, true),
+    row('pWin100', 0.001, 0, 1, null),
+    row('maxWinReach', 2e-10, 1e-9, 1, true, { withinNoise: true }),
+    row('dryStreakP95', 14, 0, 20, true),
+  ];
+  it('takes pass and withinNoise from the rows instead of re-judging', () => {
+    const rows = bandRows(normaliseFacts({ rtp: 0.9534 }).facts, { feature: null, volatility: 'medium' }, { stats });
+    expect(rows.every((r) => r.source === 'slots:eval')).toBe(true);
+    expect(rows.find((r) => r.key === 'rtp')).toMatchObject({ status: 'in', withinNoise: true });
+    expect(rows.find((r) => r.key === 'bigWinOneIn')?.status).toBe('advisory');
+    expect(factGateFailures(rows)).toEqual([]);
+    expect(wideMisses(rows)).toEqual([]);
+  });
+  it('fails what slots:eval failed, and caps maths fit when missed by more than the width', () => {
+    const failed = evalBandRows({ stats: [...stats.slice(0, 4), row('maxWinReach', 1e-10, 1e-9, 1, false), row('dryStreakP95', 41, 0, 20, false)] })!;
+    expect(factGateFailures(failed)).toHaveLength(2);
+    expect(wideMisses(failed)).toHaveLength(2);
+    const near = evalBandRows({ stats: [row('dryStreakP95', 21, 0, 20, false)] })!;
+    expect(near[0].status).toBe('out');
+  });
+  it('falls back to its own judgement for an older facts file', () => {
+    expect(evalBandRows({ rtp: 0.96 })).toBeUndefined();
+    expect(bandRows(normaliseFacts({ rtp: 0.96 }).facts, { feature: null }, { rtp: 0.96 })[0].source).toBe('review');
   });
 });

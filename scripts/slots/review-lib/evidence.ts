@@ -326,6 +326,8 @@ export interface SlotEvidence {
   factFailures: string[];
   /** The game's RTP for the gate: slot-facts (the whole game) if present, else the oracle's base RTP for a pure base game. */
   rtp: number | null;
+  /** slots:eval's own RTP band verdict (noise rule applied), when the facts file has one. */
+  rtpInBand?: boolean;
   rtpSource: string;
   hasFeature: boolean;
   /** How the review forces each feature, in order (play.ts featureQueries); empty for a pure base game. */
@@ -358,7 +360,7 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
   if (!declared.volatility) warnings.push('no declared volatility (slot.config.json volatility, or a single manifest volatility)');
   const featureFamilies = oracle.features.flatMap((f) => f.families);
   const signature = signatureOf(spec, oracle, declared, featureFamilies, config);
-  const bands = bandRows(facts, declared);
+  const bands = bandRows(facts, declared, factsRaw);
   // The features a blind player must see (free spins, a respin chain in the base game, or what
   // slot.config.json review.featureQuery lists). A respin-only game is not a pure base game.
   let features: string[] = [];
@@ -391,6 +393,10 @@ export async function buildEvidence(id: string): Promise<SlotEvidence> {
     wideMisses: wideMisses(bands),
     factFailures: [...factGateFailures(bands), ...factsIntegrity(factsRaw, oracle)],
     rtp,
+    rtpInBand: (() => {
+      const row = bands.find((b) => b.key === 'rtp' && b.source === 'slots:eval');
+      return row && row.status !== 'missing' && row.status !== 'advisory' ? row.status === 'in' : undefined;
+    })(),
     rtpSource,
     hasFeature,
     features,
