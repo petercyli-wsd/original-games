@@ -1,40 +1,40 @@
 {
   "version": 2,
-  "overall": 3.24,
+  "overall": 2.88,
   "scores": {
     "theme": 3,
     "readability": 4,
     "feature_clarity": 4,
-    "excitement": 3,
-    "fun": 3,
+    "excitement": 2,
+    "fun": 2,
     "creativity": 3,
-    "maths_fit": 4,
+    "maths_fit": 3,
     "uniqueness": 2,
-    "polish": 3
+    "polish": 4
   },
   "gate": false,
   "gateReasons": [
-    "overall 3.24 < 3.5"
+    "overall 2.88 < 3.5"
   ],
-  "verdict": "A clean, in-band, low-volatility origami reskin of the familiar mystery-reveal ways formula. The unfolding-reel feature is its one memorable moment, but it pays too little, and the base-game reveal is invisible and mislabelled.",
+  "verdict": "A handsome, well-tuned low-volatility origami slot that plays like Mystery Reels on a Buffalo board: its signature 'unfold' happens too fast to see and its free spins barely differ from the base game.",
   "pros": [
-    "Every §3 band is in range, with an exact RTP; the low-volatility shape matches the quiet origami theme.",
-    "The Great Fold's full-reel stacks of folded squares flipping into one symbol is a real sit-up moment that is visibly on-theme (the panel's best moment: two reels of frogs for 20.75x).",
-    "The flat washi symbol set is clean and distinct at size, and the win captions (symbol icon, count, ways, amount, 'Returned' for sub-stake) are honest and readable.",
-    "The feature flow is clear: scatter boxes, a start card, the 'Free spin N of 12' counter, a retrigger popup and an end total."
+    "Every measured band passes, and the low volatility matches the calm origami theme: 42.6% hit rate, dry-streak p95 of 11, 0.2% bust over 200 rounds.",
+    "Coherent, crafted flat-origami art. Every symbol is distinct at size, the animals read as premiums over the paper toys, and the folded tile corner carries the theme onto every cell.",
+    "Very readable wins: gold frames with the rest dimmed, plus a per-win breakdown chip ('Crane x3 · 2 ways = 3.93') that the player checked by hand and found correct.",
+    "Clear feature flow: the trigger bar ('12 free spins · 3 folded suns'), 'Free spin X of 12', a running 'Feature total' and a total-win card with the multiple of the bet."
   ],
   "cons": [
-    "Replace the paytable's 'Carries a value' line for the Folded square with a short rule such as 'Opens into the spin's symbol' (under 9 words). Show it as a symbol tile with its art.",
-    "Make the base-game reveal visible: flip the squares with a brief beat and show the drawn symbol's icon above the reels (for example 'Squares → Fox') before wins are counted, so players see that squares in the base game matter.",
-    "Move or shrink the backdrop paper sun so it doesn't sit as an opaque disc behind reel 4. Keep it outside the reel window or reduce it to a faint outline.",
-    "Shift RTP from base to feature (for example, more squares per feature reel, a feature reveal weighted to premiums, or a growing multiplier per full-reel unfold). That would lift the feature share toward 35% and the average feature win toward 35-50x, and the base game should get fewer 0.3x 'Returned' hits. Also fix the rules wording '3 scatters: 12 great fold' to '3 suns: 12 free spins'."
+    "Make the unfold visible. Let the reels settle showing the blank Folded squares, hold for about 300 ms with the squares outlined, then flip them one reel at a time into the drawn symbol, and keep a small folded-corner marker on cells that were squares. Today the player never saw which tiles had been squares, and 'Squares → Koi' with no win was confusing.",
+    "Give Free folds a real difference from the base game. For example, make revealed squares sticky for the rest of the feature, or draw only premiums (Crane/Fox/Koi/Frog) in free spins instead of 68% lows. Then rebalance the strips so the feature carries 35–45% of the RTP with an average of about 30–40x, instead of 25.7% and 21x. Also change the intro line, since 'Folded squares open every spin' describes the base game too.",
+    "Add honest anticipation: when 2 suns are down and a later reel can still show one (every reel carries a sun), slow the remaining reels and glow the landed suns. Never slow when the trigger can no longer complete.",
+    "Make the special symbols easier to tell apart: put a short 'WILD' fold-label on the Gold foil diamond so it no longer reads as a second Paper star, and make the creased-paper landscape visible behind the board (lighten it a step or let it show through the frame) so the screen isn't just a navy box. Keep the per-win breakdown line in Turbo."
   ],
   "confusions": [
-    "The paytable says the Folded square 'Carries a value', but in play the squares flipped open into a regular symbol (frogs, paper stars). I never saw a value on them.",
-    "Folded squares also landed in the base game (once two side by side), and I couldn't tell whether they did anything there.",
-    "The Great Fold rules read '3 scatters: 12 great fold', which is odd wording; only the start card made clear it means 12 free spins."
+    "The 'Squares -> Koi / Water bomb / Paper star' label appeared on many spins, but by the time the reels settled I couldn't see which tiles had been folded squares, so I didn't know what the reveal had changed (often nothing won).",
+    "Before opening the paytable I wasn't sure the gold foil diamond was the wild; nothing on the board labels it.",
+    "In Turbo, multi-win spins only showed '2 wins = 7.07' without the per-symbol breakdown that normal speed gives."
   ],
   "players": 1,
-  "codeHash": "acf3274abb393810",
+  "codeHash": "0ea3dbe1cee69dff",
   "date": "2026-11-16"
 }
