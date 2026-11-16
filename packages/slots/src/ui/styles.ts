@@ -80,9 +80,9 @@ export const slotStyles = /* css */ `
 .sl-line circle { fill: var(--sl-hi); stroke: var(--sl-bg); stroke-width: 2.5; }
 
 /* ---------- Multiplier reel ---------- */
-.sl-mreel { display: flex; align-items: center; justify-content: center; gap: var(--sp-1); flex-wrap: wrap; }
-.sl-mreel-label { margin-right: var(--sp-2); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
-.sl-mreel-v { min-width: 44px; padding: 4px var(--sp-2); text-align: center; border: 1px solid var(--line); border-radius: 4px; font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
+.sl-mreel { display: flex; align-items: center; justify-content: center; gap: var(--sp-1); flex-wrap: nowrap; max-width: 100%; }
+.sl-mreel-label { flex-shrink: 0; margin-right: var(--sp-2); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
+.sl-mreel-v { min-width: 0; padding: 4px var(--sp-2); white-space: nowrap; text-align: center; border: 1px solid var(--line); border-radius: 4px; font-size: var(--fs-2); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--muted); }
 .sl-mreel-v.on { color: var(--text); border-color: var(--text); background: var(--hover); }
 
 .sl-hist-label { flex-shrink: 0; align-self: center; margin-right: var(--sp-1); font-size: var(--fs-1); font-weight: 600; color: var(--muted); }
@@ -177,6 +177,9 @@ export const slotStyles = /* css */ `
 .sl-facts dd { margin: 0; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 @container (max-width: 760px) {
+  .sl-mreel { gap: 3px; }
+  .sl-mreel-v { flex: 1 1 0; padding: 4px 2px; font-size: var(--fs-1); }
+  .sl-mreel-label { margin-right: var(--sp-1); }
   .sl-card { padding: var(--sp-4); }
   .sl-card-amount { font-size: var(--fs-5); }
   .sl-card-title { font-size: var(--fs-4); }

@@ -74,9 +74,13 @@ export function anticipationPlan(board: number[][], scatterIds: number[], scatte
 
 // ---------------------------------------------------------------- win labels
 
-/** "P2 x3", "L1 x4 (1 ways)", "P1 x8 (count)" → label and count. Null if it doesn't read that way. */
+/**
+ * A win's engine label, whatever evaluator made it: "P2 x3" (payline; also "(right)", "(from reel 2)", "(wild own pay)"),
+ * "L1 x4 (2 ways)" and "L1 x3 (4 paths, connected)" (ways), "cluster L1 x10" (cluster), "P1 x8 (count)" (scatter pays).
+ * Returns the symbol label and the count, or null if it reads none of those.
+ */
 export function parseWinLabel(label: string): { symbol: string; count: number } | null {
-  const m = /^(\S+)\s+x(\d+)/.exec(label);
+  const m = /^(?:cluster\s+)?(\S+)\s+x(\d+)/.exec(label);
   return m ? { symbol: m[1], count: Number(m[2]) } : null;
 }
 
