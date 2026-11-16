@@ -1,0 +1,42 @@
+{
+  "version": 2,
+  "overall": 3,
+  "scores": {
+    "theme": 3,
+    "readability": 4,
+    "feature_clarity": 4,
+    "excitement": 3,
+    "fun": 3,
+    "creativity": 3,
+    "maths_fit": 2,
+    "uniqueness": 2,
+    "polish": 3
+  },
+  "gate": false,
+  "gateReasons": [
+    "overall 3.00 < 3.5",
+    "P(reaching the max win) per round 1 in 3.42e+9 to 4.79e+9 (mc bounds); MC 0 (0 hits / 200,000) outside > 1 in 10⁹"
+  ],
+  "verdict": "A competent, well-tuned fireworks scatter-pays slot whose rocket-wild multiplier is clear and whose finale delivers, but it sits close to Midnight Zone and the Gates of Olympus family, and it caps its climax too low to feel grand.",
+  "pros": [
+    "The Rocket's double job is easy to read: it lights up inside several symbol groups at once, and the caption shows how the multiplier is built ('Multiplier x10 (1 + 9)').",
+    "The feature really changes gear: +5/+10 rockets turn the same board into x16 to x56 spins and results of 46x to 127x, so the finale is a real climax.",
+    "Every measured band is met, at medium volatility as declared, with a 43.5% feature share and a dry-streak p95 of 14.",
+    "The blind player understood the top pay, the trigger and the wild completely; all on-screen rule text is under 9 words."
+  ],
+  "cons": [
+    "Raise the max win to 5,000x or more and add a path that can reach it: for example, let feature rockets also roll +25/+50 rarely, or make the multiplier persist across the Finale spins, so the 1,000x cap is reachable more often than 1 in a billion.",
+    "Make the fireworks go off: play a short burst animation when a rocket lands, and a bigger burst on wins above 5x, and make the skyline backdrop visible around the grid (or remove it from behind the tile gaps, where it shows as stray dark dashes).",
+    "Separate the lows: recolour Palm or Peony away from magenta (the Rocket's colour), and lift the grey Willow and the Sparkler's stick to a lighter tone so they read on navy tiles.",
+    "Show the multiplier only when there's a win to apply it to, or label it 'no win to multiply'; and on multi-win spins, list each paying group (e.g. 'Palm x10 = 0.55, Ring x12 = ...') instead of only '5 wins = 15.60'.",
+    "Cap: maths_fit 3 → 2: P(reaching the max win) per round 1 in 3.42e+9 to 4.79e+9 (mc bounds); MC 0 (0 hits / 200,000) vs > 1 in 10⁹ (a §3 band missed by more than its width)"
+  ],
+  "confusions": [
+    "Before the paytable it was not obvious that 10+ of a symbol were needed; some boards with 8-9 of a symbol paid nothing.",
+    "Base spins often showed a large multiplier (x10, x11) with no win, and I first wondered whether the multiplier was a meter that carried over; it does not.",
+    "Multi-win spins only showed a total ('5 wins = 15.60'), not which symbol paid what."
+  ],
+  "players": 1,
+  "codeHash": "5e2fd28d8c2a7333",
+  "date": "2026-11-16"
+}
