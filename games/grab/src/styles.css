@@ -1,0 +1,58 @@
+/* Grab board. Layout, panel and readouts come from the kit. */
+
+.grab-wheel .wheel {
+  transition: transform var(--spin) cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+.grab-wheel .wedge {
+  stroke: var(--card);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  transition: fill var(--conv) linear;
+}
+.grab-wheel .wedge.green {
+  fill: var(--win);
+}
+.grab-wheel .wedge.red {
+  fill: var(--lose);
+}
+.grab-wheel .wedge.grey {
+  fill: var(--hover);
+}
+.grab-wheel .wedge.landed {
+  stroke: var(--text);
+  stroke-width: 4;
+}
+.grab-wheel .pointer {
+  fill: var(--text);
+  stroke: var(--card);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.grab-wheel .slot {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.grab-wheel .slot.full {
+  fill: var(--accent);
+}
+.grab-wheel .key {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-anchor: middle;
+  fill: var(--muted);
+}
+.og-board.grab-board > svg {
+  max-height: 56vh;
+}
+@container (max-width: 760px) {
+  .og-board.grab-board > svg {
+    max-height: none;
+  }
+  .grab-board .og-instant {
+    left: var(--sp-2);
+    top: var(--sp-2);
+    transform: none;
+  }
+}
