@@ -1,0 +1,56 @@
+/* Fleet board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.fleet {
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.fleet svg {
+  width: 100%;
+  height: auto;
+  max-height: 100%;
+  display: block;
+}
+.fleet .axis {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.fleet .tick {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.fleet .tick.top {
+  stroke: var(--win);
+  stroke-width: 2;
+}
+.fleet .tick-label {
+  fill: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.fleet .rocket {
+  fill: var(--accent);
+}
+.fleet .rocket.win {
+  fill: var(--win);
+}
+.fleet .miss {
+  fill: none;
+  stroke: var(--lose);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.fleet-key {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
+.fleet-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--lose);
+}
