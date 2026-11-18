@@ -1,0 +1,153 @@
+/* Leak board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.lk-game .og-chips .og-chip {
+  font-size: var(--fs-2);
+  padding-inline: 0;
+}
+.lk-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+.lk-board > svg {
+  max-height: 72vh;
+}
+
+.lk text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.lk .head {
+  font-size: var(--fs-1);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.lk .head.end {
+  text-anchor: end;
+}
+
+/* The three areas. Your room has the accent outline. */
+.lk .box {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.lk .box.mine {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+.lk .arrow {
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 2;
+}
+
+/* The exit is the fuse track: a red slot is a fuse used. */
+.lk .fuse {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  stroke-dasharray: 3 4;
+}
+.lk .fuse.used {
+  stroke: var(--lose);
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+
+/* Tokens: green waits, red is in your room or gone. */
+.lk .tok {
+  transition-property: transform;
+  transition-timing-function: ease-in-out;
+}
+.lk .tok.away {
+  visibility: hidden;
+}
+.lk .tok.green .disc {
+  fill: var(--win);
+}
+.lk .tok.red .disc {
+  fill: var(--lose);
+}
+.lk .ring {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+}
+.lk .carry.lift {
+  animation-name: lk-lift;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-out;
+}
+.lk .carry.walk {
+  animation-name: lk-land;
+  animation-fill-mode: forwards;
+  animation-timing-function: ease-in-out;
+}
+@keyframes lk-lift {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-14px);
+  }
+}
+@keyframes lk-land {
+  from {
+    transform: translateY(-14px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* Arrival slots: grey squares, filled white once a token has entered. */
+.lk .slot {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+.lk .slot.full {
+  fill: var(--text);
+  stroke: var(--text);
+}
+
+.lk .count {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+.lk .key {
+  font-size: var(--fs-2);
+  fill: var(--muted);
+}
+
+.lk .bar-bg {
+  fill: var(--lose);
+}
+.lk .bar-win {
+  fill: var(--win);
+}
+.lk .bar-label {
+  font-size: var(--fs-3);
+  font-weight: 600;
+  fill: var(--muted);
+}
+.lk .bar-label.end {
+  text-anchor: end;
+}
+.lk-board .og-instant {
+  top: 55%;
+}
+
+@container (max-width: 760px) {
+  .lk .key,
+  .lk .bar-label,
+  .lk .count {
+    font-size: var(--fs-4);
+  }
+  .lk .head {
+    font-size: var(--fs-3);
+  }
+}
