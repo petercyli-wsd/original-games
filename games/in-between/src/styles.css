@@ -1,0 +1,166 @@
+/* In Between board. Layout, panel and readouts come from the kit. Flat shapes, tokens only. */
+
+.ib-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.ib-wrap.auto {
+  padding-top: calc(var(--sp-6) + var(--sp-3));
+}
+.og-board.ib-board .ib-wrap > svg {
+  display: block;
+  width: 100%;
+  max-height: 58vh;
+  overflow: visible;
+}
+.ib text {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  fill: var(--text);
+  font-size: 20px;
+}
+
+/* slot row */
+.ib-box rect {
+  fill: var(--bg);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.ib-box.post rect {
+  fill: var(--hover);
+  stroke: var(--text);
+}
+.ib-box.placed rect {
+  stroke: var(--accent);
+}
+.ib-box.placed text {
+  fill: var(--accent);
+}
+.ib-box.legal rect {
+  stroke: var(--text);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.ib-box.legal {
+  cursor: pointer;
+  outline: none;
+}
+.ib-box.legal:hover rect,
+.ib-box.legal:focus-visible rect {
+  fill: var(--hover);
+}
+.ib-conn {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+/* number line */
+.ib-cell {
+  transition-property: fill;
+  transition-timing-function: ease;
+}
+.ib-cell.idle {
+  fill: var(--hover);
+}
+.ib-cell.fits {
+  fill: var(--win);
+}
+.ib-cell.none {
+  fill: var(--lose);
+}
+.ib-cell.used {
+  fill: var(--faint);
+}
+.ib-tick {
+  stroke-width: 2;
+}
+.ib-tick.post {
+  stroke: var(--text);
+}
+.ib-tick.placed {
+  stroke: var(--accent);
+}
+.ib-tick.drawn {
+  stroke: var(--muted);
+}
+.ib-tick.bust {
+  stroke: var(--lose);
+  stroke-width: 3;
+}
+.ib .ib-lab {
+  font-size: 16px;
+}
+.ib .ib-lab.drawn {
+  fill: var(--muted);
+}
+.ib .ib-lab.bust {
+  fill: var(--lose);
+}
+.ib .ib-axis {
+  font-size: 14px;
+  fill: var(--faint);
+}
+
+/* the drawn card */
+.ib-card rect {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 1.5;
+}
+.ib-card.bust rect {
+  stroke: var(--lose);
+  stroke-dasharray: none;
+}
+.ib .ib-card.bust text {
+  fill: var(--lose);
+}
+.ib-card {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.ib-card.turning {
+  animation-name: ib-turn;
+  animation-timing-function: ease-in-out;
+}
+.ib-card.turning .front {
+  animation: ib-front 1ms linear both;
+  animation-duration: inherit;
+}
+.ib-card .back {
+  animation-name: ib-back;
+  animation-timing-function: step-end;
+  animation-fill-mode: both;
+}
+.ib-card.turning .front {
+  animation-name: ib-front;
+  animation-timing-function: step-end;
+}
+@keyframes ib-turn {
+  0% { transform: scaleX(1); }
+  50% { transform: scaleX(0.05); }
+  100% { transform: scaleX(1); }
+}
+@keyframes ib-back {
+  0%, 49.9% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+@keyframes ib-front {
+  0%, 49.9% { opacity: 0; }
+  50%, 100% { opacity: 1; }
+}
+
+.ib-key {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+  min-height: 1.4em;
+}
+.ib-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--muted);
+}
