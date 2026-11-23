@@ -1,0 +1,99 @@
+/* Top Out board. Layout, panel and readouts come from the kit; colours are the kit's tokens. */
+
+.to-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+}
+.to-svg {
+  width: 100%;
+  max-width: 520px;
+  max-height: 100%;
+  display: block;
+}
+.to-wall {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.to-wall.on {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.to-wall.me {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.to-wall.me.on {
+  stroke-width: 3;
+}
+.to-ground {
+  stroke: var(--line-strong);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.to-hold {
+  fill: var(--faint);
+}
+.to-hold.passed {
+  fill: var(--muted);
+}
+.to-hold.aim {
+  fill: var(--bg);
+  stroke: var(--text);
+  stroke-width: 2;
+}
+.to-hold.slip {
+  fill: var(--lose);
+  stroke: none;
+}
+.to-climber {
+  transition-property: transform;
+  transition-timing-function: ease-out;
+}
+.to-man {
+  fill: var(--text);
+  stroke: var(--bg);
+  stroke-width: 2;
+}
+.to-man.me {
+  fill: var(--accent);
+}
+.to-label {
+  text-anchor: middle;
+  fill: var(--muted);
+  font-size: var(--fs-3);
+  font-weight: 600;
+  font-family: inherit;
+}
+.to-label.me {
+  fill: var(--text);
+}
+.to-mark {
+  transition-property: transform;
+  transition-timing-function: ease-out;
+}
+.to-mark line {
+  stroke: var(--text);
+  stroke-width: 1;
+}
+.to-mark text {
+  fill: var(--text);
+  font-size: var(--fs-1);
+  font-weight: 600;
+  text-anchor: end;
+  font-family: inherit;
+}
+.to-key {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-1);
+  text-align: center;
+}
+.to-blocked {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-1);
+}
