@@ -1,0 +1,82 @@
+/* Turf board. Layout, panel and readouts come from the kit; colours are the kit's tokens.
+   Accent = your paint and arrows; --muted = the house; --bg = empty; the light is --text. */
+
+.tf-game .og-chips .og-chip {
+  font-size: var(--fs-2);
+  padding-inline: 0;
+}
+.tf-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  text-align: center;
+  color: var(--lose);
+}
+.tf-board > svg {
+  max-height: 64vh;
+}
+
+.tf text {
+  font-family: inherit;
+  fill: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.tf .count {
+  font-size: var(--fs-3);
+  font-weight: 600;
+}
+.tf .count.you {
+  fill: var(--accent);
+}
+.tf .count.house {
+  fill: var(--muted);
+}
+.tf .end {
+  text-anchor: end;
+}
+.tf .key {
+  font-size: var(--fs-2);
+  fill: var(--muted);
+}
+
+.tf .cell {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.tf .cell.empty {
+  fill: var(--bg);
+}
+.tf .cell.you {
+  fill: var(--accent);
+}
+.tf .cell.house {
+  fill: var(--muted);
+}
+
+.tf .arrow.you {
+  fill: var(--accent);
+}
+.tf .arrow.house {
+  fill: var(--muted);
+}
+.tf .arrow.scan {
+  fill: var(--text);
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.tf .last {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+}
+
+.tf-board .og-instant {
+  top: 55%;
+}
+
+@container (max-width: 760px) {
+  .tf .key,
+  .tf .count {
+    font-size: var(--fs-4);
+  }
+}
