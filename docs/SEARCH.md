@@ -1,5 +1,7 @@
 # Search results
 
+> **Loop paused 2026-11-24: backlog full.** 12 kept games have not been rated by the team yet (Upsets, Stepladder v2, Last Wicket v2, Card Duel, Brew, Fan Out, Leak, Fleet, Grab, Top Out, In Between, Turf). The loop stops at 12 so the team is not buried. Rate some of them, then restart with `/loop /search-games cycles-per-day=2 builds=3`. Cycles 13 to 16 kept 2, 1, 1 and 1 games; Turf (4.15) is the best AI score so far, and the strongest ideas had a new board, not a ladder.
+
 Games found by the unattended `/search-games` loop (branch `search`). Each one passed the AI gate (overall ≥ 3.5, not flagged as a reskin) and the team-derived checks. The AI can filter but can't rank among games that pass, so these are handed to the team to rate. Newest first.
 
 | Date | Id | Name | Rule | AI overall | Clarity (odds / win / simplicity) | Fun | Uniqueness | p99 steps | Closest game → difference | Team should judge |
